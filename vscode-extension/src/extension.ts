@@ -89,7 +89,7 @@ function registerCommands(context: vscode.ExtensionContext, dispatcher: VSCodeMa
                 
                 vscode.window.showInformationMessage(`✅ Created file: ${filename}`);
             } catch (error) {
-                vscode.window.showErrorMessage(`❌ Failed to create file: ${error.message}`);
+                vscode.window.showErrorMessage(`❌ Failed to create file: ${(error as any).message}`);
             }
         }
     );
@@ -112,7 +112,7 @@ function registerCommands(context: vscode.ExtensionContext, dispatcher: VSCodeMa
                 
                 vscode.window.showInformationMessage('✅ Content inserted at cursor');
             } catch (error) {
-                vscode.window.showErrorMessage(`❌ Failed to insert content: ${error.message}`);
+                vscode.window.showErrorMessage(`❌ Failed to insert content: ${(error as any).message}`);
             }
         }
     );
@@ -138,7 +138,7 @@ function registerCommands(context: vscode.ExtensionContext, dispatcher: VSCodeMa
                     vscode.window.showInformationMessage(`Applied suggestion: ${suggestionData.description}`);
                 }
             } catch (error) {
-                vscode.window.showErrorMessage(`❌ Failed to apply suggestion: ${error.message}`);
+                vscode.window.showErrorMessage(`❌ Failed to apply suggestion: ${(error as any).message}`);
             }
         }
     );
@@ -164,7 +164,7 @@ function registerCommands(context: vscode.ExtensionContext, dispatcher: VSCodeMa
                 
                 await vscode.window.showTextDocument(document);
             } catch (error) {
-                vscode.window.showErrorMessage(`❌ Failed to show stats: ${error.message}`);
+                vscode.window.showErrorMessage(`❌ Failed to show stats: ${(error as any).message}`);
             }
         }
     );

@@ -151,10 +151,10 @@ export class OrchestratorAgent extends ChatAgent {
             );
             
         } catch (error) {
-            stream.markdown(`❌ **Error during orchestration**: ${error.message}\n\n`);
+            stream.markdown(`❌ **Error during orchestration**: ${(error as any).message}\n\n`);
             
             // Fallback to single agent
-            stream.markdown(`💡 **Fallback**: Routing to @${intent?.agent || 'codesmith'} for direct assistance...\n\n`);
+            stream.markdown(`💡 **Fallback**: Routing to @codesmith for direct assistance...\n\n`);
             
             // You could implement fallback logic here
             await this.handleFallback(prompt, stream, token);
@@ -260,7 +260,7 @@ export class OrchestratorAgent extends ChatAgent {
             );
 
         } catch (error) {
-            stream.markdown(`❌ Error creating workflow: ${error.message}`);
+            stream.markdown(`❌ Error creating workflow: ${(error as any).message}`);
         }
     }
 
@@ -282,7 +282,7 @@ export class OrchestratorAgent extends ChatAgent {
             stream.markdown(response);
 
         } catch (error) {
-            stream.markdown(`❌ Fallback also failed: ${error.message}`);
+            stream.markdown(`❌ Fallback also failed: ${(error as any).message}`);
         }
     }
 

@@ -43,8 +43,8 @@ export class VSCodeMasterDispatcher {
         } catch (error) {
             return {
                 status: 'error',
-                content: `Error processing request: ${error.message}`,
-                metadata: { error: error.message }
+                content: `Error processing request: ${(error as any).message}`,
+                metadata: { error: (error as any).message }
             };
         }
     }
@@ -269,7 +269,7 @@ export class VSCodeMasterDispatcher {
                 
             } catch (error) {
                 finalResult.status = 'error';
-                finalResult.content += `❌ Error in ${step.description}: ${error.message}\n\n`;
+                finalResult.content += `❌ Error in ${step.description}: ${(error as any).message}\n\n`;
             }
         }
 

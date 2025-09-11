@@ -7,6 +7,7 @@
     "sourceMap": true,
     "rootDir": "src",
     "strict": true,
+    "useUnknownInCatchVariables": false,
     "moduleResolution": "node",
     "baseUrl": "./",
     "paths": {

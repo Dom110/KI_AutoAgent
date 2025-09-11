@@ -2,3 +2,6 @@
 __pycache__/
 temp_profile/
 venv/
+vscode-extension/node_modules/
+vscode-extension/out/
+vscode-extension/package-lock.json

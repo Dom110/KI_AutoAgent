@@ -80,8 +80,8 @@ export abstract class ChatAgent {
         } catch (error) {
             return {
                 status: 'error',
-                content: `Error executing ${step.description}: ${error.message}`,
-                metadata: { error: error.message, step: step.id }
+                content: `Error executing ${step.description}: ${(error as any).message}`,
+                metadata: { error: (error as any).message, step: step.id }
             };
         }
     }
@@ -207,7 +207,7 @@ export abstract class ChatAgent {
     protected async handleError(error: Error, stream: vscode.ChatResponseStream): Promise<void> {
         console.error(`Error in ${this.config.fullName}:`, error);
         
-        stream.markdown(`❌ **Error**: ${error.message}\n\n`);
+        stream.markdown(`❌ **Error**: ${(error as any).message}\n\n`);
         stream.markdown(`💡 **Suggestions:**\n`);
         stream.markdown(`- Check your API keys in settings\n`);
         stream.markdown(`- Verify your internet connection\n`);

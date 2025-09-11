@@ -64,10 +64,10 @@ export class AnthropicService {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: { message: response.statusText } }));
-                throw new Error(`Anthropic API error: ${errorData.error?.message || response.statusText}`);
+                throw new Error(`Anthropic API error: ${(errorData as any).error?.message || response.statusText}`);
             }
 
-            const data: ChatResponse = await response.json();
+            const data= await response.json() as ChatResponse;
             
             if (!data.content || data.content.length === 0) {
                 throw new Error('No response from Anthropic API');

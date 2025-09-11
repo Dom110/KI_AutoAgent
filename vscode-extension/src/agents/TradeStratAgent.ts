@@ -115,7 +115,7 @@ export class TradeStratAgent extends ChatAgent {
             };
 
         } catch (error) {
-            throw new Error(`Failed to process ${step.id}: ${error.message}`);
+            throw new Error(`Failed to process ${step.id}: ${(error as any).message}`);
         }
     }
 
@@ -169,7 +169,7 @@ export class TradeStratAgent extends ChatAgent {
             );
 
         } catch (error) {
-            stream.markdown(`❌ Error developing strategy: ${error.message}`);
+            stream.markdown(`❌ Error developing strategy: ${(error as any).message}`);
         }
     }
 
@@ -213,7 +213,7 @@ export class TradeStratAgent extends ChatAgent {
             );
 
         } catch (error) {
-            stream.markdown(`❌ Error creating backtesting framework: ${error.message}`);
+            stream.markdown(`❌ Error creating backtesting framework: ${(error as any).message}`);
         }
     }
 
@@ -257,7 +257,7 @@ export class TradeStratAgent extends ChatAgent {
             );
 
         } catch (error) {
-            stream.markdown(`❌ Error implementing risk management: ${error.message}`);
+            stream.markdown(`❌ Error implementing risk management: ${(error as any).message}`);
         }
     }
 
@@ -303,7 +303,7 @@ export class TradeStratAgent extends ChatAgent {
             }
 
         } catch (error) {
-            stream.markdown(`❌ Error processing trading request: ${error.message}`);
+            stream.markdown(`❌ Error processing trading request: ${(error as any).message}`);
         }
     }
 

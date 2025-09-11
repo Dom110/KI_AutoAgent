@@ -105,7 +105,7 @@ export class ArchitectAgent extends ChatAgent {
             };
 
         } catch (error) {
-            throw new Error(`Failed to process ${step.id}: ${error.message}`);
+            throw new Error(`Failed to process ${step.id}: ${(error as any).message}`);
         }
     }
 
@@ -148,7 +148,7 @@ export class ArchitectAgent extends ChatAgent {
             );
 
         } catch (error) {
-            stream.markdown(`❌ Error creating design: ${error.message}`);
+            stream.markdown(`❌ Error creating design: ${(error as any).message}`);
         }
     }
 
@@ -185,7 +185,7 @@ export class ArchitectAgent extends ChatAgent {
             );
 
         } catch (error) {
-            stream.markdown(`❌ Error analyzing architecture: ${error.message}`);
+            stream.markdown(`❌ Error analyzing architecture: ${(error as any).message}`);
         }
     }
 
@@ -218,7 +218,7 @@ export class ArchitectAgent extends ChatAgent {
             );
 
         } catch (error) {
-            stream.markdown(`❌ Error creating plan: ${error.message}`);
+            stream.markdown(`❌ Error creating plan: ${(error as any).message}`);
         }
     }
 
@@ -243,7 +243,7 @@ export class ArchitectAgent extends ChatAgent {
             stream.markdown(response);
 
         } catch (error) {
-            stream.markdown(`❌ Error processing request: ${error.message}`);
+            stream.markdown(`❌ Error processing request: ${(error as any).message}`);
         }
     }
 

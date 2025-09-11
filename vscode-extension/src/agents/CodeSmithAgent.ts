@@ -110,7 +110,7 @@ export class CodeSmithAgent extends ChatAgent {
             };
 
         } catch (error) {
-            throw new Error(`Failed to process ${step.id}: ${error.message}`);
+            throw new Error(`Failed to process ${step.id}: ${(error as any).message}`);
         }
     }
 
@@ -159,7 +159,7 @@ export class CodeSmithAgent extends ChatAgent {
             );
 
         } catch (error) {
-            stream.markdown(`❌ Error during implementation: ${error.message}`);
+            stream.markdown(`❌ Error during implementation: ${(error as any).message}`);
         }
     }
 
@@ -205,7 +205,7 @@ export class CodeSmithAgent extends ChatAgent {
             }
 
         } catch (error) {
-            stream.markdown(`❌ Error during optimization: ${error.message}`);
+            stream.markdown(`❌ Error during optimization: ${(error as any).message}`);
         }
     }
 
@@ -250,7 +250,7 @@ export class CodeSmithAgent extends ChatAgent {
             );
 
         } catch (error) {
-            stream.markdown(`❌ Error generating tests: ${error.message}`);
+            stream.markdown(`❌ Error generating tests: ${(error as any).message}`);
         }
     }
 
@@ -288,7 +288,7 @@ export class CodeSmithAgent extends ChatAgent {
             }
 
         } catch (error) {
-            stream.markdown(`❌ Error processing request: ${error.message}`);
+            stream.markdown(`❌ Error processing request: ${(error as any).message}`);
         }
     }
 
