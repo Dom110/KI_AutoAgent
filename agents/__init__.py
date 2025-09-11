@@ -11,6 +11,7 @@ from .reviewer_gpt import ReviewerGPT
 from .fixer_bot import FixerBot
 from .trade_strat import TradeStrat
 from .research_bot import ResearchBot
+from .opus_arbitrator import OpusArbitrator
 
 __all__ = [
     'BaseAgent',
@@ -20,7 +21,8 @@ __all__ = [
     'ReviewerGPT',
     'FixerBot',
     'TradeStrat',
-    'ResearchBot'
+    'ResearchBot',
+    'OpusArbitrator'
 ]
 
 # Agent Registry
@@ -31,5 +33,6 @@ AVAILABLE_AGENTS = {
     "ReviewerGPT": ReviewerGPT,
     "FixerBot": FixerBot,
     "TradeStrat": TradeStrat,
-    "ResearchBot": ResearchBot
+    "ResearchBot": ResearchBot,
+    "OpusArbitrator": OpusArbitrator
 }

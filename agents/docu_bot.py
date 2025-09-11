@@ -7,7 +7,7 @@ from .base_agent import BaseAgent
 
 class DocuBot(BaseAgent):
     """
-    Documentation Expert mit GPT-4o
+    Documentation Expert mit GPT-4o (Nov 2024)
     Spezialisiert auf klare, strukturierte Dokumentation
     """
     
@@ -15,7 +15,7 @@ class DocuBot(BaseAgent):
         super().__init__(
             name="DocuBot",
             role="Documentation Specialist",
-            model="gpt-4o"
+            model="gpt-4o-2024-11-20"
         )
         
         self.temperature = 0.3  # Lower for consistent documentation

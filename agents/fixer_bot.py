@@ -7,7 +7,7 @@ from .base_agent import BaseAgent
 
 class FixerBot(BaseAgent):
     """
-    Code Fixing Expert mit Claude 3.5 Sonnet
+    Code Fixing Expert mit Claude Sonnet 4 (2025)
     Spezialisiert auf Fehlerbehebung und Optimierung
     """
     
@@ -15,7 +15,7 @@ class FixerBot(BaseAgent):
         super().__init__(
             name="FixerBot",
             role="Bug Fixer & Optimizer",
-            model="claude-3-5-sonnet-20241022"
+            model="claude-sonnet-4-20250514"
         )
         
         self.temperature = 0.1  # Very low for precise fixes

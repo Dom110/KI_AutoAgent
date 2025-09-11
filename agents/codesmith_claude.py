@@ -1,6 +1,6 @@
 """
 CodeSmithClaude - Python Developer Agent
-Spezialisiert auf Code-Generierung mit Claude 3.5 Sonnet
+Spezialisiert auf Code-Generierung mit Claude Sonnet 4 (2025)
 """
 from typing import Dict, Any, List
 from .base_agent import BaseAgent
@@ -8,14 +8,14 @@ from .base_agent import BaseAgent
 class CodeSmithClaude(BaseAgent):
     """
     Expert Python Developer mit Trading-Fokus
-    Nutzt Claude 3.5 Sonnet für beste Code-Qualität
+    Nutzt Claude Sonnet 4 (2025) für überlegene Code-Qualität
     """
     
     def __init__(self):
         super().__init__(
             name="CodeSmithClaude",
             role="Python Developer",
-            model="claude-3-5-sonnet-20241022"
+            model="claude-sonnet-4-20250514"
         )
         
         self.temperature = 0.2  # Lower for more consistent code

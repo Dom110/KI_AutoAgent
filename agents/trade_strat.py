@@ -7,15 +7,15 @@ from .base_agent import BaseAgent
 
 class TradeStrat(BaseAgent):
     """
-    Trading Strategy Expert mit Claude 3.5 Sonnet
-    Entwickelt und optimiert Trading-Strategien
+    Trading Strategy Expert mit Claude Sonnet 4 (2025)
+    Entwickelt und optimiert Trading-Strategien mit KI der nächsten Generation
     """
     
     def __init__(self):
         super().__init__(
             name="TradeStrat",
             role="Trading Strategy Developer",
-            model="claude-3-5-sonnet-20241022"
+            model="claude-sonnet-4-20250514"
         )
         
         self.temperature = 0.3  # Balanced for creativity and precision

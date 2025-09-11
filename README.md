@@ -1,8 +1,8 @@
 # 🤖 KI AutoAgent System
 
-**Intelligentes Multi-Agent AI Development Platform**
+**Universal Multi-Agent AI Development Platform**
 
-Ein revolutionäres System, das automatisch spezialisierte KI-Agenten orchestriert, um komplexe Entwicklungsaufgaben zu lösen. Stelle einfach eine Aufgabe und das System entscheidet intelligent, welche Agenten zum Einsatz kommen.
+Ein revolutionäres, domain-agnostisches System, das automatisch spezialisierte KI-Agenten orchestriert, um komplexe Entwicklungsaufgaben in **beliebigen Softwareprojekten** zu lösen. Stelle einfach eine Aufgabe und das System erkennt automatisch den Projekttyp und orchestriert die passenden Agenten und Workflows.
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/yourusername/KI_AutoAgent)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://python.org)
@@ -10,13 +10,43 @@ Ein revolutionäres System, das automatisch spezialisierte KI-Agenten orchestrie
 
 ## 🌟 Kern-Features
 
+- **🌍 Universal Project Support** - Arbeitet mit beliebigen Softwareprojekten und Domains
 - **🤖 7 Spezialisierte KI-Agenten** - Jeder ist Experte in seinem Bereich
-- **🧠 Intelligente Orchestrierung** - Automatische Aufgabenverteilung basierend auf Intent-Erkennung  
+- **🧠 Intelligente Orchestrierung** - Automatische Projektyp-Erkennung und Workflow-Optimierung
+- **🔧 Domain-spezifische Kontexte** - Trading, Web Development, APIs, Desktop Apps, etc.
+- **📋 Adaptive Workflows** - Maßgeschneiderte Entwicklungszyklen je nach Projekttyp
 - **⚡ Parallele Ausführung** - Optimierte Workflows für maximale Geschwindigkeit
 - **📈 Lernendes System** - Wird mit jeder Nutzung besser und effizienter
 - **🎛️ Moderne KI-Modelle** - GPT-4o, Claude 3.5 Sonnet, Perplexity Pro
 - **💻 Intuitive CLI** - Schöne, interaktive Benutzeroberfläche
 - **🔍 Echtzeit-Recherche** - Live Web-Suche für aktuelle Informationen
+
+## 🎯 Unterstützte Projekttypen
+
+Das KI AutoAgent System erkennt automatisch verschiedene Projekttypen und wendet spezialisierte Kontexte und Workflows an:
+
+### 💹 **Trading Systems**
+- **Spezialisierung**: RON Strategy, Backtesting, Risk Management
+- **Quality Gates**: Engine Parity, Trading System Validation, RON Strategy Compliance
+- **Workflows**: 12-stufiger Trading Development Lifecycle
+- **Agenten**: TradeStrat (Lead), ArchitectGPT, CodeSmithClaude
+
+### 🌐 **Web Applications** 
+- **Spezialisierung**: REST APIs, Frontend Development, Security-First Design
+- **Quality Gates**: OWASP Top 10 Security, Performance Optimization
+- **Workflows**: 8-stufiger Software Development Lifecycle  
+- **Agenten**: ArchitectGPT (Lead), CodeSmithClaude, ReviewerGPT
+
+### 📱 **Generic Software Projects**
+- **Spezialisierung**: Cross-Platform Development, Clean Architecture
+- **Quality Gates**: Code Quality, Performance, Security Best Practices
+- **Workflows**: Standard Software Development Lifecycle
+- **Agenten**: Dynamic assignment based on requirements
+
+### 🔮 **Erweiterbar für beliebige Domains**
+- **Plugin Architecture**: Neue Projekttypen einfach hinzufügbar
+- **Custom Workflows**: Domain-spezifische Entwicklungszyklen
+- **Specialized Quality Gates**: Branchenspezifische Validierungsregeln
 
 ## 🤖 Die Agenten im Detail
 
@@ -214,14 +244,50 @@ KI-Agent> Erstelle einen Trading Bot mit Momentum-Strategie
 ### Direkter Modus
 
 ```bash
-# Einzelne Aufgabe ausführen
+# Einzelne Aufgabe ausführen (automatische Projektyp-Erkennung)
 python cli.py --task "Debug diesen Code: def add(a,b): return a-b"
+
+# Spezifischen Projekttyp angeben
+python cli.py --task "Erstelle eine REST API für ein Blog-System" --project-type web_app
+
+# Trading-System entwickeln
+python cli.py --task "Entwickle RON Momentum Strategie" --project-type trading
 
 # Test-Szenarien ausführen
 python cli.py --test
 ```
 
 ## 📝 Praktische Beispiele
+
+Das KI AutoAgent System demonstriert seine universelle Anwendbarkeit durch intelligente Projektyp-Erkennung und spezialisierte Workflows:
+
+### 🎯 Automatische Projektyp-Erkennung
+
+```bash
+# System erkennt automatisch "Trading" aus Keywords
+KI-Agent> Entwickle eine Momentum-Strategie mit RSI-Indikatoren
+
+🎯 Projekt erkannt: Trading System (95% Confidence)
+📋 Kontext: TradingProjectContext mit RON Strategy Spezialisierung  
+🔄 Workflow: Trading System Development (12 Schritte)
+⚙️  Agenten: TradeStrat (Lead) -> ArchitectGPT -> CodeSmithClaude -> ReviewerGPT
+
+# System erkennt automatisch "Web App" aus Keywords  
+KI-Agent> Baue eine REST API für Benutzerregistrierung mit JWT
+
+🎯 Projekt erkannt: Web Application (92% Confidence)
+📋 Kontext: WebAppProjectContext mit Security-First Approach
+🔄 Workflow: Software Development Lifecycle (8 Schritte)  
+⚙️  Agenten: ArchitectGPT (Lead) -> CodeSmithClaude -> ReviewerGPT -> DocuBot
+
+# Fallback auf Generic für unklare Anfragen
+KI-Agent> Optimiere die Performance dieser Anwendung
+
+🎯 Projekt erkannt: Generic Software (70% Confidence)
+📋 Kontext: GenericProjectContext mit Best Practices
+🔄 Workflow: Generic Software Development (8 Schritte)
+⚙️  Agenten: ReviewerGPT (Lead) -> FixerBot -> CodeSmithClaude
+```
 
 ### 🌐 Web Development
 
@@ -351,13 +417,30 @@ KI_AUTOAGENT_DEBUG=false         # Debug-Logs aktivieren
 
 ```
 KI_AutoAgent/
-├── orchestration/           # 🎛️ Orchestrierungs-System
-│   ├── master_dispatcher.py    # Zentrale Koordination
-│   ├── intent_classifier.py    # Intent-Erkennung (9 Typen)  
-│   ├── workflow_generator.py   # Workflow-Planung & Optimierung
-│   ├── execution_engine.py     # Parallele Ausführung
-│   └── learning_system.py      # Adaptives Lernen
-├── agents/                  # 🤖 KI-Agenten
+├── orchestration/           # 🎛️ Universal Orchestrierungs-System
+│   ├── master_dispatcher.py        # Zentrale Koordination & Projektyp-Erkennung
+│   ├── intent_classifier.py        # Intent-Erkennung (9 Typen)  
+│   ├── workflow_generator.py       # Adaptive Workflow-Planung
+│   ├── execution_engine.py         # Parallele Ausführung
+│   ├── learning_system.py          # Adaptives Lernen
+│   ├── shared_context.py           # Context Management & Factory
+│   ├── project_contexts/           # 🎯 Domain-spezifische Kontexte
+│   │   ├── base_project_context.py     # Abstract Base Class
+│   │   ├── trading_project_context.py  # Trading Systems (RON, Risk Management)
+│   │   ├── web_app_context.py          # Web Applications (Security-First)
+│   │   └── ... (erweiterbar)           # Neue Domains einfach hinzufügbar
+│   ├── quality_gates/              # 🛡️ Domain-spezifische Qualitätssicherung
+│   │   ├── base_quality_gate.py        # Abstract Quality Gate
+│   │   ├── trading_quality_gate.py     # Financial Systems Validation
+│   │   ├── security_quality_gate.py    # OWASP Top 10 Security
+│   │   ├── ron_strategy_quality_gate.py # RON Strategy Compliance
+│   │   └── engine_parity_quality_gate.py # Live/Backtest Parity
+│   └── workflows/                  # 📋 Adaptive Development Workflows
+│       ├── base_workflow.py            # Abstract Workflow Interface
+│       ├── generic_software_workflow.py # Standard SDLC (8 Steps)
+│       ├── trading_system_workflow.py   # Trading SDLC (12 Steps)
+│       └── ... (erweiterbar)            # Custom Domain Workflows
+├── agents/                  # 🤖 KI-Agenten (unchanged)
 │   ├── base_agent.py           # Basis-Klasse für alle Agenten
 │   ├── architect_gpt.py        # System-Architekt (GPT-4o)
 │   ├── codesmith_claude.py     # Python-Developer (Claude 3.5)
@@ -366,28 +449,161 @@ KI_AutoAgent/
 │   ├── fixer_bot.py           # Bug-Hunter (Claude 3.5)
 │   ├── trade_strat.py         # Trading-Expert (Claude 3.5)  
 │   └── research_bot.py        # Research-Analyst (Perplexity Pro)
-├── cli.py                   # 💻 Command Line Interface
+├── cli.py                   # 💻 Universal CLI Interface
 ├── test_system.py          # 🧪 System-Tests
 ├── config.yaml             # ⚙️ Konfiguration
 └── requirements.txt        # 📦 Dependencies
 ```
 
-### Workflow-Ablauf
+### Universal Workflow-Ablauf
 
 ```
 1. User Input 
    ↓
-2. Intent Classification (9 Intent-Typen erkannt)
+2. Project Type Detection (Keyword-basierte Analyse + Machine Learning)
+   ↓
+3. Context Loading (Domain-spezifischer Kontext + Quality Gates)
+   ↓
+4. Intent Classification (9 Intent-Typen erkannt)
    ↓  
-3. Workflow Generation (Optimiert für Parallelisierung)
+5. Adaptive Workflow Selection (Generic/Trading/Web/Custom)
    ↓
-4. Agent Selection & Orchestration
+6. Agent Selection & Orchestration (Kontext-bewusste Zuteilung)
    ↓
-5. Parallel/Sequential Execution  
+7. Parallel/Sequential Execution (Domain-spezifische Steps)
    ↓
-6. Result Aggregation
+8. Quality Gate Validation (Domain-spezifische Qualitätsprüfung)
    ↓
-7. Learning & Improvement (für zukünftige Workflows)
+9. Result Aggregation & Context Integration
+   ↓
+10. Learning & Improvement (für zukünftige Workflows)
+```
+
+## 🔧 System für neue Domains erweitern
+
+Das KI AutoAgent System ist vollständig erweiterbar für neue Projekttypen und Domains:
+
+### 1. Neuen Project Context erstellen
+
+```python
+# orchestration/project_contexts/my_domain_context.py
+from .base_project_context import BaseProjectContext, ProjectSpecification
+
+class MyDomainProjectContext(BaseProjectContext):
+    def __init__(self, project_name: str = "My Domain Project"):
+        self.project_name = project_name
+        self.project_type = "my_domain"
+    
+    def get_domain_instructions(self) -> str:
+        return """
+        DOMAIN-SPECIFIC INSTRUCTIONS:
+        
+        1. Domain Requirements:
+           - Specific requirements for your domain
+           - Industry standards and regulations
+           - Best practices and patterns
+        
+        2. Quality Standards:
+           - Domain-specific quality criteria
+           - Validation requirements
+           - Performance benchmarks
+        
+        3. Agent Enhancements:
+           - Specialized instructions for agents
+           - Domain-specific tools and libraries
+        """
+    
+    def get_quality_gates(self) -> List[str]:
+        return ["MyDomainQualityGate", "SecurityQualityGate"]
+    
+    def get_project_specifics(self) -> ProjectSpecification:
+        return ProjectSpecification(
+            name=self.project_name,
+            domain="My Domain",
+            programming_languages=["Python", "JavaScript"],
+            frameworks=["Domain-Framework-1", "Domain-Framework-2"],
+            architecture_patterns=["Domain-Pattern"],
+            special_requirements=["Domain-Requirement-1"],
+            compliance_standards=["Domain-Standard"]
+        )
+```
+
+### 2. Quality Gate implementieren
+
+```python
+# orchestration/quality_gates/my_domain_quality_gate.py
+from .base_quality_gate import BaseQualityGate, QualityCheck, QualityGateResult
+
+class MyDomainQualityGate(BaseQualityGate):
+    def __init__(self):
+        super().__init__("MyDomainQualityGate", "My Domain Validation")
+    
+    def validate_output(self, agent_output: str, context: dict) -> QualityGateResult:
+        checks = []
+        
+        # Domain-specific validation logic
+        if "domain_requirement_1" in agent_output.lower():
+            checks.append(QualityCheck(
+                name="Domain Requirement 1",
+                passed=True,
+                score=1.0,
+                details="Domain requirement properly addressed"
+            ))
+        
+        return self._create_result(checks)
+```
+
+### 3. Custom Workflow erstellen
+
+```python
+# orchestration/workflows/my_domain_workflow.py
+from .base_workflow import BaseWorkflow
+
+class MyDomainWorkflow(BaseWorkflow):
+    def __init__(self):
+        super().__init__("My Domain Workflow")
+        self.workflow_steps = [
+            "domain_analysis",
+            "domain_design", 
+            "domain_implementation",
+            "domain_validation"
+        ]
+    
+    def get_step_agents(self, step: str) -> List[str]:
+        return {
+            "domain_analysis": ["ResearchBot", "ArchitectGPT"],
+            "domain_design": ["ArchitectGPT"],
+            "domain_implementation": ["CodeSmithClaude"],
+            "domain_validation": ["ReviewerGPT"]
+        }.get(step, ["CodeSmithClaude"])
+```
+
+### 4. System registrieren
+
+```python
+# orchestration/shared_context.py - ProjectContextFactory erweitern
+context_map = {
+    'trading': TradingProjectContext,
+    'web_app': WebAppProjectContext,
+    'my_domain': MyDomainProjectContext,  # Neue Domain hinzufügen
+}
+
+# orchestration/workflows/__init__.py - Workflow registrieren
+WORKFLOW_REGISTRY = {
+    'generic': GenericSoftwareWorkflow,
+    'trading': TradingSystemWorkflow,
+    'my_domain': MyDomainWorkflow,  # Neuen Workflow hinzufügen
+}
+```
+
+### 5. Sofort verwendbar!
+
+```bash
+# System erkennt automatisch neue Domain
+python cli.py --task "Entwickle meine Domain-Anwendung" --project-type my_domain
+
+# Oder automatische Erkennung durch Keywords
+python cli.py --task "Erstelle eine my_domain spezifische Lösung"
 ```
 
 ## 🌐 Claude Web Proxy Integration

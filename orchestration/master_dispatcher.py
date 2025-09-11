@@ -7,12 +7,14 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 import yaml
 import json
+import re
 from datetime import datetime
 
 from .intent_classifier import IntentClassifier
 from .workflow_generator import WorkflowGenerator
 from .execution_engine import ExecutionEngine
 from .learning_system import LearningSystem
+from .shared_context import ProjectContextFactory
 
 @dataclass
 class UserRequest:
@@ -69,17 +71,43 @@ class MasterDispatcher:
         
         print("✅ Master Dispatcher bereit!")
     
-    async def process_request(self, user_input: str, context: Optional[Dict] = None) -> Dict:
+    async def process_request(self, user_input: str, context: Optional[Dict] = None, project_type: Optional[str] = None) -> Dict:
         """
         Haupteinstiegspunkt - Verarbeitet User-Anfragen vollautomatisch
         """
         print(f"\n🧠 Master Dispatcher: Analysiere Anfrage...")
         print(f"📝 User Input: {user_input[:100]}...")
         
-        # Create request object
+        # Detect project type if not provided
+        if not project_type:
+            project_type = self._detect_project_type(user_input, context or {})
+            print(f"🎯 Erkannter Project Type: {project_type}")
+        
+        # Create project-specific context
+        project_context = None
+        try:
+            project_context = ProjectContextFactory.create_project_context(
+                project_type, 
+                context.get('project_name') if context else None
+            )
+            print(f"🔧 Project Context erstellt: {project_context.__class__.__name__}")
+        except Exception as e:
+            print(f"⚠️ Fallback zu Generic Context: {e}")
+            project_context = ProjectContextFactory.create_project_context("generic")
+        
+        # Create request object with enhanced context
+        enhanced_context = (context or {}).copy()
+        enhanced_context.update({
+            'project_type': project_type,
+            'project_context': project_context,
+            'domain_instructions': project_context.get_domain_instructions(),
+            'quality_gates': project_context.get_quality_gates(),
+            'project_specifics': project_context.get_project_specifics()
+        })
+        
         request = UserRequest(
             text=user_input,
-            context=context or {}
+            context=enhanced_context
         )
         
         try:
@@ -128,6 +156,85 @@ class MasterDispatcher:
                 "error": str(e),
                 "request": user_input
             }
+    
+    def _detect_project_type(self, user_input: str, context: Dict) -> str:
+        """
+        Automatically detect project type from user input and context
+        """
+        user_lower = user_input.lower()
+        
+        # Check context first for explicit project type
+        if 'project_type' in context:
+            return context['project_type']
+        
+        # Trading/Finance keywords
+        trading_keywords = [
+            'trading', 'trade', 'stock', 'aktien', 'börse', 'strategy', 'strategie',
+            'backtest', 'backtesting', 'portfolio', 'investment', 'broker',
+            'interactive brokers', 'ib', 'tws', 'market data', 'marktdaten',
+            'vwap', 'ema', 'fibonacci', 'candlestick', 'chart', 'price',
+            'ron strategy', 'live trading', 'after hours', 'engine parity',
+            'stock_analyser', 'financial', 'finance', 'hedge fund',
+            'algorithmic trading', 'algo trading', 'quant'
+        ]
+        
+        # Web application keywords
+        web_keywords = [
+            'web app', 'webapp', 'website', 'api', 'rest', 'restful',
+            'fastapi', 'flask', 'django', 'express', 'react', 'vue', 'angular',
+            'frontend', 'backend', 'database', 'postgres', 'mysql', 'mongodb',
+            'authentication', 'login', 'user management', 'crud', 'endpoint',
+            'microservice', 'docker', 'kubernetes', 'cloud', 'aws', 'azure',
+            'http', 'https', 'cors', 'jwt', 'oauth', 'session', 'cookie'
+        ]
+        
+        # Desktop application keywords
+        desktop_keywords = [
+            'desktop app', 'desktop', 'gui', 'tkinter', 'pyqt', 'kivy',
+            'electron', 'java swing', 'wpf', 'winforms', 'native app'
+        ]
+        
+        # Mobile keywords
+        mobile_keywords = [
+            'mobile app', 'android', 'ios', 'react native', 'flutter',
+            'xamarin', 'cordova', 'phonegap', 'ionic'
+        ]
+        
+        # Data science/ML keywords
+        ml_keywords = [
+            'machine learning', 'ml', 'ai', 'artificial intelligence',
+            'data science', 'data analysis', 'analytics', 'jupyter',
+            'pandas', 'numpy', 'scikit-learn', 'tensorflow', 'pytorch',
+            'model', 'prediction', 'classification', 'regression', 'clustering'
+        ]
+        
+        # Count matches for each category
+        scores = {
+            'trading': sum(1 for keyword in trading_keywords if keyword in user_lower),
+            'web_app': sum(1 for keyword in web_keywords if keyword in user_lower),
+            'desktop': sum(1 for keyword in desktop_keywords if keyword in user_lower),
+            'mobile': sum(1 for keyword in mobile_keywords if keyword in user_lower),
+            'ml': sum(1 for keyword in ml_keywords if keyword in user_lower)
+        }
+        
+        # Special detection patterns
+        if re.search(r'stock.*anal|trading.*system|backtest.*engine', user_lower):
+            scores['trading'] += 3
+        
+        if re.search(r'build.*api|create.*endpoint|web.*service', user_lower):
+            scores['web_app'] += 3
+            
+        if re.search(r'train.*model|predict|machine.*learning', user_lower):
+            scores['ml'] += 3
+        
+        # Find the highest scoring type
+        if max(scores.values()) > 0:
+            detected_type = max(scores, key=scores.get)
+            print(f"🔍 Project Type Detection Scores: {scores}")
+            return detected_type
+        
+        # Default to generic if no clear match
+        return 'generic'
     
     def _initialize_agents(self):
         """Initialisiert alle verfügbaren Agenten"""
@@ -184,6 +291,29 @@ class MasterDispatcher:
                 
         return workflow
     
+    def _get_quality_gates_for_context(self, context: Dict) -> List[str]:
+        """
+        Get appropriate quality gates based on project context
+        """
+        quality_gates = []
+        
+        if 'project_context' in context:
+            project_context = context['project_context']
+            if hasattr(project_context, 'get_quality_gates'):
+                quality_gates = project_context.get_quality_gates()
+        
+        # Fallback quality gates for different project types
+        if not quality_gates:
+            project_type = context.get('project_type', 'generic')
+            if project_type in ['trading', 'stock_analyser']:
+                quality_gates = ['TradingSystemQualityGate', 'RONStrategyQualityGate', 'EngineParityQualityGate']
+            elif project_type in ['web_app', 'webapp', 'api']:
+                quality_gates = ['SecurityQualityGate', 'PerformanceQualityGate']
+            else:
+                quality_gates = ['SecurityQualityGate']
+        
+        return quality_gates
+    
     def _format_response(self, result: Dict, workflow: Dict, intent: Dict) -> Dict:
         """Formatiert die Antwort für den User"""
         response = {
@@ -198,6 +328,16 @@ class MasterDispatcher:
             "final_output": result.get('final_output', ''),
             "artifacts": result.get('artifacts', {})
         }
+        
+        # Add project context information if available
+        if 'project_context' in workflow.get('context', {}):
+            project_context = workflow['context']['project_context']
+            response['project_info'] = {
+                'project_type': workflow['context'].get('project_type', 'unknown'),
+                'project_name': getattr(project_context, 'project_name', 'Unknown'),
+                'domain': getattr(project_context.get_project_specifics(), 'domain', 'Unknown') if hasattr(project_context, 'get_project_specifics') else 'Unknown',
+                'quality_gates_applied': workflow['context'].get('quality_gates', [])
+            }
         
         # Add errors if any
         if result.get('errors'):

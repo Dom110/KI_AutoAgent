@@ -149,9 +149,14 @@ class KIAutoAgentCLI:
             except Exception as e:
                 console.print(f"[red]Fehler: {str(e)}[/red]")
     
-    async def _process_task(self, task_description: str):
+    async def _process_task(self, task_description: str, project_type: Optional[str] = None, project_name: Optional[str] = None):
         """Process a task through the system"""
         console.print(f"\n[cyan]📋 Aufgabe:[/cyan] {task_description}")
+        
+        if project_type:
+            console.print(f"[cyan]🎯 Projekt Typ:[/cyan] {project_type}")
+        if project_name:
+            console.print(f"[cyan]📁 Projekt Name:[/cyan] {project_name}")
         
         with Progress(
             SpinnerColumn(),
@@ -162,7 +167,16 @@ class KIAutoAgentCLI:
             task_id = progress.add_task("[yellow]Verarbeite Anfrage...", total=None)
             
             try:
-                result = await self.dispatcher.process_request(task_description)
+                # Prepare context
+                context = {}
+                if project_name:
+                    context['project_name'] = project_name
+                
+                result = await self.dispatcher.process_request(
+                    task_description, 
+                    context=context, 
+                    project_type=project_type
+                )
                 progress.stop()
                 
                 # Show results
@@ -172,6 +186,8 @@ class KIAutoAgentCLI:
                 self.history.append({
                     "timestamp": datetime.now().isoformat(),
                     "task": task_description,
+                    "project_type": project_type,
+                    "project_name": project_name,
                     "result": result
                 })
                 
@@ -199,6 +215,18 @@ class KIAutoAgentCLI:
             console.print(f"  • Schritte gesamt: {summary.get('total_steps', 0)}")
             console.print(f"  • Schritte abgeschlossen: {summary.get('completed_steps', 0)}")
             console.print(f"  • Ausführungszeit: {summary.get('execution_time', 0):.2f}s")
+        
+        # Project information
+        if result.get("project_info"):
+            project_info = result["project_info"]
+            console.print(f"\n[cyan]Projekt Kontext:[/cyan]")
+            console.print(f"  • Typ: {project_info.get('project_type', 'unknown')}")
+            console.print(f"  • Name: {project_info.get('project_name', 'Unknown')}")
+            console.print(f"  • Domäne: {project_info.get('domain', 'Unknown')}")
+            
+            quality_gates = project_info.get('quality_gates_applied', [])
+            if quality_gates:
+                console.print(f"  • Quality Gates: {', '.join(quality_gates)}")
         
         # Final output
         if result.get("final_output"):

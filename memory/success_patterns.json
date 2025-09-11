@@ -58,6 +58,96 @@
       ],
       "success_score": 1.0,
       "timestamp": "2025-09-11T15:27:47.563703"
+    },
+    {
+      "execution_id": 7,
+      "workflow_name": "Full System Development",
+      "agents_used": [
+        "ResearchBot",
+        "ArchitectGPT",
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "FixerBot",
+        "DocuBot"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T17:42:51.048200"
+    },
+    {
+      "execution_id": 8,
+      "workflow_name": "Full System Development",
+      "agents_used": [
+        "ResearchBot",
+        "ArchitectGPT",
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "FixerBot",
+        "DocuBot"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:23:34.721368"
+    }
+  ],
+  "debug_code": [
+    {
+      "execution_id": 9,
+      "workflow_name": "Debug and Fix",
+      "agents_used": [
+        "ReviewerGPT",
+        "FixerBot"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:23:34.725827"
+    }
+  ],
+  "explain_concept": [
+    {
+      "execution_id": 10,
+      "workflow_name": "Concept Explanation",
+      "agents_used": [
+        "ResearchBot",
+        "DocuBot"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:23:34.727715"
+    }
+  ],
+  "trading_strategy": [
+    {
+      "execution_id": 11,
+      "workflow_name": "Trading Strategy Development",
+      "agents_used": [
+        "ResearchBot",
+        "TradeStrat",
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "DocuBot"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:23:34.730300"
+    }
+  ],
+  "documentation": [
+    {
+      "execution_id": 12,
+      "workflow_name": "Documentation Creation",
+      "agents_used": [
+        "DocuBot"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:23:34.731847"
+    }
+  ],
+  "unknown": [
+    {
+      "execution_id": 13,
+      "workflow_name": "General Assistance",
+      "agents_used": [
+        "ResearchBot",
+        "ArchitectGPT"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:28:27.553454"
     }
   ]
 }

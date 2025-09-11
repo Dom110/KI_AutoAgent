@@ -8,14 +8,14 @@ from .base_agent import BaseAgent
 class ArchitectGPT(BaseAgent):
     """
     Software Architect spezialisiert auf System Design
-    Nutzt GPT-4o für beste Architektur-Fähigkeiten
+    Nutzt GPT-4o (Nov 2024) für modernste Architektur-Fähigkeiten
     """
     
     def __init__(self):
         super().__init__(
             name="ArchitectGPT",
             role="Software Architect",
-            model="gpt-4o"
+            model="gpt-4o-2024-11-20"
         )
         
         self.temperature = 0.3

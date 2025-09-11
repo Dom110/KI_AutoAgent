@@ -7,7 +7,7 @@ from .base_agent import BaseAgent
 
 class ReviewerGPT(BaseAgent):
     """
-    Code Review Expert mit GPT-4o
+    Code Review Expert mit GPT-4o-mini (Juli 2024)
     Findet Bugs, Security Issues und Optimierungsmöglichkeiten
     """
     
@@ -15,7 +15,7 @@ class ReviewerGPT(BaseAgent):
         super().__init__(
             name="ReviewerGPT",
             role="Code Reviewer",
-            model="gpt-4o-mini"  # Efficient for code analysis
+            model="gpt-4o-mini-2024-07-18"  # Latest efficient model for code analysis
         )
         
         self.temperature = 0.1  # Very low for precise analysis
