@@ -1,0 +1,54 @@
+{
+  "agents": {
+    "TestAgent": {
+      "total_executions": 5,
+      "successful": 5,
+      "failed": 0,
+      "total_time": 26.0,
+      "last_used": "2025-09-11T15:27:47.563703"
+    },
+    "ResearchBot": {
+      "total_executions": 1,
+      "successful": 1,
+      "failed": 0,
+      "total_time": 0.0020110607147216797,
+      "last_used": "2025-09-11T15:22:27.225955"
+    },
+    "ArchitectGPT": {
+      "total_executions": 1,
+      "successful": 1,
+      "failed": 0,
+      "total_time": 0.0020110607147216797,
+      "last_used": "2025-09-11T15:22:27.225955"
+    },
+    "CodeSmithClaude": {
+      "total_executions": 1,
+      "successful": 1,
+      "failed": 0,
+      "total_time": 0.0020110607147216797,
+      "last_used": "2025-09-11T15:22:27.225955"
+    },
+    "ReviewerGPT": {
+      "total_executions": 1,
+      "successful": 1,
+      "failed": 0,
+      "total_time": 0.0020110607147216797,
+      "last_used": "2025-09-11T15:22:27.225955"
+    },
+    "FixerBot": {
+      "total_executions": 1,
+      "successful": 1,
+      "failed": 0,
+      "total_time": 0.0020110607147216797,
+      "last_used": "2025-09-11T15:22:27.225955"
+    },
+    "DocuBot": {
+      "total_executions": 1,
+      "successful": 1,
+      "failed": 0,
+      "total_time": 0.0020110607147216797,
+      "last_used": "2025-09-11T15:22:27.225955"
+    }
+  },
+  "intents": {}
+}

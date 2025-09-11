@@ -1,0 +1,149 @@
+[
+  {
+    "id": 1,
+    "timestamp": "2025-09-11T15:20:53.386150",
+    "request": "Create a trading bot",
+    "intent": {
+      "type": "create_system",
+      "confidence": 0.95
+    },
+    "workflow_name": "Test Workflow",
+    "workflow_steps": 1,
+    "result_status": "success",
+    "metrics": {
+      "success_score": 1.0,
+      "execution_time": 5.2,
+      "error_count": 0,
+      "completed_steps": 2,
+      "failed_steps": 0
+    },
+    "agents_used": [
+      "TestAgent"
+    ]
+  },
+  {
+    "id": 2,
+    "timestamp": "2025-09-11T15:22:27.225955",
+    "request": "Hallo, baue mir einen Trading Bot",
+    "intent": {
+      "type": "create_system",
+      "confidence": 0.96,
+      "entities": {},
+      "complexity": "high",
+      "original_input": "Hallo, baue mir einen Trading Bot",
+      "suggested_agents": [
+        "ResearchBot",
+        "ArchitectGPT",
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "DocuBot"
+      ]
+    },
+    "workflow_name": "Full System Development",
+    "workflow_steps": 6,
+    "result_status": "success",
+    "metrics": {
+      "success_score": 1.0,
+      "execution_time": 0.0020110607147216797,
+      "error_count": 0,
+      "completed_steps": 6,
+      "failed_steps": 0
+    },
+    "agents_used": [
+      "ResearchBot",
+      "ArchitectGPT",
+      "CodeSmithClaude",
+      "ReviewerGPT",
+      "FixerBot",
+      "DocuBot"
+    ]
+  },
+  {
+    "id": 3,
+    "timestamp": "2025-09-11T15:22:48.475959",
+    "request": "Create a trading bot",
+    "intent": {
+      "type": "create_system",
+      "confidence": 0.95
+    },
+    "workflow_name": "Test Workflow",
+    "workflow_steps": 1,
+    "result_status": "success",
+    "metrics": {
+      "success_score": 1.0,
+      "execution_time": 5.2,
+      "error_count": 0,
+      "completed_steps": 2,
+      "failed_steps": 0
+    },
+    "agents_used": [
+      "TestAgent"
+    ]
+  },
+  {
+    "id": 4,
+    "timestamp": "2025-09-11T15:26:03.962360",
+    "request": "Create a trading bot",
+    "intent": {
+      "type": "create_system",
+      "confidence": 0.95
+    },
+    "workflow_name": "Test Workflow",
+    "workflow_steps": 1,
+    "result_status": "success",
+    "metrics": {
+      "success_score": 1.0,
+      "execution_time": 5.2,
+      "error_count": 0,
+      "completed_steps": 2,
+      "failed_steps": 0
+    },
+    "agents_used": [
+      "TestAgent"
+    ]
+  },
+  {
+    "id": 5,
+    "timestamp": "2025-09-11T15:27:01.918012",
+    "request": "Create a trading bot",
+    "intent": {
+      "type": "create_system",
+      "confidence": 0.95
+    },
+    "workflow_name": "Test Workflow",
+    "workflow_steps": 1,
+    "result_status": "success",
+    "metrics": {
+      "success_score": 1.0,
+      "execution_time": 5.2,
+      "error_count": 0,
+      "completed_steps": 2,
+      "failed_steps": 0
+    },
+    "agents_used": [
+      "TestAgent"
+    ]
+  },
+  {
+    "id": 6,
+    "timestamp": "2025-09-11T15:27:47.563703",
+    "request": "Create a trading bot",
+    "intent": {
+      "type": "create_system",
+      "confidence": 0.95
+    },
+    "workflow_name": "Test Workflow",
+    "workflow_steps": 1,
+    "result_status": "success",
+    "metrics": {
+      "success_score": 1.0,
+      "execution_time": 5.2,
+      "error_count": 0,
+      "completed_steps": 2,
+      "failed_steps": 0
+    },
+    "agents_used": [
+      "TestAgent"
+    ]
+  }
+]

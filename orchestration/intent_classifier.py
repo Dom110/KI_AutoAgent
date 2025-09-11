@@ -68,28 +68,33 @@ class IntentClassifier:
             },
             
             IntentType.TRADING_STRATEGY: {
-                "keywords": ["trading", "strategie", "strategy", "momentum", "arbitrage", "backtest", "signal", "handel", "trade"],
+                "keywords": ["entwickle", "implementiere", "baue", "optimiere", "backtest", "strategie", "strategy"],
                 "regex": [
-                    r"(trading|handel|trade).*(strategie|strategy|system)",
-                    r"(momentum|mean.?reversion|arbitrage|scalping)",
-                    r"backtest",
-                    r"(ron|ma|rsi|macd).*(strategie|strategy)"
+                    r"(entwickle|implementiere|baue|create|build).*(trading|handel|trade).*(strategie|strategy|system)",
+                    r"(optimiere|verbessere|optimize).*(strategie|strategy)",
+                    r"backtest.*(strategie|strategy)",
+                    r"(ron|ma|rsi|macd).*(strategie|strategy).*(entwickl|implemen|bau|optim)",
+                    r"(erstelle|create).*(trading|momentum|arbitrage).*(system|bot|strategie)"
                 ],
                 "examples": [
                     "Entwickle eine Momentum Strategie",
-                    "Backtest dieser Trading Idee",
+                    "Backtest dieser Trading Idee", 
                     "Optimiere meine RON Strategie"
                 ],
                 "typical_agents": ["ResearchBot", "TradeStrat", "CodeSmithClaude", "ReviewerGPT"]
             },
             
             IntentType.EXPLAIN_CONCEPT: {
-                "keywords": ["erkläre", "was ist", "wie funktioniert", "verstehe", "explain", "what is", "how does"],
+                "keywords": ["erkläre", "was ist", "wie funktioniert", "verstehe", "explain", "what is", "how does", "bedeutet"],
                 "regex": [
                     r"(erkläre|explain).*(mir|me)?",
                     r"was (ist|sind|bedeutet)",
                     r"wie funktioniert",
-                    r"verstehe.*(nicht|nicht ganz)"
+                    r"verstehe.*(nicht|nicht ganz)",
+                    r"(erkläre|explain).*(trading|momentum|arbitrage|strategie|backtesting)",
+                    r"was.*(ist|bedeutet).*(trading|momentum|arbitrage|rsi|macd|vwap)",
+                    r"(definiere|definition).*(von|of)?",
+                    r"(beschreibe|describe).*(concept|konzept)"
                 ],
                 "examples": [
                     "Erkläre mir Momentum Trading",
@@ -147,11 +152,15 @@ class IntentClassifier:
             },
             
             IntentType.RESEARCH_TOPIC: {
-                "keywords": ["recherche", "research", "suche", "finde", "information", "daten"],
+                "keywords": ["recherche", "recherchiere", "research", "suche", "finde", "information", "daten", "sammle", "collect"],
                 "regex": [
-                    r"(recherche|research|suche|search)",
+                    r"(recherche|recherchiere|research|suche|search)",
                     r"(finde|find).*(information|daten|data)",
-                    r"was.*(sagt|zeigt).*(literatur|research|studien)"
+                    r"was.*(sagt|zeigt).*(literatur|research|studien)",
+                    r"(recherche|recherchiere|research).*(trading|ml|machine learning|strategie|algorithmic)",
+                    r"(sammle|collect).*(information|daten|data)",
+                    r"(studiere|study|analysiere|analyze).*(literatur|literature|papers|studien)",
+                    r"(suche|search).*(nach|for).*(information|papers|studies)"
                 ],
                 "examples": [
                     "Recherchiere ML Trading Strategien",
@@ -184,7 +193,7 @@ class IntentClassifier:
         suggested_agents_map = {}
         
         for intent_type, config in self.patterns.items():
-            score = self._calculate_intent_score(user_input_lower, config)
+            score = self._calculate_enhanced_intent_score(user_input_lower, config, intent_type)
             intent_scores[intent_type] = score
             if score > 0:
                 suggested_agents_map[intent_type] = config.get("typical_agents", [])
@@ -198,7 +207,7 @@ class IntentClassifier:
             confidence = 0.0
         
         # If confidence too low, mark as unknown
-        if confidence < 0.3:
+        if confidence < 0.4:
             best_intent = IntentType.UNKNOWN
             suggested_agents = ["ResearchBot", "ArchitectGPT"]  # Fallback agents
         else:
@@ -249,6 +258,43 @@ class IntentClassifier:
         
         # Normalize score
         return min(score, 1.0)
+    
+    def _calculate_enhanced_intent_score(self, text: str, config: Dict, intent_type: IntentType) -> float:
+        """Enhanced scoring with action priority and domain dampening"""
+        
+        # Base score calculation (existing logic)
+        base_score = self._calculate_intent_score(text, config)
+        
+        # Action verb priority mapping
+        action_verbs = {
+            IntentType.EXPLAIN_CONCEPT: ["erkläre", "explain", "was ist", "wie funktioniert", "definiere", "beschreibe"],
+            IntentType.RESEARCH_TOPIC: ["recherche", "recherchiere", "research", "suche", "finde", "sammle", "studiere", "analysiere"],
+            IntentType.CREATE_SYSTEM: ["baue", "erstelle", "entwickle", "implementiere", "create", "build"],
+            IntentType.DEBUG_CODE: ["debug", "fix", "repariere", "fehler", "error"],
+            IntentType.OPTIMIZE_CODE: ["optimiere", "verbessere", "optimize", "improve"],
+            IntentType.TEST_CODE: ["teste", "test", "schreibe test", "testing"],
+            IntentType.DOCUMENTATION: ["dokumentiere", "document", "schreibe dokumentation"]
+        }
+        
+        # Apply action priority boost
+        if intent_type in action_verbs:
+            text_lower = text.lower()
+            for verb in action_verbs[intent_type]:
+                if verb in text_lower:
+                    base_score *= 1.4  # 40% boost for strong action priority
+                    break
+        
+        # Apply domain dampening for trading_strategy when action verbs present
+        if intent_type == IntentType.TRADING_STRATEGY:
+            text_lower = text.lower()
+            explanation_indicators = ["erkläre", "explain", "was ist", "wie funktioniert"]
+            research_indicators = ["recherche", "recherchiere", "research", "finde", "sammle"]
+            
+            # If explanation or research verbs are present, reduce trading_strategy confidence
+            if any(indicator in text_lower for indicator in explanation_indicators + research_indicators):
+                base_score *= 0.6  # Reduce confidence by 40% when action verbs conflict
+        
+        return min(base_score, 1.0)
     
     def _extract_entities(self, text: str) -> Dict[str, List[str]]:
         """Extrahiert Entities aus dem Text"""
