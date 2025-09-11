@@ -54,7 +54,7 @@ agents:
     enabled: true
     
   ResearchBot:
-    model: "perplexity-pro"
+    model: "llama-3.1-sonar-small-128k-online"  # REAL Perplexity model with web search
     temperature: 0.2
     max_tokens: 4000
     enabled: true

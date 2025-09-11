@@ -28,7 +28,7 @@ Ein revolutionäres System, das automatisch spezialisierte KI-Agenten orchestrie
 | **ReviewerGPT** | Code Reviewer | GPT-4o-mini | Code-Review, Security-Analyse, Best-Practices |
 | **FixerBot** | Bug Hunter | Claude 3.5 Sonnet | Debugging, Fehlerbehebung, Performance-Optimierung |
 | **TradeStrat** | Trading Expert | Claude 3.5 Sonnet | Trading-Strategien, Backtesting, Risk-Management |
-| **ResearchBot** | Research Analyst | Perplexity Pro | Web-Recherche, Marktanalyse, Dokumentations-Suche |
+| **ResearchBot** | Research Analyst | Perplexity API | Web-Recherche, Marktanalyse, Dokumentations-Suche |
 
 ## 🚀 Quick Start
 
@@ -61,9 +61,9 @@ Erstelle eine `.env` Datei im Projekt-Root:
 touch .env
 
 # API-Keys hinzufügen (ersetze mit deinen echten Keys)
-echo "OPENAI_API_KEY=sk-..." >> .env
-echo "ANTHROPIC_API_KEY=sk-ant..." >> .env  
-echo "PERPLEXITY_API_KEY=pplx-..." >> .env
+echo "OPENAI_API_KEY=sk-proj-..." >> .env      # OpenAI API Key (beginnt mit sk-proj-)
+echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env    # Anthropic API Key (beginnt mit sk-ant-)
+echo "PERPLEXITY_API_KEY=pplx-..." >> .env     # Perplexity API Key (beginnt mit pplx-)
 ```
 
 ### Erste Schritte
@@ -234,10 +234,13 @@ agents:
 
 ```bash
 # .env Datei
-OPENAI_API_KEY=sk-...           # Für ArchitectGPT, DocuBot, ReviewerGPT
-ANTHROPIC_API_KEY=sk-ant-...    # Für CodeSmithClaude, FixerBot, TradeStrat  
-PERPLEXITY_API_KEY=pplx-...     # Für ResearchBot
-KI_AUTOAGENT_DEBUG=false        # Debug-Logs aktivieren
+OPENAI_API_KEY=sk-proj-...      # Für ArchitectGPT, DocuBot, ReviewerGPT
+ANTHROPIC_API_KEY=sk-ant-...     # Für CodeSmithClaude, FixerBot, TradeStrat  
+PERPLEXITY_API_KEY=pplx-...      # Für ResearchBot (HTTP API, kein SDK)
+KI_AUTOAGENT_DEBUG=false         # Debug-Logs aktivieren
+
+# Note: ResearchBot nutzt die Perplexity REST API via HTTP requests
+# Model: "llama-3.1-sonar-small-128k-online" mit Web-Suche-Funktionalität
 ```
 
 ## 🏗️ System-Architektur
