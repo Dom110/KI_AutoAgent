@@ -1,0 +1,128 @@
+# KI AutoAgent Configuration
+
+# System Settings
+system:
+  name: "KI AutoAgent"
+  version: "1.0.0"
+  debug: false
+  log_level: "INFO"
+  max_parallel_agents: 3
+  timeout_seconds: 300
+
+# API Keys (use environment variables in production)
+api_keys:
+  openai: ${OPENAI_API_KEY}
+  anthropic: ${ANTHROPIC_API_KEY}
+  perplexity: ${PERPLEXITY_API_KEY}
+
+# Agent Configuration
+agents:
+  ArchitectGPT:
+    model: "gpt-4o"
+    temperature: 0.7
+    max_tokens: 4000
+    enabled: true
+    
+  CodeSmithClaude:
+    model: "claude-3-5-sonnet-20241022"
+    temperature: 0.2
+    max_tokens: 8000
+    enabled: true
+    
+  DocuBot:
+    model: "gpt-4o"
+    temperature: 0.3
+    max_tokens: 4000
+    enabled: true
+    
+  ReviewerGPT:
+    model: "gpt-4o-mini"
+    temperature: 0.1
+    max_tokens: 3000
+    enabled: true
+    
+  FixerBot:
+    model: "claude-3-5-sonnet-20241022"
+    temperature: 0.1
+    max_tokens: 5000
+    enabled: true
+    
+  TradeStrat:
+    model: "claude-3-5-sonnet-20241022"
+    temperature: 0.3
+    max_tokens: 6000
+    enabled: true
+    
+  ResearchBot:
+    model: "perplexity-pro"
+    temperature: 0.2
+    max_tokens: 4000
+    enabled: true
+
+# Orchestration Settings
+orchestration:
+  intent_confidence_threshold: 0.3
+  workflow_optimization: true
+  parallel_execution: true
+  learning_enabled: true
+  
+# Workflow Templates
+workflow_templates:
+  create_system:
+    max_steps: 10
+    timeout: 600
+    retry_on_failure: true
+    
+  debug_code:
+    max_steps: 5
+    timeout: 300
+    retry_on_failure: true
+    
+  trading_strategy:
+    max_steps: 8
+    timeout: 480
+    retry_on_failure: false
+
+# Learning System
+learning:
+  enabled: true
+  memory_dir: "./memory"
+  max_history_entries: 100
+  pattern_recognition: true
+  performance_tracking: true
+  
+# Execution Engine
+execution:
+  max_retries: 3
+  retry_delay_seconds: 5
+  error_recovery: true
+  step_timeout: 120
+  
+# Storage
+storage:
+  type: "local"  # or "cloud"
+  data_dir: "./data"
+  cache_dir: "./cache"
+  logs_dir: "./logs"
+  
+# Security
+security:
+  encrypt_api_keys: true
+  audit_logging: true
+  rate_limiting:
+    enabled: true
+    max_requests_per_minute: 60
+    
+# Performance
+performance:
+  cache_responses: true
+  cache_ttl_seconds: 3600
+  compress_large_outputs: true
+  max_output_size_mb: 10
+  
+# Development
+development:
+  mock_mode: false  # Use mock responses for testing
+  verbose_logging: false
+  save_all_outputs: false
+  profile_performance: false

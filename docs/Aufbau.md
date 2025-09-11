@@ -17,12 +17,14 @@ Und die Agenten helfen dir beim Coden, Debuggen, Testen, Dokumentieren.
 
 🧠 Rollen der Agenten (z. B. via AutoGen oder CrewAI)
 Agent	Rolle	Aufgaben
-ArchitectGPT	Software-Architekt	Hilft dir beim Strukturieren, z. B. wohin gehört welche Logik, wie soll das Projekt aufgebaut sein
+ArchitectGPT	Software-Architekt	Hilft dir beim Strukturieren, z. B. wohin gehört welche Logik, wie soll das Projekt aufgebaut sein -> https://exploregpt.ai/gpt/software-architect-gpt
 CodeSmithClaude	Python-Entwickler	Schreibt Implementierungen auf Aufgabenbeschreibung, kennt Pandas, Backtrader, ib_insync etc.
 DocuBot	Doku & Comments	Dokumentiert Funktionen, schreibt README, erklärt komplexe Logik
 ReviewerGPT	Code-Reviewer	Prüft deinen Code (PEP8, Typos, Algorithmen, Tests)
 FixerBot	Linter/Test-Fixer	Repariert kaputten Code nach Tests/Feedback
 TradeStrat	KI-Strategieberater	Gibt Vorschläge für neue Handelslogiken (Mean Reversion, Breakouts, Trailing Buys etc.)
+https://zencoder.ai/ evtl. Claude Ersatz
+Proximity Internetrecherche besonders im Finanzbereich
 🔧 Umsetzungsidee in VS Code (mit AutoGen)
 
 Installier dir folgendes in VS Code (wenn du’s nicht eh schon hast):
