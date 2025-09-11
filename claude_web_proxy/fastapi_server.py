@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 import structlog
 import uvicorn
 
-from claude_browser import ClaudeBrowser
+from .claude_browser import ClaudeBrowser
 
 # Configure logging
 logger = structlog.get_logger()
@@ -110,8 +110,26 @@ async def get_status():
         )
     
     try:
-        # Check if browser is still running
-        browser_running = claude_browser.browser is not None and not claude_browser.browser.is_closed()
+        # Check if browser context is still running (correct method for BrowserContext)
+        def check_browser_context_status() -> bool:
+            try:
+                if not claude_browser.browser:  # browser is actually a BrowserContext
+                    return False
+                
+                # BrowserContext status via pages (correct method)
+                pages = claude_browser.browser.pages
+                if len(pages) == 0:
+                    return False
+                
+                # Check if first page is not closed
+                first_page = pages[0]
+                return not first_page.is_closed()
+                
+            except Exception as e:
+                logger.debug("Browser context status check failed", error=str(e))
+                return False
+        
+        browser_running = check_browser_context_status()
         
         # Quick login status check (don't navigate away from current page)
         logged_in = claude_browser.is_logged_in

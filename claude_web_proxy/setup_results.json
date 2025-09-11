@@ -1,0 +1,19 @@
+{
+  "timestamp": 1757596658.771064,
+  "dependencies": {
+    "playwright": true,
+    "fastapi": true,
+    "uvicorn": true,
+    "aiohttp": true
+  },
+  "playwright_install": true,
+  "browser_automation": true,
+  "server_start": true,
+  "server_health": true,
+  "endpoints": {
+    "status": true,
+    "setup": true
+  },
+  "crewai_integration": true,
+  "overall_success": true
+}

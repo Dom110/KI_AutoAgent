@@ -76,41 +76,145 @@ class ClaudeBrowser:
     async def check_login_status(self) -> bool:
         """Check if user is logged into Claude"""
         try:
+            logger.info("🔍 Checking Claude login status...")
             await self.page.goto('https://claude.ai', wait_until='networkidle', timeout=30000)
             
             # Wait a bit for page to load completely
-            await asyncio.sleep(2)
+            await asyncio.sleep(3)
             
-            # Check for login indicators
-            # If we see the chat interface, we're logged in
-            try:
-                await self.page.wait_for_selector('[data-testid="chat-input"]', timeout=5000)
+            # Use comprehensive login check for consistency
+            is_logged_in = await self._comprehensive_login_check()
+            
+            if is_logged_in:
                 self.is_logged_in = True
-                logger.info("User is logged in to Claude")
+                logger.info("✅ User is logged in to Claude")
                 return True
-            except:
-                # Check if we're on login page
-                login_elements = [
-                    'button:has-text("Continue with Google")',
-                    'button:has-text("Continue with Email")', 
-                    'input[type="email"]'
-                ]
-                
-                for element in login_elements:
-                    try:
-                        await self.page.wait_for_selector(element, timeout=2000)
-                        self.is_logged_in = False
-                        logger.info("User needs to log in to Claude")
-                        return False
-                    except:
-                        continue
-                
-                # If we can't determine, assume not logged in
+            else:
                 self.is_logged_in = False
+                logger.info("❌ User needs to log in to Claude")
+                # Debug what we found
+                await self.debug_login_detection()
                 return False
                 
         except Exception as e:
-            logger.error("Error checking login status", error=str(e))
+            logger.error("💥 Error checking login status", error=str(e))
+            self.is_logged_in = False
+            return False
+    
+    async def debug_login_detection(self):
+        """Debug what login detection is actually checking"""
+        try:
+            # Current URL check
+            current_url = self.page.url
+            logger.info(f"🔍 DEBUG: Current URL: {current_url}")
+            
+            # Page content analysis
+            title = await self.page.title()
+            logger.info(f"🔍 DEBUG: Page title: {title}")
+            
+            # Look for login indicators
+            login_indicators = [
+                ("input[type='email']", "Email input (login form)"),
+                ("input[type='password']", "Password input (login form)"),
+                ("[data-testid='chat-input']", "Chat input (logged in)"),
+                ("textarea[placeholder*='message']", "Message textarea (logged in)"),
+                (".user-menu", "User menu (logged in)"),
+                ("[aria-label*='Profile']", "Profile button (logged in)"),
+                ("button:has-text('Continue with Google')", "Google login button"),
+                ("button:has-text('Continue with Email')", "Email login button"),
+                ("[data-testid='new-chat-button']", "New chat button (logged in)")
+            ]
+            
+            for selector, description in login_indicators:
+                try:
+                    element = await self.page.query_selector(selector)
+                    exists = element is not None
+                    logger.info(f"🔍 DEBUG: {description} - {selector}: {exists}")
+                except Exception as e:
+                    logger.info(f"🔍 DEBUG: {description} check failed: {e}")
+                    
+        except Exception as e:
+            logger.error(f"🔍 DEBUG: Login detection analysis failed", error=str(e))
+    
+    async def _comprehensive_login_check(self) -> bool:
+        """Multiple approaches to detect login"""
+        try:
+            checks = []
+            
+            # Check 1: Chat interface present
+            try:
+                chat_selectors = [
+                    '[data-testid="chat-input"]',
+                    'textarea[placeholder*="message"]',
+                    '.chat-input',
+                    'input[placeholder*="Send a message"]'
+                ]
+                chat_found = False
+                for selector in chat_selectors:
+                    element = await self.page.query_selector(selector)
+                    if element:
+                        chat_found = True
+                        break
+                checks.append(("Chat interface", chat_found))
+            except Exception:
+                checks.append(("Chat interface", False))
+            
+            # Check 2: No login form present
+            try:
+                login_selectors = [
+                    'input[type="email"]',
+                    'input[type="password"]',
+                    'button:has-text("Continue with Google")',
+                    'button:has-text("Continue with Email")'
+                ]
+                login_form_found = False
+                for selector in login_selectors:
+                    element = await self.page.query_selector(selector)
+                    if element:
+                        login_form_found = True
+                        break
+                checks.append(("No login form", not login_form_found))
+            except Exception:
+                checks.append(("No login form", False))
+            
+            # Check 3: URL indicates logged in
+            try:
+                current_url = self.page.url
+                url_indicates_login = (
+                    'claude.ai/chat' in current_url or
+                    'claude.ai/conversation' in current_url or
+                    ('claude.ai' in current_url and 'login' not in current_url)
+                )
+                checks.append(("URL indicates login", url_indicates_login))
+            except Exception:
+                checks.append(("URL indicates login", False))
+            
+            # Check 4: Page title indicates logged in
+            try:
+                title = await self.page.title()
+                title_indicates_login = (
+                    'Claude' in title and
+                    'Login' not in title and
+                    'Sign' not in title
+                )
+                checks.append(("Title indicates login", title_indicates_login))
+            except Exception:
+                checks.append(("Title indicates login", False))
+            
+            # Log all check results
+            positive_checks = 0
+            for check_name, result in checks:
+                logger.info(f"🔍 Login check - {check_name}: {result}")
+                if result:
+                    positive_checks += 1
+            
+            logger.info(f"🔍 Total positive login checks: {positive_checks}/{len(checks)}")
+            
+            # Require at least 2 positive checks
+            return positive_checks >= 2
+            
+        except Exception as e:
+            logger.error("Comprehensive login check failed", error=str(e))
             return False
     
     async def wait_for_login(self, timeout: int = 300) -> bool:
@@ -124,25 +228,49 @@ class ClaudeBrowser:
             bool: True if login successful
         """
         try:
-            logger.info("Waiting for user to log in manually...", timeout=timeout)
+            logger.info("🔑 Waiting for user to log in manually...", timeout=timeout)
             
             # Navigate to Claude if not already there
             current_url = self.page.url
             if 'claude.ai' not in current_url:
+                logger.info("🌐 Navigating to claude.ai...")
                 await self.page.goto('https://claude.ai')
+                await asyncio.sleep(3)  # Give page time to load
             
-            # Wait for chat interface to appear (indicates successful login)
-            await self.page.wait_for_selector(
-                '[data-testid="chat-input"], .chat-input, textarea[placeholder*="message"]', 
-                timeout=timeout * 1000
-            )
+            # Debug current state before waiting
+            logger.info("🔍 Analyzing initial login state...")
+            await self.debug_login_detection()
             
-            self.is_logged_in = True
-            logger.info("Login successful!")
-            return True
+            # Poll for login completion using comprehensive check
+            start_time = asyncio.get_event_loop().time()
+            check_interval = 2  # Check every 2 seconds
+            
+            while (asyncio.get_event_loop().time() - start_time) < timeout:
+                # Use comprehensive login check
+                is_logged_in = await self._comprehensive_login_check()
+                
+                if is_logged_in:
+                    self.is_logged_in = True
+                    logger.info("✅ Login successful! Comprehensive check passed")
+                    return True
+                
+                logger.info(f"⏳ Login not detected yet, checking again in {check_interval}s...")
+                await asyncio.sleep(check_interval)
+            
+            # Final debug if login failed
+            logger.warning("❌ Login timeout reached. Final state analysis:")
+            await self.debug_login_detection()
+            
+            logger.error("⏰ Login timeout - user did not complete login within timeout period")
+            return False
             
         except Exception as e:
-            logger.error("Login timeout or failed", error=str(e))
+            logger.error("💥 Login wait failed", error=str(e))
+            # Debug on error
+            try:
+                await self.debug_login_detection()
+            except Exception as debug_e:
+                logger.error("Debug failed too", error=str(debug_e))
             return False
     
     async def start_new_conversation(self) -> bool:
