@@ -136,6 +136,26 @@ class IntentClassifier:
                 "typical_agents": ["CodeSmithClaude", "ReviewerGPT"]
             },
             
+            IntentType.ANALYZE_CODE: {
+                "keywords": ["analysiere", "überprüfe", "validiere", "review", "analyze", "check", "validate", "untersuche", "prüfe"],
+                "regex": [
+                    r"(analysiere|analyze|überprüfe|check|validiere|validate|untersuche|prüfe).*(code|implementierung|implementation|datei|file)",
+                    r"(code.?review|review.?code)",
+                    r"(schaue?|look|guck).*(in|at|into).*(datei|file|verzeichnis|directory)",
+                    r"(ist|are).*(korrekt|correct|richtig|right)",
+                    r"(überprüfe|check|validiere|validate).*(auf|for).*(korrektheit|correctness|fehler|errors)",
+                    r"(analysiere|analyze).*(bestehend|existing|vorhanden|current).*(system|code|implementation)",
+                    r"\/Users\/.*\.(py|js|ts|java|cpp)"  # File paths
+                ],
+                "examples": [
+                    "Analysiere die RON Strategy Implementierung",
+                    "Überprüfe strategies/ron_strategy.py auf Korrektheit", 
+                    "Code-Review für /path/to/file.py",
+                    "Validiere die VWAP Fibonacci Logik"
+                ],
+                "typical_agents": ["CodeSmithClaude", "ReviewerGPT", "FixerBot"]
+            },
+            
             IntentType.DOCUMENTATION: {
                 "keywords": ["dokumentiere", "dokumentation", "readme", "docstring", "kommentare", "document"],
                 "regex": [

@@ -242,6 +242,33 @@ class WorkflowGenerator:
                 ]
             },
             
+            "analyze_code": {
+                "name": "Code Analysis and Review",
+                "description": "Code-Analyse und Review bestehender Implementierungen",
+                "steps": [
+                    {
+                        "agent": "CodeSmithClaude",
+                        "task": "read_and_analyze_code",
+                        "description": "Lese und analysiere die Codedateien",
+                        "estimated_time": 90
+                    },
+                    {
+                        "agent": "ReviewerGPT",
+                        "task": "code_review",
+                        "description": "Führe detailliertes Code-Review durch",
+                        "dependencies": [0],
+                        "estimated_time": 120
+                    },
+                    {
+                        "agent": "TradeStrat",
+                        "task": "validate_trading_logic",
+                        "description": "Validiere Trading-Logik und Berechnungen",
+                        "dependencies": [0],
+                        "estimated_time": 90
+                    }
+                ]
+            },
+            
             "documentation": {
                 "name": "Documentation Creation",
                 "description": "Dokumentations-Erstellung",

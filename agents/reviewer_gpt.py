@@ -78,7 +78,131 @@ Provide actionable feedback with:
     
     async def execute(self, task: str, context: Dict) -> Dict:
         """
-        Führt Code Review durch
+        Executes code review tasks
+        """
+        if task == "code_review":
+            return await self._perform_code_review(context)
+        elif task == "analyze_error" or task == "review_code":
+            return await self._analyze_code_issues(task, context)
+        else:
+            # Default review process
+            return await self._general_review(task, context)
+    
+    async def _perform_code_review(self, context: Dict) -> Dict:
+        """
+        Performs detailed code review
+        """
+        try:
+            # Try Claude Web Integration first
+            from claude_web_proxy.crewai_integration import create_claude_web_llm
+            
+            claude_web_llm = create_claude_web_llm(
+                server_url="http://localhost:8000",
+                agent_id="ReviewerGPT"
+            )
+            
+            # Build review prompt
+            prompt = self._build_code_review_prompt(context)
+            
+            # Get review from Claude Web
+            review = await claude_web_llm.agenerate(prompt)
+            
+            print(f"✅ {self.name}: Echte Claude Web Code-Review abgeschlossen!")
+            
+            return {
+                "agent": self.name,
+                "task": "code_review",
+                "output": review,
+                "status": "success"
+            }
+            
+        except Exception as e:
+            print(f"⚠️ {self.name}: Claude Web nicht verfügbar ({e}), verwende Fallback")
+            
+            # Fallback: Basic review
+            return {
+                "agent": self.name,
+                "task": "code_review", 
+                "output": "Code-Review - Fallback Modus",
+                "status": "fallback"
+            }
+    
+    def _build_code_review_prompt(self, context: Dict) -> str:
+        """
+        Builds code review prompt
+        """
+        # Try to load the file content
+        file_content = ""
+        file_path = "/Users/dominikfoert/git/stock_analyser/strategies/ron_strategy.py"
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                file_content = f.read()
+            print(f"✅ {self.name}: Datei erfolgreich geladen ({len(file_content)} Zeichen)")
+        except Exception as e:
+            print(f"⚠️ {self.name}: Fehler beim Laden der Datei: {e}")
+            file_content = "Datei konnte nicht geladen werden."
+        
+        prompt_parts = [
+            "Du bist ReviewerGPT, ein Experte für Code-Review und Qualitätssicherung.",
+            "Führe eine detaillierte Code-Review durch für die RON Trading Strategy.",
+            "",
+            f"DATEI: {file_path}",
+            "",
+            "CODE:",
+            "```python",
+            file_content,
+            "```",
+            "",
+            "Analysiere den Code auf:",
+            "1. Code-Qualität und Best Practices",
+            "2. Potentielle Bugs oder Fehler", 
+            "3. Performance-Optimierungen",
+            "4. Sicherheitsaspekte",
+            "5. Wartbarkeit und Lesbarkeit",
+            "6. Trading-Logik Konsistenz",
+            "7. Error Handling",
+            "",
+            "Strukturiere deine Review mit:",
+            "- Zusammenfassung der Findings",
+            "- Detaillierte Issue-Liste mit Severity",
+            "- Konkrete Verbesserungsvorschläge",
+            "- Code-Beispiele für Fixes"
+        ]
+        
+        if context.get("user_request"):
+            prompt_parts.append(f"\nSpezifische Anfrage: {context['user_request']}")
+        
+        return "\n".join(prompt_parts)
+    
+    async def _analyze_code_issues(self, task: str, context: Dict) -> Dict:
+        """
+        Analyzes code issues and errors
+        """
+        # Build review prompt
+        prompt = self._build_review_prompt(task, context)
+        
+        # Perform review
+        review_result = await self._perform_review(prompt, context)
+        
+        # Analyze and categorize issues
+        issues = self._categorize_issues(review_result)
+        
+        # Generate recommendations
+        recommendations = self._generate_recommendations(issues)
+        
+        return {
+            "agent": self.name,
+            "task": task,
+            "output": review_result,
+            "issues": issues,
+            "recommendations": recommendations,
+            "status": "success"
+        }
+    
+    async def _general_review(self, task: str, context: Dict) -> Dict:
+        """
+        General review process
         """
         # Build review prompt
         prompt = self._build_review_prompt(task, context)

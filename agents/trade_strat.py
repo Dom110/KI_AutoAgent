@@ -100,7 +100,135 @@ Always provide:
     
     async def execute(self, task: str, context: Dict) -> Dict:
         """
-        Entwickelt Trading-Strategie basierend auf Anforderungen
+        Executes trading-related tasks
+        """
+        if task == "validate_trading_logic":
+            return await self._validate_trading_logic(context)
+        elif task == "design_strategy":
+            return await self._design_strategy(context)
+        else:
+            # Default strategy development
+            return await self._develop_strategy(task, context)
+    
+    async def _validate_trading_logic(self, context: Dict) -> Dict:
+        """
+        Validiert Trading-Logik in bestehenden Code-Dateien
+        """
+        try:
+            # Try Claude Web Integration first
+            from claude_web_proxy.crewai_integration import create_claude_web_llm
+            
+            claude_web_llm = create_claude_web_llm(
+                server_url="http://localhost:8000",
+                agent_id="TradeStrat"
+            )
+            
+            # Build validation prompt
+            prompt = self._build_validation_prompt(context)
+            
+            # Get analysis from Claude Web
+            analysis = await claude_web_llm.agenerate(prompt)
+            
+            print(f"✅ {self.name}: Echte Claude Web Trading-Validierung abgeschlossen!")
+            
+            return {
+                "agent": self.name,
+                "task": "validate_trading_logic",
+                "output": analysis,
+                "status": "success"
+            }
+            
+        except Exception as e:
+            print(f"⚠️ {self.name}: Claude Web nicht verfügbar ({e}), verwende Fallback")
+            
+            # Fallback: Basic validation logic
+            return {
+                "agent": self.name,
+                "task": "validate_trading_logic", 
+                "output": "Trading-Logik Validation - Fallback Modus",
+                "status": "fallback"
+            }
+    
+    def _build_validation_prompt(self, context: Dict) -> str:
+        """
+        Builds validation prompt for existing trading code
+        """
+        # Try to load the file content
+        file_content = ""
+        file_path = "/Users/dominikfoert/git/stock_analyser/strategies/ron_strategy.py"
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                file_content = f.read()
+            print(f"✅ {self.name}: Datei erfolgreich geladen ({len(file_content)} Zeichen)")
+        except Exception as e:
+            print(f"⚠️ {self.name}: Fehler beim Laden der Datei: {e}")
+            file_content = "Datei konnte nicht geladen werden."
+        
+        prompt_parts = [
+            "Du bist TradeStrat, ein Experte für Trading-Strategien und quantitative Analyse.",
+            "Analysiere die folgende RON (Reversal Ohne News) Trading Strategy Implementierung:",
+            "",
+            f"DATEI: {file_path}",
+            "",
+            "CODE:",
+            "```python",
+            file_content,
+            "```",
+            "",
+            "AUFGABE: Überprüfe die Implementierung auf:",
+            "1. Korrektheit der VWAP-Berechnung",
+            "2. Korrektheit der Fibonacci-Level-Berechnung", 
+            "3. Logische Konsistenz der Handelsregeln",
+            "4. Risk Management Implementation",
+            "5. Code-Qualität und Best Practices",
+            "6. Trading-spezifische Berechnungen und Logik",
+            "7. Backtesting-Kompatibilität",
+            "",
+            "Gib eine detaillierte Bewertung mit:",
+            "- Trading-Logik Validierung",
+            "- Mathematische Korrektheit der Indikatoren",
+            "- Strategieumsetzung vs. RON Regeln",
+            "- Verbesserungsvorschläge"
+        ]
+        
+        if context.get("user_request"):
+            prompt_parts.append(f"\nSpezifische Anfrage: {context['user_request']}")
+        
+        return "\n".join(prompt_parts)
+    
+    async def _design_strategy(self, context: Dict) -> Dict:
+        """
+        Design trading strategy task
+        """
+        # Analyze requirements
+        requirements = self._analyze_requirements("design_strategy", context)
+        
+        # Build strategy prompt
+        prompt = self._build_strategy_prompt("design_strategy", context, requirements)
+        
+        # Generate strategy
+        strategy = await self._generate_strategy(prompt, context)
+        
+        # Create backtest framework
+        backtest_code = self._create_backtest_framework(strategy)
+        
+        # Generate performance metrics
+        metrics = self._generate_performance_metrics(strategy)
+        
+        return {
+            "agent": self.name,
+            "task": "design_strategy",
+            "output": strategy,
+            "requirements": requirements,
+            "backtest_code": backtest_code,
+            "performance_metrics": metrics,
+            "status": "success"
+        }
+    
+    async def _develop_strategy(self, task: str, context: Dict) -> Dict:
+        """
+        General strategy development task
         """
         # Analyze requirements
         requirements = self._analyze_requirements(task, context)

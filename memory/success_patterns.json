@@ -125,6 +125,84 @@
       ],
       "success_score": 1.0,
       "timestamp": "2025-09-11T19:23:34.730300"
+    },
+    {
+      "execution_id": 16,
+      "workflow_name": "Trading Strategy Development",
+      "agents_used": [
+        "ResearchBot",
+        "TradeStrat",
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "DocuBot"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:38:11.872072"
+    },
+    {
+      "execution_id": 17,
+      "workflow_name": "Trading Strategy Development",
+      "agents_used": [
+        "ResearchBot",
+        "TradeStrat",
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "DocuBot"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:38:23.430361"
+    },
+    {
+      "execution_id": 19,
+      "workflow_name": "Trading Strategy Development",
+      "agents_used": [
+        "ResearchBot",
+        "TradeStrat",
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "DocuBot"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:55:28.330363"
+    },
+    {
+      "execution_id": 20,
+      "workflow_name": "Trading Strategy Development",
+      "agents_used": [
+        "ResearchBot",
+        "TradeStrat",
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "DocuBot"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:58:24.902095"
+    },
+    {
+      "execution_id": 21,
+      "workflow_name": "Trading Strategy Development",
+      "agents_used": [
+        "ResearchBot",
+        "TradeStrat",
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "DocuBot"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T20:39:19.433753"
+    },
+    {
+      "execution_id": 22,
+      "workflow_name": "Trading Strategy Development",
+      "agents_used": [
+        "ResearchBot",
+        "TradeStrat",
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "DocuBot"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T20:44:17.228681"
     }
   ],
   "documentation": [
@@ -148,6 +226,94 @@
       ],
       "success_score": 1.0,
       "timestamp": "2025-09-11T19:28:27.553454"
+    },
+    {
+      "execution_id": 15,
+      "workflow_name": "General Assistance",
+      "agents_used": [
+        "ResearchBot",
+        "ArchitectGPT"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:31:51.887601"
+    },
+    {
+      "execution_id": 18,
+      "workflow_name": "General Assistance",
+      "agents_used": [
+        "ResearchBot",
+        "ArchitectGPT"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:55:15.298387"
+    }
+  ],
+  "optimize_code": [
+    {
+      "execution_id": 14,
+      "workflow_name": "Code Optimization",
+      "agents_used": [
+        "ReviewerGPT",
+        "CodeSmithClaude"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T19:29:41.776401"
+    }
+  ],
+  "analyze_code": [
+    {
+      "execution_id": 23,
+      "workflow_name": "General Assistance",
+      "agents_used": [
+        "ResearchBot",
+        "ArchitectGPT"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T20:48:26.026046"
+    },
+    {
+      "execution_id": 24,
+      "workflow_name": "Code Analysis and Review",
+      "agents_used": [
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "TradeStrat"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T20:55:02.623958"
+    },
+    {
+      "execution_id": 25,
+      "workflow_name": "Code Analysis and Review",
+      "agents_used": [
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "TradeStrat"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T20:59:28.641264"
+    },
+    {
+      "execution_id": 26,
+      "workflow_name": "Code Analysis and Review",
+      "agents_used": [
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "TradeStrat"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T21:05:17.084615"
+    },
+    {
+      "execution_id": 27,
+      "workflow_name": "Code Analysis and Review",
+      "agents_used": [
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "TradeStrat"
+      ],
+      "success_score": 1.0,
+      "timestamp": "2025-09-11T21:08:30.962410"
     }
   ]
 }

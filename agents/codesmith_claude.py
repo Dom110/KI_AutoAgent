@@ -92,12 +92,132 @@ Code quality standards:
     
     async def execute(self, task: str, context: Dict) -> Dict:
         """
-        Implementiert Code basierend auf Anforderungen
+        Executes code-related tasks
+        """
+        if task == "read_and_analyze_code":
+            return await self._read_and_analyze_code(context)
+        elif task == "implement_system" or task == "implement_strategy":
+            return await self._implement_code(task, context)
+        else:
+            # Default code generation
+            return await self._generate_code_implementation(task, context)
+    
+    async def _read_and_analyze_code(self, context: Dict) -> Dict:
+        """
+        Liest und analysiert bestehenden Code
+        """
+        try:
+            # Try Claude Web Integration first
+            from claude_web_proxy.crewai_integration import create_claude_web_llm
+            
+            claude_web_llm = create_claude_web_llm(
+                server_url="http://localhost:8000",
+                agent_id="CodeSmithClaude"
+            )
+            
+            # Build analysis prompt
+            prompt = self._build_analysis_prompt(context)
+            
+            # Get analysis from Claude Web
+            analysis = await claude_web_llm.agenerate(prompt)
+            
+            print(f"✅ {self.name}: Echte Claude Web Code-Analyse abgeschlossen!")
+            
+            return {
+                "agent": self.name,
+                "task": "read_and_analyze_code",
+                "output": analysis,
+                "status": "success"
+            }
+            
+        except Exception as e:
+            print(f"⚠️ {self.name}: Claude Web nicht verfügbar ({e}), verwende Fallback")
+            
+            # Fallback: Basic analysis
+            return {
+                "agent": self.name,
+                "task": "read_and_analyze_code", 
+                "output": "Code-Analyse - Fallback Modus",
+                "status": "fallback"
+            }
+    
+    def _build_analysis_prompt(self, context: Dict) -> str:
+        """
+        Builds analysis prompt for existing code
+        """
+        # Try to load the file content if file_path is provided
+        file_content = ""
+        file_path = "/Users/dominikfoert/git/stock_analyser/strategies/ron_strategy.py"
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                file_content = f.read()
+            print(f"✅ {self.name}: Datei erfolgreich geladen ({len(file_content)} Zeichen)")
+        except Exception as e:
+            print(f"⚠️ {self.name}: Fehler beim Laden der Datei: {e}")
+            file_content = "Datei konnte nicht geladen werden."
+        
+        prompt_parts = [
+            "Du bist CodeSmithClaude, ein Python-Experte mit Fokus auf Trading-Systeme.",
+            "Analysiere den folgenden Python-Code auf Korrektheit, Qualität und Best Practices.",
+            "",
+            f"DATEI: {file_path}",
+            "",
+            "CODE:",
+            "```python",
+            file_content,
+            "```",
+            "",
+            "Überprüfe insbesondere:",
+            "1. Python-Syntax und Code-Struktur",
+            "2. Verwendung von Bibliotheken und Imports", 
+            "3. Funktionsdefinitionen und Parameter",
+            "4. Datentypen und Return-Werte",
+            "5. Error Handling",
+            "6. Code-Kommentare und Dokumentation",
+            "7. Trading-spezifische Logik (VWAP, Fibonacci)",
+            "",
+            "Gib eine detaillierte technische Analyse mit Verbesserungsvorschlägen."
+        ]
+        
+        if context.get("user_request"):
+            prompt_parts.append(f"\nSpezifische Anfrage: {context['user_request']}")
+        
+        return "\n".join(prompt_parts)
+    
+    async def _implement_code(self, task: str, context: Dict) -> Dict:
+        """
+        Implements new code based on requirements
         """
         # Build specialized prompt for code generation
         prompt = self._build_coding_prompt(task, context)
         
-        # Generate code (mock for now)
+        # Generate code
+        code = await self._generate_code(prompt, context)
+        
+        # Validate generated code
+        validation = self._validate_code(code)
+        
+        # Extract and organize code
+        organized_code = self._organize_code(code)
+        
+        return {
+            "agent": self.name,
+            "task": task,
+            "output": code,
+            "code": organized_code,
+            "validation": validation,
+            "status": "success" if validation["valid"] else "needs_review"
+        }
+    
+    async def _generate_code_implementation(self, task: str, context: Dict) -> Dict:
+        """
+        General code implementation task
+        """
+        # Build specialized prompt for code generation
+        prompt = self._build_coding_prompt(task, context)
+        
+        # Generate code
         code = await self._generate_code(prompt, context)
         
         # Validate generated code
@@ -149,10 +269,27 @@ Code quality standards:
     
     async def _generate_code(self, prompt: str, context: Dict) -> str:
         """
-        Generiert Python-Code
+        Generiert Python-Code mit Claude Web Integration
         """
-        # Mock implementation for testing
-        # In production: Use Anthropic API with Claude 3.5 Sonnet
+        try:
+            # Try Claude Web Integration first
+            from claude_web_proxy.crewai_integration import create_claude_web_llm
+            
+            # Create Claude Web LLM instance
+            claude_web_llm = create_claude_web_llm(
+                server_url="http://localhost:8000",
+                agent_id="CodeSmithClaude"
+            )
+            
+            # Generate code using real Claude Web
+            code = await claude_web_llm.agenerate(prompt)
+            
+            print(f"✅ {self.name}: Echte Claude Web Antwort erhalten!")
+            return code
+            
+        except Exception as e:
+            print(f"⚠️ {self.name}: Claude Web nicht verfügbar ({e}), verwende Fallback")
+            # Fallback: Mock implementation for testing
         
         code = '''"""
 Trading Bot Implementation
