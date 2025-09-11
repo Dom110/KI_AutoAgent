@@ -916,5 +916,68 @@
       "ReviewerGPT",
       "TradeStrat"
     ]
+  },
+  {
+    "id": 28,
+    "timestamp": "2025-09-11T21:13:35.875824",
+    "request": "Wie kann ich das Systen verbessern?",
+    "intent": {
+      "type": "unknown",
+      "confidence": 0.0,
+      "entities": {},
+      "complexity": "unknown",
+      "original_input": "Wie kann ich das Systen verbessern?",
+      "suggested_agents": [
+        "ResearchBot",
+        "ArchitectGPT"
+      ]
+    },
+    "workflow_name": "General Assistance",
+    "workflow_steps": 2,
+    "result_status": "success",
+    "metrics": {
+      "success_score": 1.0,
+      "execution_time": 0.0028340816497802734,
+      "error_count": 0,
+      "completed_steps": 2,
+      "failed_steps": 0
+    },
+    "agents_used": [
+      "ResearchBot",
+      "ArchitectGPT"
+    ]
+  },
+  {
+    "id": 29,
+    "timestamp": "2025-09-11T21:28:15.173725",
+    "request": "Wie kann ich das Systen verbessern?",
+    "intent": {
+      "type": "improve_code",
+      "confidence": 0.96,
+      "entities": {},
+      "complexity": "low",
+      "original_input": "Wie kann ich das Systen verbessern?",
+      "suggested_agents": [
+        "CodeSmithClaude",
+        "ReviewerGPT",
+        "TradeStrat",
+        "FixerBot"
+      ]
+    },
+    "workflow_name": "Code Improvement and Implementation",
+    "workflow_steps": 4,
+    "result_status": "success",
+    "metrics": {
+      "success_score": 1.0,
+      "execution_time": 204.17070817947388,
+      "error_count": 0,
+      "completed_steps": 4,
+      "failed_steps": 0
+    },
+    "agents_used": [
+      "ReviewerGPT",
+      "TradeStrat",
+      "CodeSmithClaude"
+    ]
   }
 ]

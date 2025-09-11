@@ -13,6 +13,7 @@ class IntentType(Enum):
     OPTIMIZE_CODE = "optimize_code"
     TEST_CODE = "test_code"
     ANALYZE_CODE = "analyze_code"
+    IMPROVE_CODE = "improve_code"
     RESEARCH_TOPIC = "research_topic"
     TRADING_STRATEGY = "trading_strategy"
     DOCUMENTATION = "documentation"
@@ -154,6 +155,29 @@ class IntentClassifier:
                     "Validiere die VWAP Fibonacci Logik"
                 ],
                 "typical_agents": ["CodeSmithClaude", "ReviewerGPT", "FixerBot"]
+            },
+            
+            IntentType.IMPROVE_CODE: {
+                "keywords": ["verbessere", "verbessern", "improve", "optimiere", "optimieren", "enhance", "upgrade", "fix", "korrigiere", "ändern", "modifiziere"],
+                "regex": [
+                    r"(verbessere|verbessern|improve|optimiere|optimieren|enhance).*(code|system|implementation|strategie|strategy)",
+                    r"(wie kann ich|how can I|was kann ich|what can I).*(verbessern|improve|optimieren|optimize)",
+                    r"(vorschlag|vorschläge|suggestions|recommendations).*(für|for).*(verbesser|improv|optimier)",
+                    r"(was|what).*(kann|could).*(ich|i|man).*(anders|different|better).*(machen|do)",
+                    r"(korrigiere|fix|repair).*(fehler|errors|bugs|issues)",
+                    r"(implementiere|implement|apply).*(verbesser|improv|fix|änder)",
+                    r"(ändern|modify|change|update).*(code|implementation)",
+                    r"(mach|make).*(besser|better)"
+                ],
+                "examples": [
+                    "Wie kann ich das System verbessern?",
+                    "Verbessere die RON Strategy Implementation",
+                    "Optimiere den VWAP Code",
+                    "Was kann ich an der Strategie ändern?",
+                    "Implementiere Verbesserungsvorschläge",
+                    "Mach den Code besser"
+                ],
+                "typical_agents": ["CodeSmithClaude", "ReviewerGPT", "TradeStrat", "FixerBot"]
             },
             
             IntentType.DOCUMENTATION: {

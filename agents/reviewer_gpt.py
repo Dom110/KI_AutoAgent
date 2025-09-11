@@ -82,6 +82,10 @@ Provide actionable feedback with:
         """
         if task == "code_review":
             return await self._perform_code_review(context)
+        elif task == "analyze_previous_results":
+            return await self._analyze_previous_results(context)
+        elif task == "final_review":
+            return await self._perform_final_review(context)
         elif task == "analyze_error" or task == "review_code":
             return await self._analyze_code_issues(task, context)
         else:
@@ -173,6 +177,138 @@ Provide actionable feedback with:
         if context.get("user_request"):
             prompt_parts.append(f"\nSpezifische Anfrage: {context['user_request']}")
         
+        return "\n".join(prompt_parts)
+    
+    async def _analyze_previous_results(self, context: Dict) -> Dict:
+        """
+        Analyzes previous execution results to identify improvement opportunities
+        """
+        try:
+            # Try Claude Web Integration first
+            from claude_web_proxy.crewai_integration import create_claude_web_llm
+            
+            claude_web_llm = create_claude_web_llm(
+                server_url="http://localhost:8000",
+                agent_id="ReviewerGPT"
+            )
+            
+            # Build prompt for analyzing previous results
+            prompt = self._build_previous_analysis_prompt(context)
+            
+            # Get analysis from Claude Web
+            analysis = await claude_web_llm.agenerate(prompt)
+            
+            print(f"✅ {self.name}: Echte Claude Web Verbesserungs-Analyse abgeschlossen!")
+            
+            return {
+                "agent": self.name,
+                "task": "analyze_previous_results",
+                "output": analysis,
+                "status": "success"
+            }
+            
+        except Exception as e:
+            print(f"⚠️ {self.name}: Claude Web nicht verfügbar ({e}), verwende Fallback")
+            
+            return {
+                "agent": self.name,
+                "task": "analyze_previous_results", 
+                "output": "Vorherige Ergebnisse-Analyse - Fallback Modus",
+                "status": "fallback"
+            }
+    
+    async def _perform_final_review(self, context: Dict) -> Dict:
+        """
+        Performs final review of implemented improvements
+        """
+        try:
+            # Try Claude Web Integration first
+            from claude_web_proxy.crewai_integration import create_claude_web_llm
+            
+            claude_web_llm = create_claude_web_llm(
+                server_url="http://localhost:8000",
+                agent_id="ReviewerGPT"
+            )
+            
+            # Build final review prompt
+            prompt = self._build_final_review_prompt(context)
+            
+            # Get review from Claude Web
+            review = await claude_web_llm.agenerate(prompt)
+            
+            print(f"✅ {self.name}: Echte Claude Web Final-Review abgeschlossen!")
+            
+            return {
+                "agent": self.name,
+                "task": "final_review",
+                "output": review,
+                "status": "success"
+            }
+            
+        except Exception as e:
+            print(f"⚠️ {self.name}: Claude Web nicht verfügbar ({e}), verwende Fallback")
+            
+            return {
+                "agent": self.name,
+                "task": "final_review", 
+                "output": "Final Review - Fallback Modus",
+                "status": "fallback"
+            }
+    
+    def _build_previous_analysis_prompt(self, context: Dict) -> str:
+        """
+        Builds prompt for analyzing previous results
+        """
+        prompt_parts = [
+            "Du bist ReviewerGPT, ein Experte für Code-Review und Verbesserungsanalyse.",
+            "Analysiere die vorherigen Analyse-Ergebnisse und identifiziere konkrete Verbesserungsmöglichkeiten.",
+            "",
+            "AUFGABE: Basierend auf der vorherigen Code-Analyse, identifiziere:",
+            "1. Die wichtigsten gefundenen Issues und deren Priorität",
+            "2. Konkrete, umsetzbare Verbesserungsvorschläge",
+            "3. Quick Wins vs. größere Refactoring-Projekte",
+            "4. Performance-Optimierungen",
+            "5. Code-Quality Verbesserungen",
+            "",
+            "Strukturiere deine Analyse:",
+            "- **Kritische Issues**: Sofort zu behebende Probleme",
+            "- **Wichtige Verbesserungen**: Mittelfristige Optimierungen",
+            "- **Nice-to-have**: Langfristige Verbesserungen",
+            "- **Implementierungsreihenfolge**: Priorisierte Roadmap",
+            "",
+            "Sei spezifisch und gib klare Handlungsempfehlungen."
+        ]
+        
+        if context.get("previous_analysis"):
+            prompt_parts.append(f"\nVorherige Analyse-Ergebnisse:\n{context['previous_analysis']}")
+        
+        return "\n".join(prompt_parts)
+    
+    def _build_final_review_prompt(self, context: Dict) -> str:
+        """
+        Builds prompt for final review of improvements
+        """
+        prompt_parts = [
+            "Du bist ReviewerGPT, führe eine abschließende Code-Review der implementierten Verbesserungen durch.",
+            "",
+            "AUFGABE: Bewerte die implementierten Änderungen auf:",
+            "1. Korrektheit der Implementierung",
+            "2. Code-Qualität und Best Practices",
+            "3. Vollständigkeit der Umsetzung",
+            "4. Potential für weitere Verbesserungen",
+            "5. Regressions-Risiken",
+            "",
+            "Gib eine finale Bewertung ab:",
+            "- ✅ Approved: Bereit für Produktion",
+            "- ⚠️ Conditional: Mit Vorbehalten genehmigt",
+            "- ❌ Rejected: Weitere Arbeit erforderlich",
+            "",
+            "Begründe deine Entscheidung und gib ggf. weitere Empfehlungen."
+        ]
+        
+        if context.get("implemented_changes"):
+            prompt_parts.append(f"\nImplementierte Änderungen:\n{context['implemented_changes']}")
+            
         return "\n".join(prompt_parts)
     
     async def _analyze_code_issues(self, task: str, context: Dict) -> Dict:

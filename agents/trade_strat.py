@@ -104,6 +104,8 @@ Always provide:
         """
         if task == "validate_trading_logic":
             return await self._validate_trading_logic(context)
+        elif task == "suggest_improvements":
+            return await self._suggest_improvements(context)
         elif task == "design_strategy":
             return await self._design_strategy(context)
         else:
@@ -194,6 +196,132 @@ Always provide:
         
         if context.get("user_request"):
             prompt_parts.append(f"\nSpezifische Anfrage: {context['user_request']}")
+        
+        return "\n".join(prompt_parts)
+    
+    async def _suggest_improvements(self, context: Dict) -> Dict:
+        """
+        Erstellt konkrete Verbesserungsvorschläge basierend auf vorheriger Analyse
+        """
+        try:
+            # Try Claude Web Integration first
+            from claude_web_proxy.crewai_integration import create_claude_web_llm
+            
+            claude_web_llm = create_claude_web_llm(
+                server_url="http://localhost:8000",
+                agent_id="TradeStrat"
+            )
+            
+            # Build improvement prompt
+            prompt = self._build_improvement_prompt(context)
+            
+            # Get suggestions from Claude Web
+            suggestions = await claude_web_llm.agenerate(prompt)
+            
+            print(f"✅ {self.name}: Konkrete Verbesserungsvorschläge erstellt!")
+            
+            return {
+                "agent": self.name,
+                "task": "suggest_improvements",
+                "output": suggestions,
+                "status": "success",
+                "ready_for_implementation": True
+            }
+            
+        except Exception as e:
+            print(f"⚠️ {self.name}: Claude Web nicht verfügbar ({e}), verwende Fallback")
+            
+            # Fallback: Basic improvement suggestions
+            return {
+                "agent": self.name,
+                "task": "suggest_improvements", 
+                "output": "Trading-Strategie Verbesserungsvorschläge - Fallback Modus:\n1. Code-Optimierung prüfen\n2. Risk Management erweitern\n3. Performance-Metriken hinzufügen",
+                "status": "fallback"
+            }
+    
+    def _build_improvement_prompt(self, context: Dict) -> str:
+        """
+        Builds improvement prompt based on previous analysis results
+        """
+        # Try to load the current file content
+        file_content = ""
+        file_path = "/Users/dominikfoert/git/stock_analyser/strategies/ron_strategy.py"
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                file_content = f.read()
+            print(f"✅ {self.name}: Aktuelle Implementierung geladen ({len(file_content)} Zeichen)")
+        except Exception as e:
+            print(f"⚠️ {self.name}: Fehler beim Laden der Datei: {e}")
+            file_content = "Datei konnte nicht geladen werden."
+        
+        # Extract previous analysis results from context
+        previous_analysis = ""
+        if context.get("previous_results"):
+            previous_analysis = context["previous_results"]
+        elif context.get("user_request"):
+            previous_analysis = f"Benutzeranfrage: {context['user_request']}"
+        
+        prompt_parts = [
+            "Du bist TradeStrat, ein Experte für Trading-Strategien und Code-Verbesserungen.",
+            "",
+            "AUFGABE: Erstelle konkrete, umsetzbare Verbesserungsvorschläge für die RON Trading Strategie.",
+            "",
+            "AKTUELLE IMPLEMENTIERUNG:",
+            f"Datei: {file_path}",
+            "",
+            "```python",
+            file_content,
+            "```",
+            "",
+            "VORHERIGE ANALYSE ERGEBNISSE:",
+            previous_analysis if previous_analysis else "Keine vorherigen Analyseergebnisse verfügbar.",
+            "",
+            "ERSTELLE KONKRETE VERBESSERUNGSVORSCHLÄGE MIT:",
+            "",
+            "1. PERFORMANCE-OPTIMIERUNG:",
+            "   - Algorithmus-Effizienz verbessern",
+            "   - Memory-Usage optimieren", 
+            "   - Calculation-Speed erhöhen",
+            "",
+            "2. CODE-QUALITÄT:",
+            "   - Clean Code Prinzipien",
+            "   - Bessere Dokumentation",
+            "   - Error Handling verbessern",
+            "",
+            "3. TRADING-LOGIK VERBESSERUNGEN:",
+            "   - RON Strategie Regeln verfeinern",
+            "   - Risk Management erweitern",
+            "   - Signal-Qualität verbessern",
+            "",
+            "4. TESTING & VALIDATION:",
+            "   - Unit Tests hinzufügen",
+            "   - Backtesting verbessern",
+            "   - Edge-Cases behandeln",
+            "",
+            "5. NEUE FEATURES:",
+            "   - Zusätzliche Indikatoren",
+            "   - Erweiterte Analysen",
+            "   - Better User Interface",
+            "",
+            "FORMAT DEINE ANTWORT SO:",
+            "🎯 PRIORITÄT 1 - KRITISCH:",
+            "[Konkreter Verbesserungsvorschlag mit Code-Beispiel]",
+            "",
+            "🔧 PRIORITÄT 2 - WICHTIG:",
+            "[Konkreter Verbesserungsvorschlag mit Code-Beispiel]", 
+            "",
+            "⚡ PRIORITÄT 3 - NICE TO HAVE:",
+            "[Konkreter Verbesserungsvorschlag mit Code-Beispiel]",
+            "",
+            "Jeder Vorschlag soll KONKRET und UMSETZBAR sein mit:",
+            "- Klarer Beschreibung WARUM die Verbesserung wichtig ist",
+            "- Code-Beispiel oder Pseudo-Code WIE es implementiert wird",
+            "- Geschätzte Auswirkung auf Performance/Qualität"
+        ]
+        
+        if context.get("specific_area"):
+            prompt_parts.append(f"\nFOKUS auf Bereich: {context['specific_area']}")
         
         return "\n".join(prompt_parts)
     

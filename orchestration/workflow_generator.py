@@ -269,6 +269,40 @@ class WorkflowGenerator:
                 ]
             },
             
+            "improve_code": {
+                "name": "Code Improvement and Implementation",
+                "description": "Analysiert vorherige Ergebnisse und implementiert Verbesserungen",
+                "steps": [
+                    {
+                        "agent": "ReviewerGPT",
+                        "task": "analyze_previous_results",
+                        "description": "Analysiere vorherige Analyse-Ergebnisse und identifiziere Verbesserungen",
+                        "estimated_time": 90
+                    },
+                    {
+                        "agent": "TradeStrat",
+                        "task": "suggest_improvements",
+                        "description": "Erstelle konkrete Verbesserungsvorschläge für Trading-Logik",
+                        "dependencies": [0],
+                        "estimated_time": 120
+                    },
+                    {
+                        "agent": "CodeSmithClaude",
+                        "task": "implement_improvements",
+                        "description": "Implementiere genehmigte Verbesserungen",
+                        "dependencies": [1],
+                        "estimated_time": 180
+                    },
+                    {
+                        "agent": "ReviewerGPT",
+                        "task": "final_review",
+                        "description": "Führe abschließende Code-Review der Verbesserungen durch",
+                        "dependencies": [2],
+                        "estimated_time": 90
+                    }
+                ]
+            },
+            
             "documentation": {
                 "name": "Documentation Creation",
                 "description": "Dokumentations-Erstellung",
