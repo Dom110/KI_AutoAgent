@@ -1,0 +1,370 @@
+{
+  "name": "ki-autoagent-vscode",
+  "displayName": "KI AutoAgent",
+  "description": "Universal Multi-Agent AI Development Platform for VS Code",
+  "version": "1.0.0",
+  "publisher": "ki-autoagent",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "chat",
+    "assistant",
+    "multi-agent",
+    "development",
+    "coding",
+    "trading"
+  ],
+  "activationEvents": [
+    "onChatParticipant:ki-autoagent.architect",
+    "onChatParticipant:ki-autoagent.codesmith",
+    "onChatParticipant:ki-autoagent.docu",
+    "onChatParticipant:ki-autoagent.reviewer",
+    "onChatParticipant:ki-autoagent.fixer",
+    "onChatParticipant:ki-autoagent.tradestrat",
+    "onChatParticipant:ki-autoagent.research",
+    "onChatParticipant:ki-autoagent.orchestrator"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "chatParticipants": [
+      {
+        "id": "ki-autoagent.orchestrator",
+        "name": "ki",
+        "fullName": "KI AutoAgent Orchestrator",
+        "description": "Universal AI assistant that automatically routes tasks to specialized agents",
+        "isSticky": true,
+        "disambiguation": [
+          {
+            "category": "development",
+            "description": "Full-stack development assistance",
+            "examples": [
+              "Create a REST API with FastAPI",
+              "Build a React component",
+              "Implement a trading strategy"
+            ]
+          }
+        ],
+        "commands": [
+          {
+            "name": "task",
+            "description": "Execute a development task with automatic agent selection"
+          },
+          {
+            "name": "agents",
+            "description": "Show available specialized agents"
+          },
+          {
+            "name": "workflow",
+            "description": "Create a multi-step development workflow"
+          }
+        ]
+      },
+      {
+        "id": "ki-autoagent.architect",
+        "name": "architect",
+        "fullName": "ArchitectGPT",
+        "description": "System Architecture & Design Expert powered by GPT-4o",
+        "isSticky": false,
+        "disambiguation": [
+          {
+            "category": "architecture",
+            "description": "System design and architecture planning",
+            "examples": [
+              "Design a microservices architecture",
+              "Plan a database schema",
+              "Create system diagrams"
+            ]
+          }
+        ],
+        "commands": [
+          {
+            "name": "design",
+            "description": "Create system architecture and design patterns"
+          },
+          {
+            "name": "analyze",
+            "description": "Analyze existing codebase architecture"
+          },
+          {
+            "name": "plan",
+            "description": "Create development and deployment plans"
+          }
+        ]
+      },
+      {
+        "id": "ki-autoagent.codesmith",
+        "name": "codesmith",
+        "fullName": "CodeSmithClaude",
+        "description": "Senior Python/Web Developer powered by Claude 3.5 Sonnet",
+        "isSticky": false,
+        "disambiguation": [
+          {
+            "category": "coding",
+            "description": "Code implementation and optimization",
+            "examples": [
+              "Implement a Python class",
+              "Create API endpoints",
+              "Write unit tests"
+            ]
+          }
+        ],
+        "commands": [
+          {
+            "name": "implement",
+            "description": "Implement code based on specifications"
+          },
+          {
+            "name": "optimize",
+            "description": "Optimize existing code for performance"
+          },
+          {
+            "name": "test",
+            "description": "Generate comprehensive test suites"
+          }
+        ]
+      },
+      {
+        "id": "ki-autoagent.docu",
+        "name": "docu",
+        "fullName": "DocuBot",
+        "description": "Technical Documentation Expert powered by GPT-4o",
+        "isSticky": false,
+        "disambiguation": [
+          {
+            "category": "documentation",
+            "description": "Create comprehensive documentation",
+            "examples": [
+              "Write API documentation",
+              "Create README files",
+              "Generate code comments"
+            ]
+          }
+        ],
+        "commands": [
+          {
+            "name": "readme",
+            "description": "Generate README and project documentation"
+          },
+          {
+            "name": "api",
+            "description": "Create API reference documentation"
+          },
+          {
+            "name": "tutorial",
+            "description": "Write tutorials and guides"
+          }
+        ]
+      },
+      {
+        "id": "ki-autoagent.reviewer",
+        "name": "reviewer",
+        "fullName": "ReviewerGPT",
+        "description": "Code Review & Security Expert powered by GPT-4o-mini",
+        "isSticky": false,
+        "disambiguation": [
+          {
+            "category": "quality",
+            "description": "Code review and quality assurance",
+            "examples": [
+              "Review this function for bugs",
+              "Check security vulnerabilities",
+              "Analyze performance issues"
+            ]
+          }
+        ],
+        "commands": [
+          {
+            "name": "review",
+            "description": "Perform comprehensive code review"
+          },
+          {
+            "name": "security",
+            "description": "Analyze security vulnerabilities"
+          },
+          {
+            "name": "performance",
+            "description": "Check performance and optimization opportunities"
+          }
+        ]
+      },
+      {
+        "id": "ki-autoagent.fixer",
+        "name": "fixer",
+        "fullName": "FixerBot",
+        "description": "Bug Fixing & Optimization Expert powered by Claude 3.5 Sonnet",
+        "isSticky": false,
+        "disambiguation": [
+          {
+            "category": "debugging",
+            "description": "Debug and fix code issues",
+            "examples": [
+              "Fix this error message",
+              "Debug performance issue",
+              "Resolve import problems"
+            ]
+          }
+        ],
+        "commands": [
+          {
+            "name": "debug",
+            "description": "Debug and diagnose code issues"
+          },
+          {
+            "name": "fix",
+            "description": "Fix bugs and errors"
+          },
+          {
+            "name": "refactor",
+            "description": "Refactor code for better maintainability"
+          }
+        ]
+      },
+      {
+        "id": "ki-autoagent.tradestrat",
+        "name": "tradestrat",
+        "fullName": "TradeStrat",
+        "description": "Trading Strategy Expert powered by Claude 3.5 Sonnet",
+        "isSticky": false,
+        "disambiguation": [
+          {
+            "category": "trading",
+            "description": "Trading strategy development and analysis",
+            "examples": [
+              "Implement RON strategy",
+              "Create backtesting framework",
+              "Analyze risk metrics"
+            ]
+          }
+        ],
+        "commands": [
+          {
+            "name": "strategy",
+            "description": "Develop and implement trading strategies"
+          },
+          {
+            "name": "backtest",
+            "description": "Create backtesting and validation systems"
+          },
+          {
+            "name": "risk",
+            "description": "Implement risk management and portfolio optimization"
+          }
+        ]
+      },
+      {
+        "id": "ki-autoagent.research",
+        "name": "research",
+        "fullName": "ResearchBot",
+        "description": "Research & Information Expert powered by Perplexity Pro",
+        "isSticky": false,
+        "disambiguation": [
+          {
+            "category": "research",
+            "description": "Web research and information gathering",
+            "examples": [
+              "Research latest Python frameworks",
+              "Find documentation for this library",
+              "Analyze market trends"
+            ]
+          }
+        ],
+        "commands": [
+          {
+            "name": "search",
+            "description": "Search web for current information"
+          },
+          {
+            "name": "documentation",
+            "description": "Find and analyze technical documentation"
+          },
+          {
+            "name": "market",
+            "description": "Research market trends and analysis"
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "ki-autoagent.createFile",
+        "title": "Create File"
+      },
+      {
+        "command": "ki-autoagent.insertAtCursor",
+        "title": "Insert at Cursor"
+      },
+      {
+        "command": "ki-autoagent.applySuggestion",
+        "title": "Apply Suggestion"
+      },
+      {
+        "command": "ki-autoagent.showAgentStats",
+        "title": "Show Agent Statistics"
+      }
+    ],
+    "configuration": {
+      "title": "KI AutoAgent",
+      "properties": {
+        "kiAutoAgent.openai.apiKey": {
+          "type": "string",
+          "description": "OpenAI API Key for GPT models",
+          "scope": "application"
+        },
+        "kiAutoAgent.anthropic.apiKey": {
+          "type": "string",
+          "description": "Anthropic API Key for Claude models",
+          "scope": "application"
+        },
+        "kiAutoAgent.perplexity.apiKey": {
+          "type": "string",
+          "description": "Perplexity API Key for research",
+          "scope": "application"
+        },
+        "kiAutoAgent.defaultModel": {
+          "type": "string",
+          "default": "gpt-4o",
+          "enum": [
+            "gpt-4o",
+            "claude-3.5-sonnet",
+            "gpt-4o-mini"
+          ],
+          "description": "Default AI model to use"
+        },
+        "kiAutoAgent.enableLogging": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable detailed logging for debugging"
+        },
+        "kiAutoAgent.maxTokens": {
+          "type": "number",
+          "default": 4000,
+          "minimum": 100,
+          "maximum": 32000,
+          "description": "Maximum tokens per AI request"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "openai": "^4.0.0",
+    "@anthropic-ai/sdk": "^0.24.0",
+    "axios": "^1.6.0"
+  }
+}

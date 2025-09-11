@@ -1,0 +1,48 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "npm",
+            "script": "watch",
+            "problemMatcher": "$tsc-watch",
+            "isBackground": true,
+            "presentation": {
+                "reveal": "never"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "type": "npm",
+            "script": "compile",
+            "problemMatcher": "$tsc",
+            "group": "build"
+        },
+        {
+            "label": "Package Extension",
+            "type": "shell",
+            "command": "npx",
+            "args": ["vsce", "package"],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "dependsOn": "npm: compile"
+        },
+        {
+            "label": "Install Extension Locally",
+            "type": "shell",
+            "command": "code",
+            "args": ["--install-extension", "ki-autoagent-vscode-1.0.0.vsix"],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "dependsOn": "Package Extension"
+        }
+    ]
+}

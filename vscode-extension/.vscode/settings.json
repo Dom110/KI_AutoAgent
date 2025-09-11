@@ -1,0 +1,25 @@
+{
+    "files.exclude": {
+        "out": false,
+        "node_modules": true,
+        "*.vsix": false
+    },
+    "search.exclude": {
+        "out": true,
+        "node_modules": true,
+        "*.vsix": true
+    },
+    "typescript.preferences.includePackageJsonAutoImports": "on",
+    "typescript.suggest.autoImports": true,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "editor.detectIndentation": false,
+    "[typescript]": {
+        "editor.defaultFormatter": "vscode.typescript-language-features",
+        "editor.formatOnSave": true
+    },
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features",
+        "editor.formatOnSave": true
+    }
+}
