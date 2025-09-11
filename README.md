@@ -52,9 +52,17 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### API-Keys einrichten
+### API-Keys & Authentication einrichten
 
-Erstelle eine `.env` Datei im Projekt-Root:
+Du hast **zwei Optionen** für die AI-Agent Authentifizierung:
+
+---
+
+## 🎯 Option 1: Direkte APIs (Maximale Performance)
+
+**Für Power-User mit hohem Durchsatz** - Schnellste Reaktionszeiten, vollständige Kontrolle
+
+### .env Datei erstellen:
 
 ```bash
 # .env Datei erstellen
@@ -65,6 +73,102 @@ echo "OPENAI_API_KEY=sk-proj-..." >> .env      # OpenAI API Key (beginnt mit sk-
 echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env    # Anthropic API Key (beginnt mit sk-ant-)
 echo "PERPLEXITY_API_KEY=pplx-..." >> .env     # Perplexity API Key (beginnt mit pplx-)
 ```
+
+#### Wo bekomme ich die API-Keys?
+
+**1. 🔵 OpenAI API Key (für ArchitectGPT, DocuBot, ReviewerGPT)**
+- **Website**: [platform.openai.com](https://platform.openai.com/api-keys)
+- **Registrierung**: Account erstellen → "Create new secret key"
+- **Kosten**: Pay-as-you-use (ca. $10-50/Monat je nach Nutzung)
+- **Modelle**: GPT-4o, GPT-4o-mini
+- **Rate Limits**: 500 RPM (Requests per Minute) für neue Accounts
+- **Key-Format**: `sk-proj-...` (beginnt mit sk-proj-)
+
+**2. 🟠 Anthropic API Key (für CodeSmithClaude, FixerBot, TradeStrat)**  
+- **Website**: [console.anthropic.com](https://console.anthropic.com/)
+- **Claude Max Plan**: Auch wenn du bereits Claude Max Plan hast, brauchst du separaten API-Zugang
+- **Registrierung**: Account erstellen → "Get API Key" → Kreditkarte hinterlegen
+- **Kosten**: Pay-per-token (ca. $15-75/Monat je nach Nutzung)  
+- **Modelle**: Claude 3.5 Sonnet (20241022)
+- **Rate Limits**: 1000 RPM, höhere Limits nach Anfrage verfügbar
+- **Key-Format**: `sk-ant-...` (beginnt mit sk-ant-)
+
+**3. 🟢 Perplexity API Key (für ResearchBot)**
+- **Website**: [perplexity.ai/settings/api](https://www.perplexity.ai/settings/api)
+- **Registrierung**: Account erstellen → "API" → Pro Plan upgraden
+- **Kosten**: $20/Monat für Pro API-Zugang (feste Koste)
+- **Modelle**: llama-3.1-sonar-small-128k-online (mit Live Web-Suche)
+- **Rate Limits**: 50 requests/Minute (Pro Plan)
+- **Key-Format**: `pplx-...` (beginnt mit pplx-)
+
+---
+
+## 💰 Option 2: Claude Web Proxy (Kostensparend) - **EMPFOHLEN**
+
+**Für smarte Nutzer** - Nutze deinen vorhandenen Claude Max Plan ($20/Monat) statt separater APIs
+
+### Vorteile:
+- ✅ **Massive Kosteneinsparung**: $50-100+ weniger pro Monat
+- ✅ **Bereits vorhanden**: Nutze deinen bestehenden Claude Max Plan
+- ✅ **Volle Funktionalität**: Kompletter Claude 3.5 Sonnet Zugriff
+- ✅ **Keine API-Limits**: Browser-basierte Authentifizierung
+
+### Setup für Claude Web Proxy:
+
+```bash
+# 1. Nur OpenAI + Perplexity Keys benötigt
+echo "OPENAI_API_KEY=sk-proj-..." >> .env      # OpenAI für ArchitectGPT, DocuBot, ReviewerGPT  
+echo "PERPLEXITY_API_KEY=pplx-..." >> .env     # Perplexity für ResearchBot
+# KEIN Anthropic Key nötig! 🎉
+
+# 2. Claude Web Proxy Setup (einmalig)
+python claude_web_proxy/setup_and_test.py
+
+# 3. In Browser in Claude.ai einloggen (einmalig)
+# 4. System nutzen - Claude-Agenten verwenden automatisch Web Proxy
+```
+
+**Claude-Agenten (CodeSmithClaude, FixerBot, TradeStrat)** nutzen automatisch Claude Web statt API.
+
+👉 **Detaillierte Anleitung**: Siehe [🌐 Claude Web Proxy Integration](#-claude-web-proxy-integration)
+
+---
+
+## 📊 Kostenvergleich
+
+| Nutzungsart | Option 1: Direkte APIs | Option 2: Claude Web Proxy | 💰 Ersparnis |
+|-------------|------------------------|-----------------------------|---------------|
+| **Leichte Nutzung** (10-20 Tasks/Tag) | | | |
+| • OpenAI | ~$10-15 | ~$10-15 | $0 |
+| • Anthropic | ~$15-25 | $0 (Max Plan) | ~$15-25 |
+| • Perplexity | $20 | $20 | $0 |
+| **Gesamt** | **$45-60/Monat** | **$30-35/Monat** | **$15-25/Monat** |
+| | | | |
+| **Intensive Nutzung** (50-100 Tasks/Tag) | | | |
+| • OpenAI | ~$30-50 | ~$30-50 | $0 |
+| • Anthropic | ~$50-75 | $0 (Max Plan) | ~$50-75 |
+| • Perplexity | $20 | $20 | $0 |
+| **Gesamt** | **$100-145/Monat** | **$50-70/Monat** | **$50-75/Monat** |
+
+## 🎯 Welche Option wählen?
+
+### 🚀 **Wähle Option 2 (Claude Web Proxy) wenn:**
+- Du bereits einen Claude Max Plan hast ($20/Monat)
+- Du Kosten sparen möchtest ($50+ monatliche Ersparnis)
+- Du normale bis mittlere Nutzung hast
+- Dir 3-8 Sekunden Antwortzeit ausreichen
+
+### ⚡ **Wähle Option 1 (Direkte APIs) wenn:**
+- Du maximale Performance brauchst (1-3 Sekunden Antwortzeit)
+- Du sehr hohen Durchsatz hast (100+ Tasks/Tag)
+- Du vollständige API-Kontrolle benötigst
+- Kosten sind weniger wichtig als Geschwindigkeit
+
+## 💡 Spar-Tipps:
+- **Start mit Claude Web Proxy**: Teste das System kostengünstig
+- **Upgrade bei Bedarf**: Wechsel zu direkten APIs wenn Performance kritisch wird
+- **Kostenüberwachung**: Alle Anbieter haben Usage-Dashboards
+- **Hybride Lösung**: Claude Web für Development, direkte APIs für Production
 
 ### Erste Schritte
 
@@ -284,6 +388,172 @@ KI_AutoAgent/
 6. Result Aggregation
    ↓
 7. Learning & Improvement (für zukünftige Workflows)
+```
+
+## 🌐 Claude Web Proxy Integration
+
+**Revolutionäre Browser-basierte Claude Integration für CrewAI**
+
+Da Claude API-Zugriff separat vom Max-Plan erworben werden muss, haben wir eine innovative Lösung entwickelt: Ein intelligenter Web-Proxy, der Claude.ai über Browser-Automation in CrewAI integriert.
+
+### 🚀 Features
+
+- **🤖 Vollautomatisierte Browser-Steuerung** - Playwright-basierte Claude.ai Integration
+- **⚡ REST API Server** - FastAPI-Server als Bridge zwischen Browser und CrewAI
+- **🔄 Session Management** - Persistente Browser-Profile und Login-Sessions  
+- **🎯 CrewAI Compatible** - Custom LLM Implementation für nahtlose Integration
+- **📊 Conversation Tracking** - Separate Konversationen pro Agent
+- **🛡️ Anti-Detection** - Robuste Browser-Simulation mit User-Agent Spoofing
+
+### 📁 Claude Web Proxy Architektur
+
+```
+claude_web_proxy/
+├── claude_browser.py           # 🤖 Playwright Browser Automation
+│   ├── ClaudeBrowser class        # Haupt-Browser-Controller
+│   ├── Login & Session Management  # Persistent Profile Support
+│   ├── Message Sending/Receiving   # Automatische Chat-Interaktion
+│   └── Anti-Detection Features     # User-Agent & Stealth-Modus
+├── fastapi_server.py          # 🖥️ REST API Server
+│   ├── /claude/status            # Browser & Login-Status
+│   ├── /claude/setup             # Interactive Setup & Login
+│   ├── /claude/chat              # Message Endpoint
+│   └── /claude/new-conversation   # Conversation Management
+├── crewai_integration.py      # 🔧 CrewAI LLM Implementation
+│   ├── ClaudeWebLLM class        # Custom LLM für CrewAI
+│   ├── Async/Sync Bridging       # CrewAI Compatibility Layer
+│   └── Agent Conversation Tracking # Per-Agent Sessions
+├── setup_and_test.py          # 🧪 Setup & Testing Suite
+└── requirements.txt           # 📦 Proxy Dependencies
+```
+
+### 🛠️ Installation & Setup
+
+```bash
+# 1. Dependencies installieren (bereits in Haupt-requirements.txt)
+pip install playwright fastapi uvicorn structlog
+
+# 2. Playwright Browser installieren  
+python -m playwright install chromium
+
+# 3. Setup & Test ausführen
+cd claude_web_proxy
+python setup_and_test.py
+
+# Erwartete Ausgabe:
+# 🚀 Starting Claude Web Proxy Setup and Testing...
+# ✅ playwright
+# ✅ fastapi  
+# ✅ Browser automation
+# ✅ Server startup
+# 🎉 All critical tests passed! Claude Web Proxy is ready to use.
+```
+
+### 💻 Verwendung
+
+#### Option 1: Standalone Server
+
+```bash
+# Server starten
+python setup_and_test.py --server-only
+
+# Server läuft auf http://localhost:8000
+# API Dokumentation: http://localhost:8000/docs
+```
+
+#### Option 2: Direkte Integration
+
+```python
+from claude_web_proxy.crewai_integration import create_claude_web_llm
+from crewai import Agent
+
+# Claude Web LLM erstellen
+claude_llm = create_claude_web_llm(server_url="http://localhost:8000")
+
+# CrewAI Agent mit Claude Web
+agent = Agent(
+    role="Senior Developer",
+    goal="Write high-quality code",
+    backstory="Expert Python developer",
+    llm=claude_llm
+)
+```
+
+#### Option 3: Beispiel-Demo
+
+```bash
+# Interaktive Demo starten
+cd examples
+python claude_web_integration_example.py --demo
+
+# Oder interaktiver Modus
+python claude_web_integration_example.py --interactive
+```
+
+### 🔧 API Endpoints
+
+| Endpoint | Methode | Beschreibung |
+|----------|---------|--------------|
+| `/` | GET | Health Check & Server Info |  
+| `/claude/status` | GET | Browser & Login Status |
+| `/claude/setup` | POST | Browser Setup & Login |
+| `/claude/chat` | POST | Message an Claude senden |
+| `/claude/new-conversation` | POST | Neue Konversation starten |
+| `/claude/restart` | POST | Browser neu starten |
+| `/claude/shutdown` | DELETE | Browser beenden |
+
+### 📝 Beispiel API Calls
+
+```bash
+# Status prüfen
+curl http://localhost:8000/claude/status
+
+# Setup (Browser öffnet sich für Login)
+curl -X POST http://localhost:8000/claude/setup \
+  -H "Content-Type: application/json" \
+  -d '{"headless": false, "timeout": 300}'
+
+# Message senden
+curl -X POST http://localhost:8000/claude/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello Claude! How are you?", "new_conversation": false}'
+```
+
+### ⚙️ Konfiguration
+
+```python
+# Erweiterte Konfiguration
+claude_llm = ClaudeWebLLM(
+    server_url="http://localhost:8000",
+    timeout=120,                      # Request Timeout
+    new_conversation_per_agent=True   # Separate Conversations
+)
+
+# Agent-spezifische Konversationen
+response = claude_llm.generate(
+    "Write a Python function", 
+    agent_id="CodeSmithClaude"
+)
+```
+
+### 🚨 Wichtige Hinweise
+
+- **🔐 Manuel Login erforderlich**: Beim ersten Setup öffnet sich Browser für Claude.ai Login
+- **💾 Persistent Sessions**: Browser-Profile werden gespeichert für automatische Re-Login
+- **⚡ Performance**: Etwas langsamer als direkte API, aber vollwertige Claude-Funktionalität
+- **🛡️ Stabilität**: Robuste Error-Handling und automatische Recovery-Mechanismen
+
+### 🔍 Troubleshooting
+
+```bash
+# System-Check ausführen
+python setup_and_test.py --test-only
+
+# Häufige Probleme:
+# 1. Port 8000 belegt → Server Port ändern
+# 2. Playwright nicht installiert → python -m playwright install chromium  
+# 3. Claude.ai nicht erreichbar → Browser-Setup erneut ausführen
+# 4. Session abgelaufen → /claude/restart endpoint aufrufen
 ```
 
 ## 🧪 Tests & Entwicklung

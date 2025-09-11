@@ -23,9 +23,13 @@ pyyaml>=6.0.1
 aiofiles>=24.1.0
 
 # === OPTIONAL REQUIREMENTS ===
-# Web Framework (uncomment if needed)
-# fastapi>=0.115.0
-# uvicorn>=0.32.0
+# Web Framework (required for Claude Web Proxy)
+fastapi>=0.115.0
+uvicorn>=0.32.0
+
+# Browser Automation (required for Claude Web Proxy)
+playwright>=1.40.0
+structlog>=23.0.0
 
 # Development Tools (uncomment if needed)
 # pytest>=8.3.0
