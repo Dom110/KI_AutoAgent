@@ -20,6 +20,7 @@ export class CodeSmithAgent extends ChatAgent {
             fullName: 'CodeSmithClaude',
             description: 'Senior Python/Web Developer powered by Claude 3.5 Sonnet',
             model: 'claude-3.5-sonnet',
+            iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'claude-icon.svg'),
             capabilities: [
                 'Python Development',
                 'Web Development',

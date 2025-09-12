@@ -1,0 +1,12 @@
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <!-- Trading icon - simplified chart with trend line -->
+  <path fill="currentColor" d="M2 13V3h12v10H2zm1-1h10V4H3v8z"/>
+  <!-- Chart line showing upward trend -->
+  <path fill="currentColor" d="M4 10L6 8L8 9L10 6L12 7" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Data points -->
+  <circle fill="currentColor" cx="4" cy="10" r="1"/>
+  <circle fill="currentColor" cx="6" cy="8" r="1"/>
+  <circle fill="currentColor" cx="8" cy="9" r="1"/>
+  <circle fill="currentColor" cx="10" cy="6" r="1"/>
+  <circle fill="currentColor" cx="12" cy="7" r="1"/>
+</svg>

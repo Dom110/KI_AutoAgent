@@ -20,6 +20,7 @@ export class TradeStratAgent extends ChatAgent {
             fullName: 'TradeStrat',
             description: 'Trading Strategy Expert powered by Claude 3.5 Sonnet',
             model: 'claude-3.5-sonnet',
+            iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'trading-icon.svg'),
             capabilities: [
                 'Trading Strategy Development',
                 'RON Strategy Implementation',

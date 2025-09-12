@@ -233,6 +233,71 @@ Warning: claude-3-5-sonnet-20241022 deprecated
 
 ---
 
+## 🔄 Automatisches Versioning System
+
+### ⚡ Auto-Versioning Policy
+
+**WICHTIG**: Alle Updates am KI_AutoAgent System erhalten automatisch eine neue Versionsnummer nach folgendem Schema:
+
+#### Semantic Versioning (MAJOR.MINOR.PATCH)
+
+```yaml
+# Versioning Rules
+MAJOR Version (X.0.0):
+  - Neue Claude-Modelle (z.B. Claude 5)
+  - Grundlegende Architektur-Änderungen
+  - Breaking Changes in Agent-APIs
+  
+MINOR Version (X.Y.0):
+  - Neue Agent-Features oder -Capabilities
+  - Neue KI-Model-Integrationen
+  - VS Code Extension Updates
+  - Neue Chat-Funktionen
+  
+PATCH Version (X.Y.Z):
+  - Bug-Fixes
+  - Performance-Optimierungen
+  - Konfiguration-Updates
+  - Dokumentation-Updates
+```
+
+#### Aktuelle Versionshistorie
+
+```markdown
+📦 Version History:
+├── v2.1.2 (12.9.2025) - Fix OpusArbitrator visibility and extension output display
+```
+
+#### Auto-Versioning Trigger
+
+**Jeder dieser Changes löst automatisch eine neue Version aus:**
+
+1. ✅ **Code-Änderungen** → Neue PATCH-Version
+2. ✅ **Neue Features** → Neue MINOR-Version  
+3. ✅ **Model-Updates** → Neue MINOR-Version
+4. ✅ **Breaking Changes** → Neue MAJOR-Version
+5. ✅ **Documentation Updates** → Neue PATCH-Version
+6. ✅ **Configuration Changes** → Neue PATCH-Version
+
+#### Implementierung
+
+```bash
+# Automatisches Versioning bei jedem Update
+# In package.json und allen Config-Files
+{
+  "version": "2.1.0",  # ← Wird bei jedem Update automatisch erhöht
+  "versionHistory": {
+    "2.1.0": "VS Code Extension Icon Fix + Repository Setup",
+    "2.0.0": "Claude Sonnet 4 Migration + OpusArbitrator",
+    "1.5.0": "Multi-Agent Chat Interface"
+  }
+}
+```
+
+**Regel**: Sobald eine Änderung am System vorgenommen wird (egal wie klein), wird automatisch die entsprechende Versionsnummer erhöht und in allen relevanten Dateien aktualisiert.
+
+---
+
 ## 📈 Migration Timeline
 
 ### ✅ Abgeschlossen (Januar 2025)

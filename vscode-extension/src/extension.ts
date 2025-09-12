@@ -21,6 +21,14 @@ import { ChatWidget } from './ui/ChatWidget';
 export function activate(context: vscode.ExtensionContext) {
     console.log('🤖 KI AutoAgent extension is now active!');
 
+    // Show activation in output channel immediately
+    const outputChannel = vscode.window.createOutputChannel('KI AutoAgent');
+    outputChannel.appendLine('🤖 KI AutoAgent Extension Activated');
+    outputChannel.appendLine('======================================');
+    outputChannel.appendLine(`⏰ Activation Time: ${new Date().toLocaleString()}`);
+    outputChannel.appendLine(`📦 Extension Version: ${context.extension.packageJSON.version}`);
+    outputChannel.show(true); // Show and preserve focus
+
     // Initialize the master dispatcher
     const dispatcher = new VSCodeMasterDispatcher(context);
     
@@ -75,7 +83,11 @@ export function activate(context: vscode.ExtensionContext) {
     registerCommands(context, dispatcher);
 
     // Show welcome message in output channel
-    showWelcomeMessage();
+    showWelcomeMessage(outputChannel);
+
+    // Log successful activation
+    outputChannel.appendLine('✅ All components initialized successfully!');
+    outputChannel.appendLine('');
 }
 
 export function deactivate() {
@@ -232,9 +244,7 @@ function registerCommands(context: vscode.ExtensionContext, dispatcher: VSCodeMa
     console.log('✅ All extension commands registered');
 }
 
-function showWelcomeMessage() {
-    const outputChannel = vscode.window.createOutputChannel('KI AutoAgent');
-    outputChannel.show();
+function showWelcomeMessage(outputChannel: vscode.OutputChannel) {
     
     outputChannel.appendLine('🤖 KI AutoAgent VS Code Extension');
     outputChannel.appendLine('=======================================');

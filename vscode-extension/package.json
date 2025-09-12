@@ -2,8 +2,14 @@
   "name": "ki-autoagent-vscode",
   "displayName": "KI AutoAgent",
   "description": "Universal Multi-Agent AI Development Platform for VS Code",
-  "version": "2.0.0",
+  "version": "2.1.2",
   "publisher": "ki-autoagent",
+  "icon": "media/multi-agent-logo.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dominikfoert/KI_AutoAgent"
+  },
+  "license": "MIT",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -19,9 +25,20 @@
     "multi-agent",
     "development",
     "coding",
-    "trading"
+    "trading",
+    "claude",
+    "gpt",
+    "anthropic",
+    "openai"
   ],
+  "author": "KI AutoAgent Team",
+  "homepage": "https://github.com/dominikfoert/KI_AutoAgent",
+  "bugs": {
+    "url": "https://github.com/dominikfoert/KI_AutoAgent/issues"
+  },
   "activationEvents": [
+    "onStartupFinished",
+    "onCommand:ki-autoagent.showChat",
     "onChatParticipant:ki-autoagent.architect",
     "onChatParticipant:ki-autoagent.codesmith",
     "onChatParticipant:ki-autoagent.docu",
@@ -32,7 +49,7 @@
     "onChatParticipant:ki-autoagent.richter",
     "onChatParticipant:ki-autoagent.orchestrator"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "chatParticipants": [
       {
@@ -451,7 +468,10 @@
         },
         "kiAutoAgent.serviceMode": {
           "type": "string",
-          "enum": ["api", "web"],
+          "enum": [
+            "api",
+            "web"
+          ],
           "default": "web",
           "description": "Choose service mode: 'api' for API key access, 'web' for Claude Pro web session"
         },
@@ -472,7 +492,10 @@
         },
         "kiAutoAgent.claudeWeb.planType": {
           "type": "string",
-          "enum": ["pro", "max"],
+          "enum": [
+            "pro",
+            "max"
+          ],
           "default": "pro",
           "description": "Claude plan type: 'pro' for Claude Pro, 'max' for Claude Max (higher rate limits)"
         },
@@ -484,7 +507,11 @@
         "kiAutoAgent.chat.defaultMode": {
           "type": "string",
           "default": "auto",
-          "enum": ["auto", "single", "workflow"],
+          "enum": [
+            "auto",
+            "single",
+            "workflow"
+          ],
           "description": "Default chat mode - auto for intelligent routing, single for direct agent chat, workflow for multi-agent collaboration"
         },
         "kiAutoAgent.chat.showAgentCommunication": {
@@ -508,19 +535,37 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack --mode development",
+    "watch": "webpack --mode development --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "version:bump": "node scripts/version-bump.js",
+    "version:patch": "npm run version:bump patch",
+    "version:minor": "npm run version:bump minor",
+    "version:major": "npm run version:bump major",
+    "build": "npm run version:patch && npm run compile"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.90.0",
-    "typescript": "^5.0.0"
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.0.0",
+    "webpack": "^5.101.3",
+    "webpack-cli": "^6.0.1"
   },
   "dependencies": {
-    "openai": "^4.0.0",
-    "@anthropic-ai/sdk": "^0.24.0",
     "@anthropic-ai/claude-code": "^1.0.111",
-    "axios": "^1.6.0"
+    "@anthropic-ai/sdk": "^0.24.0",
+    "axios": "^1.6.0",
+    "openai": "^4.0.0"
+  },
+  "versionHistory": {
+    "2.1.2": {
+      "date": "2025-09-12T12:41:12.116Z",
+      "description": "Fix OpusArbitrator visibility and extension output display",
+      "timestamp": 1757680872116
+    }
   }
 }

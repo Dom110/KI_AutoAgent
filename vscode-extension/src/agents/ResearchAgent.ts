@@ -20,6 +20,7 @@ export class ResearchAgent extends ChatAgent {
             fullName: 'ResearchBot',
             description: 'Research & Information Expert with real-time web access',
             model: 'gpt-4o',
+            iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'perplexity-icon.svg'),
             capabilities: [
                 'Web Research',
                 'Real-time Information',

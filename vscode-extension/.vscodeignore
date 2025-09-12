@@ -1,3 +1,4 @@
+# Source files
 .vscode/**
 .vscode-test/**
 src/**
@@ -8,3 +9,33 @@ vsc-extension-quickstart.md
 **/.eslintrc.json
 **/*.map
 **/*.ts
+
+# Node modules - exclude everything except bundled output
+node_modules/**
+
+# Development files
+webpack.config.js
+tsconfig.json
+.eslintrc.json
+
+# Build artifacts - only keep bundled extension  
+out/**
+!dist/extension.js
+!dist/extension.js.map
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs and temp files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tsbuildinfo
+.npm
+.eslintcache
+
+# Optional files that aren't needed in final package
+README.md
+CHANGELOG.md
+.git/**

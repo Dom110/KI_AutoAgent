@@ -18,6 +18,7 @@ export class OrchestratorAgent extends ChatAgent {
             fullName: 'KI AutoAgent Orchestrator',
             description: 'Universal AI assistant that automatically routes tasks to specialized agents',
             model: 'gpt-4o',
+            iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'orchestrator-icon.svg'),
             capabilities: [
                 'Intent Recognition',
                 'Agent Orchestration',
@@ -186,11 +187,12 @@ export class OrchestratorAgent extends ChatAgent {
         
         const agents = [
             { name: '@architect', fullName: 'ArchitectGPT', description: 'System Architecture & Design Expert', model: 'GPT-4o', specialties: 'Design, Architecture, Planning' },
-            { name: '@codesmith', fullName: 'CodeSmithClaude', description: 'Senior Python/Web Developer', model: 'Claude 3.5 Sonnet', specialties: 'Implementation, Testing, Optimization' },
+            { name: '@codesmith', fullName: 'CodeSmithClaude', description: 'Senior Python/Web Developer', model: 'Claude Sonnet 4', specialties: 'Implementation, Testing, Optimization' },
             { name: '@docu', fullName: 'DocuBot', description: 'Technical Documentation Expert', model: 'GPT-4o', specialties: 'Docs, README, API Reference' },
             { name: '@reviewer', fullName: 'ReviewerGPT', description: 'Code Review & Security Expert', model: 'GPT-4o-mini', specialties: 'QA, Security, Performance' },
-            { name: '@fixer', fullName: 'FixerBot', description: 'Bug Fixing & Optimization Expert', model: 'Claude 3.5 Sonnet', specialties: 'Debugging, Patching, Refactoring' },
-            { name: '@tradestrat', fullName: 'TradeStrat', description: 'Trading Strategy Expert', model: 'Claude 3.5 Sonnet', specialties: 'Strategies, Backtesting, Risk' },
+            { name: '@fixer', fullName: 'FixerBot', description: 'Bug Fixing & Optimization Expert', model: 'Claude Sonnet 4', specialties: 'Debugging, Patching, Refactoring' },
+            { name: '@tradestrat', fullName: 'TradeStrat', description: 'Trading Strategy Expert', model: 'Claude Sonnet 4', specialties: 'Strategies, Backtesting, Risk' },
+            { name: '@richter', fullName: 'OpusArbitrator', description: '⚖️ Supreme Quality Judge powered by Claude Opus 4.1', model: 'Claude Opus 4.1', specialties: 'Conflict Resolution, Supreme Decisions, Complex Reasoning' },
             { name: '@research', fullName: 'ResearchBot', description: 'Research & Information Expert', model: 'Perplexity Pro', specialties: 'Web Research, Documentation, Analysis' }
         ];
 
@@ -206,6 +208,7 @@ export class OrchestratorAgent extends ChatAgent {
         stream.markdown(`- \`@codesmith implement a REST API with FastAPI\`\n`);
         stream.markdown(`- \`@tradestrat create a momentum trading strategy\`\n`);
         stream.markdown(`- \`@fixer debug this error message\`\n`);
+        stream.markdown(`- \`@richter judge which solution is better\`\n`);
         stream.markdown(`- \`@research find the latest Python testing frameworks\`\n\n`);
         
         stream.markdown(`## 🔄 Automatic Routing\n\n`);
@@ -324,6 +327,7 @@ Available agents:
 - @reviewer (code review, security)
 - @fixer (debugging, fixes)
 - @tradestrat (trading strategies)
+- @richter (supreme arbitrator, conflict resolution, final decisions)
 - @research (web research, information)
 
 Make workflows realistic, actionable, and well-structured.`;

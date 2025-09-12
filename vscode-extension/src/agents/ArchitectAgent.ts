@@ -18,6 +18,7 @@ export class ArchitectAgent extends ChatAgent {
             fullName: 'ArchitectGPT',
             description: 'System Architecture & Design Expert powered by GPT-4o',
             model: 'gpt-4o',
+            iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'openai-icon.svg'),
             capabilities: [
                 'System Design',
                 'Architecture Patterns',
