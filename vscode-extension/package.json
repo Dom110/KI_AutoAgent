@@ -2,7 +2,7 @@
   "name": "ki-autoagent-vscode",
   "displayName": "KI AutoAgent",
   "description": "Universal Multi-Agent AI Development Platform for VS Code",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "publisher": "ki-autoagent",
   "engines": {
     "vscode": "^1.90.0"
@@ -29,6 +29,7 @@
     "onChatParticipant:ki-autoagent.fixer",
     "onChatParticipant:ki-autoagent.tradestrat",
     "onChatParticipant:ki-autoagent.research",
+    "onChatParticipant:ki-autoagent.richter",
     "onChatParticipant:ki-autoagent.orchestrator"
   ],
   "main": "./out/extension.js",
@@ -289,6 +290,43 @@
             "description": "Research market trends and analysis"
           }
         ]
+      },
+      {
+        "id": "ki-autoagent.richter",
+        "name": "richter",
+        "fullName": "OpusRichter",
+        "description": "Supreme Quality Judge powered by Claude Opus 4.1 - Final decision maker for complex evaluations",
+        "isSticky": false,
+        "disambiguation": [
+          {
+            "category": "evaluation",
+            "description": "Supreme quality judgment and final decision making",
+            "examples": [
+              "Judge the best architectural approach",
+              "Evaluate competing solutions",
+              "Make final quality assessment",
+              "Resolve agent disagreements"
+            ]
+          }
+        ],
+        "commands": [
+          {
+            "name": "judge",
+            "description": "Make supreme quality judgment on solutions or approaches"
+          },
+          {
+            "name": "evaluate",
+            "description": "Deep evaluation of complex technical decisions"
+          },
+          {
+            "name": "resolve",
+            "description": "Resolve disagreements between agents or approaches"
+          },
+          {
+            "name": "verdict",
+            "description": "Final verdict on system architecture or code quality"
+          }
+        ]
       }
     ],
     "commands": [
@@ -307,6 +345,23 @@
       {
         "command": "ki-autoagent.showAgentStats",
         "title": "Show Agent Statistics"
+      },
+      {
+        "command": "ki-autoagent.toggleChat",
+        "title": "Toggle KI AutoAgent Chat",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "ki-autoagent.showChat",
+        "title": "Show KI AutoAgent Chat"
+      },
+      {
+        "command": "ki-autoagent.quickChat",
+        "title": "Quick Chat with KI AutoAgent"
+      },
+      {
+        "command": "ki-autoagent.clearUnread",
+        "title": "Clear Unread Messages"
       }
     ],
     "configuration": {
@@ -329,13 +384,15 @@
         },
         "kiAutoAgent.defaultModel": {
           "type": "string",
-          "default": "gpt-4o",
+          "default": "claude-sonnet-4",
           "enum": [
-            "gpt-4o",
+            "claude-opus-4.1",
+            "claude-sonnet-4",
             "claude-3.5-sonnet",
+            "gpt-4o",
             "gpt-4o-mini"
           ],
-          "description": "Default AI model to use"
+          "description": "Default AI model to use - Claude Opus 4.1 (Supreme Judge), Sonnet 4 (Best Coder), GPT-4o (Architect)"
         },
         "kiAutoAgent.enableLogging": {
           "type": "boolean",
@@ -348,6 +405,104 @@
           "minimum": 100,
           "maximum": 32000,
           "description": "Maximum tokens per AI request"
+        },
+        "kiAutoAgent.webAccess.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable web access for research and real-time information"
+        },
+        "kiAutoAgent.webAccess.searchEngine": {
+          "type": "string",
+          "default": "perplexity",
+          "enum": [
+            "perplexity",
+            "tavily",
+            "serp",
+            "custom"
+          ],
+          "description": "Search engine to use for web research"
+        },
+        "kiAutoAgent.webAccess.maxResults": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Maximum number of search results to process"
+        },
+        "kiAutoAgent.tavily.apiKey": {
+          "type": "string",
+          "description": "Tavily API Key for web search",
+          "scope": "application"
+        },
+        "kiAutoAgent.serp.apiKey": {
+          "type": "string",
+          "description": "SERP API Key for Google search",
+          "scope": "application"
+        },
+        "kiAutoAgent.customSearch.endpoint": {
+          "type": "string",
+          "description": "Custom search API endpoint URL",
+          "scope": "application"
+        },
+        "kiAutoAgent.customSearch.apiKey": {
+          "type": "string",
+          "description": "Custom search API key",
+          "scope": "application"
+        },
+        "kiAutoAgent.serviceMode": {
+          "type": "string",
+          "enum": ["api", "web"],
+          "default": "web",
+          "description": "Choose service mode: 'api' for API key access, 'web' for Claude Pro web session"
+        },
+        "kiAutoAgent.claudeWeb.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Claude Web integration (uses Claude Pro account via browser session)"
+        },
+        "kiAutoAgent.claudeWeb.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "Claude Web Proxy server URL (connects to your Claude Pro account)"
+        },
+        "kiAutoAgent.claudeWeb.autoStart": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically start Claude Web Proxy server when extension activates"
+        },
+        "kiAutoAgent.claudeWeb.planType": {
+          "type": "string",
+          "enum": ["pro", "max"],
+          "default": "pro",
+          "description": "Claude plan type: 'pro' for Claude Pro, 'max' for Claude Max (higher rate limits)"
+        },
+        "kiAutoAgent.chat.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the multi-agent chat interface"
+        },
+        "kiAutoAgent.chat.defaultMode": {
+          "type": "string",
+          "default": "auto",
+          "enum": ["auto", "single", "workflow"],
+          "description": "Default chat mode - auto for intelligent routing, single for direct agent chat, workflow for multi-agent collaboration"
+        },
+        "kiAutoAgent.chat.showAgentCommunication": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inter-agent communication in workflow mode"
+        },
+        "kiAutoAgent.chat.autoCollapseLongMessages": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically make long messages collapsible"
+        },
+        "kiAutoAgent.chat.messageCollapseThreshold": {
+          "type": "number",
+          "default": 500,
+          "minimum": 100,
+          "maximum": 2000,
+          "description": "Number of characters before a message becomes collapsible"
         }
       }
     }
@@ -365,6 +520,7 @@
   "dependencies": {
     "openai": "^4.0.0",
     "@anthropic-ai/sdk": "^0.24.0",
+    "@anthropic-ai/claude-code": "^1.0.111",
     "axios": "^1.6.0"
   }
 }

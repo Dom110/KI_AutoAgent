@@ -2,6 +2,48 @@
 
 All notable changes to the "KI AutoAgent" extension will be documented in this file.
 
+## [1.0.2] - 2025-01-12
+
+### Added
+- 🏛️ **OpusArbitrator Agent (@richter)**: Supreme judge for agent conflicts powered by Claude Opus 4.1
+- ⚖️ **Conflict Resolution System**: Automated agent disagreement handling with final authority
+- 🧠 **Claude Opus 4.1 Integration**: Latest and most powerful Claude model for complex reasoning
+- 🆕 **Claude Sonnet 4 Support**: Enhanced coding model with superior performance (72.7% on SWE-bench)
+- 📊 **Agent Hierarchy System**: OpusArbitrator as supreme authority over all other agents
+
+### Enhanced
+- 🎯 **Model Selection**: Updated to include claude-opus-4.1 and claude-sonnet-4 options
+- 📚 **Documentation**: Comprehensive conflict resolution workflow and agent capabilities
+- 🔧 **Service Architecture**: Dual support for both API and web modes with new models
+- 💭 **Reasoning Capabilities**: Superior decision-making with 74.5% on SWE-bench Verified
+
+### Commands Added
+- `/judge` - Make supreme judgment on any matter
+- `/evaluate` - Deep technical evaluation of options  
+- `/resolve` - Resolve conflicts between agents
+- `/verdict` - Final binding verdict on decisions
+
+## [1.0.1] - 2025-01-12
+
+### Added
+- 🌐 **Claude Pro Web Integration**: Use your Claude Pro account via web sessions (no additional API costs!)
+- ⚙️ **Service Mode Selection**: Choose between "web" (Claude Pro) or "api" (API keys) modes
+- 🚀 **Claude Web Proxy Support**: Seamless integration with claude_web_proxy server
+- 🔧 **Claude Max Plan Support**: Enhanced settings for Claude Max users with higher rate limits
+- 📋 **Enhanced Configuration**: New settings for web service configuration and auto-start options
+
+### Enhanced
+- 🤖 **CodeSmithClaude & TradeStrat**: Now support both API and web modes dynamically
+- ⚡ **Error Handling**: Better error messages and troubleshooting guidance for web service issues
+- 📚 **Documentation**: Comprehensive setup instructions for both service modes
+
+### Configuration
+- `kiAutoAgent.serviceMode`: Choose between "web" and "api" modes
+- `kiAutoAgent.claudeWeb.enabled`: Enable Claude Pro web integration
+- `kiAutoAgent.claudeWeb.serverUrl`: Configure web proxy server URL
+- `kiAutoAgent.claudeWeb.autoStart`: Auto-start proxy server option
+- `kiAutoAgent.claudeWeb.planType`: Support for Claude Pro and Max plans
+
 ## [1.0.0] - 2025-01-11
 
 ### Added

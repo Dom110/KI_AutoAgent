@@ -8,29 +8,44 @@ import { ArchitectAgent } from './agents/ArchitectAgent';
 import { OrchestratorAgent } from './agents/OrchestratorAgent';
 import { CodeSmithAgent } from './agents/CodeSmithAgent';
 import { TradeStratAgent } from './agents/TradeStratAgent';
+import { ResearchAgent } from './agents/ResearchAgent';
+import { OpusArbitratorAgent } from './agents/OpusArbitratorAgent';
+// Multi-Agent Chat UI Components
+import { MultiAgentChatPanel } from './ui/MultiAgentChatPanel';
+import { ChatWidget } from './ui/ChatWidget';
 // TODO: Implement remaining agents
 // import { DocuAgent } from './agents/DocuAgent';
 // import { ReviewerAgent } from './agents/ReviewerAgent';
 // import { FixerAgent } from './agents/FixerAgent';
-// import { ResearchAgent } from './agents/ResearchAgent';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('🤖 KI AutoAgent extension is now active!');
 
     // Initialize the master dispatcher
     const dispatcher = new VSCodeMasterDispatcher(context);
+    
+    // Initialize Chat Widget (Status Bar)
+    const chatWidget = new ChatWidget(context, dispatcher);
+    
+    // Register chat panel commands
+    const showChatCommand = vscode.commands.registerCommand(
+        'ki-autoagent.showChat',
+        () => MultiAgentChatPanel.createOrShow(context.extensionUri, dispatcher)
+    );
+    context.subscriptions.push(showChatCommand);
 
     // Initialize and register all agents
     const agents = [
         new OrchestratorAgent(context, dispatcher),
+        new OpusArbitratorAgent(context, dispatcher),
         new ArchitectAgent(context, dispatcher),
         new CodeSmithAgent(context, dispatcher),
         new TradeStratAgent(context, dispatcher),
+        new ResearchAgent(context, dispatcher),
         // TODO: Add remaining agents as they are implemented
         // new DocuAgent(context, dispatcher),
         // new ReviewerAgent(context, dispatcher),
         // new FixerAgent(context, dispatcher),
-        // new ResearchAgent(context, dispatcher),
     ];
 
     // Register each agent as a chat participant
@@ -228,6 +243,7 @@ function showWelcomeMessage() {
     outputChannel.appendLine('');
     outputChannel.appendLine('Available Agents:');
     outputChannel.appendLine('• @ki - Universal orchestrator (routes to best agent)');
+    outputChannel.appendLine('• @richter - ⚖️ Supreme judge & conflict resolver (Opus 4.1)');
     outputChannel.appendLine('• @architect - System architecture & design');
     outputChannel.appendLine('• @codesmith - Code implementation & testing');
     outputChannel.appendLine('• @docu - Documentation generation');
@@ -282,6 +298,7 @@ function generateHelpContent(agentId?: string): string {
         content += 'KI AutoAgent is a universal multi-agent AI development platform for VS Code.\n\n';
         content += '### Available Agents\n\n';
         content += '- **@ki** - Universal orchestrator that automatically routes tasks\n';
+        content += '- **@richter** - ⚖️ Supreme judge & conflict resolver (Claude Opus 4.1)\n';
         content += '- **@architect** - System architecture and design expert\n';
         content += '- **@codesmith** - Senior Python/Web developer\n';
         content += '- **@docu** - Technical documentation expert\n';
@@ -292,6 +309,8 @@ function generateHelpContent(agentId?: string): string {
         content += '### Usage Examples\n\n';
         content += '```\n';
         content += '@ki create a REST API with FastAPI\n';
+        content += '@richter judge which approach is better: microservices vs monolith\n';
+        content += '@richter resolve this disagreement between @architect and @codesmith\n';
         content += '@architect design a microservices architecture\n';
         content += '@codesmith implement a Python class for user management\n';
         content += '@tradestrat develop a momentum trading strategy\n';

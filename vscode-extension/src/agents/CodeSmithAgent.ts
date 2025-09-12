@@ -7,9 +7,11 @@ import { ChatAgent } from './base/ChatAgent';
 import { AgentConfig, TaskRequest, TaskResult, WorkflowStep } from '../types';
 import { VSCodeMasterDispatcher } from '../core/VSCodeMasterDispatcher';
 import { AnthropicService } from '../utils/AnthropicService';
+import { ClaudeWebService } from '../utils/ClaudeWebService';
 
 export class CodeSmithAgent extends ChatAgent {
     private anthropicService: AnthropicService;
+    private claudeWebService: ClaudeWebService;
 
     constructor(context: vscode.ExtensionContext, dispatcher: VSCodeMasterDispatcher) {
         const config: AgentConfig = {
@@ -35,6 +37,7 @@ export class CodeSmithAgent extends ChatAgent {
 
         super(config, context, dispatcher);
         this.anthropicService = new AnthropicService();
+        this.claudeWebService = new ClaudeWebService();
     }
 
     protected async handleRequest(
@@ -44,8 +47,8 @@ export class CodeSmithAgent extends ChatAgent {
         token: vscode.CancellationToken
     ): Promise<void> {
         
-        if (!this.validateApiConfig()) {
-            stream.markdown('❌ Anthropic API key not configured. Please set it in VS Code settings.');
+        const validationResult = await this.validateServiceConfig(stream);
+        if (!validationResult) {
             return;
         }
 
@@ -94,7 +97,8 @@ export class CodeSmithAgent extends ChatAgent {
         }
 
         try {
-            const response = await this.anthropicService.chat([
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
             ]);
@@ -129,7 +133,8 @@ export class CodeSmithAgent extends ChatAgent {
         const userPrompt = `Implement the following requirements: ${prompt}\n\nWorkspace Context:\n${context}`;
 
         try {
-            const response = await this.anthropicService.chat([
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
             ]);
@@ -186,7 +191,8 @@ export class CodeSmithAgent extends ChatAgent {
         const userPrompt = `Optimize the following code: ${prompt}\n\nCode to optimize:\n${codeToOptimize}`;
 
         try {
-            const response = await this.anthropicService.chat([
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
             ]);
@@ -222,7 +228,8 @@ export class CodeSmithAgent extends ChatAgent {
         const userPrompt = `Generate comprehensive tests for: ${prompt}\n\nWorkspace Context:\n${context}`;
 
         try {
-            const response = await this.anthropicService.chat([
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
             ]);
@@ -267,7 +274,8 @@ export class CodeSmithAgent extends ChatAgent {
         const userPrompt = `${prompt}\n\nWorkspace Context:\n${context}`;
 
         try {
-            const response = await this.anthropicService.chat([
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
             ]);
@@ -408,6 +416,52 @@ Always maintain code readability while improving performance. Explain your optim
 - Coverage reporting
 
 Provide complete, runnable tests with clear assertions and good coverage.`;
+    }
+
+    // Service Configuration Methods
+
+    private async validateServiceConfig(stream?: vscode.ChatResponseStream): Promise<boolean> {
+        const config = vscode.workspace.getConfiguration('kiAutoAgent');
+        const serviceMode = config.get<string>('serviceMode', 'web');
+
+        if (serviceMode === 'api') {
+            if (!config.get<string>('anthropic.apiKey')) {
+                if (stream) {
+                    stream.markdown('❌ **Anthropic API key not configured**\n\nPlease set your API key in VS Code settings:\n- Go to Settings\n- Search for "KI AutoAgent"\n- Set your Anthropic API key');
+                }
+                return false;
+            }
+        } else if (serviceMode === 'web') {
+            const isWebServiceAvailable = await this.claudeWebService.testConnection();
+            if (!isWebServiceAvailable) {
+                if (stream) {
+                    const status = await this.claudeWebService.getServerStatus();
+                    stream.markdown(`❌ **Claude Web Service not available**\n\nError: ${status.error || 'Connection failed'}\n\n**To fix this:**\n1. Make sure Claude Web Proxy server is running\n2. Check server URL: ${status.url}\n3. Ensure you're logged into Claude.ai in your browser`);
+                }
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private async getClaudeService(): Promise<{ chat: (messages: any[]) => Promise<string> }> {
+        const config = vscode.workspace.getConfiguration('kiAutoAgent');
+        const serviceMode = config.get<string>('serviceMode', 'web');
+
+        if (serviceMode === 'web') {
+            return {
+                chat: async (messages: any[]) => {
+                    return await this.claudeWebService.chat(messages);
+                }
+            };
+        } else {
+            return {
+                chat: async (messages: any[]) => {
+                    return await this.anthropicService.chat(messages);
+                }
+            };
+        }
     }
 
     // Helper Methods

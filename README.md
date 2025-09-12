@@ -4,7 +4,8 @@
 
 Ein revolutionäres, domain-agnostisches System, das automatisch spezialisierte KI-Agenten orchestriert, um komplexe Entwicklungsaufgaben in **beliebigen Softwareprojekten** zu lösen. Stelle einfach eine Aufgabe und das System erkennt automatisch den Projekttyp und orchestriert die passenden Agenten und Workflows.
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/yourusername/KI_AutoAgent)
+[![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/yourusername/KI_AutoAgent)
+[![VS Code Extension](https://img.shields.io/badge/vs--code--extension-1.0.1-brightgreen.svg)](vscode-extension/)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-red.svg)](LICENSE)
 
@@ -19,6 +20,8 @@ Ein revolutionäres, domain-agnostisches System, das automatisch spezialisierte 
 - **📈 Lernendes System** - Wird mit jeder Nutzung besser und effizienter
 - **🎛️ Moderne KI-Modelle** - GPT-4o, Claude 3.5 Sonnet, Perplexity Pro
 - **💻 Intuitive CLI** - Schöne, interaktive Benutzeroberfläche
+- **🔌 VS Code Extension** - Nahtlose Integration in VS Code Chat (v1.0.1)
+- **🌐 Claude Pro Web Integration** - Nutzt Claude Pro Account via Browser-Sessions (kostenlos!)
 - **🔍 Echtzeit-Recherche** - Live Web-Suche für aktuelle Informationen
 
 ## 🎯 Unterstützte Projekttypen
@@ -61,6 +64,24 @@ Das KI AutoAgent System erkennt automatisch verschiedene Projekttypen und wendet
 | **ResearchBot** | Research Analyst | Perplexity API | Web-Recherche, Marktanalyse, Dokumentations-Suche |
 
 ## 🚀 Quick Start
+
+### 🎯 Zwei Nutzungsmodi verfügbar:
+
+#### 🔌 **Option A: VS Code Extension (Empfohlen für VS Code Nutzer)**
+**Nahtlose Integration in deine VS Code Umgebung**
+
+```bash
+# 1. Extension installieren
+cd vscode-extension
+./scripts/build.sh
+# Folge den Installationsanweisungen
+
+# 2. VS Code Chat öffnen (Ctrl+Shift+I)
+# 3. Agenten nutzen: @ki, @codesmith, @architect, etc.
+```
+
+#### 💻 **Option B: Standalone CLI**
+**Unabhängiges System für alle Editoren**
 
 ### Voraussetzungen
 - Python 3.8 oder höher
