@@ -265,7 +265,37 @@ PATCH Version (X.Y.Z):
 
 ```markdown
 📦 Version History:
-├── v2.1.2 (12.9.2025) - Fix OpusArbitrator visibility and extension output display
+├── v2.2.1 (12.9.2025) - Real agent integration connected
+│   ├── Replaced simulated responses with actual agent calls
+│   ├── Connected webview chat to VSCodeMasterDispatcher
+│   └── Added workspace context for better agent responses
+├── v2.2.0 (12.9.2025) - Fixed CSS not loading & cache issues
+│   ├── Added webview files to package (.vscodeignore fix)
+│   ├── Implemented cache-busting for CSS
+│   └── Ensured chat-fixed.css is included in VSIX
+├── v2.1.9 (12.9.2025) - Complete layout fix to match Cline/Claude Code
+│   ├── Fixed message display area (messages now visible)
+│   ├── Proper flex layout with scrollable message area
+│   ├── Input controls at bottom like original
+│   └── Created new chat-fixed.css with correct structure
+├── v2.1.8 (12.9.2025) - Fixed message colors to match original Claude Code Chat
+│   ├── User messages: GREEN background (was blue)
+│   ├── Assistant messages: BLUE background (was gray)
+│   ├── Simplified UI to be more native VS Code
+│   └── Better integration with VS Code theme variables
+├── v2.1.7 (12.9.2025) - Rebuild für Claude Code Chat UI-Fix
+│   └── Neucompilierung um sicherzustellen dass neue UI geladen wird
+├── v2.1.6 (12.9.2025) - Extension icon auf Orchestrator-Logo geändert
+│   └── Orchestrator-Icon als Haupt-Extension-Logo gesetzt (ersetzt Multi-Agent C-P-G Logo)
+├── v2.1.5 (12.9.2025) - Regenerated extension icon from SVG
+│   └── Converted multi-agent-logo.svg to high-quality 256x256 PNG
+├── v2.1.4 (12.9.2025) - UI redesign + Extension icon configuration
+│   ├── Complete UI redesign to match Claude Code Chat style
+│   ├── Configured KI AutoAgent logo as extension icon (PNG)
+│   ├── Moved agent selector below input field (like Claude Code)
+│   ├── VS Code theme integration for automatic dark/light mode
+│   └── Enhanced markdown rendering with code copy buttons
+├── v2.1.3 (12.9.2025) - Fix Command Palette visibility for KI AutoAgent Chat commands
 ```
 
 #### Auto-Versioning Trigger

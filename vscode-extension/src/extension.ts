@@ -42,6 +42,42 @@ export function activate(context: vscode.ExtensionContext) {
     );
     context.subscriptions.push(showChatCommand);
 
+    // Register toggle chat command
+    const toggleChatCommand = vscode.commands.registerCommand(
+        'ki-autoagent.toggleChat',
+        () => MultiAgentChatPanel.createOrShow(context.extensionUri, dispatcher)
+    );
+    context.subscriptions.push(toggleChatCommand);
+
+    // Register quick chat command
+    const quickChatCommand = vscode.commands.registerCommand(
+        'ki-autoagent.quickChat',
+        () => {
+            MultiAgentChatPanel.createOrShow(context.extensionUri, dispatcher);
+            vscode.window.showInformationMessage('🤖 KI AutoAgent Chat ready! Use @ki for universal assistance or specific agents like @richter, @architect, @codesmith');
+        }
+    );
+    context.subscriptions.push(quickChatCommand);
+
+    // Register clear unread command
+    const clearUnreadCommand = vscode.commands.registerCommand(
+        'ki-autoagent.clearUnread',
+        () => {
+            outputChannel.clear();
+            outputChannel.appendLine('🧹 Cleared unread messages');
+            vscode.window.showInformationMessage('✅ KI AutoAgent: Unread messages cleared');
+        }
+    );
+    context.subscriptions.push(clearUnreadCommand);
+
+    // Log command registration
+    outputChannel.appendLine('📋 Commands registered:');
+    outputChannel.appendLine('  • KI AutoAgent: Show Chat');
+    outputChannel.appendLine('  • KI AutoAgent: Toggle Chat');  
+    outputChannel.appendLine('  • KI AutoAgent: Quick Chat');
+    outputChannel.appendLine('  • KI AutoAgent: Clear Unread Messages');
+    outputChannel.appendLine('');
+
     // Initialize and register all agents
     const agents = [
         new OrchestratorAgent(context, dispatcher),

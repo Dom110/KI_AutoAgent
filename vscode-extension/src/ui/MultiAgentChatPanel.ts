@@ -98,9 +98,11 @@ export class MultiAgentChatPanel {
         const styleVSCodeUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'media', 'vscode.css')
         );
+        // Add cache buster to force reload
+        const cacheBuster = Date.now();
         const styleChatUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'src', 'ui', 'webview', 'chat.css')
-        );
+            vscode.Uri.joinPath(this._extensionUri, 'src', 'ui', 'webview', 'chat-fixed.css')
+        ) + `?v=${cacheBuster}`;
         const scriptUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this._extensionUri, 'src', 'ui', 'webview', 'chat.js')
         );
@@ -121,53 +123,50 @@ export class MultiAgentChatPanel {
             </head>
             <body>
                 <div id="chat-container">
-                    <!-- Header with Agent Selector -->
+                    <!-- Minimalist Header -->
                     <div id="chat-header">
-                        <div id="agent-selector">
-                            <label for="agent-dropdown">Agent:</label>
-                            <select id="agent-dropdown">
-                                <option value="orchestrator">🤖 Auto (Orchestrator)</option>
-                                <option value="architect">🏗️ ArchitectGPT</option>
-                                <option value="codesmith">💻 CodeSmithClaude</option>
-                                <option value="tradestrat">📈 TradeStrat</option>
-                                <option value="research">🔍 ResearchBot</option>
-                                <option value="richter">⚖️ OpusRichter</option>
-                                <option value="docu">📝 DocuBot</option>
-                                <option value="reviewer">👁️ ReviewerGPT</option>
-                                <option value="fixer">🔧 FixerBot</option>
-                            </select>
-                        </div>
-                        <div id="mode-toggles">
-                            <button class="mode-btn active" data-mode="auto" title="Automatic agent selection">Auto</button>
-                            <button class="mode-btn" data-mode="single" title="Chat with single agent">Single</button>
-                            <button class="mode-btn" data-mode="workflow" title="Multi-agent workflow">Workflow</button>
-                        </div>
+                        <h3>KI AutoAgent Chat</h3>
+                        <button id="settings-btn" title="Settings">⚙️</button>
                     </div>
                     
                     <!-- Messages Container -->
                     <div id="messages-container">
                         <div class="welcome-message">
-                            <h2>👋 Welcome to KI AutoAgent Chat</h2>
-                            <p>Select an agent above or use Auto mode for intelligent routing.</p>
-                            <div class="quick-actions">
-                                <button class="quick-action" data-action="help">📚 Help</button>
-                                <button class="quick-action" data-action="examples">💡 Examples</button>
-                                <button class="quick-action" data-action="agents">🤖 View Agents</button>
-                            </div>
+                            <h2>Welcome to KI AutoAgent</h2>
+                            <p>Start a conversation with our AI agents</p>
                         </div>
                     </div>
                     
-                    <!-- Input Area -->
-                    <div id="input-area">
+                    <!-- Input Section with Bottom Controls -->
+                    <div id="input-section">
                         <textarea id="message-input" 
-                                  placeholder="Ask anything... (Shift+Enter for new line, Enter to send)"
-                                  rows="2"></textarea>
-                        <div id="input-actions">
+                                  placeholder="Message KI AutoAgent..."
+                                  rows="3"></textarea>
+                        
+                        <div id="bottom-controls">
+                            <div id="mode-selector">
+                                <button class="mode-option active" data-agent="auto" title="Automatic agent selection">
+                                    🤖 Auto
+                                </button>
+                                <button class="mode-option" data-agent="architect" title="System architecture & design">
+                                    🏗️ Architect
+                                </button>
+                                <button class="mode-option" data-agent="codesmith" title="Code implementation">
+                                    💻 CodeSmith
+                                </button>
+                                <button class="mode-option" data-agent="tradestrat" title="Trading strategies">
+                                    📈 TradeStrat
+                                </button>
+                                <button class="mode-option" data-agent="research" title="Web research">
+                                    🔍 Research
+                                </button>
+                                <button class="mode-option" data-agent="opus" title="Conflict resolution">
+                                    ⚖️ Opus
+                                </button>
+                            </div>
+                            
                             <button id="send-btn" title="Send message">
-                                <span class="codicon codicon-send"></span>
-                            </button>
-                            <button id="clear-btn" title="Clear chat">
-                                <span class="codicon codicon-clear-all"></span>
+                                Send
                             </button>
                         </div>
                     </div>
@@ -243,13 +242,39 @@ export class MultiAgentChatPanel {
     }
 
     private async _callAgent(agentId: string, prompt: string): Promise<string> {
-        // This will be integrated with the actual agents
-        // For now, return a simulated response
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve(`[${agentId}] Response to: ${prompt}\n\nThis is a simulated response. The actual agent integration will be connected here.`);
-            }, 1000);
-        });
+        if (!this._dispatcher) {
+            return 'Error: No dispatcher available. Please check agent configuration.';
+        }
+
+        try {
+            // Create task request for the dispatcher
+            const taskRequest = {
+                prompt: prompt,
+                command: agentId, // Use agent ID as command
+                context: await this._getWorkspaceContext()
+            };
+
+            // Call the real dispatcher
+            const result = await this._dispatcher.processRequest(taskRequest);
+            
+            if (result.status === 'success' || result.status === 'partial_success') {
+                return result.content;
+            } else {
+                return `Error: ${result.content}`;
+            }
+        } catch (error) {
+            return `Agent Error: ${(error as any).message}`;
+        }
+    }
+
+    private async _getWorkspaceContext() {
+        return {
+            activeEditor: vscode.window.activeTextEditor,
+            workspaceRoots: vscode.workspace.workspaceFolders,
+            openDocuments: vscode.workspace.textDocuments,
+            selectedText: vscode.window.activeTextEditor?.document.getText(vscode.window.activeTextEditor.selection),
+            currentFile: vscode.window.activeTextEditor?.document.fileName
+        };
     }
 
     private async _processWorkflow(prompt: string) {
@@ -303,7 +328,7 @@ export class MultiAgentChatPanel {
     private _addErrorMessage(content: string) {
         const errorMessage: ChatMessage = {
             role: 'system',
-            content: `❌ ${content}`,
+            content: content,
             timestamp: new Date().toISOString()
         };
         this._messages.push(errorMessage);

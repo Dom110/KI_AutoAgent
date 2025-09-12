@@ -1,5 +1,5 @@
 /**
- * Chat Interface JavaScript
+ * Chat Interface JavaScript - Claude Code Style
  * Handles all interactions in the KI AutoAgent chat webview
  */
 
@@ -11,14 +11,11 @@
     const messagesContainer = document.getElementById('messages-container');
     const messageInput = document.getElementById('message-input');
     const sendBtn = document.getElementById('send-btn');
-    const clearBtn = document.getElementById('clear-btn');
-    const agentDropdown = document.getElementById('agent-dropdown');
-    const modeBtns = document.querySelectorAll('.mode-btn');
-    const quickActions = document.querySelectorAll('.quick-action');
+    const settingsBtn = document.getElementById('settings-btn');
+    const modeOptions = document.querySelectorAll('.mode-option');
     
     // State
-    let currentMode = 'auto';
-    let currentAgent = 'orchestrator';
+    let currentAgent = 'auto';
     let isTyping = false;
     let messageHistory = [];
     let historyIndex = -1;
@@ -35,61 +32,33 @@
         // Send button
         sendBtn.addEventListener('click', sendMessage);
         
-        // Clear button
-        clearBtn.addEventListener('click', clearChat);
+        // Settings button
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => {
+                vscode.postMessage({ command: 'openSettings' });
+            });
+        }
         
         // Message input
         messageInput.addEventListener('keydown', handleInputKeydown);
         messageInput.addEventListener('input', autoResizeTextarea);
         
-        // Agent dropdown
-        agentDropdown.addEventListener('change', (e) => {
-            currentAgent = e.target.value;
-            vscode.postMessage({
-                command: 'changeAgent',
-                agent: currentAgent
-            });
-            saveState();
-        });
-        
-        // Mode buttons
-        modeBtns.forEach(btn => {
+        // Mode selector buttons
+        modeOptions.forEach(btn => {
             btn.addEventListener('click', (e) => {
-                modeBtns.forEach(b => b.classList.remove('active'));
+                // Remove active from all
+                modeOptions.forEach(b => b.classList.remove('active'));
+                // Add active to clicked
                 btn.classList.add('active');
-                currentMode = btn.dataset.mode;
-                vscode.postMessage({
-                    command: 'changeMode',
-                    mode: currentMode
-                });
+                // Update current agent
+                currentAgent = btn.dataset.agent;
                 
-                // Update agent dropdown based on mode
-                if (currentMode === 'auto') {
-                    agentDropdown.value = 'orchestrator';
-                    currentAgent = 'orchestrator';
-                    agentDropdown.disabled = true;
-                } else {
-                    agentDropdown.disabled = false;
-                }
+                vscode.postMessage({
+                    command: 'changeAgent',
+                    agent: currentAgent
+                });
                 
                 saveState();
-            });
-        });
-        
-        // Quick action buttons
-        quickActions.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const action = btn.dataset.action;
-                vscode.postMessage({
-                    command: 'quickAction',
-                    action: action
-                });
-                
-                // Hide welcome message after action
-                const welcomeMsg = document.querySelector('.welcome-message');
-                if (welcomeMsg) {
-                    welcomeMsg.style.display = 'none';
-                }
             });
         });
     }
@@ -120,19 +89,26 @@
         // Hide welcome message
         const welcomeMsg = document.querySelector('.welcome-message');
         if (welcomeMsg) {
-            welcomeMsg.style.display = 'none';
+            welcomeMsg.remove();
         }
         
         // Add to history
         messageHistory.push(text);
         historyIndex = messageHistory.length;
         
+        // Add user message immediately
+        addMessage({
+            role: 'user',
+            content: text,
+            timestamp: new Date().toISOString()
+        });
+        
         // Send to extension
         vscode.postMessage({
             command: 'sendMessage',
             text: text,
             agent: currentAgent,
-            mode: currentMode
+            mode: currentAgent === 'auto' ? 'auto' : 'single'
         });
         
         // Clear input
@@ -144,44 +120,12 @@
         saveState();
     }
     
-    // Clear chat
-    function clearChat() {
-        if (confirm('Clear all messages?')) {
-            messagesContainer.innerHTML = `
-                <div class="welcome-message">
-                    <h2>👋 Welcome to KI AutoAgent Chat</h2>
-                    <p>Select an agent above or use Auto mode for intelligent routing.</p>
-                    <div class="quick-actions">
-                        <button class="quick-action" data-action="help">📚 Help</button>
-                        <button class="quick-action" data-action="examples">💡 Examples</button>
-                        <button class="quick-action" data-action="agents">🤖 View Agents</button>
-                    </div>
-                </div>
-            `;
-            
-            // Re-attach quick action listeners
-            document.querySelectorAll('.quick-action').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const action = btn.dataset.action;
-                    vscode.postMessage({
-                        command: 'quickAction',
-                        action: action
-                    });
-                });
-            });
-            
-            vscode.postMessage({
-                command: 'clearChat'
-            });
-        }
-    }
-    
-    // Add message to chat
+    // Add message to chat - Claude Code Style
     function addMessage(message) {
         // Hide welcome message if it exists
         const welcomeMsg = document.querySelector('.welcome-message');
         if (welcomeMsg) {
-            welcomeMsg.style.display = 'none';
+            welcomeMsg.remove();
         }
         
         // Remove typing indicator if present
@@ -190,63 +134,42 @@
             typingIndicator.remove();
         }
         
-        // Create message element
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${message.role}`;
+        // Create message wrapper
+        const messageWrapper = document.createElement('div');
+        messageWrapper.className = `message-wrapper ${message.role}`;
         
-        // Add special class for agent-to-agent messages
-        if (message.role === 'agent-to-agent') {
-            messageDiv.classList.add('agent-to-agent');
+        // Create message bubble
+        const messageBubble = document.createElement('div');
+        messageBubble.className = 'message-bubble';
+        
+        // Add message content
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+        messageContent.innerHTML = formatMessageContent(message.content);
+        messageBubble.appendChild(messageContent);
+        
+        // Add metadata (timestamp on hover)
+        if (message.timestamp) {
+            const messageMeta = document.createElement('div');
+            messageMeta.className = 'message-meta';
+            messageMeta.innerHTML = `<span class="timestamp">${formatTimestamp(message.timestamp)}</span>`;
+            messageBubble.appendChild(messageMeta);
         }
         
-        // Build message content
-        let html = '';
+        // Handle code blocks for copy functionality
+        enhanceCodeBlocks(messageBubble);
         
-        if (message.agent && message.role !== 'user') {
-            html += `
-                <div class="message-header">
-                    <span class="agent-name">${getAgentIcon(message.agent)} ${message.agent}</span>
-                    <span class="timestamp">${formatTimestamp(message.timestamp)}</span>
-                </div>
-            `;
-        }
-        
-        html += `<div class="message-content">${formatMessageContent(message.content)}</div>`;
-        
-        if (message.role === 'user') {
-            html += `<div class="timestamp">${formatTimestamp(message.timestamp)}</div>`;
-        }
-        
-        messageDiv.innerHTML = html;
-        
-        // Check if message should be collapsible
-        if (message.isCollapsible || (message.content.length > 500 && message.role === 'agent-to-agent')) {
-            makeCollapsible(messageDiv);
-        }
+        // Add to wrapper
+        messageWrapper.appendChild(messageBubble);
         
         // Add to container
-        messagesContainer.appendChild(messageDiv);
+        messagesContainer.appendChild(messageWrapper);
         
         // Scroll to bottom
         scrollToBottom();
     }
     
-    // Make message collapsible
-    function makeCollapsible(messageDiv) {
-        messageDiv.classList.add('collapsed');
-        
-        const expandBtn = document.createElement('div');
-        expandBtn.className = 'expand-btn';
-        expandBtn.textContent = 'Show more';
-        expandBtn.onclick = () => {
-            messageDiv.classList.toggle('collapsed');
-            expandBtn.textContent = messageDiv.classList.contains('collapsed') ? 'Show more' : 'Show less';
-        };
-        
-        messageDiv.appendChild(expandBtn);
-    }
-    
-    // Show typing indicator
+    // Show typing indicator - Claude Style
     function showTypingIndicator(agent) {
         // Remove existing typing indicator
         const existing = document.querySelector('.typing-indicator');
@@ -254,10 +177,12 @@
             existing.remove();
         }
         
+        const typingWrapper = document.createElement('div');
+        typingWrapper.className = 'message-wrapper assistant';
+        
         const typingDiv = document.createElement('div');
         typingDiv.className = 'typing-indicator';
         typingDiv.innerHTML = `
-            <span class="agent-name">${getAgentIcon(agent)} ${agent}</span>
             <div class="typing-dots">
                 <span class="typing-dot"></span>
                 <span class="typing-dot"></span>
@@ -265,51 +190,89 @@
             </div>
         `;
         
-        messagesContainer.appendChild(typingDiv);
+        typingWrapper.appendChild(typingDiv);
+        messagesContainer.appendChild(typingWrapper);
         scrollToBottom();
         isTyping = true;
     }
     
     // Hide typing indicator
     function hideTypingIndicator() {
-        const typingIndicator = document.querySelector('.typing-indicator');
-        if (typingIndicator) {
-            typingIndicator.remove();
+        const typingWrapper = document.querySelector('.message-wrapper:has(.typing-indicator)');
+        if (typingWrapper) {
+            typingWrapper.remove();
         }
         isTyping = false;
     }
     
-    // Format message content (basic markdown support)
+    // Format message content (enhanced markdown support)
     function formatMessageContent(content) {
-        // Escape HTML
+        // Escape HTML first
         content = escapeHtml(content);
         
+        // Preserve code blocks temporarily
+        const codeBlocks = [];
+        content = content.replace(/```([\s\S]*?)```/g, (match, code) => {
+            codeBlocks.push(`<pre><code>${code}</code></pre>`);
+            return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+        });
+        
         // Convert markdown-style formatting
+        // Headers
+        content = content.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+        content = content.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
+        content = content.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
+        
         // Bold
         content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         
         // Italic
         content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
         
-        // Code blocks
-        content = content.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-        
         // Inline code
         content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
-        
-        // Headers
-        content = content.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
-        content = content.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
-        content = content.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
         
         // Lists
         content = content.replace(/^- (.*?)$/gm, '<li>$1</li>');
         content = content.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
         
+        // Links
+        content = content.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+        
         // Line breaks
         content = content.replace(/\n/g, '<br>');
         
+        // Restore code blocks
+        codeBlocks.forEach((block, index) => {
+            content = content.replace(`__CODE_BLOCK_${index}__`, 
+                `<div class="code-block-wrapper">${block}<button class="copy-code-btn">Copy</button></div>`);
+        });
+        
         return content;
+    }
+    
+    // Enhance code blocks with copy functionality
+    function enhanceCodeBlocks(element) {
+        const copyButtons = element.querySelectorAll('.copy-code-btn');
+        copyButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const codeBlock = e.target.parentElement.querySelector('code');
+                const text = codeBlock.textContent;
+                
+                navigator.clipboard.writeText(text).then(() => {
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        btn.textContent = 'Copy';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    btn.textContent = 'Failed';
+                    setTimeout(() => {
+                        btn.textContent = 'Copy';
+                    }, 2000);
+                });
+            });
+        });
     }
     
     // Escape HTML
@@ -324,36 +287,32 @@
         return text.replace(/[&<>"']/g, m => map[m]);
     }
     
-    // Get agent icon
-    function getAgentIcon(agent) {
-        const icons = {
-            'orchestrator': '🤖',
-            'architect': '🏗️',
-            'codesmith': '💻',
-            'tradestrat': '📈',
-            'research': '🔍',
-            'richter': '⚖️',
-            'docu': '📝',
-            'reviewer': '👁️',
-            'fixer': '🔧',
-            'system': 'ℹ️'
-        };
-        return icons[agent.toLowerCase()] || '🤖';
-    }
-    
     // Format timestamp
     function formatTimestamp(timestamp) {
         const date = new Date(timestamp);
-        return date.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        const now = new Date();
+        const isToday = date.toDateString() === now.toDateString();
+        
+        if (isToday) {
+            return date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } else {
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
     }
     
     // Auto-resize textarea
     function autoResizeTextarea() {
         messageInput.style.height = 'auto';
-        messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+        const newHeight = Math.min(messageInput.scrollHeight, 200);
+        messageInput.style.height = newHeight + 'px';
     }
     
     // Navigate message history
@@ -376,7 +335,9 @@
     
     // Scroll to bottom of messages
     function scrollToBottom() {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        requestAnimationFrame(() => {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        });
     }
     
     // Focus input
@@ -387,7 +348,6 @@
     // Save state
     function saveState() {
         const state = {
-            currentMode,
             currentAgent,
             messageHistory
         };
@@ -398,25 +358,18 @@
     function restoreState() {
         const state = vscode.getState();
         if (state) {
-            currentMode = state.currentMode || 'auto';
-            currentAgent = state.currentAgent || 'orchestrator';
+            currentAgent = state.currentAgent || 'auto';
             messageHistory = state.messageHistory || [];
             historyIndex = messageHistory.length;
             
             // Update UI
-            agentDropdown.value = currentAgent;
-            modeBtns.forEach(btn => {
-                if (btn.dataset.mode === currentMode) {
+            modeOptions.forEach(btn => {
+                if (btn.dataset.agent === currentAgent) {
                     btn.classList.add('active');
                 } else {
                     btn.classList.remove('active');
                 }
             });
-            
-            // Update agent dropdown state
-            if (currentMode === 'auto') {
-                agentDropdown.disabled = true;
-            }
         }
     }
     
@@ -437,9 +390,20 @@
                 hideTypingIndicator();
                 break;
                 
+            case 'clearChat':
+                messagesContainer.innerHTML = `
+                    <div class="welcome-message">
+                        <h2>Welcome to KI AutoAgent</h2>
+                        <p>Start a conversation with our AI agents</p>
+                    </div>
+                `;
+                messageHistory = [];
+                historyIndex = -1;
+                saveState();
+                break;
+                
             case 'updateState':
                 if (message.state) {
-                    currentMode = message.state.mode || currentMode;
                     currentAgent = message.state.agent || currentAgent;
                     saveState();
                 }

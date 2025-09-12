@@ -2,7 +2,7 @@
   "name": "ki-autoagent-vscode",
   "displayName": "KI AutoAgent",
   "description": "Universal Multi-Agent AI Development Platform for VS Code",
-  "version": "2.1.2",
+  "version": "2.2.1",
   "publisher": "ki-autoagent",
   "icon": "media/multi-agent-logo.png",
   "repository": {
@@ -39,15 +39,17 @@
   "activationEvents": [
     "onStartupFinished",
     "onCommand:ki-autoagent.showChat",
+    "onCommand:ki-autoagent.toggleChat",
+    "onCommand:ki-autoagent.quickChat",
+    "onChatParticipant:ki-autoagent.orchestrator",
+    "onChatParticipant:ki-autoagent.richter",
     "onChatParticipant:ki-autoagent.architect",
     "onChatParticipant:ki-autoagent.codesmith",
     "onChatParticipant:ki-autoagent.docu",
     "onChatParticipant:ki-autoagent.reviewer",
     "onChatParticipant:ki-autoagent.fixer",
     "onChatParticipant:ki-autoagent.tradestrat",
-    "onChatParticipant:ki-autoagent.research",
-    "onChatParticipant:ki-autoagent.richter",
-    "onChatParticipant:ki-autoagent.orchestrator"
+    "onChatParticipant:ki-autoagent.research"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -349,38 +351,82 @@
     "commands": [
       {
         "command": "ki-autoagent.createFile",
-        "title": "Create File"
+        "title": "KI AutoAgent: Create File",
+        "category": "KI AutoAgent"
       },
       {
         "command": "ki-autoagent.insertAtCursor",
-        "title": "Insert at Cursor"
+        "title": "KI AutoAgent: Insert at Cursor",
+        "category": "KI AutoAgent"
       },
       {
         "command": "ki-autoagent.applySuggestion",
-        "title": "Apply Suggestion"
+        "title": "KI AutoAgent: Apply Suggestion",
+        "category": "KI AutoAgent"
       },
       {
         "command": "ki-autoagent.showAgentStats",
-        "title": "Show Agent Statistics"
+        "title": "KI AutoAgent: Show Agent Statistics",
+        "category": "KI AutoAgent"
       },
       {
         "command": "ki-autoagent.toggleChat",
-        "title": "Toggle KI AutoAgent Chat",
+        "title": "KI AutoAgent: Toggle Chat",
+        "category": "KI AutoAgent",
         "icon": "$(comment-discussion)"
       },
       {
         "command": "ki-autoagent.showChat",
-        "title": "Show KI AutoAgent Chat"
+        "title": "KI AutoAgent: Show Chat",
+        "category": "KI AutoAgent"
       },
       {
         "command": "ki-autoagent.quickChat",
-        "title": "Quick Chat with KI AutoAgent"
+        "title": "KI AutoAgent: Quick Chat",
+        "category": "KI AutoAgent"
       },
       {
         "command": "ki-autoagent.clearUnread",
-        "title": "Clear Unread Messages"
+        "title": "KI AutoAgent: Clear Unread Messages",
+        "category": "KI AutoAgent"
+      },
+      {
+        "command": "ki-autoagent.showHelp",
+        "title": "KI AutoAgent: Show Help",
+        "category": "KI AutoAgent"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "ki-autoagent.showChat",
+          "when": "true"
+        },
+        {
+          "command": "ki-autoagent.toggleChat",
+          "when": "true"
+        },
+        {
+          "command": "ki-autoagent.quickChat",
+          "when": "true"
+        },
+        {
+          "command": "ki-autoagent.showAgentStats",
+          "when": "true"
+        },
+        {
+          "command": "ki-autoagent.showHelp",
+          "when": "true"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "ki-autoagent.showChat",
+          "when": "view == workbench.panel.chat",
+          "group": "navigation"
+        }
+      ]
+    },
     "configuration": {
       "title": "KI AutoAgent",
       "properties": {
@@ -566,6 +612,11 @@
       "date": "2025-09-12T12:41:12.116Z",
       "description": "Fix OpusArbitrator visibility and extension output display",
       "timestamp": 1757680872116
+    },
+    "2.1.3": {
+      "date": "2025-09-12T12:55:27.134Z",
+      "description": "Fix Command Palette visibility for KI AutoAgent Chat commands",
+      "timestamp": 1757681727135
     }
   }
 }
