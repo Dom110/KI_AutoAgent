@@ -11,6 +11,9 @@
     const messagesContainer = document.getElementById('messages-container');
     const messageInput = document.getElementById('message-input');
     const sendBtn = document.getElementById('send-btn');
+    const planFirstBtn = document.getElementById('plan-first-btn');
+    const thinkingModeBtn = document.getElementById('thinking-mode-btn');
+    const stopBtn = document.getElementById('stop-btn');
     const settingsBtn = document.getElementById('settings-btn');
     const modeOptions = document.querySelectorAll('.mode-option');
     
@@ -19,6 +22,8 @@
     let isTyping = false;
     let messageHistory = [];
     let historyIndex = -1;
+    let thinkingMode = false;
+    let isProcessing = false;
     
     // Initialize
     function init() {
@@ -31,6 +36,21 @@
     function setupEventListeners() {
         // Send button
         sendBtn.addEventListener('click', sendMessage);
+        
+        // Plan First button
+        if (planFirstBtn) {
+            planFirstBtn.addEventListener('click', sendPlanFirstMessage);
+        }
+        
+        // Thinking Mode toggle
+        if (thinkingModeBtn) {
+            thinkingModeBtn.addEventListener('click', toggleThinkingMode);
+        }
+        
+        // Stop button
+        if (stopBtn) {
+            stopBtn.addEventListener('click', stopCurrentOperation);
+        }
         
         // Settings button
         if (settingsBtn) {
@@ -52,6 +72,9 @@
                 btn.classList.add('active');
                 // Update current agent
                 currentAgent = btn.dataset.agent;
+                console.log('[CHAT.JS] Agent selector clicked:');
+                console.log('[CHAT.JS]   - btn.dataset.agent:', btn.dataset.agent);
+                console.log('[CHAT.JS]   - currentAgent now:', currentAgent);
                 
                 vscode.postMessage({
                     command: 'changeAgent',
@@ -96,20 +119,28 @@
         messageHistory.push(text);
         historyIndex = messageHistory.length;
         
-        // Add user message immediately
-        addMessage({
-            role: 'user',
-            content: text,
-            timestamp: new Date().toISOString()
-        });
+        // Note: User message will be added by backend to prevent duplicates
         
-        // Send to extension
+        // Determine mode
+        const mode = currentAgent === 'auto' ? 'auto' : 'single';
+        console.log('[CHAT.JS] Sending message with:');
+        console.log('[CHAT.JS]   - text:', text.substring(0, 50) + '...');
+        console.log('[CHAT.JS]   - agent:', currentAgent);
+        console.log('[CHAT.JS]   - mode:', mode);
+        console.log('[CHAT.JS]   - currentAgent === "auto":', currentAgent === 'auto');
+        
+        // Send to extension with thinking mode flag
         vscode.postMessage({
             command: 'sendMessage',
             text: text,
             agent: currentAgent,
-            mode: currentAgent === 'auto' ? 'auto' : 'single'
+            mode: mode,
+            thinkingMode: thinkingMode
         });
+        
+        // Set processing state
+        isProcessing = true;
+        updateButtonStates();
         
         // Clear input
         messageInput.value = '';
@@ -120,8 +151,126 @@
         saveState();
     }
     
+    // Add streaming message to chat
+    function addStreamingMessage(message) {
+        console.log('[CHAT.JS] addStreamingMessage called with:', message);
+        
+        // Hide welcome message if it exists
+        const welcomeMsg = document.querySelector('.welcome-message');
+        if (welcomeMsg) {
+            welcomeMsg.remove();
+        }
+        
+        // Create message wrapper with special streaming class
+        const messageWrapper = document.createElement('div');
+        messageWrapper.className = `message-wrapper ${message.role} streaming`;
+        messageWrapper.dataset.messageId = message.metadata?.messageId;
+        
+        // Create message bubble
+        const messageBubble = document.createElement('div');
+        messageBubble.className = 'message-bubble';
+        
+        // Add initial content (empty for streaming)
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+        messageContent.innerHTML = '<span class="streaming-cursor">▋</span>';
+        messageBubble.appendChild(messageContent);
+        
+        // Add to wrapper
+        messageWrapper.appendChild(messageBubble);
+        
+        // Add to container
+        messagesContainer.appendChild(messageWrapper);
+        
+        // Scroll to bottom
+        scrollToBottom();
+    }
+    
+    // Update streaming message with partial content
+    function updateStreamingMessage(messageId, partialContent) {
+        const messageWrapper = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (messageWrapper) {
+            const messageContent = messageWrapper.querySelector('.message-content');
+            if (messageContent) {
+                // Remove cursor if present
+                const cursor = messageContent.querySelector('.streaming-cursor');
+                if (cursor) {
+                    cursor.remove();
+                }
+                
+                // Append new content
+                const currentContent = messageContent.innerHTML;
+                messageContent.innerHTML = currentContent + formatMessageContent(partialContent) + '<span class="streaming-cursor">▋</span>';
+                
+                // Scroll to bottom
+                scrollToBottom();
+            }
+        }
+    }
+    
+    // Update existing message (for tool results)
+    function updateMessage(messageId, newContent) {
+        // Find message by data-message-id first
+        let messageWrapper = document.querySelector(`[data-message-id="${messageId}"]`);
+        
+        // If not found, search in system messages for content containing the messageId
+        if (!messageWrapper) {
+            const systemMessages = document.querySelectorAll('.message-wrapper.system');
+            for (const wrapper of systemMessages) {
+                const messageContent = wrapper.querySelector('.message-content');
+                if (messageContent && messageContent.textContent.includes(messageId)) {
+                    messageWrapper = wrapper;
+                    break;
+                }
+            }
+        }
+        
+        if (messageWrapper) {
+            const messageContent = messageWrapper.querySelector('.message-content');
+            if (messageContent) {
+                // Update the content
+                messageContent.innerHTML = formatMessageContent(newContent);
+                // Enhance code blocks if any
+                const messageBubble = messageWrapper.querySelector('.message-bubble');
+                if (messageBubble) {
+                    enhanceCodeBlocks(messageBubble);
+                }
+            }
+        }
+    }
+    
+    // Finalize streaming message
+    function finalizeStreamingMessage(messageId, fullContent, metadata) {
+        const messageWrapper = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (messageWrapper) {
+            // Remove streaming class
+            messageWrapper.classList.remove('streaming');
+            
+            const messageContent = messageWrapper.querySelector('.message-content');
+            if (messageContent) {
+                // Set final content without cursor
+                messageContent.innerHTML = formatMessageContent(fullContent);
+                
+                // Add metadata if present
+                if (metadata && !metadata.isStreaming) {
+                    const messageMeta = document.createElement('div');
+                    messageMeta.className = 'message-meta';
+                    messageMeta.innerHTML = `<span class="timestamp">${formatTimestamp(new Date().toISOString())}</span>`;
+                    messageWrapper.querySelector('.message-bubble').appendChild(messageMeta);
+                }
+                
+                // Enhance code blocks
+                enhanceCodeBlocks(messageWrapper.querySelector('.message-bubble'));
+            }
+        }
+    }
+    
     // Add message to chat - Claude Code Style
     function addMessage(message) {
+        console.log('[CHAT.JS] addMessage called with:', message);
+        console.log('[CHAT.JS] Message content length:', message.content?.length || 0);
+        console.log('[CHAT.JS] Message role:', message.role);
+        
         // Hide welcome message if it exists
         const welcomeMsg = document.querySelector('.welcome-message');
         if (welcomeMsg) {
@@ -315,6 +464,81 @@
         messageInput.style.height = newHeight + 'px';
     }
     
+    // Toggle thinking mode
+    function toggleThinkingMode() {
+        thinkingMode = !thinkingMode;
+        if (thinkingModeBtn) {
+            thinkingModeBtn.classList.toggle('active', thinkingMode);
+            vscode.postMessage({
+                command: 'toggleThinkingMode',
+                enabled: thinkingMode
+            });
+        }
+    }
+    
+    // Stop current operation
+    function stopCurrentOperation() {
+        if (isProcessing) {
+            vscode.postMessage({
+                command: 'stopOperation'
+            });
+            hideTypingIndicator();
+            isProcessing = false;
+            updateButtonStates();
+        }
+    }
+    
+    // Update button states based on processing status
+    function updateButtonStates() {
+        if (sendBtn) sendBtn.disabled = isProcessing;
+        if (planFirstBtn) planFirstBtn.disabled = isProcessing;
+        if (stopBtn) stopBtn.disabled = !isProcessing;
+    }
+    
+    // Send Plan First message
+    function sendPlanFirstMessage() {
+        const text = messageInput.value.trim();
+        if (!text || isTyping) return;
+        
+        // Hide welcome message
+        const welcomeMsg = document.querySelector('.welcome-message');
+        if (welcomeMsg) {
+            welcomeMsg.remove();
+        }
+        
+        // Add to history
+        messageHistory.push(text);
+        historyIndex = messageHistory.length;
+        
+        // Determine mode
+        const mode = currentAgent === 'auto' ? 'auto' : 'single';
+        console.log('[CHAT.JS] Sending plan first message with:');
+        console.log('[CHAT.JS]   - text:', text.substring(0, 50) + '...');
+        console.log('[CHAT.JS]   - agent:', currentAgent);
+        console.log('[CHAT.JS]   - mode:', mode);
+        
+        // Send to extension with planFirst command and thinking mode
+        vscode.postMessage({
+            command: 'planFirst',
+            text: text,
+            agent: currentAgent,
+            mode: mode,
+            thinkingMode: thinkingMode
+        });
+        
+        // Set processing state
+        isProcessing = true;
+        updateButtonStates();
+        
+        // Clear input
+        messageInput.value = '';
+        autoResizeTextarea();
+        focusInput();
+        
+        // Save state
+        saveState();
+    }
+    
     // Navigate message history
     function navigateHistory(direction) {
         if (direction === 'up' && historyIndex > 0) {
@@ -376,10 +600,33 @@
     // Handle messages from extension
     window.addEventListener('message', event => {
         const message = event.data;
+        console.log('[CHAT.JS] Received message from extension:', message);
+        console.log('[CHAT.JS] Message type:', message.type);
         
         switch (message.type) {
             case 'addMessage':
+                console.log('[CHAT.JS] Processing addMessage for:', message.message);
                 addMessage(message.message);
+                break;
+                
+            case 'addStreamingMessage':
+                console.log('[CHAT.JS] Adding streaming message:', message.message);
+                addStreamingMessage(message.message);
+                break;
+                
+            case 'updateStreamingMessage':
+                console.log('[CHAT.JS] Updating streaming message:', message.messageId, 'with', message.partialContent?.length, 'chars');
+                updateStreamingMessage(message.messageId, message.partialContent);
+                break;
+                
+            case 'updateMessage':
+                console.log('[CHAT.JS] Updating message:', message.messageId);
+                updateMessage(message.messageId, message.content);
+                break;
+                
+            case 'finalizeStreamingMessage':
+                console.log('[CHAT.JS] Finalizing streaming message:', message.messageId);
+                finalizeStreamingMessage(message.messageId, message.fullContent, message.metadata);
                 break;
                 
             case 'showTyping':
@@ -388,6 +635,8 @@
                 
             case 'hideTyping':
                 hideTypingIndicator();
+                isProcessing = false;
+                updateButtonStates();
                 break;
                 
             case 'clearChat':
@@ -400,6 +649,25 @@
                 messageHistory = [];
                 historyIndex = -1;
                 saveState();
+                break;
+
+            case 'restoreMessages':
+                // Clear existing messages first
+                messagesContainer.innerHTML = '';
+                // Add all messages back
+                if (message.messages && message.messages.length > 0) {
+                    message.messages.forEach(msg => {
+                        addMessage(msg);
+                    });
+                } else {
+                    // Show welcome message if no messages
+                    messagesContainer.innerHTML = `
+                        <div class="welcome-message">
+                            <h2>Welcome to KI AutoAgent</h2>
+                            <p>Start a conversation with our AI agents</p>
+                        </div>
+                    `;
+                }
                 break;
                 
             case 'updateState':

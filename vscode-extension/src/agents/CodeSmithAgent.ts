@@ -7,11 +7,11 @@ import { ChatAgent } from './base/ChatAgent';
 import { AgentConfig, TaskRequest, TaskResult, WorkflowStep } from '../types';
 import { VSCodeMasterDispatcher } from '../core/VSCodeMasterDispatcher';
 import { AnthropicService } from '../utils/AnthropicService';
-import { ClaudeWebService } from '../utils/ClaudeWebService';
+import { getClaudeCodeService, ClaudeCodeService } from '../services/ClaudeCodeService';
 
 export class CodeSmithAgent extends ChatAgent {
     private anthropicService: AnthropicService;
-    private claudeWebService: ClaudeWebService;
+    private claudeCodeService: ClaudeCodeService;
 
     constructor(context: vscode.ExtensionContext, dispatcher: VSCodeMasterDispatcher) {
         const config: AgentConfig = {
@@ -38,7 +38,7 @@ export class CodeSmithAgent extends ChatAgent {
 
         super(config, context, dispatcher);
         this.anthropicService = new AnthropicService();
-        this.claudeWebService = new ClaudeWebService();
+        this.claudeCodeService = getClaudeCodeService();
     }
 
     protected async handleRequest(
@@ -65,13 +65,44 @@ export class CodeSmithAgent extends ChatAgent {
         }
     }
 
+    // Override executeStep to use our custom implementation
+    public async executeStep(
+        step: WorkflowStep,
+        request: TaskRequest & { onPartialResponse?: (content: string) => void },
+        previousResults: TaskResult[]
+    ): Promise<TaskResult> {
+        this.showDebug(`ExecuteStep called`, { 
+            step: step.id, 
+            hasStreamingCallback: !!request.onPartialResponse 
+        });
+        return await this.processWorkflowStep(step, request, previousResults);
+    }
+
     protected async processWorkflowStep(
         step: WorkflowStep,
-        request: TaskRequest,
+        request: TaskRequest & { onPartialResponse?: (content: string) => void; globalContext?: string },
         previousResults: TaskResult[]
     ): Promise<TaskResult> {
         
         const context = await this.getWorkspaceContext();
+        
+        // Build conversation history from previous results
+        let conversationHistory = '';
+        
+        // Include global context if available
+        if (request.globalContext) {
+            conversationHistory += request.globalContext;
+        }
+        
+        // Add immediate previous results for this workflow
+        if (previousResults.length > 0) {
+            conversationHistory += '\n\n## Current Workflow Progress:\n';
+            previousResults.forEach((result, index) => {
+                const agentName = result.metadata?.agent || `Agent ${index + 1}`;
+                const stepId = result.metadata?.step || 'unknown';
+                conversationHistory += `\n### ${agentName} (${stepId}):\n${result.content}\n`;
+            });
+        }
         
         let systemPrompt = '';
         let userPrompt = '';
@@ -79,7 +110,7 @@ export class CodeSmithAgent extends ChatAgent {
         switch (step.id) {
             case 'implement':
                 systemPrompt = this.getImplementationSystemPrompt();
-                userPrompt = `Implement the following: ${request.prompt}\n\nWorkspace Context:\n${context}`;
+                userPrompt = `Implement the following: ${request.prompt}\n\nWorkspace Context:\n${context}${conversationHistory}`;
                 break;
                 
             case 'test':
@@ -89,28 +120,45 @@ export class CodeSmithAgent extends ChatAgent {
                 
             case 'optimize':
                 systemPrompt = this.getOptimizationSystemPrompt();
-                userPrompt = `Optimize this implementation: ${request.prompt}\n\nContext:\n${context}`;
+                userPrompt = `Optimize this implementation: ${request.prompt}\n\nContext:\n${context}${conversationHistory}`;
                 break;
                 
             default:
                 systemPrompt = this.getGeneralSystemPrompt();
-                userPrompt = `${request.prompt}\n\nContext:\n${context}`;
+                userPrompt = `${request.prompt}\n\nContext:\n${context}${conversationHistory}`;
         }
 
         try {
-            const claudeService = await this.getClaudeService();
+            // Pass streaming callback if provided
+            const claudeService = await this.getClaudeService(request.onPartialResponse);
             const response = await claudeService.chat([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt }
             ]);
 
+            // Extract content string from response object
+            const responseContent = typeof response === 'string' 
+                ? response 
+                : (response as any).content || '';
+
+            // Extract metadata from response if available
+            const responseMetadata = typeof response === 'object' && response !== null
+                ? (response as any).metadata
+                : {};
+
+            this.showDebug('Response received', {
+                contentLength: responseContent.length,
+                metadata: responseMetadata
+            });
+
             return {
                 status: 'success',
-                content: response,
+                content: responseContent,
                 metadata: { 
                     step: step.id,
                     agent: 'codesmith',
-                    model: 'claude-3.5-sonnet'
+                    model: 'claude-3.5-sonnet',
+                    ...responseMetadata
                 }
             };
 
@@ -140,10 +188,14 @@ export class CodeSmithAgent extends ChatAgent {
                 { role: 'user', content: userPrompt }
             ]);
 
-            stream.markdown(response);
+            // Extract content string from response object
+            const responseContent = typeof response === 'string' 
+                ? response 
+                : (response as any).content || '';
+            stream.markdown(responseContent);
 
             // Extract code blocks for file creation
-            const codeBlocks = this.extractCodeBlocks(response);
+            const codeBlocks = this.extractCodeBlocks(responseContent);
             
             for (const block of codeBlocks) {
                 if (block.filename) {
@@ -198,10 +250,14 @@ export class CodeSmithAgent extends ChatAgent {
                 { role: 'user', content: userPrompt }
             ]);
 
-            stream.markdown(response);
+            // Extract content string from response object
+            const responseContent = typeof response === 'string' 
+                ? response 
+                : (response as any).content || '';
+            stream.markdown(responseContent);
 
             // Offer to apply optimizations
-            const optimizedCode = this.extractMainCodeBlock(response);
+            const optimizedCode = this.extractMainCodeBlock(responseContent);
             if (optimizedCode) {
                 this.createActionButton(
                     '✨ Apply Optimization',
@@ -235,10 +291,14 @@ export class CodeSmithAgent extends ChatAgent {
                 { role: 'user', content: userPrompt }
             ]);
 
-            stream.markdown(response);
+            // Extract content string from response object
+            const responseContent = typeof response === 'string' 
+                ? response 
+                : (response as any).content || '';
+            stream.markdown(responseContent);
 
             // Extract test files for creation
-            const testFiles = this.extractTestFiles(response);
+            const testFiles = this.extractTestFiles(responseContent);
             
             for (const testFile of testFiles) {
                 this.createActionButton(
@@ -281,10 +341,14 @@ export class CodeSmithAgent extends ChatAgent {
                 { role: 'user', content: userPrompt }
             ]);
 
-            stream.markdown(response);
+            // Extract content string from response object
+            const responseContent = typeof response === 'string' 
+                ? response 
+                : (response as any).content || '';
+            stream.markdown(responseContent);
 
             // Auto-detect and offer file creation
-            const codeBlocks = this.extractCodeBlocks(response);
+            const codeBlocks = this.extractCodeBlocks(responseContent);
             for (const block of codeBlocks) {
                 if (block.filename) {
                     this.createActionButton(
@@ -321,7 +385,9 @@ Always provide:
 4. Security best practices
 5. Testing recommendations
 
-Format your responses with clear explanations and working code examples.`;
+Format your responses with clear explanations and working code examples.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getImplementationSystemPrompt(): string {
@@ -354,7 +420,9 @@ Format your responses with clear explanations and working code examples.`;
 - Potential improvements
 - Deployment considerations
 
-Provide complete, working code with filenames when appropriate. Focus on clean, maintainable solutions.`;
+Provide complete, working code with filenames when appropriate. Focus on clean, maintainable solutions.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getOptimizationSystemPrompt(): string {
@@ -383,7 +451,9 @@ Provide complete, working code with filenames when appropriate. Focus on clean, 
 - Memory vs speed
 - Complexity considerations
 
-Always maintain code readability while improving performance. Explain your optimization choices.`;
+Always maintain code readability while improving performance. Explain your optimization choices.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getTestingSystemPrompt(): string {
@@ -416,14 +486,16 @@ Always maintain code readability while improving performance. Explain your optim
 - CI/CD integration
 - Coverage reporting
 
-Provide complete, runnable tests with clear assertions and good coverage.`;
+Provide complete, runnable tests with clear assertions and good coverage.
+
+${this.getSystemContextPrompt()}`;
     }
 
     // Service Configuration Methods
 
     private async validateServiceConfig(stream?: vscode.ChatResponseStream): Promise<boolean> {
         const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        const serviceMode = config.get<string>('serviceMode', 'web');
+        const serviceMode = config.get<string>('claude.serviceMode', 'claude-code');
 
         if (serviceMode === 'api') {
             if (!config.get<string>('anthropic.apiKey')) {
@@ -432,12 +504,11 @@ Provide complete, runnable tests with clear assertions and good coverage.`;
                 }
                 return false;
             }
-        } else if (serviceMode === 'web') {
-            const isWebServiceAvailable = await this.claudeWebService.testConnection();
-            if (!isWebServiceAvailable) {
+        } else if (serviceMode === 'claude-code') {
+            const isClaudeCodeAvailable = await this.claudeCodeService.isAvailable();
+            if (!isClaudeCodeAvailable) {
                 if (stream) {
-                    const status = await this.claudeWebService.getServerStatus();
-                    stream.markdown(`❌ **Claude Web Service not available**\n\nError: ${status.error || 'Connection failed'}\n\n**To fix this:**\n1. Make sure Claude Web Proxy server is running\n2. Check server URL: ${status.url}\n3. Ensure you're logged into Claude.ai in your browser`);
+                    stream.markdown(`❌ **Claude Code CLI not available**\n\n**To install:**\n\`\`\`bash\nnpm install -g @anthropic-ai/claude-code\n\`\`\`\n\nOr configure your Anthropic API key in VS Code settings.`);
                 }
                 return false;
             }
@@ -446,23 +517,56 @@ Provide complete, runnable tests with clear assertions and good coverage.`;
         return true;
     }
 
-    private async getClaudeService(): Promise<{ chat: (messages: any[]) => Promise<string> }> {
+    private async getClaudeService(onPartialResponse?: (content: string) => void): Promise<{ chat: (messages: any[]) => Promise<any> }> {
         const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        const serviceMode = config.get<string>('serviceMode', 'web');
+        const serviceMode = config.get<string>('claude.serviceMode', 'claude-code');
 
-        if (serviceMode === 'web') {
-            return {
-                chat: async (messages: any[]) => {
-                    return await this.claudeWebService.chat(messages);
-                }
-            };
-        } else {
-            return {
-                chat: async (messages: any[]) => {
-                    return await this.anthropicService.chat(messages);
-                }
-            };
+        this.showDebug('Service configuration', {
+            serviceMode,
+            hasStreamingCallback: !!onPartialResponse
+        });
+
+        if (serviceMode === 'claude-code') {
+            const isAvailable = await this.claudeCodeService.isAvailable();
+            if (isAvailable) {
+                this.showInfo('Using Claude Code CLI');
+                return {
+                    chat: async (messages: any[]) => {
+                        // Extract the main user message content
+                        const userMessage = messages.find(m => m.role === 'user')?.content || '';
+                        const systemMessage = messages.find(m => m.role === 'system')?.content || '';
+                        const fullPrompt = systemMessage ? `${systemMessage}\n\n${userMessage}` : userMessage;
+                        
+                        // Use streaming if callback provided
+                        if (onPartialResponse) {
+                            this.showDebug('Using streaming message');
+                            const response = await this.claudeCodeService.sendStreamingMessage(fullPrompt, {
+                                model: 'sonnet',
+                                temperature: 0.7,
+                                onPartialResponse: onPartialResponse
+                            });
+                            return response;
+                        } else {
+                            const response = await this.claudeCodeService.sendMessage(fullPrompt, {
+                                model: 'sonnet',
+                                temperature: 0.7
+                            });
+                            return response.content;
+                        }
+                    }
+                };
+            } else {
+                this.showFallbackMode('Claude Code CLI not available', 'Using Anthropic API');
+            }
         }
+        
+        // Fall back to Anthropic API
+        this.showInfo('Using Anthropic API');
+        return {
+            chat: async (messages: any[]) => {
+                return await this.anthropicService.chat(messages);
+            }
+        };
     }
 
     // Helper Methods

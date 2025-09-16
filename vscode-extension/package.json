@@ -2,7 +2,7 @@
   "name": "ki-autoagent-vscode",
   "displayName": "KI AutoAgent",
   "description": "Universal Multi-Agent AI Development Platform for VS Code",
-  "version": "2.2.1",
+  "version": "2.11.0",
   "publisher": "ki-autoagent",
   "icon": "media/multi-agent-logo.png",
   "repository": {
@@ -370,6 +370,11 @@
         "category": "KI AutoAgent"
       },
       {
+        "command": "ki-autoagent.testClaudeCLI",
+        "title": "KI AutoAgent: Test Claude CLI Integration",
+        "category": "KI AutoAgent"
+      },
+      {
         "command": "ki-autoagent.toggleChat",
         "title": "KI AutoAgent: Toggle Chat",
         "category": "KI AutoAgent",
@@ -394,6 +399,24 @@
         "command": "ki-autoagent.showHelp",
         "title": "KI AutoAgent: Show Help",
         "category": "KI AutoAgent"
+      },
+      {
+        "command": "ki-autoagent.configureAgentModels",
+        "title": "KI AutoAgent: Configure Agent Models",
+        "category": "KI AutoAgent",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "ki-autoagent.showAgentPerformance",
+        "title": "KI AutoAgent: Show Agent Performance",
+        "category": "KI AutoAgent",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "ki-autoagent.openConfigDirectory",
+        "title": "KI AutoAgent: Open Configuration Directory",
+        "category": "KI AutoAgent",
+        "icon": "$(folder-opened)"
       }
     ],
     "menus": {
@@ -417,6 +440,18 @@
         {
           "command": "ki-autoagent.showHelp",
           "when": "true"
+        },
+        {
+          "command": "ki-autoagent.configureAgentModels",
+          "when": "true"
+        },
+        {
+          "command": "ki-autoagent.showAgentPerformance",
+          "when": "true"
+        },
+        {
+          "command": "ki-autoagent.openConfigDirectory",
+          "when": "true"
         }
       ],
       "view/title": [
@@ -430,20 +465,35 @@
     "configuration": {
       "title": "KI AutoAgent",
       "properties": {
-        "kiAutoAgent.openai.apiKey": {
-          "type": "string",
-          "description": "OpenAI API Key for GPT models",
-          "scope": "application"
-        },
         "kiAutoAgent.anthropic.apiKey": {
           "type": "string",
-          "description": "Anthropic API Key for Claude models",
+          "markdownDescription": "🔑 **Anthropic API Key** for Claude models (Opus, Sonnet)\n- Get your key at [console.anthropic.com](https://console.anthropic.com)",
+          "scope": "application"
+        },
+        "kiAutoAgent.openai.apiKey": {
+          "type": "string",
+          "markdownDescription": "🔑 **OpenAI API Key** for GPT models (GPT-4o, GPT-4o-mini)\n- Get your key at [platform.openai.com](https://platform.openai.com)",
           "scope": "application"
         },
         "kiAutoAgent.perplexity.apiKey": {
           "type": "string",
-          "description": "Perplexity API Key for research",
+          "markdownDescription": "🔑 **Perplexity API Key** for web research (optional)\n- Get your key at [perplexity.ai](https://perplexity.ai)",
           "scope": "application"
+        },
+        "kiAutoAgent.claude.serviceMode": {
+          "type": "string",
+          "enum": [
+            "claude-code",
+            "api",
+            "web"
+          ],
+          "default": "claude-code",
+          "markdownDescription": "🤖 **Claude Service Mode**\n- `claude-code`: Local CLI (install with `npm install -g @anthropic-ai/claude-code`)\n- `api`: Direct API access with Anthropic key\n- `web`: Browser proxy (deprecated)",
+          "enumDescriptions": [
+            "Claude Code CLI - Recommended for best performance",
+            "API Mode - Direct Anthropic API access",
+            "Web Mode - Legacy browser proxy (deprecated)"
+          ]
         },
         "kiAutoAgent.defaultModel": {
           "type": "string",
@@ -451,131 +501,253 @@
           "enum": [
             "claude-opus-4.1",
             "claude-sonnet-4",
-            "claude-3.5-sonnet",
             "gpt-4o",
             "gpt-4o-mini"
           ],
-          "description": "Default AI model to use - Claude Opus 4.1 (Supreme Judge), Sonnet 4 (Best Coder), GPT-4o (Architect)"
-        },
-        "kiAutoAgent.enableLogging": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable detailed logging for debugging"
+          "markdownDescription": "🎯 **Default AI Model**\n- Opus 4.1: Supreme reasoning & conflict resolution\n- Sonnet 4: Best for coding & implementation\n- GPT-4o: Architecture & system design\n- GPT-4o Mini: Fast & cost-effective"
         },
         "kiAutoAgent.maxTokens": {
           "type": "number",
           "default": 4000,
           "minimum": 100,
           "maximum": 32000,
-          "description": "Maximum tokens per AI request"
+          "markdownDescription": "📝 **Max Tokens Per Request**\nHigher = longer responses but more cost"
         },
-        "kiAutoAgent.webAccess.enabled": {
+        "kiAutoAgent.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 1,
+          "markdownDescription": "🎨 **Temperature (Creativity)**\n- 0.0 = Deterministic, focused\n- 0.7 = Balanced (default)\n- 1.0 = Creative, varied"
+        },
+        "kiAutoAgent.enableLogging": {
           "type": "boolean",
           "default": true,
-          "description": "Enable web access for research and real-time information"
+          "markdownDescription": "📊 **Enable Debug Logging**\nShows detailed logs in Output panel"
         },
-        "kiAutoAgent.webAccess.searchEngine": {
+        "kiAutoAgent.autoDetectProjectType": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🔍 **Auto-Detect Project Type**\nAutomatically identifies Python, JavaScript, TypeScript, etc."
+        },
+        "kiAutoAgent.workspaceContext": {
           "type": "string",
-          "default": "perplexity",
+          "enum": [
+            "minimal",
+            "standard",
+            "full"
+          ],
+          "default": "standard",
+          "markdownDescription": "📁 **Workspace Context Level**\n- `minimal`: Only current file\n- `standard`: Related files\n- `full`: Entire workspace structure",
+          "enumDescriptions": [
+            "Minimal - Only current file context",
+            "Standard - Include related files",
+            "Full - Complete workspace analysis"
+          ]
+        },
+        "kiAutoAgent.ignorePatterns": {
+          "type": "array",
+          "default": [
+            "node_modules",
+            ".git",
+            "dist",
+            "build",
+            "*.pyc",
+            "__pycache__"
+          ],
+          "markdownDescription": "🚫 **Ignore Patterns**\nFiles/folders to exclude from analysis"
+        },
+        "kiAutoAgent.streamResponses": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "⚡ **Stream Responses**\nShow responses as they're generated"
+        },
+        "kiAutoAgent.showAgentThinking": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "🧠 **Show Agent Thinking**\nDisplay internal reasoning process"
+        },
+        "kiAutoAgent.autoSaveChat": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "💾 **Auto-Save Chat History**\nAutomatically save conversation history"
+        },
+        "kiAutoAgent.autoSelectAgent": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🎯 **Auto-Select Best Agent**\nAutomatically route to most suitable agent"
+        },
+        "kiAutoAgent.multiAgentMode": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "👥 **Multi-Agent Collaboration**\nAllow multiple agents to work together"
+        },
+        "kiAutoAgent.conflictResolution": {
+          "type": "string",
+          "enum": [
+            "opus-arbitrator",
+            "majority-vote",
+            "first-response"
+          ],
+          "default": "opus-arbitrator",
+          "markdownDescription": "⚖️ **Conflict Resolution Strategy**\nHow to handle conflicting agent responses",
+          "enumDescriptions": [
+            "Opus Arbitrator - Supreme judge decides",
+            "Majority Vote - Most common answer wins",
+            "First Response - Use first valid response"
+          ]
+        },
+        "kiAutoAgent.webSearch.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🔍 **Enable Web Search**\nAllow agents to search the internet"
+        },
+        "kiAutoAgent.webSearch.provider": {
+          "type": "string",
           "enum": [
             "perplexity",
             "tavily",
-            "serp",
-            "custom"
+            "serp"
           ],
-          "description": "Search engine to use for web research"
+          "default": "perplexity",
+          "markdownDescription": "🌐 **Search Provider**"
         },
-        "kiAutoAgent.webAccess.maxResults": {
+        "kiAutoAgent.webSearch.maxResults": {
           "type": "number",
           "default": 5,
           "minimum": 1,
           "maximum": 20,
-          "description": "Maximum number of search results to process"
+          "markdownDescription": "📊 **Max Search Results**"
         },
-        "kiAutoAgent.tavily.apiKey": {
-          "type": "string",
-          "description": "Tavily API Key for web search",
-          "scope": "application"
-        },
-        "kiAutoAgent.serp.apiKey": {
-          "type": "string",
-          "description": "SERP API Key for Google search",
-          "scope": "application"
-        },
-        "kiAutoAgent.customSearch.endpoint": {
-          "type": "string",
-          "description": "Custom search API endpoint URL",
-          "scope": "application"
-        },
-        "kiAutoAgent.customSearch.apiKey": {
-          "type": "string",
-          "description": "Custom search API key",
-          "scope": "application"
-        },
-        "kiAutoAgent.serviceMode": {
-          "type": "string",
-          "enum": [
-            "api",
-            "web"
-          ],
-          "default": "web",
-          "description": "Choose service mode: 'api' for API key access, 'web' for Claude Pro web session"
-        },
-        "kiAutoAgent.claudeWeb.enabled": {
+        "kiAutoAgent.cacheResponses": {
           "type": "boolean",
           "default": true,
-          "description": "Enable Claude Web integration (uses Claude Pro account via browser session)"
+          "markdownDescription": "💾 **Cache AI Responses**\nCache identical requests to save API costs"
         },
-        "kiAutoAgent.claudeWeb.serverUrl": {
-          "type": "string",
-          "default": "http://localhost:8000",
-          "description": "Claude Web Proxy server URL (connects to your Claude Pro account)"
+        "kiAutoAgent.cacheDuration": {
+          "type": "number",
+          "default": 60,
+          "minimum": 0,
+          "maximum": 1440,
+          "markdownDescription": "⏱️ **Cache Duration (minutes)**\n0 = no caching, 1440 = 24 hours"
         },
-        "kiAutoAgent.claudeWeb.autoStart": {
+        "kiAutoAgent.historyLimit": {
+          "type": "number",
+          "default": 100,
+          "minimum": 10,
+          "maximum": 1000,
+          "markdownDescription": "📚 **Chat History Limit**\nMax messages to keep in history"
+        },
+        "kiAutoAgent.timeout": {
+          "type": "number",
+          "default": 120,
+          "minimum": 30,
+          "maximum": 600,
+          "markdownDescription": "⏱️ **Request Timeout (seconds)**\nMax time to wait for AI response"
+        },
+        "kiAutoAgent.retryAttempts": {
+          "type": "number",
+          "default": 3,
+          "minimum": 0,
+          "maximum": 10,
+          "markdownDescription": "🔄 **Retry Attempts**\nRetries on temporary failures"
+        },
+        "kiAutoAgent.rateLimitDelay": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 0,
+          "maximum": 10000,
+          "markdownDescription": "⏸️ **Rate Limit Delay (ms)**\nDelay between rapid requests"
+        },
+        "kiAutoAgent.redactSecrets": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🛡️ **Redact Secrets**\nAutomatically hide API keys and passwords in outputs"
+        },
+        "kiAutoAgent.sandboxMode": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically start Claude Web Proxy server when extension activates"
+          "markdownDescription": "🔒 **Sandbox Mode**\nRestrict code execution and file system access"
         },
-        "kiAutoAgent.claudeWeb.planType": {
-          "type": "string",
-          "enum": [
-            "pro",
-            "max"
-          ],
-          "default": "pro",
-          "description": "Claude plan type: 'pro' for Claude Pro, 'max' for Claude Max (higher rate limits)"
-        },
-        "kiAutoAgent.chat.enabled": {
+        "kiAutoAgent.confirmDestructive": {
           "type": "boolean",
           "default": true,
-          "description": "Enable the multi-agent chat interface"
+          "markdownDescription": "⚠️ **Confirm Destructive Actions**\nRequire confirmation for delete/overwrite operations"
         },
-        "kiAutoAgent.chat.defaultMode": {
-          "type": "string",
-          "default": "auto",
-          "enum": [
-            "auto",
-            "single",
-            "workflow"
-          ],
-          "description": "Default chat mode - auto for intelligent routing, single for direct agent chat, workflow for multi-agent collaboration"
-        },
-        "kiAutoAgent.chat.showAgentCommunication": {
+        "kiAutoAgent.testCommand": {
           "type": "boolean",
           "default": true,
-          "description": "Show inter-agent communication in workflow mode"
+          "markdownDescription": "🧪 **Enable Test Command**\nShow 'Test Claude CLI' command in palette"
         },
-        "kiAutoAgent.chat.autoCollapseLongMessages": {
+        "kiAutoAgent.verboseErrors": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "🐛 **Verbose Error Messages**\nShow detailed error information for debugging"
+        },
+        "kiAutoAgent.learning.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically make long messages collapsible"
+          "markdownDescription": "🧠 **Enable Learning System**\nAgents adapt based on successful interactions"
         },
-        "kiAutoAgent.chat.messageCollapseThreshold": {
+        "kiAutoAgent.learning.adaptationThreshold": {
           "type": "number",
-          "default": 500,
-          "minimum": 100,
-          "maximum": 2000,
-          "description": "Number of characters before a message becomes collapsible"
+          "default": 0.8,
+          "minimum": 0.5,
+          "maximum": 0.99,
+          "markdownDescription": "📊 **Learning Threshold**\nSuccess rate needed before adapting (0.8 = 80%)"
+        },
+        "kiAutoAgent.chat.showEmojis": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "😊 **Show Emojis**\nDisplay emojis in agent responses"
+        },
+        "kiAutoAgent.chat.showTimestamps": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🕐 **Show Timestamps**\nDisplay timestamps in agent responses"
+        },
+        "kiAutoAgent.chat.showDetailedResponses": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "📊 **Show Detailed Responses**\nShow additional details and metadata in agent responses"
+        },
+        "kiAutoAgent.chat.responseFormat": {
+          "type": "string",
+          "enum": ["simple", "detailed"],
+          "default": "detailed",
+          "markdownDescription": "📝 **Response Format**\nChoose between simple or detailed response format"
+        },
+        "kiAutoAgent.chat.logLevel": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+          "default": "INFO",
+          "markdownDescription": "🔍 **Log Level**\nMinimum log level for console output"
+        },
+        "kiAutoAgent.chat.fallbackMode": {
+          "type": "string",
+          "enum": ["graceful", "strict"],
+          "default": "graceful",
+          "markdownDescription": "🔄 **Fallback Mode**\nHow to handle fallback scenarios"
+        },
+        "kiAutoAgent.agents.configuration": {
+          "type": "object",
+          "readOnly": true,
+          "markdownDescription": "🤖 **Agent Configuration Overview**\n\n📚 Each agent has specialized instructions and models:\n\n**🎭 Workflow Coordination**\n• `OrchestratorAgent` → [orchestrator.md](file://./instructionsets/orchestrator.md)\n• Model: GPT-4o\n• Handles: Multi-agent workflows, task routing\n\n**⚖️ Conflict Resolution**\n• `OpusArbitratorAgent` → [richter.md](file://./instructionsets/richter.md)\n• Model: Claude Opus 4.1\n• Handles: Agent conflicts, final decisions\n\n**🏗️ Architecture & Design**\n• `ArchitectAgent` → [architect.md](file://./instructionsets/architect.md)\n• Model: GPT-4o\n• Handles: System design, patterns, scalability\n\n**💻 Code Implementation**\n• `CodeSmithAgent` → [codesmith.md](file://./instructionsets/codesmith.md)\n• Model: Claude Sonnet 4\n• Handles: Coding, testing, optimization\n\n**📈 Trading Strategies**\n• `TradeStratAgent` → [tradestrat.md](file://./instructionsets/tradestrat.md)\n• Model: Claude Sonnet 4\n• Handles: Trading algorithms, backtesting\n\n**🔍 Web Research**\n• `ResearchAgent` → [research.md](file://./instructionsets/research.md)\n• Model: Perplexity Sonar\n• Handles: Web search, documentation",
+          "default": {
+            "info": "View instruction files in ./vscode-extension/src/instructionsets/"
+          }
+        },
+        "kiAutoAgent.agents.instructionSetsPath": {
+          "type": "string",
+          "default": "./vscode-extension/src/instructionsets",
+          "markdownDescription": "📁 **Instruction Sets Directory**\nPath to agent instruction files",
+          "scope": "window"
+        },
+        "kiAutoAgent.agents.showInstructions": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "📖 **Show Agent Instructions**\nDisplay which instruction set each agent uses",
+          "scope": "window"
         }
       }
     }
@@ -617,6 +789,31 @@
       "date": "2025-09-12T12:55:27.134Z",
       "description": "Fix Command Palette visibility for KI AutoAgent Chat commands",
       "timestamp": 1757681727135
+    },
+    "2.2.2": {
+      "date": "2025-09-12T15:30:00.000Z",
+      "description": "Added extensive debugging code to troubleshoot agent response issues",
+      "timestamp": 1757691800000
+    },
+    "2.2.3": {
+      "date": "2025-09-12T18:15:00.000Z",
+      "description": "Fixed workflow to use only existing agents - mapped missing reviewer/fixer/docu agents to codesmith",
+      "timestamp": 1757701500000
+    },
+    "2.3.0": {
+      "date": "2025-09-12T19:00:00.000Z",
+      "description": "MAJOR: Enhanced Agent Configuration System - Per-agent model selection, file-based instructions, self-adapting agents, auto-learning capabilities",
+      "timestamp": 1757704200000
+    },
+    "2.3.1": {
+      "date": "2025-09-12T19:30:00.000Z",
+      "description": "HOTFIX: Fixed agent registration issues and double chat entries - agents now respond correctly",
+      "timestamp": 1757706000000
+    },
+    "2.3.2": {
+      "date": "2025-09-12T20:00:00.000Z",
+      "description": "DEBUG: Added extensive debug logging system to identify agent registration and chat mode issues",
+      "timestamp": 1757707800000
     }
   }
 }

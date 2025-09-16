@@ -25,6 +25,13 @@ export interface TaskRequest {
     command?: string;
     context?: WorkspaceContext;
     projectType?: string;
+    globalContext?: string;
+    conversationHistory?: Array<{
+        agent: string;
+        step: string;
+        content: string;
+    }>;
+    onPartialResponse?: (content: string) => void;
 }
 
 export interface TaskResult {

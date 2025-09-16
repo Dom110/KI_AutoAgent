@@ -5,8 +5,10 @@
 import * as vscode from 'vscode';
 import { AgentConfig, TaskRequest, TaskResult, WorkflowStep, AIModel } from '../../types';
 import { VSCodeMasterDispatcher } from '../../core/VSCodeMasterDispatcher';
+import { UnifiedChatMixin, ResponseType } from '../../mixins/UnifiedChatMixin';
+import { AgentRegistry } from '../../core/AgentRegistry';
 
-export abstract class ChatAgent {
+export abstract class ChatAgent extends UnifiedChatMixin {
     protected context: vscode.ExtensionContext;
     protected dispatcher: VSCodeMasterDispatcher;
     protected stats = {
@@ -15,14 +17,26 @@ export abstract class ChatAgent {
         totalResponseTime: 0,
         lastExecution: undefined as Date | undefined
     };
+    
+    // Properties for UnifiedChatMixin compatibility
+    public name: string;
+    public role: string;
+    public model: string;
 
     constructor(
         protected config: AgentConfig,
         context: vscode.ExtensionContext,
         dispatcher: VSCodeMasterDispatcher
     ) {
+        super(); // Initialize UnifiedChatMixin
+        
         this.context = context;
         this.dispatcher = dispatcher;
+        
+        // Set properties for UnifiedChatMixin
+        this.name = config.fullName || config.name;
+        this.role = config.description;
+        this.model = config.model;
     }
 
     /**
@@ -137,22 +151,65 @@ export abstract class ChatAgent {
      */
     protected async getWorkspaceContext(): Promise<string> {
         const workspaceContext = await this.dispatcher.getWorkspaceContext();
-        
+
         let contextString = '';
-        
+
         if (workspaceContext.currentFile) {
             contextString += `Current file: ${workspaceContext.currentFile}\n`;
         }
-        
+
         if (workspaceContext.selectedText) {
             contextString += `Selected text:\n\`\`\`\n${workspaceContext.selectedText}\n\`\`\`\n`;
         }
-        
+
         if (workspaceContext.workspaceRoots && workspaceContext.workspaceRoots.length > 0) {
             contextString += `Workspace: ${workspaceContext.workspaceRoots[0].name}\n`;
         }
-        
+
+        // Add task delegation context
+        contextString += `\n\n${this.getTaskDelegationContext()}`;
+
         return contextString;
+    }
+
+    /**
+     * Get task delegation context for this agent
+     */
+    protected getTaskDelegationContext(): string {
+        const registry = AgentRegistry.getInstance();
+        const agentId = this.config.name.toLowerCase().replace('agent', '');
+        return registry.getTaskDelegationInfo(agentId);
+    }
+
+    /**
+     * Check if a task should be delegated to another agent
+     */
+    protected async checkForTaskDelegation(prompt: string): Promise<string | null> {
+        const registry = AgentRegistry.getInstance();
+        const currentAgentId = this.config.name.toLowerCase().replace('agent', '');
+        const suggestedAgent = registry.suggestAgentForTask(prompt);
+
+        if (suggestedAgent && suggestedAgent !== currentAgentId) {
+            const agentInfo = registry.getAgentInfo(suggestedAgent);
+            if (agentInfo) {
+                return `💡 This task might be better suited for **@${suggestedAgent}** who specializes in ${agentInfo.specialization}.\n\nWould you like me to:\n1. Continue with my analysis\n2. Suggest forwarding to @${suggestedAgent}\n\nOr you can directly ask @${suggestedAgent} for help.`;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get system context prompt with agent awareness
+     */
+    protected getSystemContextPrompt(): string {
+        const registry = AgentRegistry.getInstance();
+        return `
+## Available Agents in KI_AutoAgent System:
+${registry.getAgentListDescription()}
+
+You are ${this.config.fullName} with role: ${this.config.description}
+${this.getTaskDelegationContext()}
+`;
     }
 
     /**
@@ -197,7 +254,7 @@ export abstract class ChatAgent {
             const uri = vscode.Uri.file(filePath);
             stream.reference(uri);
         } catch (error) {
-            console.error('Error adding file reference:', error);
+            console.log(this.showError('Error adding file reference', error));
         }
     }
 
@@ -205,7 +262,7 @@ export abstract class ChatAgent {
      * Error handler
      */
     protected async handleError(error: Error, stream: vscode.ChatResponseStream): Promise<void> {
-        console.error(`Error in ${this.config.fullName}:`, error);
+        console.log(this.showError(`Error in ${this.config.fullName}`, error));
         
         stream.markdown(`❌ **Error**: ${(error as any).message}\n\n`);
         stream.markdown(`💡 **Suggestions:**\n`);

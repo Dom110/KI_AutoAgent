@@ -4,15 +4,18 @@
  */
 import * as vscode from 'vscode';
 import { TaskRequest, TaskResult, Intent, WorkspaceContext, ProjectTypeDefinition, WorkflowStep } from '../types';
+import { ConversationContextManager } from './ConversationContextManager';
 
 export class VSCodeMasterDispatcher {
     private agents: Map<string, any> = new Map();
     private projectTypes: Map<string, ProjectTypeDefinition> = new Map();
+    private contextManager: ConversationContextManager;
     private intentPatterns: Map<string, RegExp[]> = new Map();
     private context: vscode.ExtensionContext;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
+        this.contextManager = ConversationContextManager.getInstance();
         this.initializeProjectTypes();
         this.initializeIntentPatterns();
     }
@@ -21,9 +24,48 @@ export class VSCodeMasterDispatcher {
      * Process a task request and route to appropriate agents
      */
     async processRequest(request: TaskRequest): Promise<TaskResult> {
+        console.log(`\n🚦 [DISPATCHER] ====== processRequest called ======`);
+        console.log(`🚦 [DISPATCHER] request.command: '${request.command}'`);
+        console.log(`🚦 [DISPATCHER] request.command type: ${typeof request.command}`);
+        console.log(`🚦 [DISPATCHER] request.prompt: "${request.prompt?.substring(0, 50)}..."`);
+        console.log(`🚦 [DISPATCHER] Command check results:`);
+        console.log(`🚦 [DISPATCHER]   - request.command exists: ${!!request.command}`);
+        console.log(`🚦 [DISPATCHER]   - request.command !== 'auto': ${request.command !== 'auto'}`);
+        console.log(`🚦 [DISPATCHER]   - request.command !== 'orchestrator': ${request.command !== 'orchestrator'}`);
+        
         try {
             // Get workspace context
             const workspaceContext = await this.getWorkspaceContext();
+            
+            // Check if a specific agent was requested (single agent mode)
+            if (request.command && request.command !== 'auto' && request.command !== 'orchestrator') {
+                console.log(`🎯 [DISPATCHER] ✅ SINGLE AGENT MODE ACTIVATED`);
+                console.log(`🎯 [DISPATCHER] Single agent mode: Using only ${request.command}`);
+                
+                // Create a single-step workflow for the specific agent
+                const workflow = [{
+                    id: 'execute',
+                    agent: request.command,
+                    description: `Execute with ${request.command}`
+                }];
+                
+                console.log(`🎯 [DISPATCHER] Created single-step workflow:`);
+                console.log(`🎯 [DISPATCHER]   - Steps count: ${workflow.length}`);
+                console.log(`🎯 [DISPATCHER]   - Step[0]: id='${workflow[0].id}', agent='${workflow[0].agent}'`);
+                
+                // Execute single agent
+                const result = await this.executeWorkflow(workflow, {
+                    ...request,
+                    context: workspaceContext,
+                    projectType: request.projectType || 'generic'
+                });
+                
+                return result;
+            }
+            
+            // Auto mode: Detect intent and create multi-step workflow
+            console.log(`🎯 [DISPATCHER] ⚠️ AUTO MODE ACTIVATED (not single agent)`);
+            console.log(`🎯 [DISPATCHER] Auto mode: Creating workflow based on intent`);
             
             // Detect intent and project type
             const intent = await this.detectIntent(request.prompt);
@@ -177,6 +219,7 @@ export class VSCodeMasterDispatcher {
 
     /**
      * Create workflow based on intent and project type
+     * Note: Uses only available agents (architect, codesmith, tradestrat, research, richter, orchestrator)
      */
     createWorkflow(intent: Intent, projectType: string): WorkflowStep[] {
         const projectDef = this.projectTypes.get(projectType);
@@ -189,7 +232,7 @@ export class VSCodeMasterDispatcher {
                 workflow = [
                     { id: 'analyze', agent: 'architect', description: 'Analyze requirements and context' },
                     { id: 'design', agent: 'architect', description: 'Create architecture design' },
-                    { id: 'review', agent: 'reviewer', description: 'Review architecture for best practices' }
+                    { id: 'review', agent: 'codesmith', description: 'Review architecture for best practices' } // Using codesmith instead of missing 'reviewer'
                 ];
                 break;
                 
@@ -198,7 +241,7 @@ export class VSCodeMasterDispatcher {
                     { id: 'plan', agent: 'architect', description: 'Plan implementation approach' },
                     { id: 'implement', agent: 'codesmith', description: 'Implement the solution' },
                     { id: 'test', agent: 'codesmith', description: 'Create tests' },
-                    { id: 'review', agent: 'reviewer', description: 'Review implementation' }
+                    { id: 'review', agent: 'codesmith', description: 'Review implementation' } // Using codesmith instead of missing 'reviewer'
                 ];
                 break;
                 
@@ -207,21 +250,34 @@ export class VSCodeMasterDispatcher {
                     { id: 'strategy_design', agent: 'tradestrat', description: 'Design trading strategy' },
                     { id: 'implement', agent: 'codesmith', description: 'Implement strategy code' },
                     { id: 'backtest', agent: 'tradestrat', description: 'Create backtesting framework' },
-                    { id: 'review', agent: 'reviewer', description: 'Review for trading best practices' }
+                    { id: 'review', agent: 'tradestrat', description: 'Review for trading best practices' } // Using tradestrat instead of missing 'reviewer'
                 ];
                 break;
                 
             case 'debug':
                 workflow = [
-                    { id: 'analyze', agent: 'fixer', description: 'Analyze the problem' },
-                    { id: 'fix', agent: 'fixer', description: 'Implement fix' },
+                    { id: 'analyze', agent: 'codesmith', description: 'Analyze the problem' }, // Using codesmith instead of missing 'fixer'
+                    { id: 'fix', agent: 'codesmith', description: 'Implement fix' }, // Using codesmith instead of missing 'fixer'
                     { id: 'test', agent: 'codesmith', description: 'Test the fix' }
+                ];
+                break;
+                
+            case 'documentation':
+                workflow = [
+                    { id: 'analyze', agent: 'architect', description: 'Analyze documentation requirements' },
+                    { id: 'document', agent: 'codesmith', description: 'Generate documentation' } // Using codesmith instead of missing 'docu'
+                ];
+                break;
+                
+            case 'research':
+                workflow = [
+                    { id: 'research', agent: 'research', description: 'Research and gather information' }
                 ];
                 break;
                 
             default:
                 workflow = [
-                    { id: 'execute', agent: intent.agent, description: 'Execute task' }
+                    { id: 'execute', agent: intent.agent || 'codesmith', description: 'Execute task' }
                 ];
         }
         
@@ -248,15 +304,95 @@ export class VSCodeMasterDispatcher {
             references: []
         };
 
+        console.log(`🚀 [WORKFLOW] Starting workflow execution with ${workflow.length} steps`);
+        console.log(`🚀 [WORKFLOW] Workflow steps: ${workflow.map(s => `${s.id}:${s.agent}`).join(' → ')}`);
+        console.log(`🚀 [WORKFLOW] Current agent registry size: ${this.agents.size}`);
+        console.log(`🚀 [WORKFLOW] Current registered agents: [${Array.from(this.agents.keys()).join(', ')}]`);
+
         for (const step of workflow) {
             try {
-                const agent = this.agents.get(step.agent);
+                console.log(`\n🔍 [WORKFLOW STEP] ========================================`);
+                console.log(`🔍 [WORKFLOW STEP] Executing: ${step.description}`);
+                console.log(`🔍 [WORKFLOW STEP] Looking for agent: "${step.agent}"`);
+                console.log(`🔍 [WORKFLOW STEP] Agent registry has ${this.agents.size} agents`);
+                console.log(`🔍 [WORKFLOW STEP] Available agents: [${Array.from(this.agents.keys()).join(', ')}]`);
+                
+                let agent = this.agents.get(step.agent);
+                console.log(`🔍 [WORKFLOW STEP] Direct lookup for "${step.agent}": ${agent ? 'FOUND' : 'NOT FOUND'}`);
+                
+                // Try alternative agent mappings if direct lookup fails
                 if (!agent) {
-                    throw new Error(`Agent ${step.agent} not found`);
+                    const agentMappings: Record<string, string[]> = {
+                        'architect': ['architect', 'ki-autoagent.architect'],
+                        'codesmith': ['codesmith', 'ki-autoagent.codesmith'],  
+                        'tradestrat': ['tradestrat', 'ki-autoagent.tradestrat'],
+                        'research': ['research', 'ki-autoagent.research'],
+                        'richter': ['richter', 'ki-autoagent.richter'],
+                        'orchestrator': ['orchestrator', 'ki-autoagent.orchestrator']
+                    };
+                    
+                    // Try all possible names for this agent
+                    const possibleNames = agentMappings[step.agent];
+                    if (possibleNames) {
+                        for (const possibleName of possibleNames) {
+                            agent = this.agents.get(possibleName);
+                            if (agent) {
+                                console.log(`[DEBUG] Found agent ${step.agent} under name: ${possibleName}`);
+                                break;
+                            }
+                        }
+                    }
                 }
+                
+                if (!agent) {
+                    console.error(`[DEBUG] Agent ${step.agent} not found! Available agents: ${Array.from(this.agents.keys()).join(', ')}`);
+                    
+                    // TEMPORARY FALLBACK: Use orchestrator for missing agents
+                    agent = this.agents.get('orchestrator') || this.agents.get('ki-autoagent.orchestrator');
+                    if (agent) {
+                        console.warn(`[DEBUG] Using orchestrator as fallback for ${step.agent}`);
+                    } else {
+                        const errorMsg = `Agent ${step.agent} not found. Registered agents: [${Array.from(this.agents.keys()).join(', ')}]`;
+                        console.error(`❌ [WORKFLOW STEP] ${errorMsg}`);
+                        throw new Error(errorMsg);
+                    }
+                }
+                
+                console.log(`[DEBUG] Found agent: ${step.agent}, executing step: ${step.description}`);
+                console.log(`[DEBUG] Passing ${results.length} previous results to agent`);
 
-                const stepResult = await agent.executeStep(step, request, results);
+                // Get recent conversation history from context manager
+                const recentHistory = this.contextManager.getFormattedContext(5);
+                
+                // Create enriched request with accumulated context
+                const enrichedRequest = {
+                    ...request,
+                    prompt: request.prompt,
+                    conversationHistory: results.map(r => ({
+                        agent: r.metadata?.agent || 'unknown',
+                        step: r.metadata?.step || 'unknown',
+                        content: r.content
+                    })),
+                    globalContext: recentHistory
+                };
+
+                const stepResult = await agent.executeStep(step, enrichedRequest, results);
                 results.push(stepResult);
+                
+                // Save to conversation history
+                this.contextManager.addEntry({
+                    timestamp: new Date().toISOString(),
+                    agent: step.agent,
+                    step: step.id,
+                    input: request.prompt,
+                    output: stepResult.content,
+                    metadata: stepResult.metadata
+                });
+                
+                // Log inter-agent communication
+                console.log(`[INTER-AGENT] ${step.agent} completed step '${step.id}' with ${stepResult.content.length} chars`);
+                console.log(`[INTER-AGENT] Result saved to conversation history`);
+                console.log(`[INTER-AGENT] Result will be passed to next agent in workflow`);
                 
                 // Accumulate results
                 finalResult.content += `## ${step.description}\n\n${stepResult.content}\n\n`;
@@ -268,8 +404,29 @@ export class VSCodeMasterDispatcher {
                 }
                 
             } catch (error) {
+                const errorMessage = (error as any).message || error;
+                console.error(`❌ Error executing step ${step.id} (${step.agent}): ${errorMessage}`);
                 finalResult.status = 'error';
-                finalResult.content += `❌ Error in ${step.description}: ${(error as any).message}\n\n`;
+                finalResult.content += `❌ Error in ${step.description}: ${errorMessage}\n\n`;
+                
+                // Add helpful error message for API issues
+                if (errorMessage.includes('not found')) {
+                    finalResult.content += `**Troubleshooting:**\n`;
+                    finalResult.content += `- Registered agents: [${Array.from(this.agents.keys()).join(', ')}]\n`;
+                    finalResult.content += `- Ensure all agents are properly initialized\n\n`;
+                } else if (errorMessage.includes('quota') || errorMessage.includes('API')) {
+                    finalResult.content += `**API Configuration Required:**\n`;
+                    finalResult.content += `1. Open VS Code Settings (Cmd+,)\n`;
+                    finalResult.content += `2. Search for "KI AutoAgent"\n`;
+                    finalResult.content += `3. Configure your API keys:\n`;
+                    finalResult.content += `   - OpenAI API Key\n`;
+                    finalResult.content += `   - Anthropic API Key\n`;
+                    finalResult.content += `   - Perplexity API Key\n\n`;
+                } else if (errorMessage.includes('Claude Web Proxy')) {
+                    finalResult.content += `**Claude Web Proxy Required:**\n`;
+                    finalResult.content += `The Claude Web Proxy server is not running.\n`;
+                    finalResult.content += `Please start the proxy server to use Claude models.\n\n`;
+                }
             }
         }
 
@@ -307,7 +464,27 @@ export class VSCodeMasterDispatcher {
      * Register an agent
      */
     registerAgent(agentId: string, agent: any): void {
+        console.log(`🔧 [DISPATCHER] Registering agent: ${agentId}`);
+        console.log(`🔧 [DISPATCHER] Agent object type: ${typeof agent}`);
+        console.log(`🔧 [DISPATCHER] Agent has executeStep: ${typeof agent.executeStep}`);
+        console.log(`🔧 [DISPATCHER] Agent config: ${JSON.stringify(agent.config || 'NO CONFIG')}`);
+        
         this.agents.set(agentId, agent);
+        
+        console.log(`🔧 [DISPATCHER] Total registered agents: ${this.agents.size}`);
+        console.log(`🔧 [DISPATCHER] All registered agent IDs: [${Array.from(this.agents.keys()).join(', ')}]`);
+        console.log(`🔧 [DISPATCHER] Agent storage verification - Can retrieve ${agentId}: ${this.agents.has(agentId) ? 'YES' : 'NO'}`);
+        
+        // Test immediate retrieval
+        const testRetrieve = this.agents.get(agentId);
+        console.log(`🔧 [DISPATCHER] Immediate retrieval test for ${agentId}: ${testRetrieve ? 'SUCCESS' : 'FAILED'}`);
+    }
+
+    /**
+     * Get list of registered agent IDs
+     */
+    getRegisteredAgents(): string[] {
+        return Array.from(this.agents.keys());
     }
 
     /**
@@ -348,8 +525,8 @@ export class VSCodeMasterDispatcher {
             patterns: ['fastapi', 'flask', 'express', 'api'],
             qualityGates: ['security_review', 'performance_check', 'api_design'],
             workflow: [
-                { id: 'security_review', agent: 'reviewer', description: 'Security vulnerability check' },
-                { id: 'api_documentation', agent: 'docu', description: 'Generate API documentation' }
+                { id: 'security_review', agent: 'codesmith', description: 'Security vulnerability check' }, // Using codesmith instead of missing 'reviewer'
+                { id: 'api_documentation', agent: 'codesmith', description: 'Generate API documentation' } // Using codesmith instead of missing 'docu'
             ],
             primaryAgent: 'codesmith'
         });

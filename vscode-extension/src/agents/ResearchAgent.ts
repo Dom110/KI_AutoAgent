@@ -344,7 +344,9 @@ Key principles:
 5. Include relevant statistics and data
 6. Maintain objectivity and cite sources when possible
 
-Format your response with clear headings and bullet points for readability.`;
+Format your response with clear headings and bullet points for readability.
+
+${this.getSystemContextPrompt()}`;
 
         const userPrompt = `${analysisPrompt}
 

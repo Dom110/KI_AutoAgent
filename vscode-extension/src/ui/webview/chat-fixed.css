@@ -125,6 +125,27 @@ body {
     color: var(--vscode-foreground);
 }
 
+/* Fix text color in assistant messages for better readability */
+.message-wrapper.assistant .message-content {
+    color: var(--vscode-editor-foreground, #333333);
+}
+
+/* System Messages - Tool notifications, thinking, etc. */
+.message-wrapper.system {
+    justify-content: flex-start;
+    margin: 8px 0;
+}
+
+.message-wrapper.system .message-bubble {
+    max-width: 85%;
+    background: var(--vscode-editorInfo-background, rgba(58, 117, 208, 0.1));
+    border: 1px solid var(--vscode-editorInfo-border, rgba(58, 117, 208, 0.3));
+    color: var(--vscode-editor-foreground, #333333);
+    font-size: 12px;
+    padding: 8px 12px;
+    text-align: left;
+}
+
 /* Message Content */
 .message-content {
     font-size: 13px;
@@ -132,7 +153,8 @@ body {
 }
 
 .message-content pre {
-    background: var(--vscode-textCodeBlock-background);
+    background: var(--vscode-textCodeBlock-background, #f3f3f3);
+    color: #000000;
     border: 1px solid var(--vscode-widget-border);
     border-radius: 4px;
     padding: 8px;
@@ -141,7 +163,8 @@ body {
 }
 
 .message-content code {
-    background: var(--vscode-textCodeBlock-background);
+    background: var(--vscode-textCodeBlock-background, #f3f3f3);
+    color: #000000;
     padding: 2px 4px;
     border-radius: 3px;
     font-size: 12px;
@@ -328,4 +351,121 @@ body {
     .mode-option span {
         display: none;
     }
+}
+
+/* Streaming message styles */
+.message-wrapper.streaming .message-bubble {
+    opacity: 0.9;
+}
+
+.streaming-cursor {
+    display: inline-block;
+    animation: blink 1s infinite;
+    color: var(--vscode-editor-foreground);
+    margin-left: 2px;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* Enhanced text readability fixes */
+.message-content pre,
+.message-content code {
+    /* Force black text on light background for better readability */
+    background-color: #f5f5f5 !important;
+    color: #000000 !important;
+}
+
+/* Dark theme override - ensure readable text */
+.vscode-dark .message-content pre,
+.vscode-dark .message-content code {
+    background-color: #2d2d2d !important;
+    color: #e0e0e0 !important;
+}
+
+/* Fix for inline code blocks */
+.message-content p code,
+.message-content li code {
+    background-color: rgba(0, 0, 0, 0.06) !important;
+    color: #000000 !important;
+    padding: 1px 4px;
+}
+
+.vscode-dark .message-content p code,
+.vscode-dark .message-content li code {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #e0e0e0 !important;
+}
+
+/* Ensure tool result text is readable */
+.message-wrapper.system .message-content {
+    color: #000000 !important;
+}
+
+.vscode-dark .message-wrapper.system .message-content {
+    color: #e0e0e0 !important;
+}
+
+/* Fix assistant message text color */
+.message-wrapper.assistant .message-content {
+    color: var(--vscode-editor-foreground, #000000) !important;
+}
+
+/* Action Buttons above input - Claude Code Style */
+#action-buttons {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--vscode-panel-border);
+}
+
+.action-btn {
+    padding: 6px 14px;
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: 1px solid var(--vscode-button-border, transparent);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.action-btn:hover {
+    background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Thinking mode toggle button */
+.action-btn.toggle {
+    background: transparent;
+    border: 1px solid var(--vscode-input-border);
+}
+
+.action-btn.toggle.active {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border-color: var(--vscode-button-background);
+}
+
+/* Stop button styling */
+.action-btn.danger {
+    background: #ff4444;
+    color: white;
+    border-color: #ff4444;
+}
+
+.action-btn.danger:hover {
+    background: #ff6666;
+    border-color: #ff6666;
+}
+
+/* Disabled state */
+.action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }

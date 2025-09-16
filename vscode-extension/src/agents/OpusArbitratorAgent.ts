@@ -3,11 +3,11 @@ import { ChatAgent } from './base/ChatAgent';
 import { AgentConfig, TaskRequest, TaskResult, WorkflowStep } from '../types';
 import { VSCodeMasterDispatcher } from '../core/VSCodeMasterDispatcher';
 import { AnthropicService } from '../utils/AnthropicService';
-import { ClaudeWebService } from '../utils/ClaudeWebService';
+import { getClaudeCodeService, ClaudeCodeService } from '../services/ClaudeCodeService';
 
 export class OpusArbitratorAgent extends ChatAgent {
     private anthropicService: AnthropicService;
-    private claudeWebService: ClaudeWebService;
+    private claudeCodeService: ClaudeCodeService;
 
     constructor(context: vscode.ExtensionContext, dispatcher: VSCodeMasterDispatcher) {
         const config: AgentConfig = {
@@ -33,7 +33,7 @@ export class OpusArbitratorAgent extends ChatAgent {
         };
         super(config, context, dispatcher);
         this.anthropicService = new AnthropicService();
-        this.claudeWebService = new ClaudeWebService();
+        this.claudeCodeService = getClaudeCodeService();
     }
 
     protected async handleRequest(
@@ -254,7 +254,7 @@ export class OpusArbitratorAgent extends ChatAgent {
 
     private async validateServiceConfig(stream: vscode.ChatResponseStream): Promise<boolean> {
         const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        const serviceMode = config.get<string>('serviceMode', 'web');
+        const serviceMode = config.get<string>('claude.serviceMode', 'claude-code');
         
         if (serviceMode === 'api') {
             const apiKey = config.get<string>('anthropic.apiKey');
@@ -266,6 +266,12 @@ export class OpusArbitratorAgent extends ChatAgent {
                 stream.markdown('3. Set your Anthropic API key\n');
                 return false;
             }
+        } else if (serviceMode === 'claude-code') {
+            const isClaudeCodeAvailable = await this.claudeCodeService.isAvailable();
+            if (!isClaudeCodeAvailable) {
+                stream.markdown(`❌ **Claude Code CLI not available for Opus 4.1**\n\n**To install:**\n\`\`\`bash\nnpm install -g @anthropic-ai/claude-code\n\`\`\`\n\nOr configure your Anthropic API key in VS Code settings.`);
+                return false;
+            }
         }
         
         return true;
@@ -273,21 +279,40 @@ export class OpusArbitratorAgent extends ChatAgent {
 
     private async getClaudeService(): Promise<{ chat: (messages: any[]) => Promise<string> }> {
         const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        const serviceMode = config.get<string>('serviceMode', 'web');
+        const serviceMode = config.get<string>('claude.serviceMode', 'claude-code');
         
-        if (serviceMode === 'web') {
-            return {
-                chat: async (messages: any[]) => {
-                    return await this.claudeWebService.chat(messages);
-                }
-            };
-        } else {
-            return {
-                chat: async (messages: any[]) => {
-                    return await this.anthropicService.chat(messages);
-                }
-            };
+        console.log(`[OpusArbitrator] Using service mode: ${serviceMode}`);
+
+        if (serviceMode === 'claude-code') {
+            const isAvailable = await this.claudeCodeService.isAvailable();
+            if (isAvailable) {
+                console.log('[OpusArbitrator] Using Claude Code CLI with Opus model');
+                return {
+                    chat: async (messages: any[]) => {
+                        // Extract the main user message content
+                        const userMessage = messages.find(m => m.role === 'user')?.content || '';
+                        const systemMessage = messages.find(m => m.role === 'system')?.content || '';
+                        const fullPrompt = systemMessage ? `${systemMessage}\n\n${userMessage}` : userMessage;
+                        
+                        const response = await this.claudeCodeService.sendMessage(fullPrompt, {
+                            model: 'opus', // Use Opus model for this agent
+                            temperature: 0.5  // Lower temperature for more consistent judgments
+                        });
+                        return response.content;
+                    }
+                };
+            } else {
+                console.log('[OpusArbitrator] Claude Code CLI not available, falling back to Anthropic API');
+            }
         }
+        
+        // Fall back to Anthropic API
+        console.log('[OpusArbitrator] Using Anthropic API with Opus 4.1');
+        return {
+            chat: async (messages: any[]) => {
+                return await this.anthropicService.chat(messages);
+            }
+        };
     }
 
     // Helper Methods
@@ -319,7 +344,9 @@ DECISION FORMAT:
 5. **Implementation Guidance**: Specific next steps
 6. **Binding Authority**: State that decision is final
 
-Your decisions carry supreme authority. All agents must comply.`;
+Your decisions carry supreme authority. All agents must comply.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getDeepEvaluationPrompt(): string {
@@ -340,7 +367,9 @@ EVALUATION FORMAT:
 4. **Recommendations**: Specific actionable advice
 5. **Confidence Score**: Rate certainty of recommendation (1-100%)
 
-Provide thorough, objective analysis leveraging superior reasoning capabilities.`;
+Provide thorough, objective analysis leveraging superior reasoning capabilities.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getFinalVerdictPrompt(): string {
@@ -359,7 +388,9 @@ VERDICT FORMAT:
 3. **Implementation**: Immediate next steps required
 4. **Compliance**: How all parties must proceed
 
-Your verdict is FINAL and BINDING. No appeals or further discussion.`;
+Your verdict is FINAL and BINDING. No appeals or further discussion.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getSupremeJudgmentPrompt(): string {
@@ -378,7 +409,9 @@ JUDGMENT PRINCIPLES:
 - Provide clear, actionable guidance
 - Maintain system integrity
 
-Apply your superior reasoning to deliver judgment that serves the greater good of the project.`;
+Apply your superior reasoning to deliver judgment that serves the greater good of the project.
+
+${this.getSystemContextPrompt()}`;
     }
 
     protected getSlashCommands(): Array<{ command: string; description: string }> {

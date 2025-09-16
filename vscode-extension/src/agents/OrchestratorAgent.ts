@@ -276,7 +276,9 @@ export class OrchestratorAgent extends ChatAgent {
         
         // Simple fallback using GPT-4o directly
         try {
-            const systemPrompt = `You are a helpful coding assistant. Provide clear, actionable assistance for development tasks.`;
+            const systemPrompt = `You are a helpful coding assistant. Provide clear, actionable assistance for development tasks.
+
+${this.getSystemContextPrompt()}`;
             const response = await this.openAIService.chat([
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: prompt }
@@ -330,6 +332,8 @@ Available agents:
 - @richter (supreme arbitrator, conflict resolution, final decisions)
 - @research (web research, information)
 
-Make workflows realistic, actionable, and well-structured.`;
+Make workflows realistic, actionable, and well-structured.
+
+${this.getSystemContextPrompt()}`;
     }
 }

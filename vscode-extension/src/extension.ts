@@ -4,6 +4,8 @@
  */
 import * as vscode from 'vscode';
 import { VSCodeMasterDispatcher } from './core/VSCodeMasterDispatcher';
+import { getClaudeCodeService } from './services/ClaudeCodeService';
+import { AgentConfigurationManager } from './core/AgentConfigurationManager';
 import { ArchitectAgent } from './agents/ArchitectAgent';
 import { OrchestratorAgent } from './agents/OrchestratorAgent';
 import { CodeSmithAgent } from './agents/CodeSmithAgent';
@@ -18,112 +20,238 @@ import { ChatWidget } from './ui/ChatWidget';
 // import { ReviewerAgent } from './agents/ReviewerAgent';
 // import { FixerAgent } from './agents/FixerAgent';
 
-export function activate(context: vscode.ExtensionContext) {
-    console.log('🤖 KI AutoAgent extension is now active!');
+// Global output channel for debugging
+let outputChannel: vscode.OutputChannel;
 
-    // Show activation in output channel immediately
-    const outputChannel = vscode.window.createOutputChannel('KI AutoAgent');
-    outputChannel.appendLine('🤖 KI AutoAgent Extension Activated');
-    outputChannel.appendLine('======================================');
-    outputChannel.appendLine(`⏰ Activation Time: ${new Date().toLocaleString()}`);
-    outputChannel.appendLine(`📦 Extension Version: ${context.extension.packageJSON.version}`);
-    outputChannel.show(true); // Show and preserve focus
-
-    // Initialize the master dispatcher
-    const dispatcher = new VSCodeMasterDispatcher(context);
+export async function activate(context: vscode.ExtensionContext) {
+    // VERSION 2.3.9 - CLAUDE CODE CLI INTEGRATION (CORRECTED)
+    console.log('🚀 KI AutoAgent v2.3.9: Extension activation started');
     
-    // Initialize Chat Widget (Status Bar)
-    const chatWidget = new ChatWidget(context, dispatcher);
+    // Create single output channel
+    outputChannel = vscode.window.createOutputChannel('KI AutoAgent');
+    outputChannel.clear();
+    outputChannel.show(true);
     
-    // Register chat panel commands
-    const showChatCommand = vscode.commands.registerCommand(
-        'ki-autoagent.showChat',
-        () => MultiAgentChatPanel.createOrShow(context.extensionUri, dispatcher)
-    );
-    context.subscriptions.push(showChatCommand);
-
-    // Register toggle chat command
-    const toggleChatCommand = vscode.commands.registerCommand(
-        'ki-autoagent.toggleChat',
-        () => MultiAgentChatPanel.createOrShow(context.extensionUri, dispatcher)
-    );
-    context.subscriptions.push(toggleChatCommand);
-
-    // Register quick chat command
-    const quickChatCommand = vscode.commands.registerCommand(
-        'ki-autoagent.quickChat',
-        () => {
-            MultiAgentChatPanel.createOrShow(context.extensionUri, dispatcher);
-            vscode.window.showInformationMessage('🤖 KI AutoAgent Chat ready! Use @ki for universal assistance or specific agents like @richter, @architect, @codesmith');
-        }
-    );
-    context.subscriptions.push(quickChatCommand);
-
-    // Register clear unread command
-    const clearUnreadCommand = vscode.commands.registerCommand(
-        'ki-autoagent.clearUnread',
-        () => {
-            outputChannel.clear();
-            outputChannel.appendLine('🧹 Cleared unread messages');
-            vscode.window.showInformationMessage('✅ KI AutoAgent: Unread messages cleared');
-        }
-    );
-    context.subscriptions.push(clearUnreadCommand);
-
-    // Log command registration
-    outputChannel.appendLine('📋 Commands registered:');
-    outputChannel.appendLine('  • KI AutoAgent: Show Chat');
-    outputChannel.appendLine('  • KI AutoAgent: Toggle Chat');  
-    outputChannel.appendLine('  • KI AutoAgent: Quick Chat');
-    outputChannel.appendLine('  • KI AutoAgent: Clear Unread Messages');
+    outputChannel.appendLine('🚀 KI AutoAgent Extension v2.3.9 Activating');
+    outputChannel.appendLine('============================================');
+    outputChannel.appendLine(`Time: ${new Date().toLocaleString()}`);
+    outputChannel.appendLine(`VS Code Version: ${vscode.version}`);
     outputChannel.appendLine('');
+    outputChannel.appendLine('✨ NEW: Claude Code CLI integration - Install with: npm install -g @anthropic-ai/claude-code');
 
-    // Initialize and register all agents
-    const agents = [
-        new OrchestratorAgent(context, dispatcher),
-        new OpusArbitratorAgent(context, dispatcher),
-        new ArchitectAgent(context, dispatcher),
-        new CodeSmithAgent(context, dispatcher),
-        new TradeStratAgent(context, dispatcher),
-        new ResearchAgent(context, dispatcher),
-        // TODO: Add remaining agents as they are implemented
-        // new DocuAgent(context, dispatcher),
-        // new ReviewerAgent(context, dispatcher),
-        // new FixerAgent(context, dispatcher),
+    try {
+        // Initialize the Agent Configuration Manager
+        outputChannel.appendLine('Initializing Agent Configuration Manager...');
+        const configManager = AgentConfigurationManager.getInstance(context);
+        await configManager.initialize();
+        outputChannel.appendLine('✅ Agent Configuration Manager ready');
+
+        // Initialize the master dispatcher
+        outputChannel.appendLine('Initializing Master Dispatcher...');
+        const dispatcher = new VSCodeMasterDispatcher(context);
+        outputChannel.appendLine('✅ Master Dispatcher ready');
+    
+        // Initialize Chat Widget (Status Bar)
+        outputChannel.appendLine('Initializing Chat Widget...');
+        const chatWidget = new ChatWidget(context, dispatcher);
+        outputChannel.appendLine('✅ Chat Widget ready');
+    
+    // Register chat panel commands with error handling
+    const commandsToRegister = [
+        {
+            id: 'ki-autoagent.showChat',
+            handler: () => MultiAgentChatPanel.createOrShow(context.extensionUri, dispatcher)
+        },
+        {
+            id: 'ki-autoagent.toggleChat',
+            handler: () => MultiAgentChatPanel.createOrShow(context.extensionUri, dispatcher)
+        },
+        {
+            id: 'ki-autoagent.quickChat',
+            handler: () => {
+                MultiAgentChatPanel.createOrShow(context.extensionUri, dispatcher);
+                vscode.window.showInformationMessage('🤖 KI AutoAgent Chat ready! Use @ki for universal assistance or specific agents like @richter, @architect, @codesmith');
+            }
+        },
+        {
+            id: 'ki-autoagent.clearUnread',
+            handler: () => {
+                if (!outputChannel) {
+                    outputChannel = vscode.window.createOutputChannel('KI AutoAgent');
+                }
+                outputChannel.clear();
+                outputChannel.appendLine('Cleared messages');
+            }
+        }
     ];
 
-    // Register each agent as a chat participant
-    agents.forEach(agent => {
-        const participantId = (agent as any).config.participantId;
-        const participant = vscode.chat.createChatParticipant(
-            participantId,
-            agent.createHandler()
-        );
+    // Register commands with duplicate check
+    for (const cmd of commandsToRegister) {
+        try {
+            const disposable = vscode.commands.registerCommand(cmd.id, cmd.handler);
+            context.subscriptions.push(disposable);
+            outputChannel.appendLine(`  ✅ Registered command: ${cmd.id}`);
+        } catch (error) {
+            outputChannel.appendLine(`  ⚠️ Command already exists: ${cmd.id} - skipping`);
+        }
+    }
+
+    // Command registration complete
+    outputChannel.appendLine('');
+
+        // Initialize and register all agents 
+        outputChannel.appendLine('\nCreating Agent Instances...');
+        let agents = [];
+        let agentCreationErrors = [];
         
-        // Set icon if available
-        const iconPath = (agent as any).config.iconPath;
-        if (iconPath) {
-            participant.iconPath = iconPath;
+        try {
+            agents.push(new OrchestratorAgent(context, dispatcher));
+            outputChannel.appendLine('  ✅ OrchestratorAgent created');
+        } catch (error) {
+            outputChannel.appendLine(`  ❌ OrchestratorAgent failed: ${(error as any).message}`);
+            agentCreationErrors.push(`OrchestratorAgent: ${error}`);
         }
         
-        // Register the agent with dispatcher for orchestration
-        dispatcher.registerAgent(participantId.split('.')[1], agent);
+        try {
+            agents.push(new OpusArbitratorAgent(context, dispatcher));
+            outputChannel.appendLine('  ✅ OpusArbitratorAgent created');
+        } catch (error) {
+            outputChannel.appendLine(`  ❌ OpusArbitratorAgent failed: ${(error as any).message}`);
+            agentCreationErrors.push(`OpusArbitratorAgent: ${error}`);
+        }
         
-        // Add to subscriptions for cleanup
-        context.subscriptions.push(participant);
+        try {
+            agents.push(new ArchitectAgent(context, dispatcher));
+            outputChannel.appendLine('  ✅ ArchitectAgent created');
+        } catch (error) {
+            outputChannel.appendLine(`  ❌ ArchitectAgent failed: ${(error as any).message}`);
+            agentCreationErrors.push(`ArchitectAgent: ${error}`);
+        }
         
-        console.log(`✅ Registered chat participant: ${participantId}`);
+        try {
+            agents.push(new CodeSmithAgent(context, dispatcher));
+            outputChannel.appendLine('  ✅ CodeSmithAgent created');
+        } catch (error) {
+            outputChannel.appendLine(`  ❌ CodeSmithAgent failed: ${(error as any).message}`);
+            agentCreationErrors.push(`CodeSmithAgent: ${error}`);
+        }
+        
+        try {
+            agents.push(new TradeStratAgent(context, dispatcher));
+            outputChannel.appendLine('  ✅ TradeStratAgent created');
+        } catch (error) {
+            outputChannel.appendLine(`  ❌ TradeStratAgent failed: ${(error as any).message}`);
+            agentCreationErrors.push(`TradeStratAgent: ${error}`);
+        }
+        
+        try {
+            agents.push(new ResearchAgent(context, dispatcher));
+            outputChannel.appendLine('  ✅ ResearchAgent created');
+        } catch (error) {
+            outputChannel.appendLine(`  ❌ ResearchAgent failed: ${(error as any).message}`);
+            agentCreationErrors.push(`ResearchAgent: ${error}`);
+        }
+        
+        outputChannel.appendLine(`Agent creation completed: ${agents.length} created, ${agentCreationErrors.length} errors`);
+        
+        if (agentCreationErrors.length > 0) {
+            outputChannel.appendLine('Agent creation errors:');
+            agentCreationErrors.forEach(error => outputChannel.appendLine(`  - ${error}`));
+        }
+
+    // Initialize all agents (TODO: Update agents to use new BaseAgent system)
+    for (const agent of agents) {
+        try {
+            // Enhanced initialization will be added when agents are updated to use new BaseAgent
+            console.log(`✅ Agent ${(agent as any).config?.participantId || 'unknown'} ready`);
+        } catch (error) {
+            console.warn(`Failed to initialize agent:`, error);
+        }
+    }
+
+    // Register each agent as a chat participant
+    outputChannel.appendLine(`\nRegistering ${agents.length} agents...`);
+    let registrationErrors: string[] = [];
+    
+    agents.forEach((agent, index) => {
+        try {
+            const participantId = (agent as any).config.participantId;
+            const participant = vscode.chat.createChatParticipant(
+                participantId,
+                agent.createHandler()
+            );
+            
+            // Set icon if available
+            const iconPath = (agent as any).config?.iconPath;
+            if (iconPath) {
+                participant.iconPath = iconPath;
+            }
+            
+            // Register the agent with dispatcher for orchestration
+            const dispatcherAgentId = participantId.split('.')[1];
+            outputChannel.appendLine(`  Registering with dispatcher: ${participantId} as '${dispatcherAgentId}'`);
+            dispatcher.registerAgent(dispatcherAgentId, agent);
+            
+            // Add to subscriptions for cleanup
+            context.subscriptions.push(participant);
+            
+            outputChannel.appendLine(`  ✅ Registered: ${participantId} (dispatcher ID: ${dispatcherAgentId})`);
+            
+        } catch (error) {
+            const errorMsg = `Failed to register agent ${index + 1}: ${(error as any).message}`;
+            outputChannel.appendLine(`  ❌ ${errorMsg}`);
+            registrationErrors.push(errorMsg);
+        }
     });
+    
+    // Verify agent registration
+    outputChannel.appendLine('\nVerifying agent registration with dispatcher:');
+    const registeredAgents = dispatcher.getRegisteredAgents();
+    outputChannel.appendLine(`  Registered agents: [${registeredAgents.join(', ')}]`);
+    
+    outputChannel.appendLine(`Registration completed: ${agents.length - registrationErrors.length} succeeded, ${registrationErrors.length} failed`);
+    
+    if (registrationErrors.length > 0) {
+        outputChannel.appendLine('Registration errors:');
+        registrationErrors.forEach(error => outputChannel.appendLine(`  - ${error}`));
+    }
 
     // Register extension commands
+    outputChannel.appendLine('\nRegistering extension commands...');
     registerCommands(context, dispatcher);
+    outputChannel.appendLine('✅ Extension commands registered');
 
     // Show welcome message in output channel
     showWelcomeMessage(outputChannel);
 
-    // Log successful activation
-    outputChannel.appendLine('✅ All components initialized successfully!');
-    outputChannel.appendLine('');
+    // Final success
+    outputChannel.appendLine('\n✅ KI AUTOAGENT EXTENSION ACTIVATED!');
+    outputChannel.appendLine('============================================');
+    outputChannel.appendLine(`Total agents: ${agents.length}`);
+    outputChannel.appendLine(`Registration errors: ${registrationErrors.length}`);
+    outputChannel.appendLine(`Activated at: ${new Date().toLocaleString()}`);
+    outputChannel.appendLine('\nType "@ki" in chat to get started!');
+    
+    // Single success notification
+    vscode.window.showInformationMessage(`🎉 KI AutoAgent v${context.extension.packageJSON.version} activated! ${agents.length} agents ready.`);
+    
+    } catch (error) {
+        // Handle any errors during extension activation
+        const errorMsg = `KI AutoAgent activation failed: ${(error as any).message || error}`;
+        console.error(errorMsg);
+        
+        // Show error
+        vscode.window.showErrorMessage(errorMsg);
+        
+        // Try to show error in output channel if available
+        if (outputChannel) {
+            outputChannel.appendLine(`\n❌ ACTIVATION ERROR:`);
+            outputChannel.appendLine(`Error: ${error}`);
+            outputChannel.appendLine(`Message: ${(error as any).message}`);
+            outputChannel.appendLine(`Stack: ${(error as any).stack}`);
+            outputChannel.show(true);
+        }
+    }
 }
 
 export function deactivate() {
@@ -206,6 +334,60 @@ function registerCommands(context: vscode.ExtensionContext, dispatcher: VSCodeMa
         }
     );
 
+    // Command: Test Claude Code CLI
+    const testClaudeCommand = vscode.commands.registerCommand(
+        'ki-autoagent.testClaudeCLI',
+        async () => {
+            const outputChannel = vscode.window.createOutputChannel('Claude CLI Test');
+            outputChannel.show();
+            outputChannel.appendLine('🔍 Testing Claude Code CLI Integration...');
+            outputChannel.appendLine('==========================================\n');
+            
+            try {
+                const claudeService = getClaudeCodeService();
+                
+                // Check if CLI is available
+                outputChannel.appendLine('1. Checking Claude CLI availability...');
+                const isAvailable = await claudeService.isAvailable();
+                
+                if (!isAvailable) {
+                    outputChannel.appendLine('❌ Claude CLI not found!');
+                    outputChannel.appendLine('\nTo install Claude CLI:');
+                    outputChannel.appendLine('  npm install -g @anthropic-ai/claude-code');
+                    outputChannel.appendLine('\nOr use Anthropic API by configuring your API key in VS Code settings.');
+                    vscode.window.showErrorMessage('Claude CLI not installed. See output for installation instructions.');
+                    return;
+                }
+                
+                outputChannel.appendLine('✅ Claude CLI is available!\n');
+                
+                // Test connection
+                outputChannel.appendLine('2. Testing Claude CLI connection...');
+                const testResult = await claudeService.testConnection();
+                
+                if (testResult.success) {
+                    outputChannel.appendLine(`✅ ${testResult.message}\n`);
+                    outputChannel.appendLine('3. Claude CLI Integration Status: WORKING');
+                    outputChannel.appendLine('==========================================');
+                    outputChannel.appendLine('✨ Everything is working correctly!');
+                    outputChannel.appendLine('\nYou can now use Claude-powered agents in your chat.');
+                    vscode.window.showInformationMessage('✅ Claude CLI is working correctly!');
+                } else {
+                    outputChannel.appendLine(`❌ ${testResult.message}\n`);
+                    outputChannel.appendLine('3. Claude CLI Integration Status: ERROR');
+                    outputChannel.appendLine('==========================================');
+                    outputChannel.appendLine('Please check the error message above.');
+                    vscode.window.showErrorMessage(`Claude CLI test failed: ${testResult.message}`);
+                }
+                
+            } catch (error) {
+                outputChannel.appendLine(`\n❌ Test failed with error: ${(error as any).message}`);
+                outputChannel.appendLine('\nPlease check your configuration and try again.');
+                vscode.window.showErrorMessage(`Claude CLI test failed: ${(error as any).message}`);
+            }
+        }
+    );
+
     // Command: Show Agent Statistics
     const showAgentStatsCommand = vscode.commands.registerCommand(
         'ki-autoagent.showAgentStats',
@@ -266,15 +448,108 @@ function registerCommands(context: vscode.ExtensionContext, dispatcher: VSCodeMa
         }
     );
 
+    // Command: Configure Agent Models
+    const configureAgentModelsCommand = vscode.commands.registerCommand(
+        'ki-autoagent.configureAgentModels',
+        async () => {
+            const configManager = AgentConfigurationManager.getInstance(context);
+            const availableModels = configManager.getAvailableModels();
+            
+            // Show agent model configuration UI
+            const agentIds = ['orchestrator', 'richter', 'architect', 'codesmith', 'tradestrat', 'research'];
+            
+            for (const agentId of agentIds) {
+                const currentModel = configManager.getAgentModel(agentId);
+                const modelOptions = Object.keys(availableModels).map(modelId => ({
+                    label: availableModels[modelId].name,
+                    description: `${availableModels[modelId].provider} - ${availableModels[modelId].tier}`,
+                    detail: `$${availableModels[modelId].costPerMillion.input}/$${availableModels[modelId].costPerMillion.output} per million tokens`,
+                    modelId
+                }));
+                
+                const selected = await vscode.window.showQuickPick(modelOptions, {
+                    title: `Select model for ${agentId}`,
+                    placeHolder: `Current: ${currentModel}`,
+                    ignoreFocusOut: true
+                });
+                
+                if (selected && selected.modelId !== currentModel) {
+                    await configManager.setAgentModel(agentId, selected.modelId);
+                    vscode.window.showInformationMessage(`✅ Updated ${agentId} model to ${selected.label}`);
+                }
+            }
+        }
+    );
+
+    // Command: Show Agent Performance
+    const showAgentPerformanceCommand = vscode.commands.registerCommand(
+        'ki-autoagent.showAgentPerformance',
+        async () => {
+            const configManager = AgentConfigurationManager.getInstance(context);
+            const agentIds = ['orchestrator', 'richter', 'architect', 'codesmith', 'tradestrat', 'research'];
+            
+            let performanceReport = '# Agent Performance Report\n\n';
+            performanceReport += `Generated: ${new Date().toLocaleString()}\n\n`;
+            
+            for (const agentId of agentIds) {
+                const metrics = configManager.getAgentMetrics(agentId);
+                const model = configManager.getAgentModel(agentId);
+                
+                performanceReport += `## ${agentId.charAt(0).toUpperCase() + agentId.slice(1)}\n`;
+                performanceReport += `**Model:** ${model}\n`;
+                
+                if (metrics) {
+                    const successRate = (metrics.successfulExecutions / metrics.totalExecutions * 100).toFixed(1);
+                    performanceReport += `**Success Rate:** ${successRate}%\n`;
+                    performanceReport += `**Total Executions:** ${metrics.totalExecutions}\n`;
+                    performanceReport += `**Average Response Time:** ${metrics.averageResponseTime.toFixed(0)}ms\n`;
+                    performanceReport += `**Current Streak:** ${metrics.currentStreak}\n`;
+                    performanceReport += `**Best Streak:** ${metrics.bestStreak}\n`;
+                } else {
+                    performanceReport += `**Status:** No performance data yet\n`;
+                }
+                performanceReport += '\n';
+            }
+            
+            const document = await vscode.workspace.openTextDocument({
+                content: performanceReport,
+                language: 'markdown'
+            });
+            await vscode.window.showTextDocument(document);
+        }
+    );
+
+    // Command: Open Configuration Directory
+    const openConfigDirectoryCommand = vscode.commands.registerCommand(
+        'ki-autoagent.openConfigDirectory',
+        async () => {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (workspaceFolder) {
+                const configPath = vscode.Uri.joinPath(workspaceFolder.uri, '.kiautoagent');
+                try {
+                    await vscode.commands.executeCommand('vscode.openFolder', configPath, { forceNewWindow: false });
+                } catch {
+                    vscode.window.showInformationMessage('Configuration directory will be created when first used');
+                }
+            } else {
+                vscode.window.showWarningMessage('No workspace folder open');
+            }
+        }
+    );
+
     // Register all commands
     context.subscriptions.push(
         createFileCommand,
         insertAtCursorCommand,
         applySuggestionCommand,
+        testClaudeCommand,
         showAgentStatsCommand,
         showHelpCommand,
         planImplementationCommand,
-        executeWorkflowCommand
+        executeWorkflowCommand,
+        configureAgentModelsCommand,
+        showAgentPerformanceCommand,
+        openConfigDirectoryCommand
     );
 
     console.log('✅ All extension commands registered');

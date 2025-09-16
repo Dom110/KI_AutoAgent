@@ -1,0 +1,98 @@
+[
+  {
+    "agentId": "orchestrator",
+    "displayName": "Orchestrator",
+    "selectedModel": "claude-sonnet-4-20250514",
+    "availableModels": [
+      "claude-opus-4-1-20250805",
+      "claude-sonnet-4-20250514",
+      "claude-3-7-sonnet-20250219",
+      "gpt-4o-2024-11-20",
+      "gpt-4o-mini-2024-07-18",
+      "llama-3.1-sonar-small-128k-online"
+    ],
+    "instructionFile": "orchestrator.md",
+    "lastUpdated": "2025-09-12T16:30:11.784Z",
+    "performanceScore": 0
+  },
+  {
+    "agentId": "richter",
+    "displayName": "Richter",
+    "selectedModel": "claude-opus-4-1-20250805",
+    "availableModels": [
+      "claude-opus-4-1-20250805",
+      "claude-sonnet-4-20250514",
+      "claude-3-7-sonnet-20250219",
+      "gpt-4o-2024-11-20",
+      "gpt-4o-mini-2024-07-18",
+      "llama-3.1-sonar-small-128k-online"
+    ],
+    "instructionFile": "richter.md",
+    "lastUpdated": "2025-09-12T16:30:11.784Z",
+    "performanceScore": 0
+  },
+  {
+    "agentId": "architect",
+    "displayName": "Architect",
+    "selectedModel": "gpt-4o-2024-11-20",
+    "availableModels": [
+      "claude-opus-4-1-20250805",
+      "claude-sonnet-4-20250514",
+      "claude-3-7-sonnet-20250219",
+      "gpt-4o-2024-11-20",
+      "gpt-4o-mini-2024-07-18",
+      "llama-3.1-sonar-small-128k-online"
+    ],
+    "instructionFile": "architect.md",
+    "lastUpdated": "2025-09-12T16:30:11.784Z",
+    "performanceScore": 0
+  },
+  {
+    "agentId": "codesmith",
+    "displayName": "Codesmith",
+    "selectedModel": "claude-sonnet-4-20250514",
+    "availableModels": [
+      "claude-opus-4-1-20250805",
+      "claude-sonnet-4-20250514",
+      "claude-3-7-sonnet-20250219",
+      "gpt-4o-2024-11-20",
+      "gpt-4o-mini-2024-07-18",
+      "llama-3.1-sonar-small-128k-online"
+    ],
+    "instructionFile": "codesmith.md",
+    "lastUpdated": "2025-09-12T16:30:11.784Z",
+    "performanceScore": 0
+  },
+  {
+    "agentId": "tradestrat",
+    "displayName": "Tradestrat",
+    "selectedModel": "claude-sonnet-4-20250514",
+    "availableModels": [
+      "claude-opus-4-1-20250805",
+      "claude-sonnet-4-20250514",
+      "claude-3-7-sonnet-20250219",
+      "gpt-4o-2024-11-20",
+      "gpt-4o-mini-2024-07-18",
+      "llama-3.1-sonar-small-128k-online"
+    ],
+    "instructionFile": "tradestrat.md",
+    "lastUpdated": "2025-09-12T16:30:11.784Z",
+    "performanceScore": 0
+  },
+  {
+    "agentId": "research",
+    "displayName": "Research",
+    "selectedModel": "llama-3.1-sonar-small-128k-online",
+    "availableModels": [
+      "claude-opus-4-1-20250805",
+      "claude-sonnet-4-20250514",
+      "claude-3-7-sonnet-20250219",
+      "gpt-4o-2024-11-20",
+      "gpt-4o-mini-2024-07-18",
+      "llama-3.1-sonar-small-128k-online"
+    ],
+    "instructionFile": "research.md",
+    "lastUpdated": "2025-09-12T16:30:11.784Z",
+    "performanceScore": 0
+  }
+]

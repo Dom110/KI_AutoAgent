@@ -269,7 +269,9 @@ Always provide:
 4. Implementation guidance
 5. Best practices and patterns
 
-Format your responses with clear headings, diagrams where helpful (using mermaid syntax), and actionable recommendations.`;
+Format your responses with clear headings, diagrams where helpful (using mermaid syntax), and actionable recommendations.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getDesignSystemPrompt(): string {
@@ -317,7 +319,9 @@ Format your responses with clear headings, diagrams where helpful (using mermaid
 - Dependencies and milestones
 - Risk mitigation
 
-Use mermaid diagrams where appropriate to illustrate the architecture.`;
+Use mermaid diagrams where appropriate to illustrate the architecture.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getAnalyzeSystemPrompt(): string {
@@ -351,7 +355,9 @@ Use mermaid diagrams where appropriate to illustrate the architecture.`;
 - Long-term architectural goals
 - Migration strategies
 
-Be specific and provide actionable insights based on the codebase structure.`;
+Be specific and provide actionable insights based on the codebase structure.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getPlanSystemPrompt(): string {
@@ -389,7 +395,9 @@ Be specific and provide actionable insights based on the codebase structure.`;
 - Monitoring and alerting
 - Performance benchmarks
 
-Provide realistic timelines and clear milestones.`;
+Provide realistic timelines and clear milestones.
+
+${this.getSystemContextPrompt()}`;
     }
 
     // Helper Methods

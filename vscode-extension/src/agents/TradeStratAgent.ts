@@ -7,11 +7,11 @@ import { ChatAgent } from './base/ChatAgent';
 import { AgentConfig, TaskRequest, TaskResult, WorkflowStep } from '../types';
 import { VSCodeMasterDispatcher } from '../core/VSCodeMasterDispatcher';
 import { AnthropicService } from '../utils/AnthropicService';
-import { ClaudeWebService } from '../utils/ClaudeWebService';
+import { getClaudeCodeService, ClaudeCodeService } from '../services/ClaudeCodeService';
 
 export class TradeStratAgent extends ChatAgent {
     private anthropicService: AnthropicService;
-    private claudeWebService: ClaudeWebService;
+    private claudeCodeService: ClaudeCodeService;
 
     constructor(context: vscode.ExtensionContext, dispatcher: VSCodeMasterDispatcher) {
         const config: AgentConfig = {
@@ -38,7 +38,7 @@ export class TradeStratAgent extends ChatAgent {
 
         super(config, context, dispatcher);
         this.anthropicService = new AnthropicService();
-        this.claudeWebService = new ClaudeWebService();
+        this.claudeCodeService = getClaudeCodeService();
     }
 
     protected async handleRequest(
@@ -336,7 +336,9 @@ Key principles:
 4. Consider market conditions and regime changes
 5. Provide clear performance metrics and validation
 
-Format your responses with detailed explanations, working code, and practical implementation guidance.`;
+Format your responses with detailed explanations, working code, and practical implementation guidance.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getStrategyDesignSystemPrompt(): string {
@@ -380,7 +382,9 @@ Format your responses with detailed explanations, working code, and practical im
 - Stress testing scenarios
 - Out-of-sample validation
 
-Provide complete Python implementation with pandas/numpy for data handling.`;
+Provide complete Python implementation with pandas/numpy for data handling.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getBacktestSystemPrompt(): string {
@@ -424,7 +428,9 @@ Provide complete Python implementation with pandas/numpy for data handling.`;
 - Monte Carlo simulation
 - Bootstrap analysis
 
-Provide production-ready Python code with proper error handling and logging.`;
+Provide production-ready Python code with proper error handling and logging.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getRiskManagementSystemPrompt(): string {
@@ -468,7 +474,9 @@ Provide production-ready Python code with proper error handling and logging.`;
 - Reporting dashboards
 - Integration with trading systems
 
-Focus on practical, implementable solutions with clear mathematical foundations.`;
+Focus on practical, implementable solutions with clear mathematical foundations.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getValidationSystemPrompt(): string {
@@ -506,7 +514,9 @@ Focus on practical, implementable solutions with clear mathematical foundations.
 - Capacity constraints
 - Scalability considerations
 
-Provide detailed assessment with specific recommendations for improvement.`;
+Provide detailed assessment with specific recommendations for improvement.
+
+${this.getSystemContextPrompt()}`;
     }
 
     private getRiskAnalysisSystemPrompt(): string {
@@ -517,7 +527,7 @@ Provide detailed assessment with specific recommendations for improvement.`;
 
     private async validateServiceConfig(stream?: vscode.ChatResponseStream): Promise<boolean> {
         const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        const serviceMode = config.get<string>('serviceMode', 'web');
+        const serviceMode = config.get<string>('claude.serviceMode', 'claude-code');
 
         if (serviceMode === 'api') {
             if (!config.get<string>('anthropic.apiKey')) {
@@ -526,12 +536,11 @@ Provide detailed assessment with specific recommendations for improvement.`;
                 }
                 return false;
             }
-        } else if (serviceMode === 'web') {
-            const isWebServiceAvailable = await this.claudeWebService.testConnection();
-            if (!isWebServiceAvailable) {
+        } else if (serviceMode === 'claude-code') {
+            const isClaudeCodeAvailable = await this.claudeCodeService.isAvailable();
+            if (!isClaudeCodeAvailable) {
                 if (stream) {
-                    const status = await this.claudeWebService.getServerStatus();
-                    stream.markdown(`❌ **Claude Web Service not available**\n\nError: ${status.error || 'Connection failed'}\n\n**To fix this:**\n1. Make sure Claude Web Proxy server is running\n2. Check server URL: ${status.url}\n3. Ensure you're logged into Claude.ai in your browser`);
+                    stream.markdown(`❌ **Claude Code CLI not available**\n\n**To install:**\n\`\`\`bash\nnpm install -g @anthropic-ai/claude-code\n\`\`\`\n\nOr configure your Anthropic API key in VS Code settings.`);
                 }
                 return false;
             }
@@ -542,21 +551,40 @@ Provide detailed assessment with specific recommendations for improvement.`;
 
     private async getClaudeService(): Promise<{ chat: (messages: any[]) => Promise<string> }> {
         const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        const serviceMode = config.get<string>('serviceMode', 'web');
+        const serviceMode = config.get<string>('claude.serviceMode', 'claude-code');
 
-        if (serviceMode === 'web') {
-            return {
-                chat: async (messages: any[]) => {
-                    return await this.claudeWebService.chat(messages);
-                }
-            };
-        } else {
-            return {
-                chat: async (messages: any[]) => {
-                    return await this.anthropicService.chat(messages);
-                }
-            };
+        console.log(`[TradeStratAgent] Using service mode: ${serviceMode}`);
+
+        if (serviceMode === 'claude-code') {
+            const isAvailable = await this.claudeCodeService.isAvailable();
+            if (isAvailable) {
+                console.log('[TradeStratAgent] Using Claude Code CLI');
+                return {
+                    chat: async (messages: any[]) => {
+                        // Extract the main user message content
+                        const userMessage = messages.find(m => m.role === 'user')?.content || '';
+                        const systemMessage = messages.find(m => m.role === 'system')?.content || '';
+                        const fullPrompt = systemMessage ? `${systemMessage}\n\n${userMessage}` : userMessage;
+                        
+                        const response = await this.claudeCodeService.sendMessage(fullPrompt, {
+                            model: 'sonnet',
+                            temperature: 0.7
+                        });
+                        return response.content;
+                    }
+                };
+            } else {
+                console.log('[TradeStratAgent] Claude Code CLI not available, falling back to Anthropic API');
+            }
         }
+        
+        // Fall back to Anthropic API
+        console.log('[TradeStratAgent] Using Anthropic API');
+        return {
+            chat: async (messages: any[]) => {
+                return await this.anthropicService.chat(messages);
+            }
+        };
     }
 
     // Helper Methods
