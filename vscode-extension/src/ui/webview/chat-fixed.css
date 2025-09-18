@@ -146,6 +146,48 @@ body {
     text-align: left;
 }
 
+/* Agent-specific colors for assistant messages */
+.message-wrapper.assistant.orchestrator .message-bubble {
+    background: rgba(138, 43, 226, 0.1);  /* Purple for Orchestrator */
+    border: 1px solid rgba(138, 43, 226, 0.3);
+}
+
+.message-wrapper.assistant.architect .message-bubble {
+    background: rgba(255, 140, 0, 0.1);  /* Orange for Architect */
+    border: 1px solid rgba(255, 140, 0, 0.3);
+}
+
+.message-wrapper.assistant.codesmith .message-bubble {
+    background: rgba(0, 123, 255, 0.1);  /* Blue for CodeSmith */
+    border: 1px solid rgba(0, 123, 255, 0.3);
+}
+
+.message-wrapper.assistant.tradestrat .message-bubble {
+    background: rgba(255, 215, 0, 0.1);  /* Gold for TradeStrat */
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.message-wrapper.assistant.research .message-bubble {
+    background: rgba(32, 178, 170, 0.1);  /* Turquoise for Research */
+    border: 1px solid rgba(32, 178, 170, 0.3);
+}
+
+.message-wrapper.assistant.opus-arbitrator .message-bubble {
+    background: rgba(220, 20, 60, 0.1);  /* Crimson for OpusArbitrator */
+    border: 1px solid rgba(220, 20, 60, 0.3);
+}
+
+/* Agent Name Badge */
+.agent-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    opacity: 0.9;
+}
+
 /* Message Content */
 .message-content {
     font-size: 13px;
@@ -303,6 +345,50 @@ body {
     cursor: not-allowed;
 }
 
+/* Expand/Collapse Feature */
+.message-bubble {
+    position: relative;
+}
+
+.message-content.truncated {
+    max-height: 300px;
+    overflow: hidden;
+    position: relative;
+}
+
+.message-content.truncated::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 30px;
+    background: linear-gradient(transparent, var(--vscode-editor-background));
+}
+
+.expand-button {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: var(--vscode-button-secondaryBackground, rgba(255, 255, 255, 0.1));
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+    opacity: 0.8;
+    transition: all 0.2s;
+    z-index: 10;
+    pointer-events: all;
+}
+
+.expand-button:hover {
+    opacity: 1;
+    background: var(--vscode-button-hoverBackground);
+    color: var(--vscode-button-foreground);
+}
+
 /* Animations */
 @keyframes fadeIn {
     from {
@@ -406,6 +492,40 @@ body {
 
 .vscode-dark .message-wrapper.system .message-content {
     color: #e0e0e0 !important;
+}
+
+/* Tool Notification Styles - Agent-colored tool bubbles */
+.message-bubble.tool-notification {
+    position: relative;
+    border-left: 4px solid rgba(255, 255, 255, 0.3);
+    color: white !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.tool-agent-badge {
+    display: inline-block;
+    font-size: 0.85em;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    margin-bottom: 8px;
+}
+
+/* Ensure good contrast for tool text */
+.tool-notification .message-content {
+    color: white !important;
+}
+
+.tool-notification .message-content code {
+    background: rgba(0, 0, 0, 0.2);
+    color: white;
+}
+
+.tool-notification .message-content pre {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* Fix assistant message text color */

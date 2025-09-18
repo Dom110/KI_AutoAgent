@@ -96,44 +96,66 @@ export class VSCodeMasterDispatcher {
      */
     async detectIntent(prompt: string): Promise<Intent> {
         const lowerPrompt = prompt.toLowerCase();
-        
-        // Architecture patterns
-        if (this.matchesPatterns(lowerPrompt, ['design', 'architecture', 'system', 'plan', 'structure'])) {
+
+        // Check if this is a question rather than a task
+        const isQuestion = /^(what|which|how|was|welche|wie|wer|wo|wann|warum|show|list|explain)/i.test(prompt);
+        const isImplementation = /(implement|create|build|write|code|develop)/i.test(prompt);
+
+        // Query patterns - questions about the system or information
+        if (isQuestion && !isImplementation) {
+            // Questions about the system itself, agents, or instructions
+            if (this.matchesPatterns(lowerPrompt, ['instruction', 'agent', 'system', 'available', 'haben wir', 'gibt es', 'welche'])) {
+                return { type: 'query', confidence: 0.95, agent: 'orchestrator' };
+            }
+            // Architecture questions
+            if (this.matchesPatterns(lowerPrompt, ['architecture', 'design', 'pattern', 'structure'])) {
+                return { type: 'query', confidence: 0.9, agent: 'architect' };
+            }
+            // Research questions
+            if (this.matchesPatterns(lowerPrompt, ['research', 'find', 'information', 'latest'])) {
+                return { type: 'query', confidence: 0.85, agent: 'research' };
+            }
+            // Default query
+            return { type: 'query', confidence: 0.7, agent: 'orchestrator' };
+        }
+
+        // Architecture patterns (for actual design tasks)
+        if (this.matchesPatterns(lowerPrompt, ['design', 'architecture', 'system', 'plan', 'structure']) && isImplementation) {
             return { type: 'architecture', confidence: 0.9, agent: 'architect' };
         }
-        
+
         // Implementation patterns
         if (this.matchesPatterns(lowerPrompt, ['implement', 'code', 'create', 'build', 'develop'])) {
             return { type: 'implementation', confidence: 0.85, agent: 'codesmith' };
         }
-        
+
         // Documentation patterns
         if (this.matchesPatterns(lowerPrompt, ['document', 'readme', 'docs', 'explain', 'tutorial'])) {
             return { type: 'documentation', confidence: 0.9, agent: 'docu' };
         }
-        
+
         // Review patterns
         if (this.matchesPatterns(lowerPrompt, ['review', 'check', 'analyze', 'audit', 'security'])) {
             return { type: 'review', confidence: 0.85, agent: 'reviewer' };
         }
-        
+
         // Debug/Fix patterns
         if (this.matchesPatterns(lowerPrompt, ['fix', 'debug', 'error', 'bug', 'problem', 'issue'])) {
             return { type: 'debug', confidence: 0.9, agent: 'fixer' };
         }
-        
+
         // Trading patterns
         if (this.matchesPatterns(lowerPrompt, ['trading', 'strategy', 'backtest', 'ron', 'market', 'stock'])) {
             return { type: 'trading', confidence: 0.95, agent: 'tradestrat' };
         }
-        
+
         // Research patterns
         if (this.matchesPatterns(lowerPrompt, ['research', 'search', 'find', 'information', 'latest'])) {
             return { type: 'research', confidence: 0.8, agent: 'research' };
         }
-        
-        // Default to implementation
-        return { type: 'implementation', confidence: 0.5, agent: 'codesmith' };
+
+        // Default - if we can't determine, treat as a query
+        return { type: 'query', confidence: 0.5, agent: 'orchestrator' };
     }
 
     /**
@@ -228,6 +250,13 @@ export class VSCodeMasterDispatcher {
         let workflow: WorkflowStep[] = [];
         
         switch (intent.type) {
+            case 'query':
+                // For queries, just use a single step with the appropriate agent
+                workflow = [
+                    { id: 'answer', agent: intent.agent, description: 'Answer query directly' }
+                ];
+                break;
+
             case 'architecture':
                 workflow = [
                     { id: 'analyze', agent: 'architect', description: 'Analyze requirements and context' },
@@ -280,15 +309,16 @@ export class VSCodeMasterDispatcher {
                     { id: 'execute', agent: intent.agent || 'codesmith', description: 'Execute task' }
                 ];
         }
-        
-        // Apply project-specific modifications
-        if (projectDef?.workflow) {
+
+        // Apply project-specific modifications ONLY if NOT a query
+        // Queries should always be single-step and not modified
+        if (intent.type !== 'query' && projectDef?.workflow) {
             // Merge project-specific workflow steps
-            workflow = [...workflow, ...projectDef.workflow.filter(step => 
+            workflow = [...workflow, ...projectDef.workflow.filter(step =>
                 !workflow.some(w => w.id === step.id)
             )];
         }
-        
+
         return workflow;
     }
 
@@ -316,7 +346,13 @@ export class VSCodeMasterDispatcher {
                 console.log(`🔍 [WORKFLOW STEP] Looking for agent: "${step.agent}"`);
                 console.log(`🔍 [WORKFLOW STEP] Agent registry has ${this.agents.size} agents`);
                 console.log(`🔍 [WORKFLOW STEP] Available agents: [${Array.from(this.agents.keys()).join(', ')}]`);
-                
+
+                // Send partial response for workflow progress
+                if (request.onPartialResponse) {
+                    const stepIndex = workflow.indexOf(step) + 1;
+                    request.onPartialResponse(`\n🔄 **Step ${stepIndex}/${workflow.length}**: @${step.agent} - ${step.description}\n\n`);
+                }
+
                 let agent = this.agents.get(step.agent);
                 console.log(`🔍 [WORKFLOW STEP] Direct lookup for "${step.agent}": ${agent ? 'FOUND' : 'NOT FOUND'}`);
                 
@@ -394,11 +430,23 @@ export class VSCodeMasterDispatcher {
                 console.log(`[INTER-AGENT] Result saved to conversation history`);
                 console.log(`[INTER-AGENT] Result will be passed to next agent in workflow`);
                 
-                // Accumulate results
-                finalResult.content += `## ${step.description}\n\n${stepResult.content}\n\n`;
+                // Send partial response for step completion
+                if (request.onPartialResponse) {
+                    const preview = stepResult.content.substring(0, 200);
+                    request.onPartialResponse(`✅ Completed: ${preview}${stepResult.content.length > 200 ? '...' : ''}\n\n`);
+                }
+
+                // For single-step workflows (like queries), use the content directly
+                // For multi-step workflows, accumulate results
+                if (workflow.length === 1) {
+                    finalResult.content = stepResult.content;
+                    finalResult.metadata = { ...finalResult.metadata, ...stepResult.metadata, agent: step.agent };
+                } else {
+                    finalResult.content += `## ${step.description}\n\n${stepResult.content}\n\n`;
+                }
                 finalResult.suggestions?.push(...(stepResult.suggestions || []));
                 finalResult.references?.push(...(stepResult.references || []));
-                
+
                 if (stepResult.status === 'error') {
                     finalResult.status = 'partial_success';
                 }

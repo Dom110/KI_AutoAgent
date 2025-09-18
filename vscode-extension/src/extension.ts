@@ -12,13 +12,12 @@ import { CodeSmithAgent } from './agents/CodeSmithAgent';
 import { TradeStratAgent } from './agents/TradeStratAgent';
 import { ResearchAgent } from './agents/ResearchAgent';
 import { OpusArbitratorAgent } from './agents/OpusArbitratorAgent';
+import { DocuBotAgent } from './agents/DocuBotAgent';
+import { ReviewerGPTAgent } from './agents/ReviewerGPTAgent';
+// import { FixerBotAgent } from './agents/FixerBotAgent'; // DEPRECATED - Functionality integrated into CodeSmithAgent
 // Multi-Agent Chat UI Components
 import { MultiAgentChatPanel } from './ui/MultiAgentChatPanel';
 import { ChatWidget } from './ui/ChatWidget';
-// TODO: Implement remaining agents
-// import { DocuAgent } from './agents/DocuAgent';
-// import { ReviewerAgent } from './agents/ReviewerAgent';
-// import { FixerAgent } from './agents/FixerAgent';
 
 // Global output channel for debugging
 let outputChannel: vscode.OutputChannel;
@@ -151,7 +150,33 @@ export async function activate(context: vscode.ExtensionContext) {
             outputChannel.appendLine(`  ❌ ResearchAgent failed: ${(error as any).message}`);
             agentCreationErrors.push(`ResearchAgent: ${error}`);
         }
-        
+
+        try {
+            agents.push(new DocuBotAgent(context, dispatcher));
+            outputChannel.appendLine('  ✅ DocuBotAgent created');
+        } catch (error) {
+            outputChannel.appendLine(`  ❌ DocuBotAgent failed: ${(error as any).message}`);
+            agentCreationErrors.push(`DocuBotAgent: ${error}`);
+        }
+
+        try {
+            agents.push(new ReviewerGPTAgent(context, dispatcher));
+            outputChannel.appendLine('  ✅ ReviewerGPTAgent created');
+        } catch (error) {
+            outputChannel.appendLine(`  ❌ ReviewerGPTAgent failed: ${(error as any).message}`);
+            agentCreationErrors.push(`ReviewerGPTAgent: ${error}`);
+        }
+
+        // DEPRECATED: FixerBot functionality has been integrated into CodeSmithAgent
+        // CodeSmith now handles: /fix, /debug, /refactor, /modernize commands
+        // try {
+        //     agents.push(new FixerBotAgent(context, dispatcher));
+        //     outputChannel.appendLine('  ✅ FixerBotAgent created');
+        // } catch (error) {
+        //     outputChannel.appendLine(`  ❌ FixerBotAgent failed: ${(error as any).message}`);
+        //     agentCreationErrors.push(`FixerBotAgent: ${error}`);
+        // }
+
         outputChannel.appendLine(`Agent creation completed: ${agents.length} created, ${agentCreationErrors.length} errors`);
         
         if (agentCreationErrors.length > 0) {

@@ -396,10 +396,23 @@ export class ClaudeCodeService extends EventEmitter {
     }
 
     /**
+     * Clean tool markers from content before sending to UI
+     */
+    private cleanToolMarkers(content: string): string {
+        // Remove tool detail markers but keep the actual text content
+        return content
+            .replace(/<<TOOL>>.*?<<TOOL_END>>/gs, '') // Remove tool call details
+            .replace(/<<TOOL_RESULT>>.*?<<TOOL_RESULT_END>>/gs, '') // Remove tool result details
+            .replace(/<<THINKING>>.*?<<THINKING_END>>/gs, '') // Remove thinking markers
+            .replace(/🛠️ \*?Claude is using tools.*?\*?\n*/g, '') // Remove tool announcements
+            .trim();
+    }
+
+    /**
      * Process JSON stream data from Claude
      */
     private processJsonStreamData(
-        data: any, 
+        data: any,
         callback: (content: string | null, metadata: any | null, eventType?: string) => void
     ): void {
         // Handle Claude Code CLI specific events
@@ -410,12 +423,12 @@ export class ClaudeCodeService extends EventEmitter {
                 if (data.session_id) {
                     callback(null, { sessionId: data.session_id });
                 }
-                // Send a fancy initialization message
-                const initMessage = `🚀 **Claude is initializing...** Ready to assist with advanced capabilities!\n\n`;
-                callback(initMessage, null);
+                // Don't send initialization message to avoid clutter
             } else if (data.subtype === 'error') {
                 this.outputChannel.appendLine(`[ClaudeCodeService] System error: ${data.message || 'Unknown error'}`);
-                callback(`\n⚠️ **System Error:** ${data.message || 'An unexpected error occurred'}\n`, null);
+                // Clean error messages too
+                const cleanError = `\n⚠️ **System Error:** ${data.message || 'An unexpected error occurred'}\n`;
+                callback(cleanError, null);
                 callback(null, null, 'error');
             } else {
                 this.outputChannel.appendLine(`[ClaudeCodeService] System event (${data.subtype})`);
@@ -493,9 +506,7 @@ export class ClaudeCodeService extends EventEmitter {
                             }
                         }
                         
-                        // Send tool result notification immediately
-                        const truncatedResult = result.length > 300 ? result.substring(0, 300) + '...' : result;
-                        callback(`<<TOOL_RESULT>>${content.tool_use_id}||${truncatedResult}<<TOOL_RESULT_END>>`, null);
+                        // Don't send tool result markers to UI - they're handled internally
                     }
                 }
             }
@@ -536,8 +547,7 @@ export class ClaudeCodeService extends EventEmitter {
                     this.hasStartedTextOutput = true;
                 } else if (event.content_block.type === 'thinking') {
                     this.outputChannel.appendLine(`[ClaudeCodeService] Thinking block starting`);
-                    // Send thinking notification as separate message
-                    callback(`<<THINKING>>💭 **Thinking...**<<THINKING_END>>`, null);
+                    // Don't send thinking markers to UI
                 }
             }
             // Handle content block stop
@@ -567,10 +577,7 @@ export class ClaudeCodeService extends EventEmitter {
                     this.outputChannel.appendLine(`[ClaudeCodeService] Stop reason: ${event.delta.stop_reason}`);
                     callback(null, { stopReason: event.delta.stop_reason });
                     
-                    // If stop reason is tool_use, notify user that Claude is working with tools
-                    if (event.delta.stop_reason === 'tool_use') {
-                        callback(`\n\n🛠️ *Claude is using tools to help with your request...*\n`, null);
-                    }
+                    // Don't send tool usage notifications - tools are shown in separate bubbles
                 }
             }
             // Handle message stop
@@ -779,8 +786,9 @@ export class ClaudeCodeService extends EventEmitter {
             }
         }
         
-        // Send the grouped notification only as a separate bubble
-        callback(`<<TOOL>>${groupedMessage}<<TOOL_END>>`, null);
+        // Send the tool notification as a separate system message (without markers)
+        // The UI will handle this as a blue bubble
+        callback(`SYSTEM_TOOL_MESSAGE:${groupedMessage}`, null, 'tool_info');
         
         // Clear the buffer
         this.toolGroupBuffer = [];

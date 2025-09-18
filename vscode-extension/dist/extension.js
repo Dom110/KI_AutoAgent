@@ -57,8 +57,8 @@ class ArchitectAgent extends ChatAgent_1.ChatAgent {
             participantId: 'ki-autoagent.architect',
             name: 'architect',
             fullName: 'ArchitectGPT',
-            description: 'System Architecture & Design Expert powered by GPT-4o',
-            model: 'gpt-4o',
+            description: 'System Architecture & Design Expert powered by GPT-5',
+            model: 'gpt-5-2025-09-12',
             iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'openai-icon.svg'),
             capabilities: [
                 'System Design',
@@ -428,8 +428,8 @@ class CodeSmithAgent extends ChatAgent_1.ChatAgent {
             participantId: 'ki-autoagent.codesmith',
             name: 'codesmith',
             fullName: 'CodeSmithClaude',
-            description: 'Senior Python/Web Developer powered by Claude 3.5 Sonnet',
-            model: 'claude-3.5-sonnet',
+            description: 'Senior Python/Web Developer powered by Claude 4.1 Sonnet',
+            model: 'claude-4.1-sonnet-20250920',
             iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'claude-icon.svg'),
             capabilities: [
                 'Python Development',
@@ -441,7 +441,11 @@ class CodeSmithAgent extends ChatAgent_1.ChatAgent {
             ],
             commands: [
                 { name: 'implement', description: 'Implement code based on specifications', handler: 'handleImplementCommand' },
+                { name: 'fix', description: 'Fix bugs and issues in code', handler: 'handleFixCommand' },
+                { name: 'debug', description: 'Debug and resolve issues', handler: 'handleDebugCommand' },
                 { name: 'optimize', description: 'Optimize existing code for performance', handler: 'handleOptimizeCommand' },
+                { name: 'refactor', description: 'Refactor code for better structure', handler: 'handleRefactorCommand' },
+                { name: 'modernize', description: 'Modernize legacy code', handler: 'handleModernizeCommand' },
                 { name: 'test', description: 'Generate comprehensive test suites', handler: 'handleTestCommand' }
             ]
         };
@@ -634,6 +638,114 @@ class CodeSmithAgent extends ChatAgent_1.ChatAgent {
         }
         catch (error) {
             stream.markdown(`❌ Error generating tests: ${error.message}`);
+        }
+    }
+    async handleFixCommand(prompt, stream, token) {
+        stream.progress('🔧 Fixing bugs and issues...');
+        const context = await this.getWorkspaceContext();
+        const systemPrompt = `You are CodeSmithClaude, an expert bug fixer. Your task is to:
+1. Identify the root cause of the bug
+2. Implement a robust fix
+3. Ensure no new bugs are introduced
+4. Add error handling where needed
+5. Test the fix thoroughly
+
+${this.getSystemContextPrompt()}`;
+        const userPrompt = `Fix the following issue: ${prompt}\n\nWorkspace Context:\n${context}`;
+        try {
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ]);
+            const responseContent = typeof response === 'string'
+                ? response
+                : response.content || '';
+            stream.markdown(responseContent);
+        }
+        catch (error) {
+            stream.markdown(`❌ Error during bug fix: ${error.message}`);
+        }
+    }
+    async handleDebugCommand(prompt, stream, token) {
+        stream.progress('🐛 Debugging and analyzing issue...');
+        const context = await this.getWorkspaceContext();
+        const systemPrompt = `You are CodeSmithClaude, an expert debugger. Your task is to:
+1. Analyze error messages and stack traces
+2. Identify the root cause
+3. Add debug logging to trace the issue
+4. Provide step-by-step debugging instructions
+5. Suggest a permanent fix
+
+${this.getSystemContextPrompt()}`;
+        const userPrompt = `Debug this issue: ${prompt}\n\nWorkspace Context:\n${context}`;
+        try {
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ]);
+            const responseContent = typeof response === 'string'
+                ? response
+                : response.content || '';
+            stream.markdown(responseContent);
+        }
+        catch (error) {
+            stream.markdown(`❌ Error during debugging: ${error.message}`);
+        }
+    }
+    async handleRefactorCommand(prompt, stream, token) {
+        stream.progress('♻️ Refactoring code for better structure...');
+        const context = await this.getWorkspaceContext();
+        const systemPrompt = `You are CodeSmithClaude, a refactoring expert. Your task is to:
+1. Improve code structure and organization
+2. Apply design patterns where appropriate
+3. Reduce code duplication (DRY principle)
+4. Improve naming and readability
+5. Maintain functionality while improving quality
+
+${this.getSystemContextPrompt()}`;
+        const userPrompt = `Refactor the following: ${prompt}\n\nWorkspace Context:\n${context}`;
+        try {
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ]);
+            const responseContent = typeof response === 'string'
+                ? response
+                : response.content || '';
+            stream.markdown(responseContent);
+        }
+        catch (error) {
+            stream.markdown(`❌ Error during refactoring: ${error.message}`);
+        }
+    }
+    async handleModernizeCommand(prompt, stream, token) {
+        stream.progress('🚀 Modernizing legacy code...');
+        const context = await this.getWorkspaceContext();
+        const systemPrompt = `You are CodeSmithClaude, a code modernization expert. Your task is to:
+1. Update deprecated APIs and methods
+2. Use modern language features (async/await, arrow functions, etc.)
+3. Update to latest framework versions
+4. Improve TypeScript types
+5. Add modern tooling support
+
+${this.getSystemContextPrompt()}`;
+        const userPrompt = `Modernize the following code: ${prompt}\n\nWorkspace Context:\n${context}`;
+        try {
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ]);
+            const responseContent = typeof response === 'string'
+                ? response
+                : response.content || '';
+            stream.markdown(responseContent);
+        }
+        catch (error) {
+            stream.markdown(`❌ Error during modernization: ${error.message}`);
         }
     }
     async handleGeneralImplementationRequest(prompt, stream, token) {
@@ -911,6 +1023,559 @@ exports.CodeSmithAgent = CodeSmithAgent;
 
 /***/ }),
 
+/***/ "./src/agents/DocuBotAgent.ts":
+/*!************************************!*\
+  !*** ./src/agents/DocuBotAgent.ts ***!
+  \************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DocuBotAgent = void 0;
+/**
+ * DocuBot - Technical Documentation Expert
+ * Creates comprehensive documentation, READMEs, and API references
+ */
+const vscode = __importStar(__webpack_require__(/*! vscode */ "vscode"));
+const ChatAgent_1 = __webpack_require__(/*! ./base/ChatAgent */ "./src/agents/base/ChatAgent.ts");
+const OpenAIService_1 = __webpack_require__(/*! ../utils/OpenAIService */ "./src/utils/OpenAIService.ts");
+const path = __importStar(__webpack_require__(/*! path */ "path"));
+const fs = __importStar(__webpack_require__(/*! fs/promises */ "fs/promises"));
+class DocuBotAgent extends ChatAgent_1.ChatAgent {
+    constructor(context, dispatcher) {
+        const config = {
+            participantId: 'ki-autoagent.docu',
+            name: 'docu',
+            fullName: 'DocuBot',
+            description: 'Technical Documentation Expert - Creates READMEs, API docs, user guides',
+            model: 'gpt-5-2025-09-12',
+            iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'docu-icon.svg'),
+            capabilities: [
+                'README Generation',
+                'API Documentation',
+                'User Guides',
+                'Code Comments',
+                'Technical Writing',
+                'Markdown Formatting',
+                'JSDoc/DocStrings',
+                'Changelog Creation'
+            ],
+            commands: [
+                { name: 'readme', description: 'Generate README for project', handler: 'handleReadmeCommand' },
+                { name: 'api', description: 'Create API documentation', handler: 'handleApiCommand' },
+                { name: 'guide', description: 'Write user guide or tutorial', handler: 'handleGuideCommand' },
+                { name: 'comments', description: 'Add documentation comments to code', handler: 'handleCommentsCommand' },
+                { name: 'changelog', description: 'Generate changelog from commits', handler: 'handleChangelogCommand' },
+                { name: 'update-instructions', description: 'Update agent instruction files', handler: 'handleUpdateInstructionsCommand' },
+                { name: 'view-instructions', description: 'View agent instruction files', handler: 'handleViewInstructionsCommand' }
+            ]
+        };
+        super(config, context, dispatcher);
+        this.openAIService = new OpenAIService_1.OpenAIService();
+    }
+    async handleRequest(request, context, stream, token) {
+        const command = request.command;
+        const prompt = request.prompt;
+        this.log(`Processing ${command ? `/${command}` : 'general'} documentation request: ${prompt.substring(0, 100)}...`);
+        if (command) {
+            await this.handleCommand(command, prompt, stream, token);
+        }
+        else {
+            await this.handleGeneralDocumentationRequest(prompt, stream, token);
+        }
+    }
+    async processWorkflowStep(step, request, previousResults) {
+        try {
+            let documentationContent = '';
+            switch (step.id) {
+                case 'document_code':
+                    documentationContent = await this.generateCodeDocumentation(request, previousResults);
+                    break;
+                case 'create_readme':
+                    documentationContent = await this.generateReadme(request, previousResults);
+                    break;
+                case 'api_docs':
+                    documentationContent = await this.generateApiDocs(request, previousResults);
+                    break;
+                default:
+                    documentationContent = await this.generateGeneralDocs(request, previousResults);
+            }
+            return {
+                status: 'success',
+                content: documentationContent,
+                metadata: {
+                    step: step.id,
+                    agent: 'docu',
+                    type: 'documentation'
+                }
+            };
+        }
+        catch (error) {
+            throw new Error(`Failed to process documentation step ${step.id}: ${error.message}`);
+        }
+    }
+    // Command Handlers
+    async handleReadmeCommand(prompt, stream, token) {
+        stream.progress('📝 Analyzing project structure...');
+        try {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                stream.markdown('❌ No workspace folder found');
+                return;
+            }
+            // Analyze project structure
+            const projectInfo = await this.analyzeProjectStructure(workspaceFolder.uri.fsPath);
+            stream.progress('📝 Generating README...');
+            const readmeContent = await this.createReadme(projectInfo, prompt);
+            stream.markdown('## 📝 Generated README\n\n');
+            stream.markdown('```markdown\n' + readmeContent + '\n```');
+            // Offer to save
+            this.createActionButton('💾 Save README.md', 'ki-autoagent.saveFile', ['README.md', readmeContent], stream);
+        }
+        catch (error) {
+            stream.markdown(`❌ README generation failed: ${error.message}`);
+        }
+    }
+    async handleApiCommand(prompt, stream, token) {
+        stream.progress('🔍 Analyzing code for API endpoints...');
+        try {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                stream.markdown('❌ No workspace folder found');
+                return;
+            }
+            // Find and analyze API endpoints
+            const apiInfo = await this.analyzeApiEndpoints(workspaceFolder.uri.fsPath);
+            stream.progress('📖 Generating API documentation...');
+            const apiDocs = await this.createApiDocumentation(apiInfo, prompt);
+            stream.markdown('## 📖 API Documentation\n\n');
+            stream.markdown('```markdown\n' + apiDocs + '\n```');
+            // Offer to save
+            this.createActionButton('💾 Save API.md', 'ki-autoagent.saveFile', ['docs/API.md', apiDocs], stream);
+        }
+        catch (error) {
+            stream.markdown(`❌ API documentation generation failed: ${error.message}`);
+        }
+    }
+    async handleGuideCommand(prompt, stream, token) {
+        stream.progress('📚 Creating user guide...');
+        try {
+            const guide = await this.createUserGuide(prompt);
+            stream.markdown('## 📚 User Guide\n\n');
+            stream.markdown(guide);
+            // Offer to save
+            this.createActionButton('💾 Save Guide', 'ki-autoagent.saveFile', ['docs/USER_GUIDE.md', guide], stream);
+        }
+        catch (error) {
+            stream.markdown(`❌ Guide creation failed: ${error.message}`);
+        }
+    }
+    async handleCommentsCommand(prompt, stream, token) {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            stream.markdown('❌ No active editor found. Please open a file to document.');
+            return;
+        }
+        stream.progress('💬 Adding documentation comments...');
+        try {
+            const document = editor.document;
+            const code = document.getText();
+            const language = document.languageId;
+            const documentedCode = await this.addDocumentationComments(code, language, prompt);
+            stream.markdown('## 💬 Documented Code\n\n');
+            stream.markdown('```' + language + '\n' + documentedCode + '\n```');
+            // Offer to replace
+            this.createActionButton('💾 Apply Comments', 'ki-autoagent.replaceContent', [documentedCode], stream);
+        }
+        catch (error) {
+            stream.markdown(`❌ Comment generation failed: ${error.message}`);
+        }
+    }
+    async handleChangelogCommand(prompt, stream, token) {
+        stream.progress('📋 Analyzing commit history...');
+        try {
+            // Get git log
+            const gitLog = await this.getGitLog();
+            stream.progress('📋 Generating changelog...');
+            const changelog = await this.createChangelog(gitLog, prompt);
+            stream.markdown('## 📋 Changelog\n\n');
+            stream.markdown('```markdown\n' + changelog + '\n```');
+            // Offer to save
+            this.createActionButton('💾 Save CHANGELOG.md', 'ki-autoagent.saveFile', ['CHANGELOG.md', changelog], stream);
+        }
+        catch (error) {
+            stream.markdown(`❌ Changelog generation failed: ${error.message}`);
+        }
+    }
+    async handleGeneralDocumentationRequest(prompt, stream, token) {
+        stream.progress('📝 Creating documentation...');
+        try {
+            const documentation = await this.createGeneralDocumentation(prompt);
+            stream.markdown('## 📝 Documentation\n\n');
+            stream.markdown(documentation);
+        }
+        catch (error) {
+            stream.markdown(`❌ Documentation creation failed: ${error.message}`);
+        }
+    }
+    async handleUpdateInstructionsCommand(prompt, stream, token) {
+        stream.progress('📝 Updating agent instructions...');
+        try {
+            // Parse agent name from prompt
+            const agentMatch = prompt.match(/\b(orchestrator|architect|codesmith|tradestrat|research|opus-arbitrator|docu|reviewer|fixer)\b/i);
+            if (!agentMatch) {
+                stream.markdown('❌ Please specify which agent instructions to update (e.g., "update-instructions for codesmith")');
+                return;
+            }
+            const agentName = agentMatch[1].toLowerCase();
+            // Read current instructions
+            const currentInstructions = await this.readInstructionFile(agentName);
+            stream.progress('📝 Analyzing and improving instructions...');
+            // Generate improvements
+            const improvedInstructions = await this.improveInstructions(agentName, currentInstructions, prompt);
+            stream.markdown(`## 📝 Improved Instructions for ${agentName}\n\n`);
+            stream.markdown('```markdown\n' + improvedInstructions + '\n```');
+            // Offer to save
+            this.createActionButton('💾 Save Updated Instructions', 'ki-autoagent.saveInstructions', [agentName, improvedInstructions], stream);
+        }
+        catch (error) {
+            stream.markdown(`❌ Instruction update failed: ${error.message}`);
+        }
+    }
+    async handleViewInstructionsCommand(prompt, stream, token) {
+        stream.progress('📖 Loading agent instructions...');
+        try {
+            // Parse agent name from prompt or list all
+            const agentMatch = prompt.match(/\b(orchestrator|architect|codesmith|tradestrat|research|opus-arbitrator|docu|reviewer|fixer)\b/i);
+            if (agentMatch) {
+                const agentName = agentMatch[1].toLowerCase();
+                const instructions = await this.readInstructionFile(agentName);
+                stream.markdown(`## 📖 Instructions for ${agentName}\n\n`);
+                stream.markdown('```markdown\n' + instructions + '\n```');
+            }
+            else {
+                // List all available instruction files
+                stream.markdown('## 📖 Available Agent Instructions\n\n');
+                stream.markdown('Choose an agent to view instructions:\n');
+                stream.markdown('- orchestrator\n');
+                stream.markdown('- architect\n');
+                stream.markdown('- codesmith\n');
+                stream.markdown('- tradestrat\n');
+                stream.markdown('- research\n');
+                stream.markdown('- opus-arbitrator (richter)\n');
+                stream.markdown('- docu\n');
+                stream.markdown('- reviewer\n');
+                stream.markdown('- fixer\n\n');
+                stream.markdown('Use: `/view-instructions [agent-name]` to view specific instructions');
+            }
+        }
+        catch (error) {
+            stream.markdown(`❌ Failed to view instructions: ${error.message}`);
+        }
+    }
+    // Helper Methods
+    async analyzeProjectStructure(workspacePath) {
+        // Analyze project files, package.json, etc.
+        const projectInfo = {
+            name: path.basename(workspacePath),
+            path: workspacePath,
+            hasPackageJson: false,
+            dependencies: [],
+            scripts: {},
+            mainFiles: []
+        };
+        try {
+            const packageJsonPath = path.join(workspacePath, 'package.json');
+            const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
+            projectInfo.hasPackageJson = true;
+            projectInfo.dependencies = Object.keys(packageJson.dependencies || {});
+            projectInfo.scripts = packageJson.scripts || {};
+        }
+        catch (error) {
+            // No package.json or error reading it
+        }
+        return projectInfo;
+    }
+    async analyzeApiEndpoints(workspacePath) {
+        // Analyze code for API endpoints
+        // This would be more sophisticated in a real implementation
+        return {
+            endpoints: [],
+            baseUrl: '',
+            authentication: 'unknown'
+        };
+    }
+    async createReadme(projectInfo, additionalContext) {
+        const prompt = `Create a comprehensive README.md for a project with the following information:
+
+Project Name: ${projectInfo.name}
+Has package.json: ${projectInfo.hasPackageJson}
+Dependencies: ${projectInfo.dependencies.join(', ')}
+Scripts: ${JSON.stringify(projectInfo.scripts, null, 2)}
+
+Additional context: ${additionalContext}
+
+Create a professional README with sections for:
+- Project title and description
+- Features
+- Installation
+- Usage
+- Configuration (if applicable)
+- API Reference (if applicable)
+- Contributing
+- License
+
+Use proper markdown formatting with badges where appropriate.
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are DocuBot, an expert technical writer specializing in creating clear, comprehensive documentation.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    async createApiDocumentation(apiInfo, additionalContext) {
+        const prompt = `Create comprehensive API documentation based on the following:
+
+${JSON.stringify(apiInfo, null, 2)}
+
+Additional context: ${additionalContext}
+
+Include:
+- API overview
+- Authentication
+- Endpoints with request/response examples
+- Error codes
+- Rate limiting (if applicable)
+- Examples in multiple languages
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are DocuBot, an expert in creating clear, comprehensive API documentation.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    async createUserGuide(context) {
+        const prompt = `Create a comprehensive user guide for the following:
+
+${context}
+
+Include:
+- Getting Started
+- Key Features
+- Step-by-step tutorials
+- Common use cases
+- Troubleshooting
+- FAQ
+
+Make it user-friendly and easy to follow.
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are DocuBot, an expert in creating user-friendly documentation and guides.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    async addDocumentationComments(code, language, context) {
+        const prompt = `Add comprehensive documentation comments to this ${language} code:
+
+${code}
+
+Additional context: ${context}
+
+Use the appropriate comment style for ${language} (JSDoc for JavaScript/TypeScript, docstrings for Python, etc.)
+Document all functions, classes, and complex logic.
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are DocuBot, an expert in code documentation and technical writing.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    async createChangelog(gitLog, context) {
+        const prompt = `Create a CHANGELOG.md based on the following git history:
+
+${gitLog}
+
+Additional context: ${context}
+
+Format using Keep a Changelog standard (https://keepachangelog.com/)
+Group changes by version and category (Added, Changed, Deprecated, Removed, Fixed, Security)
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are DocuBot, an expert in creating clear, organized changelogs.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    async createGeneralDocumentation(context) {
+        const prompt = `Create comprehensive documentation for:
+
+${context}
+
+Make it clear, well-structured, and professional.
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are DocuBot, an expert technical writer creating clear, comprehensive documentation.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    async getGitLog() {
+        // Execute git log command
+        const cp = __webpack_require__(/*! child_process */ "child_process");
+        return new Promise((resolve, reject) => {
+            cp.exec('git log --oneline -50', (error, stdout, stderr) => {
+                if (error) {
+                    reject(error);
+                }
+                else {
+                    resolve(stdout);
+                }
+            });
+        });
+    }
+    // Workflow helper methods
+    async generateCodeDocumentation(request, previousResults) {
+        const context = this.buildContextFromResults(previousResults);
+        return this.createGeneralDocumentation(`Document the following code/feature:\n${request.prompt}\n\nContext from previous steps:\n${context}`);
+    }
+    async generateReadme(request, previousResults) {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            throw new Error('No workspace folder found');
+        }
+        const projectInfo = await this.analyzeProjectStructure(workspaceFolder.uri.fsPath);
+        const context = this.buildContextFromResults(previousResults);
+        return this.createReadme(projectInfo, `${request.prompt}\n\nContext:\n${context}`);
+    }
+    async generateApiDocs(request, previousResults) {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) {
+            throw new Error('No workspace folder found');
+        }
+        const apiInfo = await this.analyzeApiEndpoints(workspaceFolder.uri.fsPath);
+        const context = this.buildContextFromResults(previousResults);
+        return this.createApiDocumentation(apiInfo, `${request.prompt}\n\nContext:\n${context}`);
+    }
+    async generateGeneralDocs(request, previousResults) {
+        const context = this.buildContextFromResults(previousResults);
+        return this.createGeneralDocumentation(`${request.prompt}\n\nContext from previous steps:\n${context}`);
+    }
+    buildContextFromResults(results) {
+        return results
+            .filter(r => r.status === 'success')
+            .map(r => `${r.metadata?.step || 'Step'}: ${r.content}`)
+            .join('\n\n');
+    }
+    async readInstructionFile(agentName) {
+        try {
+            // Map agent names to instruction file names
+            const fileNameMap = {
+                'orchestrator': 'orchestrator-instructions',
+                'architect': 'architect-instructions',
+                'codesmith': 'codesmith-instructions',
+                'tradestrat': 'tradestrat-instructions',
+                'research': 'research-instructions',
+                'opus-arbitrator': 'richter-instructions',
+                'docu': 'docubot-instructions',
+                'reviewer': 'reviewergpt-instructions',
+                'fixer': 'fixerbot-instructions'
+            };
+            const fileName = fileNameMap[agentName] || `${agentName}-instructions`;
+            const instructionPath = path.join(this.context.extensionPath, 'src', 'instructions', `${fileName}.md`);
+            return await fs.readFile(instructionPath, 'utf-8');
+        }
+        catch (error) {
+            throw new Error(`Failed to read instructions for ${agentName}: ${error.message}`);
+        }
+    }
+    async writeInstructionFile(agentName, content) {
+        try {
+            // Map agent names to instruction file names
+            const fileNameMap = {
+                'orchestrator': 'orchestrator-instructions',
+                'architect': 'architect-instructions',
+                'codesmith': 'codesmith-instructions',
+                'tradestrat': 'tradestrat-instructions',
+                'research': 'research-instructions',
+                'opus-arbitrator': 'richter-instructions',
+                'docu': 'docubot-instructions',
+                'reviewer': 'reviewergpt-instructions',
+                'fixer': 'fixerbot-instructions'
+            };
+            const fileName = fileNameMap[agentName] || `${agentName}-instructions`;
+            const instructionPath = path.join(this.context.extensionPath, 'src', 'instructions', `${fileName}.md`);
+            await fs.writeFile(instructionPath, content, 'utf-8');
+        }
+        catch (error) {
+            throw new Error(`Failed to write instructions for ${agentName}: ${error.message}`);
+        }
+    }
+    async improveInstructions(agentName, currentInstructions, userContext) {
+        const prompt = `Improve the instruction set for the ${agentName} agent.
+
+Current instructions:
+${currentInstructions}
+
+User context and requirements:
+${userContext}
+
+Please improve these instructions by:
+1. Ensuring clarity and completeness
+2. Adding any missing capabilities or commands
+3. Improving formatting and organization
+4. Updating best practices
+5. Ensuring consistency with the agent's role
+6. Adding examples where helpful
+7. Keeping the same markdown structure
+
+Return the complete improved instruction set in markdown format.
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are DocuBot, an expert in creating and improving technical documentation and agent instructions.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+}
+exports.DocuBotAgent = DocuBotAgent;
+
+
+/***/ }),
+
 /***/ "./src/agents/OpusArbitratorAgent.ts":
 /*!*******************************************!*\
   !*** ./src/agents/OpusArbitratorAgent.ts ***!
@@ -964,7 +1629,7 @@ class OpusArbitratorAgent extends ChatAgent_1.ChatAgent {
             name: 'richter',
             fullName: 'OpusArbitrator',
             description: '⚖️ Supreme Quality Judge powered by Claude Opus 4.1 - Final arbitrator for agent conflicts with superior reasoning capabilities',
-            model: 'claude-opus-4-1-20250805',
+            model: 'claude-4.1-opus-20250915',
             iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'claude-icon.svg'),
             capabilities: [
                 'Agent Conflict Resolution',
@@ -1343,251 +2008,1009 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OrchestratorAgent = void 0;
 /**
- * Orchestrator Agent - Universal AI assistant that routes tasks to specialized agents
- * This is the main entry point that users interact with
+ * Advanced Orchestrator Agent with Task Decomposition and Intelligent Workflow Management
+ * Uses graph-based workflow execution, parallel processing, and memory-enhanced orchestration
  */
 const vscode = __importStar(__webpack_require__(/*! vscode */ "vscode"));
 const ChatAgent_1 = __webpack_require__(/*! ./base/ChatAgent */ "./src/agents/base/ChatAgent.ts");
 const OpenAIService_1 = __webpack_require__(/*! ../utils/OpenAIService */ "./src/utils/OpenAIService.ts");
+const AgentRegistry_1 = __webpack_require__(/*! ../core/AgentRegistry */ "./src/core/AgentRegistry.ts");
+const WorkflowEngine_1 = __webpack_require__(/*! ../core/WorkflowEngine */ "./src/core/WorkflowEngine.ts");
+const MemoryManager_1 = __webpack_require__(/*! ../core/MemoryManager */ "./src/core/MemoryManager.ts");
+const SharedContextManager_1 = __webpack_require__(/*! ../core/SharedContextManager */ "./src/core/SharedContextManager.ts");
+const AgentCommunicationBus_1 = __webpack_require__(/*! ../core/AgentCommunicationBus */ "./src/core/AgentCommunicationBus.ts");
+const Memory_1 = __webpack_require__(/*! ../types/Memory */ "./src/types/Memory.ts");
 class OrchestratorAgent extends ChatAgent_1.ChatAgent {
     constructor(context, dispatcher) {
         const config = {
             participantId: 'ki-autoagent.orchestrator',
             name: 'ki',
-            fullName: 'KI AutoAgent Orchestrator',
-            description: 'Universal AI assistant that automatically routes tasks to specialized agents',
-            model: 'gpt-4o',
+            fullName: 'Advanced KI AutoAgent Orchestrator',
+            description: 'Intelligent task orchestration with decomposition, parallel execution, and memory',
+            model: 'gpt-5-2025-09-12',
             iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'orchestrator-icon.svg'),
             capabilities: [
-                'Intent Recognition',
-                'Agent Orchestration',
-                'Workflow Management',
-                'Project Type Detection',
-                'Multi-Agent Coordination'
+                'Task Decomposition',
+                'Parallel Execution',
+                'Dynamic Workflow Adjustment',
+                'Agent Conflict Resolution',
+                'Memory-Based Learning',
+                'Multi-Agent Collaboration'
             ],
             commands: [
-                { name: 'task', description: 'Execute a development task with automatic agent selection', handler: 'handleTaskCommand' },
+                { name: 'task', description: 'Execute complex task with intelligent decomposition', handler: 'handleTaskCommand' },
                 { name: 'agents', description: 'Show available specialized agents', handler: 'handleAgentsCommand' },
-                { name: 'workflow', description: 'Create a multi-step development workflow', handler: 'handleWorkflowCommand' }
+                { name: 'workflow', description: 'Create advanced multi-step workflow', handler: 'handleWorkflowCommand' },
+                { name: 'decompose', description: 'Decompose complex task into subtasks', handler: 'handleDecomposeCommand' },
+                { name: 'parallel', description: 'Execute tasks in parallel', handler: 'handleParallelCommand' }
             ]
         };
         super(config, context, dispatcher);
+        this.activeWorkflows = new Map(); // workflowId -> description
+        // Initialize advanced systems
         this.openAIService = new OpenAIService_1.OpenAIService();
+        this.workflowEngine = new WorkflowEngine_1.WorkflowEngine();
+        this.memoryManager = new MemoryManager_1.MemoryManager({
+            maxMemories: 10000,
+            similarityThreshold: 0.7,
+            patternExtractionEnabled: true
+        });
+        this.sharedContext = (0, SharedContextManager_1.getSharedContext)();
+        this.communicationBus = (0, AgentCommunicationBus_1.getCommunicationBus)();
+        // Register for inter-agent communication
+        this.registerCommunicationHandlers();
     }
     async handleRequest(request, context, stream, token) {
         const command = request.command;
         const prompt = request.prompt;
-        this.log(`Orchestrator processing ${command ? `/${command}` : 'general'} request: ${prompt.substring(0, 100)}...`);
+        // Immediate feedback with intelligence indicator
+        stream.progress('🧠 Advanced Orchestrator analyzing complexity and decomposing task...');
+        this.log(`Advanced Orchestrator processing: ${prompt.substring(0, 100)}...`);
+        // Build context with memory
+        const enhancedRequest = await this.buildContextWithMemory({
+            prompt,
+            context: { chatHistory: context.history }
+        });
         if (command) {
             await this.handleCommand(command, prompt, stream, token);
         }
         else {
-            // General orchestration - the main flow
-            await this.handleGeneralRequest(prompt, stream, token);
+            // Analyze task complexity
+            const complexity = await this.analyzeTaskComplexity(prompt);
+            if (complexity === 'simple') {
+                await this.handleSimpleTask(prompt, stream, token);
+            }
+            else if (complexity === 'moderate') {
+                await this.handleModerateTask(prompt, stream, token);
+            }
+            else {
+                await this.handleComplexTask(prompt, stream, token);
+            }
         }
     }
-    async processWorkflowStep(step, request, previousResults) {
-        // Orchestrator doesn't typically process individual steps
-        // It coordinates other agents
-        return {
-            status: 'success',
-            content: `Orchestrator coordinated step: ${step.description}`,
-            metadata: {
-                step: step.id,
-                agent: 'orchestrator'
+    /**
+     * Analyze task complexity to determine orchestration strategy
+     */
+    async analyzeTaskComplexity(prompt) {
+        // Search memory for similar tasks
+        const similarTasks = await this.memoryManager.search(prompt, {
+            k: 5,
+            type: Memory_1.MemoryType.EPISODIC
+        });
+        // If we have handled similar tasks, use learned complexity
+        if (similarTasks.length > 0) {
+            const complexities = similarTasks
+                .map(t => t.entry.content.complexity)
+                .filter(Boolean);
+            if (complexities.length > 0) {
+                // Return most common complexity
+                const counts = complexities.reduce((acc, c) => {
+                    acc[c] = (acc[c] || 0) + 1;
+                    return acc;
+                }, {});
+                return Object.entries(counts)
+                    .sort(([, a], [, b]) => b - a)[0][0];
             }
+        }
+        // Analyze prompt for complexity indicators
+        const complexityIndicators = {
+            complex: [
+                /build.*system/i,
+                /implement.*architecture/i,
+                /create.*application/i,
+                /develop.*platform/i,
+                /design.*and.*implement/i,
+                /multiple.*components/i,
+                /full.*stack/i,
+                /end.*to.*end/i,
+                /microservices/i,
+                /distributed/i
+            ],
+            moderate: [
+                /create.*feature/i,
+                /implement.*api/i,
+                /add.*functionality/i,
+                /refactor/i,
+                /optimize/i,
+                /debug.*and.*fix/i,
+                /integrate/i,
+                /migrate/i
+            ],
+            simple: [
+                /fix.*bug/i,
+                /update.*documentation/i,
+                /write.*function/i,
+                /create.*file/i,
+                /explain/i,
+                /what.*is/i,
+                /how.*to/i,
+                /show.*me/i,
+                /list/i
+            ]
+        };
+        // Check indicators
+        for (const [level, patterns] of Object.entries(complexityIndicators)) {
+            if (patterns.some(p => p.test(prompt))) {
+                return level;
+            }
+        }
+        // Default to moderate
+        return 'moderate';
+    }
+    /**
+     * Handle simple tasks with direct routing
+     */
+    async handleSimpleTask(prompt, stream, token) {
+        stream.markdown(`## ⚡ Simple Task Execution\n\n`);
+        // Get best agent for the task
+        const registry = AgentRegistry_1.AgentRegistry.getInstance();
+        const agent = registry.suggestAgentForTask(prompt);
+        if (agent && agent !== 'orchestrator') {
+            stream.markdown(`**Routing to @${agent}**\n\n`);
+            // Create simple workflow
+            const workflow = this.workflowEngine.createWorkflow(`Simple: ${prompt}`);
+            const node = {
+                id: 'execute',
+                type: 'task',
+                agentId: agent,
+                task: prompt
+            };
+            this.workflowEngine.addNode(workflow.id, node);
+            // Execute
+            const results = await this.executeWorkflowWithProgress(workflow.id, prompt, stream);
+            // Display results
+            this.displayResults(results, stream);
+            // Store in memory
+            await this.storeTaskMemory(prompt, 'simple', workflow.id, results);
+        }
+        else {
+            // Handle directly
+            await this.handleDirectResponse(prompt, stream);
+        }
+    }
+    /**
+     * Handle moderate complexity tasks with sequential workflow
+     */
+    async handleModerateTask(prompt, stream, token) {
+        stream.markdown(`## 🔄 Moderate Task Workflow\n\n`);
+        // Decompose into subtasks
+        const decomposition = await this.decomposeTask(prompt);
+        stream.markdown(`**Identified ${decomposition.subtasks.length} subtasks**\n\n`);
+        // Create workflow
+        const workflow = this.workflowEngine.createWorkflow(`Moderate: ${prompt}`);
+        // Add nodes for each subtask
+        decomposition.subtasks.forEach(subtask => {
+            const node = {
+                id: subtask.id,
+                type: 'task',
+                agentId: subtask.agent,
+                task: subtask.description,
+                dependencies: subtask.dependencies
+            };
+            this.workflowEngine.addNode(workflow.id, node);
+        });
+        // Add edges based on dependencies
+        decomposition.dependencies.forEach(dep => {
+            this.workflowEngine.addEdge(workflow.id, {
+                from: dep.from,
+                to: dep.to
+            });
+        });
+        // Display execution plan
+        const plan = this.workflowEngine.createExecutionPlan(workflow.id);
+        this.displayExecutionPlan(plan, stream);
+        // Execute workflow
+        const results = await this.executeWorkflowWithProgress(workflow.id, prompt, stream);
+        // Display results
+        this.displayResults(results, stream);
+        // Store in memory
+        await this.storeTaskMemory(prompt, 'moderate', workflow.id, results);
+    }
+    /**
+     * Handle complex tasks with parallel execution and collaboration
+     */
+    async handleComplexTask(prompt, stream, token) {
+        stream.markdown(`## 🚀 Complex Task Orchestration\n\n`);
+        stream.markdown(`**Initiating advanced multi-agent collaboration...**\n\n`);
+        // Decompose into subtasks
+        const decomposition = await this.decomposeTask(prompt);
+        stream.markdown(`### 📊 Task Analysis\n`);
+        stream.markdown(`- **Complexity:** ${decomposition.complexity}\n`);
+        stream.markdown(`- **Subtasks:** ${decomposition.subtasks.length}\n`);
+        stream.markdown(`- **Required Agents:** ${decomposition.requiredAgents.join(', ')}\n`);
+        stream.markdown(`- **Parallelizable:** ${decomposition.parallelizable ? 'Yes' : 'No'}\n`);
+        stream.markdown(`- **Estimated Duration:** ${decomposition.estimatedDuration}ms\n\n`);
+        // Start collaboration session
+        const session = await this.communicationBus.startCollaboration({ task: prompt, decomposition }, decomposition.requiredAgents, 'orchestrator');
+        stream.markdown(`**Collaboration Session Started:** ${session.id}\n\n`);
+        // Create advanced workflow with parallel execution
+        const workflow = this.workflowEngine.createWorkflow(`Complex: ${prompt}`);
+        // Group parallelizable tasks
+        const parallelGroups = this.groupParallelTasks(decomposition);
+        // Create workflow nodes
+        parallelGroups.forEach((group, index) => {
+            if (group.length > 1) {
+                // Create parallel node
+                const parallelNode = {
+                    id: `parallel_${index}`,
+                    type: 'parallel',
+                    children: group.map(t => t.id)
+                };
+                this.workflowEngine.addNode(workflow.id, parallelNode);
+                // Add task nodes
+                group.forEach(subtask => {
+                    const taskNode = {
+                        id: subtask.id,
+                        type: 'task',
+                        agentId: subtask.agent,
+                        task: subtask.description
+                    };
+                    this.workflowEngine.addNode(workflow.id, taskNode);
+                });
+            }
+            else {
+                // Single task node
+                const subtask = group[0];
+                const taskNode = {
+                    id: subtask.id,
+                    type: 'task',
+                    agentId: subtask.agent,
+                    task: subtask.description,
+                    dependencies: subtask.dependencies
+                };
+                this.workflowEngine.addNode(workflow.id, taskNode);
+            }
+        });
+        // Add edges for dependencies
+        decomposition.dependencies.forEach(dep => {
+            this.workflowEngine.addEdge(workflow.id, {
+                from: dep.from,
+                to: dep.to,
+                condition: dep.condition ? this.createCondition(dep.condition) : undefined
+            });
+        });
+        // Display execution plan
+        const plan = this.workflowEngine.createExecutionPlan(workflow.id);
+        this.displayAdvancedExecutionPlan(plan, stream);
+        // Execute with checkpointing
+        stream.markdown(`### ⚡ Execution Progress\n\n`);
+        const results = await this.executeComplexWorkflow(workflow.id, prompt, session.id, stream);
+        // Complete collaboration
+        this.communicationBus.completeCollaboration(session.id, results);
+        // Display comprehensive results
+        this.displayComplexResults(results, stream);
+        // Store in memory with patterns
+        await this.storeComplexTaskMemory(prompt, decomposition, workflow.id, results);
+        // Extract and store patterns
+        await this.extractAndStorePatterns(decomposition, results);
+    }
+    /**
+     * Decompose task into subtasks using AI
+     */
+    async decomposeTask(prompt) {
+        // Check memory for similar decompositions
+        const similarTasks = await this.memoryManager.search(prompt, {
+            k: 3,
+            type: Memory_1.MemoryType.PROCEDURAL
+        });
+        if (similarTasks.length > 0 && similarTasks[0].similarity > 0.85) {
+            // Reuse previous decomposition
+            return similarTasks[0].entry.content.decomposition;
+        }
+        // Use AI to decompose
+        const systemPrompt = `You are an expert task decomposer. Break down complex tasks into subtasks.
+
+${this.getSystemContextPrompt()}
+
+Analyze the task and provide a JSON response with:
+{
+  "mainGoal": "primary objective",
+  "complexity": "simple|moderate|complex",
+  "subtasks": [
+    {
+      "id": "unique_id",
+      "description": "what to do",
+      "agent": "best agent for this",
+      "priority": 1-5,
+      "dependencies": ["other_task_ids"],
+      "expectedOutput": "what this produces",
+      "estimatedDuration": milliseconds
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "task_id",
+      "to": "task_id",
+      "type": "sequential|parallel|conditional",
+      "condition": "optional condition"
+    }
+  ],
+  "estimatedDuration": total_milliseconds,
+  "requiredAgents": ["agent1", "agent2"],
+  "parallelizable": boolean
+}
+
+Available agents: architect, codesmith, docu, reviewer, fixer, tradestrat, opus-arbitrator, research`;
+        const response = await this.openAIService.chat([
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Decompose this task: ${prompt}` }
+        ]);
+        try {
+            const decomposition = JSON.parse(response);
+            // Store in memory for future use
+            await this.memoryManager.store('orchestrator', { prompt, decomposition }, Memory_1.MemoryType.PROCEDURAL, { importance: 0.8 });
+            return decomposition;
+        }
+        catch (error) {
+            // Fallback to simple decomposition
+            return this.createSimpleDecomposition(prompt);
+        }
+    }
+    /**
+     * Create simple decomposition as fallback
+     */
+    createSimpleDecomposition(prompt) {
+        const registry = AgentRegistry_1.AgentRegistry.getInstance();
+        const agent = registry.suggestAgentForTask(prompt) || 'codesmith';
+        return {
+            mainGoal: prompt,
+            complexity: 'simple',
+            subtasks: [{
+                    id: 'task_1',
+                    description: prompt,
+                    agent,
+                    priority: 1,
+                    dependencies: [],
+                    expectedOutput: 'Task result',
+                    estimatedDuration: 5000
+                }],
+            dependencies: [],
+            estimatedDuration: 5000,
+            requiredAgents: [agent],
+            parallelizable: false
         };
     }
-    // Main orchestration logic
-    async handleGeneralRequest(prompt, stream, token) {
-        stream.progress('🧠 Analyzing task and selecting optimal agents...');
-        try {
-            // Step 1: Detect intent and project type
-            const intent = await this.dispatcher.detectIntent(prompt);
-            const workspaceContext = await this.dispatcher.getWorkspaceContext();
-            const projectType = await this.dispatcher.detectProjectType(workspaceContext);
-            // Show analysis
-            stream.markdown(`## 🎯 Task Analysis\n\n`);
-            stream.markdown(`**Intent:** ${intent.type} (Confidence: ${(intent.confidence * 100).toFixed(0)}%)\n`);
-            stream.markdown(`**Primary Agent:** @${intent.agent}\n`);
-            stream.markdown(`**Project Type:** ${projectType}\n\n`);
-            // Step 2: Create workflow
-            const workflow = this.dispatcher.createWorkflow(intent, projectType);
-            if (workflow.length > 1) {
-                stream.markdown(`## 🔄 Execution Workflow\n\n`);
-                workflow.forEach((step, index) => {
-                    stream.markdown(`${index + 1}. **@${step.agent}**: ${step.description}\n`);
-                });
-                stream.markdown('\n');
-            }
-            // Step 3: Execute workflow
-            stream.progress('⚡ Executing workflow...');
-            const taskRequest = {
-                prompt,
-                context: workspaceContext,
-                projectType
-            };
-            const result = await this.dispatcher.executeWorkflow(workflow, taskRequest);
-            // Step 4: Display results
-            stream.markdown(`## 📤 Results\n\n`);
-            stream.markdown(result.content);
-            // Step 5: Add action buttons
-            if (result.suggestions && result.suggestions.length > 0) {
-                stream.markdown(`## 💡 Suggested Actions\n\n`);
-                result.suggestions.forEach(suggestion => {
-                    this.createActionButton(suggestion.title, 'ki-autoagent.applySuggestion', [suggestion.data], stream);
-                });
-            }
-            // Step 6: Add file references
-            if (result.references && result.references.length > 0) {
-                stream.markdown(`## 📁 Referenced Files\n\n`);
-                result.references.forEach(uri => {
-                    stream.reference(uri);
-                });
-            }
-            // Step 7: Offer follow-up actions
-            this.createActionButton('📊 Show Agent Statistics', 'ki-autoagent.showAgentStats', [], stream);
-        }
-        catch (error) {
-            stream.markdown(`❌ **Error during orchestration**: ${error.message}\n\n`);
-            // Fallback to single agent
-            stream.markdown(`💡 **Fallback**: Routing to @codesmith for direct assistance...\n\n`);
-            // You could implement fallback logic here
-            await this.handleFallback(prompt, stream, token);
-        }
-    }
-    // Command Handlers
-    async handleTaskCommand(prompt, stream, token) {
-        stream.markdown(`## 📋 Task Execution\n\n`);
-        stream.markdown(`**Task:** ${prompt}\n\n`);
-        // Same as general request but with explicit task framing
-        await this.handleGeneralRequest(prompt, stream, token);
-    }
-    async handleAgentsCommand(prompt, stream, token) {
-        stream.markdown(`## 🤖 Available Specialized Agents\n\n`);
-        const agents = [
-            { name: '@architect', fullName: 'ArchitectGPT', description: 'System Architecture & Design Expert', model: 'GPT-4o', specialties: 'Design, Architecture, Planning' },
-            { name: '@codesmith', fullName: 'CodeSmithClaude', description: 'Senior Python/Web Developer', model: 'Claude Sonnet 4', specialties: 'Implementation, Testing, Optimization' },
-            { name: '@docu', fullName: 'DocuBot', description: 'Technical Documentation Expert', model: 'GPT-4o', specialties: 'Docs, README, API Reference' },
-            { name: '@reviewer', fullName: 'ReviewerGPT', description: 'Code Review & Security Expert', model: 'GPT-4o-mini', specialties: 'QA, Security, Performance' },
-            { name: '@fixer', fullName: 'FixerBot', description: 'Bug Fixing & Optimization Expert', model: 'Claude Sonnet 4', specialties: 'Debugging, Patching, Refactoring' },
-            { name: '@tradestrat', fullName: 'TradeStrat', description: 'Trading Strategy Expert', model: 'Claude Sonnet 4', specialties: 'Strategies, Backtesting, Risk' },
-            { name: '@richter', fullName: 'OpusArbitrator', description: '⚖️ Supreme Quality Judge powered by Claude Opus 4.1', model: 'Claude Opus 4.1', specialties: 'Conflict Resolution, Supreme Decisions, Complex Reasoning' },
-            { name: '@research', fullName: 'ResearchBot', description: 'Research & Information Expert', model: 'Perplexity Pro', specialties: 'Web Research, Documentation, Analysis' }
-        ];
-        for (const agent of agents) {
-            stream.markdown(`### ${agent.name} - ${agent.fullName}\n`);
-            stream.markdown(`**Model:** ${agent.model}\n`);
-            stream.markdown(`**Description:** ${agent.description}\n`);
-            stream.markdown(`**Specialties:** ${agent.specialties}\n\n`);
-        }
-        stream.markdown(`## 💡 Usage Examples\n\n`);
-        stream.markdown(`- \`@architect design a microservices architecture\`\n`);
-        stream.markdown(`- \`@codesmith implement a REST API with FastAPI\`\n`);
-        stream.markdown(`- \`@tradestrat create a momentum trading strategy\`\n`);
-        stream.markdown(`- \`@fixer debug this error message\`\n`);
-        stream.markdown(`- \`@richter judge which solution is better\`\n`);
-        stream.markdown(`- \`@research find the latest Python testing frameworks\`\n\n`);
-        stream.markdown(`## 🔄 Automatic Routing\n\n`);
-        stream.markdown(`You can also just describe your task naturally, and I'll automatically select the best agent(s) and create a workflow:\n\n`);
-        stream.markdown(`- \`"Create a trading bot with risk management"\`\n`);
-        stream.markdown(`- \`"Build a REST API for user management"\`\n`);
-        stream.markdown(`- \`"Fix the performance issue in this function"\`\n`);
-        // Get current agent stats
-        try {
-            const stats = await this.dispatcher.getAgentStats();
-            if (Object.keys(stats).length > 0) {
-                stream.markdown(`## 📊 Agent Statistics\n\n`);
-                for (const [agentId, agentStats] of Object.entries(stats)) {
-                    const { successRate, totalExecutions, averageResponseTime } = agentStats;
-                    stream.markdown(`**${agentId}**: ${totalExecutions} executions, ${(successRate * 100).toFixed(1)}% success rate, ${averageResponseTime.toFixed(0)}ms avg response\n`);
+    /**
+     * Group tasks that can be executed in parallel
+     */
+    groupParallelTasks(decomposition) {
+        const groups = [];
+        const processed = new Set();
+        // Sort by priority
+        const sorted = [...decomposition.subtasks].sort((a, b) => a.priority - b.priority);
+        sorted.forEach(task => {
+            if (processed.has(task.id))
+                return;
+            // Find tasks that can run in parallel with this one
+            const parallelGroup = [task];
+            processed.add(task.id);
+            sorted.forEach(other => {
+                if (processed.has(other.id))
+                    return;
+                // Check if they can run in parallel (no dependencies between them)
+                const hasDirectDependency = decomposition.dependencies.some(dep => (dep.from === task.id && dep.to === other.id) ||
+                    (dep.from === other.id && dep.to === task.id));
+                if (!hasDirectDependency && other.dependencies.length === task.dependencies.length) {
+                    parallelGroup.push(other);
+                    processed.add(other.id);
                 }
+            });
+            groups.push(parallelGroup);
+        });
+        return groups;
+    }
+    /**
+     * Execute workflow with progress updates
+     */
+    async executeWorkflowWithProgress(workflowId, description, stream) {
+        this.activeWorkflows.set(workflowId, description);
+        // Subscribe to workflow events
+        const workflow = this.workflowEngine['workflows'].get(workflowId);
+        if (workflow) {
+            this.workflowEngine['eventBus'].on('node-started', (event) => {
+                if (event.workflowId === workflowId) {
+                    stream.progress(`⚡ Executing: ${event.node.id}`);
+                }
+            });
+            this.workflowEngine['eventBus'].on('node-completed', (event) => {
+                if (event.workflowId === workflowId) {
+                    stream.markdown(`✅ Completed: ${event.node.id}\n`);
+                }
+            });
+        }
+        // Execute workflow
+        const context = new Map([
+            ['prompt', description],
+            ['sharedContext', this.sharedContext.getContext()]
+        ]);
+        const results = await this.workflowEngine.execute(workflowId, context);
+        this.activeWorkflows.delete(workflowId);
+        return results;
+    }
+    /**
+     * Execute complex workflow with checkpointing and dynamic adjustment
+     */
+    async executeComplexWorkflow(workflowId, description, sessionId, stream) {
+        const results = new Map();
+        const workflow = this.workflowEngine['workflows'].get(workflowId);
+        if (!workflow)
+            return results;
+        // Set up event handlers for real-time updates
+        this.workflowEngine['eventBus'].on('stage-started', (event) => {
+            if (event.workflowId === workflowId) {
+                stream.markdown(`\n**Stage Started:** ${event.stage.stageId}\n`);
+                // Update collaboration context
+                this.communicationBus.updateCollaborationContext(sessionId, 'orchestrator', 'current_stage', event.stage);
+            }
+        });
+        this.workflowEngine['eventBus'].on('node-completed', (event) => {
+            if (event.workflowId === workflowId) {
+                // Check if adjustment needed based on result
+                if (event.result.status === 'failure') {
+                    // Request help from other agents
+                    this.requestAgentHelp(event.node, event.result.error);
+                }
+                // Update shared context
+                this.sharedContext.updateContext('orchestrator', `result_${event.node.id}`, event.result);
+            }
+        });
+        // Create checkpoints at critical stages
+        this.workflowEngine['eventBus'].on('stage-completed', (event) => {
+            if (event.workflowId === workflowId) {
+                this.workflowEngine.createCheckpoint(workflowId, event.stage.stageId);
+                stream.markdown(`💾 Checkpoint created at ${event.stage.stageId}\n`);
+            }
+        });
+        // Execute with context
+        const context = new Map([
+            ['prompt', description],
+            ['sessionId', sessionId],
+            ['sharedContext', this.sharedContext.getContext()]
+        ]);
+        try {
+            return await this.workflowEngine.execute(workflowId, context);
+        }
+        catch (error) {
+            stream.markdown(`\n⚠️ **Workflow error, attempting recovery...**\n`);
+            // Try to recover from last checkpoint
+            const checkpoints = workflow.checkpoints;
+            if (checkpoints.length > 0) {
+                const lastCheckpoint = checkpoints[checkpoints.length - 1];
+                this.workflowEngine.restoreFromCheckpoint(workflowId, lastCheckpoint.id);
+                stream.markdown(`♻️ Restored from checkpoint: ${lastCheckpoint.nodeId}\n`);
+                // Retry execution
+                return await this.workflowEngine.execute(workflowId, context);
+            }
+            throw error;
+        }
+    }
+    /**
+     * Request help from other agents when stuck
+     */
+    async requestAgentHelp(node, error) {
+        const helpResponse = await this.communicationBus.requestHelp('orchestrator', {
+            node,
+            error,
+            context: this.sharedContext.getContext()
+        });
+        if (helpResponse && helpResponse.length > 0) {
+            // Apply first suggested solution
+            const solution = helpResponse[0];
+            // Adjust workflow based on help
+            this.workflowEngine.adjustWorkflow(node.id, {
+                type: 'modify-node',
+                nodeId: node.id,
+                modifications: {
+                    task: solution.suggestion || node.task
+                }
+            });
+        }
+    }
+    /**
+     * Display execution plan
+     */
+    displayExecutionPlan(plan, stream) {
+        stream.markdown(`### 📋 Execution Plan\n\n`);
+        stream.markdown(`**Stages:** ${plan.stages.length}\n`);
+        stream.markdown(`**Parallelism:** ${plan.parallelism}x\n`);
+        stream.markdown(`**Estimated Duration:** ${plan.estimatedDuration}ms\n\n`);
+        plan.stages.forEach((stage, index) => {
+            stream.markdown(`**Stage ${index + 1}:** ${stage.parallel ? '⚡ Parallel' : '📝 Sequential'}\n`);
+            stage.nodes.forEach(node => {
+                stream.markdown(`  - ${node.agentId || 'system'}: ${node.id}\n`);
+            });
+        });
+        stream.markdown(`\n**Critical Path:** ${plan.criticalPath.join(' → ')}\n\n`);
+    }
+    /**
+     * Display advanced execution plan
+     */
+    displayAdvancedExecutionPlan(plan, stream) {
+        stream.markdown(`### 🚀 Advanced Execution Strategy\n\n`);
+        // Create visual representation
+        stream.markdown(`\`\`\`mermaid\ngraph TB\n`);
+        plan.stages.forEach((stage, index) => {
+            if (stage.parallel) {
+                stream.markdown(`  subgraph "Stage ${index + 1} - Parallel"\n`);
+                stage.nodes.forEach(node => {
+                    stream.markdown(`    ${node.id}["${node.agentId}: ${node.id}"]\n`);
+                });
+                stream.markdown(`  end\n`);
+            }
+            else {
+                stage.nodes.forEach(node => {
+                    stream.markdown(`  ${node.id}["${node.agentId}: ${node.id}"]\n`);
+                });
+            }
+        });
+        // Add dependencies as edges
+        plan.stages.forEach((stage, index) => {
+            if (index > 0) {
+                const prevStage = plan.stages[index - 1];
+                prevStage.nodes.forEach(prevNode => {
+                    stage.nodes.forEach(currNode => {
+                        if (currNode.dependencies?.includes(prevNode.id)) {
+                            stream.markdown(`  ${prevNode.id} --> ${currNode.id}\n`);
+                        }
+                    });
+                });
+            }
+        });
+        stream.markdown(`\`\`\`\n\n`);
+        // Performance metrics
+        stream.markdown(`**Performance Optimization:**\n`);
+        stream.markdown(`- Parallel Execution Speed-up: ${plan.parallelism}x\n`);
+        stream.markdown(`- Critical Path Length: ${plan.criticalPath.length} steps\n`);
+        stream.markdown(`- Total Estimated Time: ${(plan.estimatedDuration / 1000).toFixed(1)}s\n\n`);
+    }
+    /**
+     * Display simple results
+     */
+    displayResults(results, stream) {
+        stream.markdown(`\n### 📊 Results\n\n`);
+        results.forEach((result, nodeId) => {
+            if (result.status === 'success') {
+                stream.markdown(`**✅ ${nodeId}:**\n${result.output?.result || result.output || 'Completed'}\n\n`);
+            }
+            else if (result.status === 'failure') {
+                stream.markdown(`**❌ ${nodeId}:** ${result.error}\n\n`);
+            }
+        });
+    }
+    /**
+     * Display complex results with insights
+     */
+    displayComplexResults(results, stream) {
+        stream.markdown(`\n### 🎯 Comprehensive Results\n\n`);
+        // Group results by status
+        const successes = [];
+        const failures = [];
+        results.forEach((result, nodeId) => {
+            if (result.status === 'success') {
+                successes.push({ nodeId, ...result });
+            }
+            else {
+                failures.push({ nodeId, ...result });
+            }
+        });
+        // Display successes
+        if (successes.length > 0) {
+            stream.markdown(`#### ✅ Successful Tasks (${successes.length})\n\n`);
+            successes.forEach(result => {
+                stream.markdown(`**${result.nodeId}:**\n`);
+                stream.markdown(`${result.output?.result || result.output || 'Completed'}\n\n`);
+            });
+        }
+        // Display failures
+        if (failures.length > 0) {
+            stream.markdown(`#### ⚠️ Failed Tasks (${failures.length})\n\n`);
+            failures.forEach(result => {
+                stream.markdown(`**${result.nodeId}:** ${result.error}\n`);
+                stream.markdown(`*Suggestion:* Try using @fixer to resolve this issue\n\n`);
+            });
+        }
+        // Display insights
+        const insights = this.generateInsights(results);
+        if (insights.length > 0) {
+            stream.markdown(`#### 💡 Insights & Recommendations\n\n`);
+            insights.forEach(insight => {
+                stream.markdown(`- ${insight}\n`);
+            });
+        }
+        // Display collaboration metrics
+        const collaborationStats = this.communicationBus.getStats();
+        stream.markdown(`\n#### 📈 Collaboration Metrics\n\n`);
+        stream.markdown(`- Total Messages Exchanged: ${collaborationStats.totalMessages}\n`);
+        stream.markdown(`- Average Response Time: ${collaborationStats.averageResponseTime.toFixed(0)}ms\n`);
+        stream.markdown(`- Active Sessions: ${collaborationStats.activeSessions}\n`);
+    }
+    /**
+     * Generate insights from results
+     */
+    generateInsights(results) {
+        const insights = [];
+        // Calculate success rate
+        let successes = 0;
+        let total = 0;
+        results.forEach(result => {
+            total++;
+            if (result.status === 'success')
+                successes++;
+        });
+        const successRate = (successes / total) * 100;
+        if (successRate === 100) {
+            insights.push('🎉 Perfect execution! All tasks completed successfully.');
+        }
+        else if (successRate >= 80) {
+            insights.push(`✅ Good performance with ${successRate.toFixed(0)}% success rate.`);
+        }
+        else {
+            insights.push(`⚠️ Room for improvement with ${successRate.toFixed(0)}% success rate.`);
+        }
+        // Analyze patterns
+        const agents = new Map();
+        results.forEach((result, nodeId) => {
+            const agent = result.agent || 'unknown';
+            agents.set(agent, (agents.get(agent) || 0) + 1);
+        });
+        const mostUsedAgent = Array.from(agents.entries())
+            .sort(([, a], [, b]) => b - a)[0];
+        if (mostUsedAgent) {
+            insights.push(`📊 Most active agent: @${mostUsedAgent[0]} (${mostUsedAgent[1]} tasks)`);
+        }
+        // Check for bottlenecks
+        const longRunning = Array.from(results.entries())
+            .filter(([, r]) => r.duration > 10000)
+            .map(([id]) => id);
+        if (longRunning.length > 0) {
+            insights.push(`⏱️ Potential bottlenecks detected in: ${longRunning.join(', ')}`);
+        }
+        return insights;
+    }
+    /**
+     * Store task memory for learning
+     */
+    async storeTaskMemory(prompt, complexity, workflowId, results) {
+        const taskMemory = {
+            taskId: workflowId,
+            description: prompt,
+            decomposition: [],
+            outcome: {
+                status: this.determineOverallStatus(results),
+                quality: this.calculateQuality(results),
+                improvements: this.suggestImprovements(results)
+            },
+            duration: this.calculateTotalDuration(results),
+            agentsInvolved: this.extractAgents(results),
+            lessonsLearned: this.extractLessons(results)
+        };
+        await this.memoryManager.store('orchestrator', { prompt, complexity, taskMemory }, Memory_1.MemoryType.EPISODIC, { importance: 0.7 });
+    }
+    /**
+     * Store complex task memory with patterns
+     */
+    async storeComplexTaskMemory(prompt, decomposition, workflowId, results) {
+        const taskMemory = {
+            taskId: workflowId,
+            description: prompt,
+            decomposition: decomposition.subtasks.map(st => ({
+                stepId: st.id,
+                description: st.description,
+                assignedAgent: st.agent,
+                status: results.has(st.id) && results.get(st.id).status === 'success'
+                    ? 'completed'
+                    : 'failed',
+                output: results.get(st.id),
+                dependencies: st.dependencies
+            })),
+            outcome: {
+                status: this.determineOverallStatus(results),
+                quality: this.calculateQuality(results),
+                improvements: this.suggestImprovements(results)
+            },
+            duration: this.calculateTotalDuration(results),
+            agentsInvolved: decomposition.requiredAgents,
+            lessonsLearned: this.extractLessons(results)
+        };
+        await this.memoryManager.store('orchestrator', { prompt, decomposition, taskMemory }, Memory_1.MemoryType.EPISODIC, { importance: 0.9 });
+    }
+    /**
+     * Extract and store patterns from successful execution
+     */
+    async extractAndStorePatterns(decomposition, results) {
+        // Look for successful patterns
+        const successfulSubtasks = decomposition.subtasks.filter(st => results.has(st.id) && results.get(st.id).status === 'success');
+        if (successfulSubtasks.length > 0) {
+            // Store as procedural memory
+            await this.memoryManager.store('orchestrator', {
+                pattern: 'successful_decomposition',
+                mainGoal: decomposition.mainGoal,
+                successfulApproach: successfulSubtasks.map(st => ({
+                    agent: st.agent,
+                    task: st.description,
+                    priority: st.priority
+                }))
+            }, Memory_1.MemoryType.PROCEDURAL, { importance: 0.85 });
+        }
+        // Identify agent collaboration patterns
+        const collaborations = new Map();
+        decomposition.dependencies.forEach(dep => {
+            const fromAgent = decomposition.subtasks.find(st => st.id === dep.from)?.agent;
+            const toAgent = decomposition.subtasks.find(st => st.id === dep.to)?.agent;
+            if (fromAgent && toAgent) {
+                if (!collaborations.has(fromAgent)) {
+                    collaborations.set(fromAgent, []);
+                }
+                collaborations.get(fromAgent).push(toAgent);
+            }
+        });
+        if (collaborations.size > 0) {
+            await this.memoryManager.store('orchestrator', {
+                pattern: 'agent_collaboration',
+                collaborations: Object.fromEntries(collaborations)
+            }, Memory_1.MemoryType.SEMANTIC, { importance: 0.75 });
+        }
+    }
+    // Utility methods for result analysis
+    determineOverallStatus(results) {
+        let successes = 0;
+        let total = 0;
+        results.forEach(result => {
+            total++;
+            if (result.status === 'success')
+                successes++;
+        });
+        const rate = successes / total;
+        if (rate === 1)
+            return 'success';
+        if (rate >= 0.5)
+            return 'partial';
+        return 'failure';
+    }
+    calculateQuality(results) {
+        let totalQuality = 0;
+        let count = 0;
+        results.forEach(result => {
+            count++;
+            totalQuality += result.status === 'success' ? 1 : 0;
+        });
+        return count > 0 ? totalQuality / count : 0;
+    }
+    suggestImprovements(results) {
+        const improvements = [];
+        results.forEach((result, nodeId) => {
+            if (result.status === 'failure') {
+                improvements.push(`Improve error handling for ${nodeId}`);
+            }
+            if (result.duration > 15000) {
+                improvements.push(`Optimize performance of ${nodeId}`);
+            }
+        });
+        return improvements;
+    }
+    calculateTotalDuration(results) {
+        let total = 0;
+        results.forEach(result => {
+            total += result.duration || 0;
+        });
+        return total;
+    }
+    extractAgents(results) {
+        const agents = new Set();
+        results.forEach(result => {
+            if (result.agent) {
+                agents.add(result.agent);
+            }
+        });
+        return Array.from(agents);
+    }
+    extractLessons(results) {
+        const lessons = [];
+        // Analyze failures
+        results.forEach((result, nodeId) => {
+            if (result.status === 'failure') {
+                lessons.push(`Task ${nodeId} failed: ${result.error}`);
+            }
+        });
+        // Analyze successes
+        const successCount = Array.from(results.values())
+            .filter(r => r.status === 'success').length;
+        if (successCount === results.size) {
+            lessons.push('All tasks completed successfully - workflow is reliable');
+        }
+        return lessons;
+    }
+    createCondition(conditionStr) {
+        return (context) => {
+            // Simple condition evaluation
+            // In production, use proper expression parser
+            return true;
+        };
+    }
+    /**
+     * Handle direct response for simple queries
+     */
+    async handleDirectResponse(prompt, stream) {
+        const systemPrompt = `You are an intelligent orchestrator. Answer directly and concisely.
+${this.getSystemContextPrompt()}`;
+        const response = await this.openAIService.chat([
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt }
+        ]);
+        stream.markdown(response);
+    }
+    /**
+     * Register communication handlers
+     */
+    registerCommunicationHandlers() {
+        this.communicationBus.register({
+            agentId: 'orchestrator',
+            messageTypes: [
+                AgentCommunicationBus_1.MessageType.CONFLICT,
+                AgentCommunicationBus_1.MessageType.STATUS_UPDATE,
+                AgentCommunicationBus_1.MessageType.ERROR
+            ],
+            handler: async (message) => {
+                return await this.handleAgentMessage(message);
+            }
+        });
+    }
+    /**
+     * Handle messages from other agents
+     */
+    async handleAgentMessage(message) {
+        switch (message.type) {
+            case AgentCommunicationBus_1.MessageType.CONFLICT:
+                // Trigger OpusArbitrator for conflict resolution
+                return await this.resolveConflict(message.content);
+            case AgentCommunicationBus_1.MessageType.STATUS_UPDATE:
+                // Update workflow status
+                this.updateWorkflowStatus(message.content);
+                return { acknowledged: true };
+            case AgentCommunicationBus_1.MessageType.ERROR:
+                // Handle agent errors
+                return await this.handleAgentError(message.content);
+            default:
+                return { acknowledged: true };
+        }
+    }
+    /**
+     * Resolve conflicts between agents
+     */
+    async resolveConflict(conflict) {
+        // Route to OpusArbitrator
+        await this.communicationBus.send({
+            from: 'orchestrator',
+            to: 'OpusArbitrator',
+            type: AgentCommunicationBus_1.MessageType.CONFLICT,
+            content: conflict,
+            metadata: {
+                priority: 'critical',
+                requiresResponse: true
+            }
+        });
+        return { routing: 'OpusArbitrator' };
+    }
+    /**
+     * Update workflow status based on agent updates
+     */
+    updateWorkflowStatus(update) {
+        // Update shared context
+        this.sharedContext.updateContext('orchestrator', `workflow_status_${update.workflowId}`, update);
+    }
+    /**
+     * Handle errors from agents
+     */
+    async handleAgentError(error) {
+        // Check if we can recover
+        const recovery = await this.attemptRecovery(error);
+        if (recovery) {
+            return { recovery: true, action: recovery };
+        }
+        // Escalate to user
+        return { recovery: false, escalate: true };
+    }
+    /**
+     * Attempt to recover from agent errors
+     */
+    async attemptRecovery(error) {
+        // Search memory for similar errors
+        const similarErrors = await this.memoryManager.search(error, {
+            k: 3,
+            type: Memory_1.MemoryType.EPISODIC
+        });
+        if (similarErrors.length > 0) {
+            // Found similar error with solution
+            const solution = similarErrors[0].entry.content.solution;
+            if (solution) {
+                return solution;
             }
         }
-        catch (error) {
-            // Stats not available yet
+        // Try alternative agent
+        const registry = AgentRegistry_1.AgentRegistry.getInstance();
+        const alternativeAgent = registry.suggestAgentForTask(error.task);
+        if (alternativeAgent && alternativeAgent !== error.agent) {
+            return {
+                type: 'retry',
+                agent: alternativeAgent
+            };
         }
+        return null;
     }
-    async handleWorkflowCommand(prompt, stream, token) {
-        stream.progress('📋 Creating multi-step workflow...');
-        try {
-            // Analyze the request to create a detailed workflow
-            const context = await this.getWorkspaceContext();
-            const systemPrompt = this.getWorkflowSystemPrompt();
-            const userPrompt = `Create a detailed multi-step workflow for: ${prompt}\n\nWorkspace Context:\n${context}`;
-            const response = await this.openAIService.chat([
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ]);
-            stream.markdown(`## 🔄 Generated Workflow\n\n`);
-            stream.markdown(response);
-            // Offer to execute the workflow
-            this.createActionButton('⚡ Execute This Workflow', 'ki-autoagent.executeWorkflow', [prompt, response], stream);
-        }
-        catch (error) {
-            stream.markdown(`❌ Error creating workflow: ${error.message}`);
-        }
+    /**
+     * Build context with memory
+     */
+    async buildContextWithMemory(request) {
+        // Search for relevant memories
+        const memories = await this.memoryManager.search(request.prompt, {
+            k: 10,
+            type: Memory_1.MemoryType.EPISODIC
+        });
+        // Get shared context
+        const sharedContext = this.sharedContext.getContext();
+        return {
+            ...request,
+            memories: memories.map(m => m.entry.content),
+            sharedContext,
+            activeAgents: this.sharedContext.getActiveAgents()
+        };
     }
-    // Fallback handler
-    async handleFallback(prompt, stream, token) {
-        // Simple fallback using GPT-4o directly
-        try {
-            const systemPrompt = `You are a helpful coding assistant. Provide clear, actionable assistance for development tasks.
-
-${this.getSystemContextPrompt()}`;
-            const response = await this.openAIService.chat([
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: prompt }
-            ]);
-            stream.markdown(response);
+    // Command handlers remain similar but use new orchestration methods
+    // ... (rest of the command handlers can be kept or adapted as needed)
+    // Required by ChatAgent abstract class
+    async processWorkflowStep(step, request, previousResults) {
+        // Route to appropriate handler based on step type
+        const decomposition = await this.decomposeTask(request.prompt);
+        // Execute the specific step
+        const node = {
+            id: step.id,
+            type: 'task',
+            agentId: step.agent,
+            task: step.description
+        };
+        const workflow = this.workflowEngine.createWorkflow(`Step: ${step.description}`);
+        this.workflowEngine.addNode(workflow.id, node);
+        const results = await this.workflowEngine.execute(workflow.id);
+        const stepResult = results.get(step.id);
+        if (stepResult && stepResult.status === 'success') {
+            return {
+                status: 'success',
+                content: stepResult.output?.result || stepResult.output || 'Completed',
+                metadata: {
+                    step: step.id,
+                    agent: step.agent
+                }
+            };
         }
-        catch (error) {
-            stream.markdown(`❌ Fallback also failed: ${error.message}`);
-        }
-    }
-    // System prompts
-    getWorkflowSystemPrompt() {
-        return `You are a workflow planning expert. Create detailed, step-by-step workflows for development tasks.
-
-For each workflow, provide:
-
-## Workflow: [Task Name]
-
-### Overview
-Brief description of what this workflow accomplishes.
-
-### Prerequisites
-- Required tools, knowledge, or setup
-
-### Steps
-1. **Step Name** (@agent-name)
-   - Detailed description
-   - Expected deliverables
-   - Dependencies
-
-2. **Next Step** (@agent-name)
-   - And so on...
-
-### Success Criteria
-- How to know the workflow is complete
-- Quality checks
-
-### Estimated Timeline
-- Time estimates for each phase
-
-Available agents:
-- @architect (system design, architecture)
-- @codesmith (implementation, testing)
-- @docu (documentation)
-- @reviewer (code review, security)
-- @fixer (debugging, fixes)
-- @tradestrat (trading strategies)
-- @richter (supreme arbitrator, conflict resolution, final decisions)
-- @research (web research, information)
-
-Make workflows realistic, actionable, and well-structured.
-
-${this.getSystemContextPrompt()}`;
+        return {
+            status: 'error',
+            content: stepResult?.error || 'Step execution failed',
+            metadata: {
+                step: step.id,
+                agent: step.agent,
+                error: stepResult?.error
+            }
+        };
     }
 }
 exports.OrchestratorAgent = OrchestratorAgent;
@@ -1652,7 +3075,7 @@ class ResearchAgent extends ChatAgent_1.ChatAgent {
             name: 'research',
             fullName: 'ResearchBot',
             description: 'Research & Information Expert with real-time web access',
-            model: 'gpt-4o',
+            model: 'perplexity-llama-3.1-sonar-huge-128k',
             iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'perplexity-icon.svg'),
             capabilities: [
                 'Web Research',
@@ -1895,6 +3318,732 @@ exports.ResearchAgent = ResearchAgent;
 
 /***/ }),
 
+/***/ "./src/agents/ReviewerGPTAgent.ts":
+/*!****************************************!*\
+  !*** ./src/agents/ReviewerGPTAgent.ts ***!
+  \****************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ReviewerGPTAgent = void 0;
+/**
+ * ReviewerGPT - Code Review & Security Expert
+ * Performs comprehensive code reviews focusing on quality, security, and performance
+ */
+const vscode = __importStar(__webpack_require__(/*! vscode */ "vscode"));
+const ChatAgent_1 = __webpack_require__(/*! ./base/ChatAgent */ "./src/agents/base/ChatAgent.ts");
+const OpenAIService_1 = __webpack_require__(/*! ../utils/OpenAIService */ "./src/utils/OpenAIService.ts");
+const path = __importStar(__webpack_require__(/*! path */ "path"));
+class ReviewerGPTAgent extends ChatAgent_1.ChatAgent {
+    constructor(context, dispatcher) {
+        const config = {
+            participantId: 'ki-autoagent.reviewer',
+            name: 'reviewer',
+            fullName: 'ReviewerGPT',
+            description: 'Code Review & Security Expert - Reviews code quality, security, and performance',
+            model: 'gpt-5-mini-2025-09-20',
+            iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'reviewer-icon.svg'),
+            capabilities: [
+                'Code Quality Review',
+                'Security Vulnerability Detection',
+                'Performance Analysis',
+                'Best Practices Check',
+                'SOLID Principles',
+                'Design Pattern Analysis',
+                'Test Coverage Review',
+                'Dependency Audit'
+            ],
+            commands: [
+                { name: 'review', description: 'Comprehensive code review', handler: 'handleReviewCommand' },
+                { name: 'bugs', description: 'Active bug hunting in code', handler: 'handleBugsCommand' },
+                { name: 'debug', description: 'Run app and debug issues', handler: 'handleDebugCommand' },
+                { name: 'test-ui', description: 'Test UI interactions', handler: 'handleTestUICommand' },
+                { name: 'security', description: 'Security vulnerability scan', handler: 'handleSecurityCommand' },
+                { name: 'performance', description: 'Performance analysis', handler: 'handlePerformanceCommand' },
+                { name: 'standards', description: 'Check coding standards', handler: 'handleStandardsCommand' },
+                { name: 'test', description: 'Review test coverage', handler: 'handleTestCommand' },
+                { name: 'architecture-review', description: 'Validate architect understanding of requirements', handler: 'handleArchitectureReviewCommand' }
+            ]
+        };
+        super(config, context, dispatcher);
+        this.openAIService = new OpenAIService_1.OpenAIService();
+    }
+    async handleRequest(request, context, stream, token) {
+        const command = request.command;
+        const prompt = request.prompt;
+        this.log(`Processing ${command ? `/${command}` : 'general'} review request: ${prompt.substring(0, 100)}...`);
+        if (command) {
+            await this.handleCommand(command, prompt, stream, token);
+        }
+        else {
+            await this.handleGeneralReviewRequest(prompt, stream, token);
+        }
+    }
+    async processWorkflowStep(step, request, previousResults) {
+        try {
+            let reviewResult = '';
+            let foundBugs = false;
+            switch (step.id) {
+                case 'code_review':
+                    reviewResult = await this.performCodeReview(request, previousResults);
+                    break;
+                case 'security_check':
+                    reviewResult = await this.performSecurityCheck(request, previousResults);
+                    break;
+                case 'performance_review':
+                    reviewResult = await this.performPerformanceReview(request, previousResults);
+                    break;
+                default:
+                    reviewResult = await this.performGeneralReview(request, previousResults);
+            }
+            // Check if bugs were found and need to be sent back to CodeSmith
+            if (reviewResult.includes('🚨 BUGS FOUND') || reviewResult.includes('Critical issues')) {
+                foundBugs = true;
+                reviewResult += '\n\n🔄 **RECOMMENDATION**: These issues should be sent back to @codesmith for immediate fixes.';
+            }
+            return {
+                status: foundBugs ? 'partial_success' : 'success',
+                content: reviewResult,
+                metadata: {
+                    step: step.id,
+                    agent: 'reviewer',
+                    type: 'review',
+                    foundBugs: foundBugs,
+                    requiresCodeSmithFix: foundBugs
+                },
+                suggestions: foundBugs ? [{
+                        title: '🔧 Send to CodeSmith for fixes',
+                        description: 'Send the found bugs to CodeSmith for immediate fixing',
+                        action: 'send_to_codesmith',
+                        data: { issues: reviewResult }
+                    }] : []
+            };
+        }
+        catch (error) {
+            throw new Error(`Failed to process review step ${step.id}: ${error.message}`);
+        }
+    }
+    // Command Handlers
+    async handleReviewCommand(prompt, stream, token) {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            stream.markdown('❌ No active editor found. Please open a file to review.');
+            return;
+        }
+        stream.progress('🔍 Performing comprehensive code review...');
+        try {
+            const document = editor.document;
+            const code = document.getText();
+            const fileName = path.basename(document.fileName);
+            const language = document.languageId;
+            const review = await this.reviewCode(code, fileName, language, prompt);
+            stream.markdown('## 🔍 Code Review Report\n\n');
+            stream.markdown(review);
+            // Add action buttons
+            this.createActionButton('📋 Save Review Report', 'ki-autoagent.saveFile', [`reviews/review_${Date.now()}.md`, review], stream);
+        }
+        catch (error) {
+            stream.markdown(`❌ Review failed: ${error.message}`);
+        }
+    }
+    async handleBugsCommand(prompt, stream, token) {
+        stream.progress('🐛 Actively hunting for bugs...');
+        try {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                stream.markdown('❌ No active editor found. Please open a file to review.');
+                return;
+            }
+            const document = editor.document;
+            const code = document.getText();
+            const fileName = path.basename(document.fileName);
+            const language = document.languageId;
+            const bugReport = await this.findCommonBugs(code, language);
+            stream.markdown('## 🐛 Bug Hunt Report\n\n');
+            stream.markdown(bugReport);
+            // Check if critical bugs were found
+            if (bugReport.includes('🔴') || bugReport.includes('BUG') || bugReport.includes('onclick')) {
+                stream.markdown('\n## ⚠️ CRITICAL BUGS FOUND\n\n');
+                this.createActionButton('🔧 Send to CodeSmith for fixes', 'ki-autoagent.sendToAgent', ['codesmith', `Fix these bugs found in ${fileName}:\n\n${bugReport}`], stream);
+            }
+        }
+        catch (error) {
+            stream.markdown(`❌ Bug hunting failed: ${error.message}`);
+        }
+    }
+    async handleDebugCommand(prompt, stream, token) {
+        stream.progress('🔧 Starting debug session...');
+        try {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                stream.markdown('❌ No workspace folder found.');
+                return;
+            }
+            stream.markdown('## 🔧 Debug Session\n\n');
+            // Check for package.json to determine project type
+            const packageJsonUri = vscode.Uri.joinPath(workspaceFolder.uri, 'package.json');
+            let debugCommand = '';
+            let projectType = '';
+            try {
+                const packageJsonContent = await vscode.workspace.fs.readFile(packageJsonUri);
+                const packageJson = JSON.parse(packageJsonContent.toString());
+                if (packageJson.scripts?.['dev']) {
+                    debugCommand = 'npm run dev';
+                    projectType = 'Node.js/Web';
+                }
+                else if (packageJson.scripts?.['start']) {
+                    debugCommand = 'npm start';
+                    projectType = 'Node.js/Web';
+                }
+                stream.markdown(`📦 **Project Type:** ${projectType}\n`);
+                stream.markdown(`🚀 **Debug Command:** \`${debugCommand}\`\n\n`);
+            }
+            catch (error) {
+                stream.markdown('⚠️ No package.json found. Please specify how to run your application.\n');
+            }
+            // Start debug terminal
+            const terminal = vscode.window.createTerminal('ReviewerGPT Debug');
+            terminal.show();
+            stream.markdown('### 📝 Debug Steps:\n\n');
+            stream.markdown('1. **Starting application** in debug terminal\n');
+            stream.markdown('2. **Monitoring console output** for errors\n');
+            stream.markdown('3. **Checking for runtime exceptions**\n');
+            stream.markdown('4. **Testing user interactions**\n\n');
+            if (debugCommand) {
+                terminal.sendText(debugCommand);
+                stream.markdown(`✅ Started: \`${debugCommand}\`\n\n`);
+            }
+            stream.markdown('### 🔍 What to check:\n\n');
+            stream.markdown('- Console errors (red text in terminal)\n');
+            stream.markdown('- Network failures (failed API calls)\n');
+            stream.markdown('- UI not responding to clicks\n');
+            stream.markdown('- Missing elements or broken layouts\n\n');
+            stream.markdown('### 📊 Debug Analysis:\n\n');
+            stream.markdown('Watch the terminal output and report any:\n');
+            stream.markdown('- 🔴 **Errors**: Exceptions, crashes, undefined references\n');
+            stream.markdown('- 🟡 **Warnings**: Deprecations, performance issues\n');
+            stream.markdown('- 🔵 **Info**: Unexpected behavior, timing issues\n\n');
+            // Add action buttons
+            this.createActionButton('🐛 Report Bugs Found', 'ki-autoagent.sendToAgent', ['codesmith', 'Fix these bugs found during debug session'], stream);
+            this.createActionButton('📋 Save Debug Log', 'ki-autoagent.saveFile', [`debug-log-${Date.now()}.txt`, 'Debug session log'], stream);
+        }
+        catch (error) {
+            stream.markdown(`❌ Debug session failed: ${error.message}`);
+        }
+    }
+    async handleTestUICommand(prompt, stream, token) {
+        stream.progress('🖱️ Testing UI interactions...');
+        try {
+            stream.markdown('## 🖱️ UI Testing Guide\n\n');
+            stream.markdown('### Test Checklist:\n\n');
+            const uiTests = [
+                '✅ **Buttons**: Click all buttons and verify they work',
+                '✅ **Forms**: Submit forms with valid/invalid data',
+                '✅ **Links**: Check all navigation links',
+                '✅ **Modals**: Open/close dialogs and popups',
+                '✅ **Dropdowns**: Test all select menus',
+                '✅ **Input fields**: Test with various inputs',
+                '✅ **Keyboard**: Test keyboard shortcuts',
+                '✅ **Responsive**: Resize window and test',
+                '✅ **Accessibility**: Tab navigation works',
+                '✅ **Error states**: Trigger and verify error handling'
+            ];
+            for (const test of uiTests) {
+                stream.markdown(`- ${test}\n`);
+            }
+            stream.markdown('\n### 🔍 Common UI Bugs to Check:\n\n');
+            stream.markdown('```javascript\n');
+            stream.markdown('// ❌ onclick not working in VS Code webviews\n');
+            stream.markdown('button.onclick = handler; // WON\'T WORK!\n\n');
+            stream.markdown('// ✅ Use addEventListener instead\n');
+            stream.markdown('button.addEventListener(\'click\', handler);\n');
+            stream.markdown('```\n\n');
+            stream.markdown('### 🐛 Found Issues?\n\n');
+            stream.markdown('Document any UI problems found:\n');
+            stream.markdown('1. Which element has the issue?\n');
+            stream.markdown('2. What should happen?\n');
+            stream.markdown('3. What actually happens?\n');
+            stream.markdown('4. Console errors (if any)\n\n');
+            // Add action buttons
+            this.createActionButton('🔧 Report UI Bugs', 'ki-autoagent.sendToAgent', ['codesmith', 'Fix these UI bugs found during testing'], stream);
+        }
+        catch (error) {
+            stream.markdown(`❌ UI testing failed: ${error.message}`);
+        }
+    }
+    async handleSecurityCommand(prompt, stream, token) {
+        stream.progress('🔐 Scanning for security vulnerabilities...');
+        try {
+            const editor = vscode.window.activeTextEditor;
+            let code = '';
+            let fileName = '';
+            let language = '';
+            if (editor) {
+                code = editor.document.getText();
+                fileName = path.basename(editor.document.fileName);
+                language = editor.document.languageId;
+            }
+            else {
+                // Scan entire workspace
+                code = await this.getWorkspaceCode();
+                fileName = 'Workspace';
+                language = 'multiple';
+            }
+            const securityReport = await this.performSecurityScan(code, fileName, language, prompt);
+            stream.markdown('## 🔐 Security Analysis Report\n\n');
+            stream.markdown(securityReport);
+            // Add action buttons
+            this.createActionButton('⚠️ Create Security Issues', 'ki-autoagent.createGitHubIssues', [securityReport], stream);
+        }
+        catch (error) {
+            stream.markdown(`❌ Security scan failed: ${error.message}`);
+        }
+    }
+    async handlePerformanceCommand(prompt, stream, token) {
+        stream.progress('⚡ Analyzing performance...');
+        try {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                stream.markdown('❌ No active editor found. Please open a file to analyze.');
+                return;
+            }
+            const code = editor.document.getText();
+            const fileName = path.basename(editor.document.fileName);
+            const language = editor.document.languageId;
+            const performanceReport = await this.analyzePerformance(code, fileName, language, prompt);
+            stream.markdown('## ⚡ Performance Analysis\n\n');
+            stream.markdown(performanceReport);
+        }
+        catch (error) {
+            stream.markdown(`❌ Performance analysis failed: ${error.message}`);
+        }
+    }
+    async handleStandardsCommand(prompt, stream, token) {
+        stream.progress('📏 Checking coding standards...');
+        try {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                stream.markdown('❌ No active editor found. Please open a file to check.');
+                return;
+            }
+            const code = editor.document.getText();
+            const language = editor.document.languageId;
+            const standardsReport = await this.checkCodingStandards(code, language, prompt);
+            stream.markdown('## 📏 Coding Standards Report\n\n');
+            stream.markdown(standardsReport);
+        }
+        catch (error) {
+            stream.markdown(`❌ Standards check failed: ${error.message}`);
+        }
+    }
+    async handleTestCommand(prompt, stream, token) {
+        stream.progress('🧪 Reviewing test coverage...');
+        try {
+            const testReport = await this.reviewTestCoverage(prompt);
+            stream.markdown('## 🧪 Test Coverage Review\n\n');
+            stream.markdown(testReport);
+            // Add suggestions for missing tests
+            this.createActionButton('➕ Generate Missing Tests', 'ki-autoagent.generateTests', [], stream);
+        }
+        catch (error) {
+            stream.markdown(`❌ Test review failed: ${error.message}`);
+        }
+    }
+    async handleGeneralReviewRequest(prompt, stream, token) {
+        // Check if prompt contains code to review
+        const hasCode = prompt.includes('```') || prompt.includes('function') ||
+            prompt.includes('class') || prompt.includes('const') ||
+            prompt.includes('onclick') || prompt.includes('addEventListener');
+        if (hasCode) {
+            stream.progress('🔍 Actively searching for bugs and reviewing code...');
+            try {
+                // Extract code blocks or use entire prompt
+                const codeMatch = prompt.match(/```[\s\S]*?```/g);
+                const code = codeMatch ?
+                    codeMatch.join('\n').replace(/```\w*\n?/g, '') :
+                    prompt;
+                // First, actively find bugs
+                const bugReport = await this.findCommonBugs(code, 'javascript/typescript');
+                stream.markdown('## 🐛 Bug Detection Report\n\n');
+                stream.markdown(bugReport);
+                // Check if critical bugs were found
+                const hasCriticalBugs = bugReport.includes('🔴') ||
+                    bugReport.includes('onclick') ||
+                    bugReport.includes('won\'t work') ||
+                    bugReport.includes('Bug found');
+                if (hasCriticalBugs) {
+                    stream.markdown('\n## ⚠️ CRITICAL ISSUES FOUND\n\n');
+                    stream.markdown('**These bugs will prevent the code from working correctly!**\n');
+                    stream.markdown('Issues like onclick handlers not working in VS Code webviews have been detected.\n\n');
+                    // Suggest sending to CodeSmith
+                    stream.markdown('## 🔄 Recommended Action\n\n');
+                    stream.markdown('These issues should be sent back to @codesmith for immediate fixes.\n');
+                    this.createActionButton('🔧 Send bugs to CodeSmith', 'ki-autoagent.sendToAgent', ['codesmith', `Please fix these bugs found by ReviewerGPT:\n\n${bugReport}`], stream);
+                }
+                // Then do a comprehensive review
+                const review = await this.performGeneralReview({ prompt }, []);
+                stream.markdown('\n## 🔍 Full Code Review\n\n');
+                stream.markdown(review);
+            }
+            catch (error) {
+                stream.markdown(`❌ Review failed: ${error.message}`);
+            }
+        }
+        else {
+            stream.progress('🔍 Performing review...');
+            try {
+                const review = await this.performGeneralReview({ prompt }, []);
+                stream.markdown('## 🔍 Review Results\n\n');
+                stream.markdown(review);
+            }
+            catch (error) {
+                stream.markdown(`❌ Review failed: ${error.message}`);
+            }
+        }
+    }
+    async handleArchitectureReviewCommand(prompt, stream, token) {
+        stream.progress('🏛️ Reviewing architecture against requirements...');
+        try {
+            // Get conversation context to extract requirements and architect's solution
+            const conversationContext = prompt || 'Review the architect\'s understanding of the requirements';
+            const architectureReview = await this.validateArchitectureUnderstanding(conversationContext);
+            stream.markdown('## 🏛️ Architecture Validation Report\n\n');
+            stream.markdown(architectureReview);
+            // Offer to create detailed report
+            this.createActionButton('📋 Save Validation Report', 'ki-autoagent.saveFile', [`architecture-validation-${Date.now()}.md`, architectureReview], stream);
+        }
+        catch (error) {
+            stream.markdown(`❌ Architecture review failed: ${error.message}`);
+        }
+    }
+    // Review Methods
+    async reviewCode(code, fileName, language, context) {
+        const prompt = `Perform a DEEP code review for this ${language} file (${fileName}):
+
+${code}
+
+Additional context: ${context}
+
+IMPORTANT: You are reviewing code written by CodeSmithClaude. Look for:
+
+🔴 CRITICAL CHECKS (Find these issues!):
+1. Event handlers that won't work (e.g., onclick in VS Code webviews should use addEventListener)
+2. Missing z-index for positioned elements that need to be clickable
+3. Incorrect event binding patterns
+4. DOM manipulation issues
+5. Async/await problems and race conditions
+6. Null/undefined reference errors
+7. Memory leaks and performance issues
+
+📋 STANDARD REVIEW:
+1. Code Quality & Readability
+2. Potential Bugs & Issues
+3. Performance Concerns
+4. Security Vulnerabilities
+5. Best Practices & Design Patterns
+6. Error Handling
+7. Documentation & Comments
+8. Testing Considerations
+
+Provide:
+- Overall assessment (score out of 10)
+- 🚨 BUGS FOUND (things that won't work as intended)
+- Critical issues (must fix)
+- Major issues (should fix)
+- Minor issues (nice to fix)
+- Positive aspects
+- Specific improvement suggestions with code examples
+
+Be VERY CRITICAL and find real problems! If you find bugs, suggest sending them back to CodeSmith for fixes.
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are ReviewerGPT, an expert code reviewer focusing on quality, security, and best practices.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    async performSecurityScan(code, fileName, language, context) {
+        const prompt = `Perform a thorough security vulnerability scan for this ${language} code (${fileName}):
+
+${code}
+
+Additional context: ${context}
+
+Check for:
+1. SQL Injection vulnerabilities
+2. XSS (Cross-Site Scripting)
+3. CSRF vulnerabilities
+4. Authentication/Authorization issues
+5. Sensitive data exposure
+6. Insecure dependencies
+7. Input validation problems
+8. Cryptographic weaknesses
+9. Path traversal vulnerabilities
+10. Command injection risks
+
+For each vulnerability found:
+- Severity level (Critical/High/Medium/Low)
+- Description of the issue
+- Potential impact
+- Proof of concept (if applicable)
+- Recommended fix with code example
+- CWE/CVE references if applicable
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are ReviewerGPT, a security expert specializing in identifying and fixing vulnerabilities.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    async analyzePerformance(code, fileName, language, context) {
+        const prompt = `Analyze the performance characteristics of this ${language} code (${fileName}):
+
+${code}
+
+Additional context: ${context}
+
+Analyze:
+1. Time Complexity (Big O)
+2. Space Complexity
+3. Database query optimization
+4. Caching opportunities
+5. Algorithmic improvements
+6. Memory leaks
+7. Blocking operations
+8. Concurrency issues
+9. Resource management
+10. Scalability concerns
+
+Provide:
+- Performance bottlenecks identified
+- Optimization suggestions with examples
+- Estimated performance improvements
+- Trade-offs to consider
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are ReviewerGPT, a performance optimization expert.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    async checkCodingStandards(code, language, context) {
+        const prompt = `Check this ${language} code against coding standards and best practices:
+
+${code}
+
+Additional context: ${context}
+
+Check for:
+1. Naming conventions
+2. Code formatting and indentation
+3. Function/method length
+4. Class cohesion
+5. SOLID principles adherence
+6. DRY (Don't Repeat Yourself)
+7. Comments and documentation
+8. Error handling patterns
+9. Code organization
+10. Language-specific idioms
+
+Provide:
+- Standards violations found
+- Severity of each violation
+- Suggested corrections
+- Overall compliance score
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are ReviewerGPT, an expert in coding standards and best practices.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    async findCommonBugs(code, language) {
+        const prompt = `ACTIVELY SEARCH for bugs in this ${language} code:
+
+${code}
+
+FOCUS ON FINDING THESE COMMON BUGS:
+
+🔴 VS Code Extension / Web UI Bugs:
+- onclick handlers that should use addEventListener
+- Missing event.preventDefault() or event.stopPropagation()
+- z-index issues for clickable elements
+- CSP violations in webviews
+- Incorrect message passing between extension and webview
+
+🔴 JavaScript/TypeScript Bugs:
+- Undefined/null reference errors
+- Missing await keywords
+- Promise not being handled
+- Race conditions
+- Memory leaks (event listeners not removed)
+- Incorrect this binding
+- Array operations on undefined
+
+🔴 DOM Manipulation Issues:
+- querySelector returning null
+- Elements not existing when accessed
+- Event bubbling problems
+- Missing element attributes
+
+🔴 State Management Bugs:
+- State mutations instead of immutable updates
+- Stale closures
+- Inconsistent state updates
+
+For EACH bug found, provide:
+1. Line number or code snippet
+2. Why it won't work
+3. The fix needed
+4. Example: "Line 347: onclick won't work in VS Code webview. Use addEventListener instead."
+
+BE VERY THOROUGH! Find ALL bugs!
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are ReviewerGPT, a bug-finding expert. Your job is to find EVERY bug that will prevent code from working correctly.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    async reviewTestCoverage(context) {
+        const prompt = `Review the test coverage and testing strategy:
+
+${context}
+
+Analyze:
+1. Test coverage percentage
+2. Critical paths covered
+3. Edge cases tested
+4. Test quality and assertions
+5. Test maintainability
+6. Mocking and stubbing usage
+7. Integration vs unit tests balance
+8. Performance tests
+9. Security tests
+10. Missing test scenarios
+
+Provide:
+- Current coverage assessment
+- Critical gaps in testing
+- Recommended additional tests
+- Testing strategy improvements
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are ReviewerGPT, an expert in software testing and quality assurance.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    // Workflow helper methods
+    async performCodeReview(request, previousResults) {
+        const context = this.buildContextFromResults(previousResults);
+        return this.reviewCode('', 'workflow', 'unknown', `${request.prompt}\n\nContext:\n${context}`);
+    }
+    async performSecurityCheck(request, previousResults) {
+        const context = this.buildContextFromResults(previousResults);
+        return this.performSecurityScan('', 'workflow', 'unknown', `${request.prompt}\n\nContext:\n${context}`);
+    }
+    async performPerformanceReview(request, previousResults) {
+        const context = this.buildContextFromResults(previousResults);
+        return this.analyzePerformance('', 'workflow', 'unknown', `${request.prompt}\n\nContext:\n${context}`);
+    }
+    async performGeneralReview(request, previousResults) {
+        const context = this.buildContextFromResults(previousResults);
+        const prompt = `Perform a review based on:
+
+Request: ${request.prompt}
+
+Previous results:
+${context}
+
+Provide comprehensive review and recommendations.
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are ReviewerGPT, providing expert code review and analysis.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+    buildContextFromResults(results) {
+        return results
+            .filter(r => r.status === 'success')
+            .map(r => `${r.metadata?.step || 'Step'}: ${r.content}`)
+            .join('\n\n');
+    }
+    async getWorkspaceCode() {
+        // This would scan the workspace for code files
+        // For now, return a placeholder
+        return 'Workspace code scanning not yet implemented';
+    }
+    async validateArchitectureUnderstanding(context) {
+        const prompt = `As a code review expert using a different AI model than the architect, validate the architect's understanding of the user's requirements.
+
+Context and conversation history:
+${context}
+
+Your task:
+1. Extract the original user requirements
+2. Identify what the architect proposed as a solution
+3. Compare the architect's interpretation with the actual requirements
+4. Find any gaps or misunderstandings
+5. Verify technical feasibility of the proposed architecture
+6. Check if all requirements are addressed
+
+Provide a detailed validation report including:
+- ✅ Requirements correctly understood
+- ❌ Requirements missed or misunderstood
+- ⚠️ Potential issues or concerns
+- 💡 Suggestions for clarification
+- 🏆 Overall assessment score (1-10)
+
+Note: You are using ${this.config.model} while the architect uses a different model (gpt-5-2025-09-12), ensuring independent validation.
+
+${this.getSystemContextPrompt()}`;
+        return await this.openAIService.chat([
+            { role: 'system', content: 'You are ReviewerGPT, validating another AI\'s understanding of requirements. Be critical but constructive.' },
+            { role: 'user', content: prompt }
+        ]);
+    }
+}
+exports.ReviewerGPTAgent = ReviewerGPTAgent;
+
+
+/***/ }),
+
 /***/ "./src/agents/TradeStratAgent.ts":
 /*!***************************************!*\
   !*** ./src/agents/TradeStratAgent.ts ***!
@@ -1951,8 +4100,8 @@ class TradeStratAgent extends ChatAgent_1.ChatAgent {
             participantId: 'ki-autoagent.tradestrat',
             name: 'tradestrat',
             fullName: 'TradeStrat',
-            description: 'Trading Strategy Expert powered by Claude 3.5 Sonnet',
-            model: 'claude-3.5-sonnet',
+            description: 'Trading Strategy Expert powered by Claude 4.1 Sonnet',
+            model: 'claude-4.1-sonnet-20250920',
             iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'trading-icon.svg'),
             capabilities: [
                 'Trading Strategy Development',
@@ -2711,6 +4860,539 @@ exports.ChatAgent = ChatAgent;
 
 /***/ }),
 
+/***/ "./src/core/AgentCommunicationBus.ts":
+/*!*******************************************!*\
+  !*** ./src/core/AgentCommunicationBus.ts ***!
+  \*******************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * AgentCommunicationBus - Inter-agent communication system
+ * Enables agents to collaborate, share information, and coordinate actions
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AgentCommunicationBus = exports.MessageType = void 0;
+exports.getCommunicationBus = getCommunicationBus;
+const events_1 = __webpack_require__(/*! events */ "events");
+var MessageType;
+(function (MessageType) {
+    MessageType["REQUEST"] = "request";
+    MessageType["RESPONSE"] = "response";
+    MessageType["NOTIFICATION"] = "notification";
+    MessageType["QUERY"] = "query";
+    MessageType["BROADCAST"] = "broadcast";
+    MessageType["COLLABORATION_REQUEST"] = "collaboration_request";
+    MessageType["COLLABORATION_RESPONSE"] = "collaboration_response";
+    MessageType["TASK_DELEGATION"] = "task_delegation";
+    MessageType["STATUS_UPDATE"] = "status_update";
+    MessageType["ERROR"] = "error";
+    MessageType["HELP_REQUEST"] = "help_request";
+    MessageType["KNOWLEDGE_SHARE"] = "knowledge_share";
+    MessageType["VALIDATION_REQUEST"] = "validation_request";
+    MessageType["CONFLICT"] = "conflict";
+})(MessageType || (exports.MessageType = MessageType = {}));
+class AgentCommunicationBus {
+    constructor() {
+        this.handlers = new Map();
+        this.messageQueue = [];
+        this.processingQueue = false;
+        this.collaborationSessions = new Map();
+        this.messageHistory = [];
+        this.responseCallbacks = new Map();
+        this.eventBus = new events_1.EventEmitter();
+        this.eventBus.setMaxListeners(50);
+        this.stats = this.initializeStats();
+        this.startQueueProcessor();
+    }
+    static getInstance() {
+        if (!AgentCommunicationBus.instance) {
+            AgentCommunicationBus.instance = new AgentCommunicationBus();
+        }
+        return AgentCommunicationBus.instance;
+    }
+    /**
+     * Register an agent to receive messages
+     */
+    register(handler) {
+        if (!this.handlers.has(handler.agentId)) {
+            this.handlers.set(handler.agentId, []);
+        }
+        this.handlers.get(handler.agentId).push(handler);
+        this.eventBus.emit('agent-registered', handler.agentId);
+    }
+    /**
+     * Unregister an agent
+     */
+    unregister(agentId) {
+        this.handlers.delete(agentId);
+        this.eventBus.emit('agent-unregistered', agentId);
+    }
+    /**
+     * Send a message to one or more agents
+     */
+    async send(message) {
+        const fullMessage = {
+            ...message,
+            id: this.generateMessageId(),
+            timestamp: Date.now()
+        };
+        // Add to history
+        this.messageHistory.push(fullMessage);
+        this.stats.totalMessages++;
+        this.updateStats(fullMessage);
+        // Add to queue
+        this.messageQueue.push(fullMessage);
+        // Emit event
+        this.eventBus.emit('message-sent', fullMessage);
+        // Process queue if not already processing
+        if (!this.processingQueue) {
+            this.processQueue();
+        }
+        return fullMessage.id;
+    }
+    /**
+     * Send a message and wait for response
+     */
+    async request(message, timeout = 30000) {
+        const messageId = await this.send({
+            ...message,
+            metadata: {
+                ...(message.metadata || {}),
+                requiresResponse: true,
+                timeout
+            }
+        });
+        return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => {
+                this.responseCallbacks.delete(messageId);
+                reject(new Error(`Request timeout for message ${messageId}`));
+            }, timeout);
+            this.responseCallbacks.set(messageId, (response) => {
+                clearTimeout(timer);
+                this.responseCallbacks.delete(messageId);
+                resolve(response);
+            });
+        });
+    }
+    /**
+     * Broadcast a message to all agents
+     */
+    async broadcast(from, type, content, metadata) {
+        await this.send({
+            from,
+            to: 'broadcast',
+            type: MessageType.BROADCAST,
+            content,
+            metadata: {
+                priority: 'normal',
+                requiresResponse: false,
+                ...metadata
+            }
+        });
+    }
+    /**
+     * Start a collaboration session between agents
+     */
+    async startCollaboration(task, participants, leader) {
+        const session = {
+            id: this.generateSessionId(),
+            task,
+            participants,
+            leader: leader || participants[0],
+            status: 'pending',
+            sharedContext: new Map(),
+            messages: [],
+            results: new Map(),
+            startTime: Date.now()
+        };
+        this.collaborationSessions.set(session.id, session);
+        // Notify all participants
+        await Promise.all(participants.map(agentId => this.send({
+            from: 'system',
+            to: agentId,
+            type: MessageType.COLLABORATION_REQUEST,
+            content: {
+                sessionId: session.id,
+                task,
+                participants,
+                leader: session.leader
+            },
+            metadata: {
+                priority: 'high',
+                requiresResponse: true,
+                conversationId: session.id
+            }
+        })));
+        session.status = 'active';
+        this.eventBus.emit('collaboration-started', session);
+        return session;
+    }
+    /**
+     * Send a message within a collaboration session
+     */
+    async collaborationMessage(sessionId, from, content, type = MessageType.NOTIFICATION) {
+        const session = this.collaborationSessions.get(sessionId);
+        if (!session) {
+            throw new Error(`Collaboration session ${sessionId} not found`);
+        }
+        // Send to all participants except sender
+        const recipients = session.participants.filter(p => p !== from);
+        const message = {
+            from,
+            to: recipients,
+            type,
+            content,
+            metadata: {
+                priority: 'normal',
+                requiresResponse: false,
+                conversationId: sessionId
+            }
+        };
+        await this.send(message);
+        // Add to session history
+        session.messages.push({
+            ...message,
+            id: this.generateMessageId(),
+            timestamp: Date.now()
+        });
+    }
+    /**
+     * Update shared context in collaboration session
+     */
+    updateCollaborationContext(sessionId, agentId, key, value) {
+        const session = this.collaborationSessions.get(sessionId);
+        if (!session)
+            return;
+        session.sharedContext.set(key, value);
+        // Notify other participants
+        this.collaborationMessage(sessionId, agentId, { key, value }, MessageType.STATUS_UPDATE);
+    }
+    /**
+     * Complete a collaboration session
+     */
+    completeCollaboration(sessionId, results) {
+        const session = this.collaborationSessions.get(sessionId);
+        if (!session)
+            return;
+        session.status = 'completed';
+        session.results = results;
+        session.endTime = Date.now();
+        this.eventBus.emit('collaboration-completed', session);
+        // Clean up after delay
+        setTimeout(() => {
+            this.collaborationSessions.delete(sessionId);
+        }, 60000);
+    }
+    /**
+     * Request help from other agents
+     */
+    async requestHelp(from, problem, preferredAgents) {
+        const message = {
+            from,
+            to: preferredAgents || 'broadcast',
+            type: MessageType.HELP_REQUEST,
+            content: problem,
+            metadata: {
+                priority: 'high',
+                requiresResponse: true,
+                timeout: 10000
+            }
+        };
+        const responses = [];
+        if (preferredAgents) {
+            // Request from specific agents
+            for (const agentId of preferredAgents) {
+                try {
+                    const response = await this.request({ ...message, to: agentId, metadata: message.metadata }, 10000);
+                    if (response)
+                        responses.push(response);
+                }
+                catch (error) {
+                    console.warn(`No response from ${agentId}:`, error);
+                }
+            }
+        }
+        else {
+            // Broadcast and collect responses
+            await this.broadcast(from, MessageType.HELP_REQUEST, problem, {
+                priority: 'high',
+                requiresResponse: true
+            });
+            // Wait for responses
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            // Collect responses from history
+            const requestTime = Date.now();
+            responses.push(...this.messageHistory
+                .filter(msg => msg.type === MessageType.RESPONSE &&
+                msg.timestamp > requestTime - 5000 &&
+                msg.replyTo === message.from)
+                .map(msg => msg.content));
+        }
+        return responses;
+    }
+    /**
+     * Share knowledge between agents
+     */
+    async shareKnowledge(from, knowledge, relevantAgents) {
+        await this.send({
+            from,
+            to: relevantAgents || 'broadcast',
+            type: MessageType.KNOWLEDGE_SHARE,
+            content: knowledge,
+            metadata: {
+                priority: 'low',
+                requiresResponse: false
+            }
+        });
+    }
+    /**
+     * Request validation from another agent
+     */
+    async requestValidation(from, validator, content) {
+        return this.request({
+            from,
+            to: validator,
+            type: MessageType.VALIDATION_REQUEST,
+            content,
+            metadata: {
+                priority: 'normal',
+                requiresResponse: true
+            }
+        }, 15000);
+    }
+    /**
+     * Report a conflict requiring arbitration
+     */
+    async reportConflict(reportingAgent, conflictingAgents, issue) {
+        // Send to OpusArbitrator
+        await this.send({
+            from: reportingAgent,
+            to: 'OpusArbitrator',
+            type: MessageType.CONFLICT,
+            content: {
+                conflictingAgents,
+                issue,
+                reportedBy: reportingAgent
+            },
+            metadata: {
+                priority: 'critical',
+                requiresResponse: true
+            }
+        });
+    }
+    /**
+     * Process message queue
+     */
+    async processQueue() {
+        if (this.processingQueue || this.messageQueue.length === 0)
+            return;
+        this.processingQueue = true;
+        while (this.messageQueue.length > 0) {
+            const message = this.messageQueue.shift();
+            try {
+                await this.deliverMessage(message);
+            }
+            catch (error) {
+                console.error(`Error delivering message ${message.id}:`, error);
+                this.stats.failedMessages++;
+                // Retry logic
+                if (message.metadata.retryCount === undefined) {
+                    message.metadata.retryCount = 0;
+                }
+                if (message.metadata.retryCount < 3) {
+                    message.metadata.retryCount++;
+                    this.messageQueue.push(message);
+                }
+                else {
+                    this.eventBus.emit('message-failed', { message, error });
+                }
+            }
+        }
+        this.processingQueue = false;
+    }
+    /**
+     * Deliver a message to recipients
+     */
+    async deliverMessage(message) {
+        const recipients = this.determineRecipients(message);
+        for (const recipientId of recipients) {
+            const handlers = this.handlers.get(recipientId) || [];
+            for (const handler of handlers) {
+                // Check if handler accepts this message type
+                if (!handler.messageTypes.includes(message.type))
+                    continue;
+                // Apply filter if present
+                if (handler.filter && !handler.filter(message))
+                    continue;
+                try {
+                    const response = await handler.handler(message);
+                    // Handle response if required
+                    if (message.metadata.requiresResponse && response !== undefined) {
+                        // Send response back
+                        await this.send({
+                            from: recipientId,
+                            to: message.from,
+                            type: MessageType.RESPONSE,
+                            content: response,
+                            metadata: {
+                                priority: 'normal',
+                                requiresResponse: false,
+                                conversationId: message.metadata.conversationId
+                            },
+                            replyTo: message.id
+                        });
+                        // Trigger callback if waiting
+                        const callback = this.responseCallbacks.get(message.id);
+                        if (callback) {
+                            callback(response);
+                        }
+                    }
+                    this.eventBus.emit('message-delivered', { message, recipientId });
+                }
+                catch (error) {
+                    console.error(`Handler error for ${recipientId}:`, error);
+                    this.eventBus.emit('handler-error', { message, recipientId, error });
+                }
+            }
+        }
+    }
+    /**
+     * Determine message recipients
+     */
+    determineRecipients(message) {
+        if (message.to === 'broadcast') {
+            return Array.from(this.handlers.keys());
+        }
+        if (Array.isArray(message.to)) {
+            return message.to;
+        }
+        return [message.to];
+    }
+    /**
+     * Start queue processor
+     */
+    startQueueProcessor() {
+        setInterval(() => {
+            if (!this.processingQueue && this.messageQueue.length > 0) {
+                this.processQueue();
+            }
+        }, 100);
+    }
+    /**
+     * Initialize statistics
+     */
+    initializeStats() {
+        return {
+            totalMessages: 0,
+            messagesByType: new Map(),
+            messagesByAgent: new Map(),
+            averageResponseTime: 0,
+            activeSessions: 0,
+            failedMessages: 0
+        };
+    }
+    /**
+     * Update statistics
+     */
+    updateStats(message) {
+        // Update message type count
+        const typeCount = this.stats.messagesByType.get(message.type) || 0;
+        this.stats.messagesByType.set(message.type, typeCount + 1);
+        // Update agent message count
+        const agentCount = this.stats.messagesByAgent.get(message.from) || 0;
+        this.stats.messagesByAgent.set(message.from, agentCount + 1);
+        // Update active sessions
+        this.stats.activeSessions = this.collaborationSessions.size;
+    }
+    /**
+     * Get communication statistics
+     */
+    getStats() {
+        // Calculate average response time
+        let totalResponseTime = 0;
+        let responseCount = 0;
+        this.messageHistory.forEach(msg => {
+            if (msg.type === MessageType.RESPONSE && msg.replyTo) {
+                const originalMsg = this.messageHistory.find(m => m.id === msg.replyTo);
+                if (originalMsg) {
+                    totalResponseTime += msg.timestamp - originalMsg.timestamp;
+                    responseCount++;
+                }
+            }
+        });
+        this.stats.averageResponseTime = responseCount > 0
+            ? totalResponseTime / responseCount
+            : 0;
+        return { ...this.stats };
+    }
+    /**
+     * Get message history
+     */
+    getMessageHistory(filter) {
+        let history = [...this.messageHistory];
+        if (filter) {
+            if (filter.from) {
+                history = history.filter(msg => msg.from === filter.from);
+            }
+            if (filter.to) {
+                history = history.filter(msg => msg.to === filter.to ||
+                    (Array.isArray(msg.to) && msg.to.includes(filter.to)));
+            }
+            if (filter.type) {
+                history = history.filter(msg => msg.type === filter.type);
+            }
+            if (filter.conversationId) {
+                history = history.filter(msg => msg.metadata.conversationId === filter.conversationId);
+            }
+            if (filter.startTime) {
+                history = history.filter(msg => msg.timestamp >= filter.startTime);
+            }
+            if (filter.endTime) {
+                history = history.filter(msg => msg.timestamp <= filter.endTime);
+            }
+        }
+        return history;
+    }
+    /**
+     * Get active collaboration sessions
+     */
+    getActiveSessions() {
+        return Array.from(this.collaborationSessions.values())
+            .filter(session => session.status === 'active');
+    }
+    /**
+     * Generate unique message ID
+     */
+    generateMessageId() {
+        return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    /**
+     * Generate unique session ID
+     */
+    generateSessionId() {
+        return `ses_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    /**
+     * Clear all data (for testing/reset)
+     */
+    clear() {
+        this.messageQueue = [];
+        this.messageHistory = [];
+        this.collaborationSessions.clear();
+        this.responseCallbacks.clear();
+        this.stats = this.initializeStats();
+    }
+}
+exports.AgentCommunicationBus = AgentCommunicationBus;
+// Export singleton instance getter
+function getCommunicationBus() {
+    return AgentCommunicationBus.getInstance();
+}
+
+
+/***/ }),
+
 /***/ "./src/core/AgentConfigurationManager.ts":
 /*!***********************************************!*\
   !*** ./src/core/AgentConfigurationManager.ts ***!
@@ -3240,7 +5922,10 @@ class AgentRegistry {
             'codesmith': 'CodeSmithAgent',
             'tradestrat': 'TradeStratAgent',
             'research': 'ResearchAgent',
-            'opus-arbitrator': 'OpusArbitratorAgent'
+            'opus-arbitrator': 'OpusArbitratorAgent',
+            'docu': 'DocuBot',
+            'reviewer': 'ReviewerGPT',
+            'fixer': 'FixerBot'
         };
         return nameMap[agentId] || agentId;
     }
@@ -3251,38 +5936,56 @@ AgentRegistry.AGENT_CAPABILITIES = {
     'orchestrator': {
         specialization: 'Multi-Agent Workflow Coordination',
         canHandle: ['workflow', 'orchestration', 'multi-step', 'complex-tasks', 'coordination'],
-        model: 'gpt-4o',
+        model: 'gpt-5-2025-09-12',
         instructionSet: 'orchestrator.md'
     },
     'architect': {
         specialization: 'System Architecture & Design',
         canHandle: ['architecture', 'design', 'patterns', 'scalability', 'tech-stack', 'system-design', 'database-design'],
-        model: 'gpt-4o-2024-11-20',
+        model: 'gpt-5-2025-09-12',
         instructionSet: 'architect.md'
     },
     'codesmith': {
         specialization: 'Code Implementation & Optimization',
         canHandle: ['coding', 'implementation', 'optimization', 'testing', 'debugging', 'refactoring', 'code-review'],
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-4.1-sonnet-20250920',
         instructionSet: 'codesmith.md'
     },
     'tradestrat': {
         specialization: 'Trading Strategies & Financial Analysis',
         canHandle: ['trading', 'algorithms', 'financial', 'backtesting', 'market-analysis', 'portfolio', 'risk-management'],
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-4.1-sonnet-20250920',
         instructionSet: 'tradestrat.md'
     },
     'research': {
         specialization: 'Web Research & Information Gathering',
         canHandle: ['research', 'web-search', 'documentation', 'fact-checking', 'information-gathering', 'api-docs'],
-        model: 'llama-3.1-sonar-small-128k-online',
+        model: 'perplexity-llama-3.1-sonar-huge-128k',
         instructionSet: 'research.md'
     },
     'opus-arbitrator': {
         specialization: 'Agent Conflict Resolution',
         canHandle: ['conflicts', 'decision-making', 'arbitration', 'dispute-resolution', 'consensus'],
-        model: 'claude-opus-4-1-20250805',
+        model: 'claude-4.1-opus-20250915',
         instructionSet: 'richter.md'
+    },
+    'docu': {
+        specialization: 'Technical Documentation & API Reference',
+        canHandle: ['documentation', 'readme', 'api-docs', 'user-guides', 'comments', 'changelog', 'technical-writing', 'instruction-management'],
+        model: 'gpt-5-2025-09-12',
+        instructionSet: 'docubot-instructions.md'
+    },
+    'reviewer': {
+        specialization: 'Code Review & Security Analysis',
+        canHandle: ['code-review', 'security', 'performance-analysis', 'standards', 'testing', 'quality-assurance', 'vulnerabilities', 'architecture-validation'],
+        model: 'gpt-5-mini-2025-09-20',
+        instructionSet: 'reviewergpt-instructions.md'
+    },
+    'fixer': {
+        specialization: 'Bug Fixing & Optimization',
+        canHandle: ['bug-fixing', 'debugging', 'error-resolution', 'optimization', 'refactoring', 'modernization', 'hotfix'],
+        model: 'claude-4.1-sonnet-20250920',
+        instructionSet: 'fixerbot-instructions.md'
     }
 };
 
@@ -3394,6 +6097,858 @@ class ConversationContextManager {
     }
 }
 exports.ConversationContextManager = ConversationContextManager;
+
+
+/***/ }),
+
+/***/ "./src/core/MemoryManager.ts":
+/*!***********************************!*\
+  !*** ./src/core/MemoryManager.ts ***!
+  \***********************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * MemoryManager - Vector-based memory system for agents
+ * Provides semantic search, pattern extraction, and learning capabilities
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.MemoryManager = void 0;
+const events_1 = __webpack_require__(/*! events */ "events");
+const Memory_1 = __webpack_require__(/*! ../types/Memory */ "./src/types/Memory.ts");
+class MemoryManager {
+    constructor(options = {}) {
+        this.memories = new Map();
+        this.embeddings = new Map();
+        this.patterns = new Map();
+        this.clusters = [];
+        this.codePatterns = new Map();
+        this.architecturePatterns = new Map();
+        this.learningEntries = [];
+        this.memoryIndex = new Map();
+        this.agentMemories = new Map();
+        this.options = {
+            maxMemories: options.maxMemories || 10000,
+            similarityThreshold: options.similarityThreshold || 0.7,
+            clusteringEnabled: options.clusteringEnabled ?? true,
+            patternExtractionEnabled: options.patternExtractionEnabled ?? true,
+            autoForget: options.autoForget ?? true,
+            forgetThreshold: options.forgetThreshold || 0.3
+        };
+        this.eventBus = new events_1.EventEmitter();
+        this.initializeIndexes();
+    }
+    initializeIndexes() {
+        Object.values(Memory_1.MemoryType).forEach(type => {
+            this.memoryIndex.set(type, new Set());
+        });
+    }
+    /**
+     * Store a new memory with automatic embedding generation
+     */
+    async store(agentId, content, type, metadata = {}) {
+        const id = this.generateMemoryId();
+        // Generate embedding (simplified - in real implementation, use actual embedding model)
+        const embedding = await this.generateEmbedding(content);
+        const memory = {
+            id,
+            agentId,
+            timestamp: Date.now(),
+            content,
+            embedding,
+            type,
+            metadata: {
+                ...metadata,
+                accessCount: 0,
+                lastAccessed: Date.now(),
+                importance: metadata.importance || this.calculateImportance(content, type)
+            }
+        };
+        // Store memory
+        this.memories.set(id, memory);
+        this.embeddings.set(id, embedding);
+        // Update indexes
+        this.memoryIndex.get(type).add(id);
+        if (!this.agentMemories.has(agentId)) {
+            this.agentMemories.set(agentId, new Set());
+        }
+        this.agentMemories.get(agentId).add(id);
+        // Auto-forget old memories if limit exceeded
+        if (this.options.autoForget && this.memories.size > this.options.maxMemories) {
+            await this.forgetOldMemories();
+        }
+        // Extract patterns if enabled
+        if (this.options.patternExtractionEnabled) {
+            await this.extractPatterns();
+        }
+        // Update clusters if enabled
+        if (this.options.clusteringEnabled) {
+            await this.updateClusters();
+        }
+        this.eventBus.emit('memory-stored', memory);
+        return id;
+    }
+    /**
+     * Retrieve memories by semantic similarity
+     */
+    async search(query, options = {}) {
+        const k = options.k || 10;
+        const minSimilarity = options.minSimilarity || this.options.similarityThreshold;
+        // Generate query embedding
+        const queryEmbedding = await this.generateEmbedding(query);
+        // Filter memories based on options
+        let candidateMemories = Array.from(this.memories.values());
+        if (options.type) {
+            const typeMemories = this.memoryIndex.get(options.type);
+            if (typeMemories) {
+                candidateMemories = candidateMemories.filter(m => typeMemories.has(m.id));
+            }
+        }
+        if (options.agentId) {
+            const agentMems = this.agentMemories.get(options.agentId);
+            if (agentMems) {
+                candidateMemories = candidateMemories.filter(m => agentMems.has(m.id));
+            }
+        }
+        // Calculate similarities
+        const results = candidateMemories
+            .map(memory => {
+            const similarity = this.cosineSimilarity(queryEmbedding, memory.embedding || []);
+            const relevance = this.calculateRelevance(memory, similarity);
+            // Update access count
+            memory.metadata.accessCount = (memory.metadata.accessCount || 0) + 1;
+            memory.metadata.lastAccessed = Date.now();
+            return {
+                entry: memory,
+                similarity,
+                relevance
+            };
+        })
+            .filter(result => result.similarity >= minSimilarity)
+            .sort((a, b) => b.relevance - a.relevance)
+            .slice(0, k);
+        this.eventBus.emit('memory-searched', { query, results });
+        return results;
+    }
+    /**
+     * Get memory by ID
+     */
+    get(id) {
+        const memory = this.memories.get(id);
+        if (memory) {
+            memory.metadata.accessCount = (memory.metadata.accessCount || 0) + 1;
+            memory.metadata.lastAccessed = Date.now();
+        }
+        return memory;
+    }
+    /**
+     * Update an existing memory
+     */
+    async update(id, content, metadata) {
+        const memory = this.memories.get(id);
+        if (!memory) {
+            throw new Error(`Memory ${id} not found`);
+        }
+        memory.content = content;
+        memory.embedding = await this.generateEmbedding(content);
+        if (metadata) {
+            memory.metadata = { ...memory.metadata, ...metadata };
+        }
+        this.embeddings.set(id, memory.embedding);
+        this.eventBus.emit('memory-updated', memory);
+    }
+    /**
+     * Delete a memory
+     */
+    delete(id) {
+        const memory = this.memories.get(id);
+        if (!memory)
+            return false;
+        // Remove from all indexes
+        this.memories.delete(id);
+        this.embeddings.delete(id);
+        this.memoryIndex.get(memory.type)?.delete(id);
+        this.agentMemories.get(memory.agentId)?.delete(id);
+        this.eventBus.emit('memory-deleted', memory);
+        return true;
+    }
+    /**
+     * Store a code pattern for reuse
+     */
+    storeCodePattern(pattern) {
+        this.codePatterns.set(pattern.id, pattern);
+        this.eventBus.emit('pattern-stored', { type: 'code', pattern });
+    }
+    /**
+     * Retrieve relevant code patterns
+     */
+    async getRelevantCodePatterns(context, language) {
+        const patterns = Array.from(this.codePatterns.values());
+        // Filter by language if specified
+        let relevant = language
+            ? patterns.filter(p => p.language === language)
+            : patterns;
+        // Sort by success rate and recency
+        relevant.sort((a, b) => {
+            const scoreA = a.successRate * (1 / (Date.now() - a.lastUsed));
+            const scoreB = b.successRate * (1 / (Date.now() - b.lastUsed));
+            return scoreB - scoreA;
+        });
+        return relevant.slice(0, 5);
+    }
+    /**
+     * Store an architecture pattern
+     */
+    storeArchitecturePattern(pattern) {
+        this.architecturePatterns.set(pattern.id, pattern);
+        this.eventBus.emit('pattern-stored', { type: 'architecture', pattern });
+    }
+    /**
+     * Get relevant architecture patterns
+     */
+    getRelevantArchitecturePatterns(useCase) {
+        return Array.from(this.architecturePatterns.values())
+            .filter(pattern => pattern.useCases.some(uc => uc.toLowerCase().includes(useCase.toLowerCase())));
+    }
+    /**
+     * Store a learning entry
+     */
+    storeLearning(learning) {
+        this.learningEntries.push(learning);
+        this.eventBus.emit('learning-stored', learning);
+    }
+    /**
+     * Get learnings relevant to current context
+     */
+    getRelevantLearnings(context, limit = 5) {
+        // Simple keyword matching - in production, use semantic search
+        const keywords = context.toLowerCase().split(' ');
+        return this.learningEntries
+            .filter(entry => keywords.some(keyword => entry.description.toLowerCase().includes(keyword)))
+            .sort((a, b) => {
+            // Prioritize high impact and recent learnings
+            const scoreA = (a.impact === 'high' ? 3 : a.impact === 'medium' ? 2 : 1) *
+                (1 / (Date.now() - a.timestamp));
+            const scoreB = (b.impact === 'high' ? 3 : b.impact === 'medium' ? 2 : 1) *
+                (1 / (Date.now() - b.timestamp));
+            return scoreB - scoreA;
+        })
+            .slice(0, limit);
+    }
+    /**
+     * Extract patterns from stored memories
+     */
+    async extractPatterns() {
+        // Group similar memories
+        const groups = this.groupSimilarMemories();
+        groups.forEach((group, pattern) => {
+            if (group.length >= 3) { // Need at least 3 occurrences to be a pattern
+                const patternEntry = {
+                    id: this.generateMemoryId(),
+                    pattern,
+                    frequency: group.length,
+                    examples: group.slice(0, 5),
+                    extractedAt: Date.now()
+                };
+                this.patterns.set(patternEntry.id, patternEntry);
+            }
+        });
+    }
+    /**
+     * Group similar memories for pattern extraction
+     */
+    groupSimilarMemories() {
+        const groups = new Map();
+        const processed = new Set();
+        this.memories.forEach((memory, id) => {
+            if (processed.has(id))
+                return;
+            const similar = this.findSimilarMemories(memory, 0.8);
+            if (similar.length >= 2) {
+                const pattern = this.extractPatternSignature(memory);
+                groups.set(pattern, [memory, ...similar]);
+                similar.forEach(s => processed.add(s.id));
+            }
+        });
+        return groups;
+    }
+    /**
+     * Find memories similar to given memory
+     */
+    findSimilarMemories(memory, threshold) {
+        const similar = [];
+        this.memories.forEach((other, id) => {
+            if (id === memory.id)
+                return;
+            const similarity = this.cosineSimilarity(memory.embedding || [], other.embedding || []);
+            if (similarity >= threshold) {
+                similar.push(other);
+            }
+        });
+        return similar;
+    }
+    /**
+     * Update memory clusters
+     */
+    async updateClusters() {
+        // Simple k-means clustering
+        const k = Math.min(10, Math.floor(this.memories.size / 50));
+        if (k < 2)
+            return;
+        // Initialize centroids
+        const centroids = this.initializeCentroids(k);
+        // Iterate until convergence
+        let iterations = 0;
+        let changed = true;
+        while (changed && iterations < 50) {
+            const newClusters = centroids.map(centroid => ({
+                centroid,
+                members: [],
+                coherence: 0
+            }));
+            // Assign memories to nearest centroid
+            this.memories.forEach(memory => {
+                if (!memory.embedding)
+                    return;
+                let nearestIdx = 0;
+                let maxSim = -1;
+                centroids.forEach((centroid, idx) => {
+                    const sim = this.cosineSimilarity(memory.embedding, centroid);
+                    if (sim > maxSim) {
+                        maxSim = sim;
+                        nearestIdx = idx;
+                    }
+                });
+                newClusters[nearestIdx].members.push(memory);
+            });
+            // Update centroids
+            changed = false;
+            newClusters.forEach((cluster, idx) => {
+                if (cluster.members.length > 0) {
+                    const newCentroid = this.calculateCentroid(cluster.members);
+                    if (!this.vectorsEqual(centroids[idx], newCentroid)) {
+                        centroids[idx] = newCentroid;
+                        changed = true;
+                    }
+                }
+            });
+            this.clusters = newClusters;
+            iterations++;
+        }
+        // Calculate cluster coherence
+        this.clusters.forEach(cluster => {
+            cluster.coherence = this.calculateClusterCoherence(cluster);
+        });
+        this.eventBus.emit('clusters-updated', this.clusters);
+    }
+    /**
+     * Forget old, unimportant memories
+     */
+    async forgetOldMemories() {
+        const memoriesToForget = [];
+        const now = Date.now();
+        const oneWeek = 7 * 24 * 60 * 60 * 1000;
+        this.memories.forEach((memory, id) => {
+            // Calculate forgetting score
+            const age = now - memory.timestamp;
+            const accessFrequency = (memory.metadata.accessCount || 0) / (age / oneWeek);
+            const importance = memory.metadata.importance || 0.5;
+            const retentionScore = (accessFrequency * 0.4) + (importance * 0.6);
+            if (retentionScore < this.options.forgetThreshold) {
+                memoriesToForget.push(id);
+            }
+        });
+        // Keep at least 50% of max capacity
+        const maxToForget = Math.floor(this.memories.size - (this.options.maxMemories * 0.5));
+        memoriesToForget.slice(0, maxToForget).forEach(id => {
+            this.delete(id);
+        });
+        if (memoriesToForget.length > 0) {
+            this.eventBus.emit('memories-forgotten', memoriesToForget.length);
+        }
+    }
+    /**
+     * Generate embedding for content (simplified - use real embedding model in production)
+     */
+    async generateEmbedding(content) {
+        // Simplified embedding generation
+        // In production, use OpenAI embeddings or similar
+        const text = JSON.stringify(content).toLowerCase();
+        const embedding = new Array(384).fill(0);
+        // Simple hash-based embedding
+        for (let i = 0; i < text.length; i++) {
+            const idx = (text.charCodeAt(i) * (i + 1)) % 384;
+            embedding[idx] += 1;
+        }
+        // Normalize
+        const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+        return embedding.map(val => val / (magnitude || 1));
+    }
+    /**
+     * Calculate cosine similarity between two vectors
+     */
+    cosineSimilarity(a, b) {
+        if (a.length !== b.length || a.length === 0)
+            return 0;
+        let dotProduct = 0;
+        let magnitudeA = 0;
+        let magnitudeB = 0;
+        for (let i = 0; i < a.length; i++) {
+            dotProduct += a[i] * b[i];
+            magnitudeA += a[i] * a[i];
+            magnitudeB += b[i] * b[i];
+        }
+        magnitudeA = Math.sqrt(magnitudeA);
+        magnitudeB = Math.sqrt(magnitudeB);
+        if (magnitudeA === 0 || magnitudeB === 0)
+            return 0;
+        return dotProduct / (magnitudeA * magnitudeB);
+    }
+    /**
+     * Calculate relevance score for a memory
+     */
+    calculateRelevance(memory, similarity) {
+        const recency = 1 / (1 + (Date.now() - memory.timestamp) / (24 * 60 * 60 * 1000));
+        const importance = memory.metadata.importance || 0.5;
+        const accessFrequency = Math.min(1, (memory.metadata.accessCount || 0) / 100);
+        return (similarity * 0.4) + (recency * 0.2) + (importance * 0.3) + (accessFrequency * 0.1);
+    }
+    /**
+     * Calculate importance of content
+     */
+    calculateImportance(content, type) {
+        // Simple heuristic - in production, use more sophisticated analysis
+        if (type === Memory_1.MemoryType.PROCEDURAL)
+            return 0.8;
+        if (type === Memory_1.MemoryType.SEMANTIC)
+            return 0.7;
+        if (type === Memory_1.MemoryType.EPISODIC)
+            return 0.5;
+        return 0.3;
+    }
+    /**
+     * Extract pattern signature from memory
+     */
+    extractPatternSignature(memory) {
+        // Simplified pattern extraction
+        const content = JSON.stringify(memory.content);
+        return content.substring(0, 50);
+    }
+    /**
+     * Initialize cluster centroids
+     */
+    initializeCentroids(k) {
+        const centroids = [];
+        const memories = Array.from(this.memories.values()).filter(m => m.embedding);
+        for (let i = 0; i < k && i < memories.length; i++) {
+            centroids.push([...memories[i].embedding]);
+        }
+        return centroids;
+    }
+    /**
+     * Calculate centroid of cluster members
+     */
+    calculateCentroid(members) {
+        if (members.length === 0 || !members[0].embedding)
+            return [];
+        const dim = members[0].embedding.length;
+        const centroid = new Array(dim).fill(0);
+        members.forEach(member => {
+            if (member.embedding) {
+                member.embedding.forEach((val, idx) => {
+                    centroid[idx] += val;
+                });
+            }
+        });
+        return centroid.map(val => val / members.length);
+    }
+    /**
+     * Calculate cluster coherence
+     */
+    calculateClusterCoherence(cluster) {
+        if (cluster.members.length < 2)
+            return 1;
+        let totalSimilarity = 0;
+        let comparisons = 0;
+        for (let i = 0; i < cluster.members.length; i++) {
+            for (let j = i + 1; j < cluster.members.length; j++) {
+                if (cluster.members[i].embedding && cluster.members[j].embedding) {
+                    totalSimilarity += this.cosineSimilarity(cluster.members[i].embedding, cluster.members[j].embedding);
+                    comparisons++;
+                }
+            }
+        }
+        return comparisons > 0 ? totalSimilarity / comparisons : 0;
+    }
+    /**
+     * Check if two vectors are equal
+     */
+    vectorsEqual(a, b) {
+        if (a.length !== b.length)
+            return false;
+        return a.every((val, idx) => Math.abs(val - b[idx]) < 0.001);
+    }
+    /**
+     * Generate unique memory ID
+     */
+    generateMemoryId() {
+        return `mem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    /**
+     * Get memory statistics
+     */
+    getStats() {
+        const stats = {
+            totalMemories: this.memories.size,
+            byType: new Map(),
+            byAgent: new Map(),
+            averageAccessCount: 0,
+            mostAccessedMemories: [],
+            memoryGrowthRate: 0,
+            patternCount: this.patterns.size,
+            clusterCount: this.clusters.length
+        };
+        // Count by type
+        this.memoryIndex.forEach((ids, type) => {
+            stats.byType.set(type, ids.size);
+        });
+        // Count by agent
+        this.agentMemories.forEach((ids, agent) => {
+            stats.byAgent.set(agent, ids.size);
+        });
+        // Calculate average access count and find most accessed
+        let totalAccess = 0;
+        const memoriesByAccess = Array.from(this.memories.values())
+            .sort((a, b) => (b.metadata.accessCount || 0) - (a.metadata.accessCount || 0));
+        memoriesByAccess.forEach(memory => {
+            totalAccess += memory.metadata.accessCount || 0;
+        });
+        stats.averageAccessCount = totalAccess / (this.memories.size || 1);
+        stats.mostAccessedMemories = memoriesByAccess.slice(0, 10);
+        return stats;
+    }
+    /**
+     * Export memories for persistence
+     */
+    export() {
+        const exportData = {
+            memories: Array.from(this.memories.entries()),
+            patterns: Array.from(this.patterns.entries()),
+            codePatterns: Array.from(this.codePatterns.entries()),
+            architecturePatterns: Array.from(this.architecturePatterns.entries()),
+            learningEntries: this.learningEntries,
+            timestamp: Date.now()
+        };
+        return JSON.stringify(exportData);
+    }
+    /**
+     * Import memories from persistence
+     */
+    import(data) {
+        const importData = JSON.parse(data);
+        // Clear existing data
+        this.memories.clear();
+        this.patterns.clear();
+        this.codePatterns.clear();
+        this.architecturePatterns.clear();
+        this.learningEntries = [];
+        // Import memories
+        importData.memories.forEach(([id, memory]) => {
+            this.memories.set(id, memory);
+            if (memory.embedding) {
+                this.embeddings.set(id, memory.embedding);
+            }
+        });
+        // Import patterns
+        importData.patterns.forEach(([id, pattern]) => {
+            this.patterns.set(id, pattern);
+        });
+        // Import code patterns
+        importData.codePatterns.forEach(([id, pattern]) => {
+            this.codePatterns.set(id, pattern);
+        });
+        // Import architecture patterns
+        importData.architecturePatterns.forEach(([id, pattern]) => {
+            this.architecturePatterns.set(id, pattern);
+        });
+        // Import learning entries
+        this.learningEntries = importData.learningEntries || [];
+        // Rebuild indexes
+        this.rebuildIndexes();
+        this.eventBus.emit('memories-imported', {
+            count: this.memories.size,
+            timestamp: importData.timestamp
+        });
+    }
+    /**
+     * Rebuild indexes after import
+     */
+    rebuildIndexes() {
+        this.memoryIndex.clear();
+        this.agentMemories.clear();
+        this.initializeIndexes();
+        this.memories.forEach(memory => {
+            this.memoryIndex.get(memory.type)?.add(memory.id);
+            if (!this.agentMemories.has(memory.agentId)) {
+                this.agentMemories.set(memory.agentId, new Set());
+            }
+            this.agentMemories.get(memory.agentId)?.add(memory.id);
+        });
+    }
+}
+exports.MemoryManager = MemoryManager;
+
+
+/***/ }),
+
+/***/ "./src/core/SharedContextManager.ts":
+/*!******************************************!*\
+  !*** ./src/core/SharedContextManager.ts ***!
+  \******************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * SharedContextManager - Manages shared context between agents for collaboration
+ * Enables agents to share knowledge, decisions, and intermediate results in real-time
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SharedContextManager = void 0;
+exports.getSharedContext = getSharedContext;
+const events_1 = __webpack_require__(/*! events */ "events");
+class SharedContextManager {
+    constructor() {
+        this.context = new Map();
+        this.contextHistory = [];
+        this.subscribers = new Map();
+        this.locks = new Map(); // key -> agentId holding lock
+        this.version = 0;
+        this.eventBus = new events_1.EventEmitter();
+        this.eventBus.setMaxListeners(50); // Support many agents
+        this.initializeContext();
+    }
+    static getInstance() {
+        if (!SharedContextManager.instance) {
+            SharedContextManager.instance = new SharedContextManager();
+        }
+        return SharedContextManager.instance;
+    }
+    initializeContext() {
+        // Initialize with default context structure
+        this.context.set('projectStructure', {});
+        this.context.set('architectureDecisions', new Map());
+        this.context.set('codePatterns', new Map());
+        this.context.set('researchFindings', new Map());
+        this.context.set('validationResults', new Map());
+        this.context.set('currentWorkflow', null);
+        this.context.set('globalMemories', []);
+        this.context.set('agentOutputs', new Map());
+    }
+    /**
+     * Update context with new information
+     */
+    async updateContext(agentId, key, value, metadata) {
+        // Check if key is locked by another agent
+        const lockHolder = this.locks.get(key);
+        if (lockHolder && lockHolder !== agentId) {
+            throw new Error(`Context key '${key}' is locked by agent ${lockHolder}`);
+        }
+        const update = {
+            agentId,
+            timestamp: Date.now(),
+            key,
+            value,
+            metadata: {
+                ...metadata,
+                version: ++this.version
+            }
+        };
+        // Update the context
+        this.context.set(key, value);
+        // Store in history for replay/debugging
+        this.contextHistory.push(update);
+        // Notify all subscribers
+        await this.notifySubscribers(update);
+        // Emit event for async listeners
+        this.eventBus.emit('context-update', update);
+    }
+    /**
+     * Get current context value
+     */
+    getContext(key) {
+        if (key) {
+            return this.context.get(key);
+        }
+        // Return entire context as object
+        const contextObj = {};
+        this.context.forEach((value, key) => {
+            contextObj[key] = value;
+        });
+        return contextObj;
+    }
+    /**
+     * Get context with memory of past updates
+     */
+    getContextWithHistory(key, limit = 10) {
+        return this.contextHistory
+            .filter(update => update.key === key)
+            .slice(-limit);
+    }
+    /**
+     * Subscribe to context updates
+     */
+    subscribe(agentId, callback, filter) {
+        const subscriber = {
+            agentId,
+            callback,
+            filter
+        };
+        if (!this.subscribers.has(agentId)) {
+            this.subscribers.set(agentId, []);
+        }
+        this.subscribers.get(agentId).push(subscriber);
+    }
+    /**
+     * Unsubscribe from context updates
+     */
+    unsubscribe(agentId) {
+        this.subscribers.delete(agentId);
+    }
+    /**
+     * Notify all subscribers of a context update
+     */
+    async notifySubscribers(update) {
+        const promises = [];
+        this.subscribers.forEach((subscriberList) => {
+            subscriberList.forEach(subscriber => {
+                // Skip the agent that made the update
+                if (subscriber.agentId === update.agentId) {
+                    return;
+                }
+                // Apply filter if provided
+                if (subscriber.filter && !subscriber.filter(update)) {
+                    return;
+                }
+                // Notify subscriber asynchronously
+                promises.push(Promise.resolve(subscriber.callback(update)).catch(err => {
+                    console.error(`Error notifying subscriber ${subscriber.agentId}:`, err);
+                }));
+            });
+        });
+        await Promise.all(promises);
+    }
+    /**
+     * Acquire a lock on a context key (for atomic updates)
+     */
+    async acquireLock(agentId, key, timeout = 5000) {
+        const startTime = Date.now();
+        while (this.locks.has(key) && this.locks.get(key) !== agentId) {
+            if (Date.now() - startTime > timeout) {
+                throw new Error(`Timeout acquiring lock for key '${key}'`);
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        this.locks.set(key, agentId);
+    }
+    /**
+     * Release a lock on a context key
+     */
+    releaseLock(agentId, key) {
+        if (this.locks.get(key) === agentId) {
+            this.locks.delete(key);
+        }
+    }
+    /**
+     * Merge context from multiple agents (for conflict resolution)
+     */
+    async mergeContext(updates, resolver) {
+        const grouped = new Map();
+        // Group updates by key
+        updates.forEach(update => {
+            if (!grouped.has(update.key)) {
+                grouped.set(update.key, []);
+            }
+            grouped.get(update.key).push(update);
+        });
+        // Process each key
+        for (const [key, keyUpdates] of grouped) {
+            if (keyUpdates.length === 1) {
+                // No conflict, apply directly
+                await this.updateContext(keyUpdates[0].agentId, key, keyUpdates[0].value, keyUpdates[0].metadata);
+            }
+            else {
+                // Conflict - use resolver or last-write-wins
+                const resolvedValue = resolver ? resolver(keyUpdates) : keyUpdates[keyUpdates.length - 1].value;
+                await this.updateContext('system', key, resolvedValue, { resolved: true });
+            }
+        }
+    }
+    /**
+     * Create a snapshot of current context (for checkpointing)
+     */
+    createSnapshot() {
+        return {
+            version: this.version,
+            timestamp: Date.now(),
+            context: new Map(this.context)
+        };
+    }
+    /**
+     * Restore context from snapshot
+     */
+    restoreSnapshot(snapshot) {
+        this.context = new Map(snapshot.context);
+        this.version = snapshot.version;
+        this.eventBus.emit('context-restored', snapshot);
+    }
+    /**
+     * Clear context (for new sessions)
+     */
+    clearContext() {
+        this.context.clear();
+        this.contextHistory = [];
+        this.locks.clear();
+        this.version = 0;
+        this.initializeContext();
+        this.eventBus.emit('context-cleared');
+    }
+    /**
+     * Get agents currently working on the context
+     */
+    getActiveAgents() {
+        const activeAgents = new Set();
+        // Get agents from recent updates
+        const recentTime = Date.now() - 60000; // Last minute
+        this.contextHistory
+            .filter(update => update.timestamp > recentTime)
+            .forEach(update => activeAgents.add(update.agentId));
+        return Array.from(activeAgents);
+    }
+    /**
+     * Get collaboration insights
+     */
+    getCollaborationMetrics() {
+        const metrics = {
+            totalUpdates: this.contextHistory.length,
+            activeAgents: this.getActiveAgents().length,
+            contextKeys: this.context.size,
+            lockedKeys: this.locks.size,
+            version: this.version
+        };
+        // Calculate update frequency by agent
+        const agentUpdates = new Map();
+        this.contextHistory.forEach(update => {
+            agentUpdates.set(update.agentId, (agentUpdates.get(update.agentId) || 0) + 1);
+        });
+        metrics.agentActivity = Object.fromEntries(agentUpdates);
+        return metrics;
+    }
+}
+exports.SharedContextManager = SharedContextManager;
+// Export singleton instance getter
+function getSharedContext() {
+    return SharedContextManager.getInstance();
+}
 
 
 /***/ }),
@@ -3521,8 +7076,28 @@ class VSCodeMasterDispatcher {
      */
     async detectIntent(prompt) {
         const lowerPrompt = prompt.toLowerCase();
-        // Architecture patterns
-        if (this.matchesPatterns(lowerPrompt, ['design', 'architecture', 'system', 'plan', 'structure'])) {
+        // Check if this is a question rather than a task
+        const isQuestion = /^(what|which|how|was|welche|wie|wer|wo|wann|warum|show|list|explain)/i.test(prompt);
+        const isImplementation = /(implement|create|build|write|code|develop)/i.test(prompt);
+        // Query patterns - questions about the system or information
+        if (isQuestion && !isImplementation) {
+            // Questions about the system itself, agents, or instructions
+            if (this.matchesPatterns(lowerPrompt, ['instruction', 'agent', 'system', 'available', 'haben wir', 'gibt es', 'welche'])) {
+                return { type: 'query', confidence: 0.95, agent: 'orchestrator' };
+            }
+            // Architecture questions
+            if (this.matchesPatterns(lowerPrompt, ['architecture', 'design', 'pattern', 'structure'])) {
+                return { type: 'query', confidence: 0.9, agent: 'architect' };
+            }
+            // Research questions
+            if (this.matchesPatterns(lowerPrompt, ['research', 'find', 'information', 'latest'])) {
+                return { type: 'query', confidence: 0.85, agent: 'research' };
+            }
+            // Default query
+            return { type: 'query', confidence: 0.7, agent: 'orchestrator' };
+        }
+        // Architecture patterns (for actual design tasks)
+        if (this.matchesPatterns(lowerPrompt, ['design', 'architecture', 'system', 'plan', 'structure']) && isImplementation) {
             return { type: 'architecture', confidence: 0.9, agent: 'architect' };
         }
         // Implementation patterns
@@ -3549,8 +7124,8 @@ class VSCodeMasterDispatcher {
         if (this.matchesPatterns(lowerPrompt, ['research', 'search', 'find', 'information', 'latest'])) {
             return { type: 'research', confidence: 0.8, agent: 'research' };
         }
-        // Default to implementation
-        return { type: 'implementation', confidence: 0.5, agent: 'codesmith' };
+        // Default - if we can't determine, treat as a query
+        return { type: 'query', confidence: 0.5, agent: 'orchestrator' };
     }
     /**
      * Detect project type from workspace context
@@ -3631,6 +7206,12 @@ class VSCodeMasterDispatcher {
         // Base workflow based on intent
         let workflow = [];
         switch (intent.type) {
+            case 'query':
+                // For queries, just use a single step with the appropriate agent
+                workflow = [
+                    { id: 'answer', agent: intent.agent, description: 'Answer query directly' }
+                ];
+                break;
             case 'architecture':
                 workflow = [
                     { id: 'analyze', agent: 'architect', description: 'Analyze requirements and context' },
@@ -3677,8 +7258,9 @@ class VSCodeMasterDispatcher {
                     { id: 'execute', agent: intent.agent || 'codesmith', description: 'Execute task' }
                 ];
         }
-        // Apply project-specific modifications
-        if (projectDef?.workflow) {
+        // Apply project-specific modifications ONLY if NOT a query
+        // Queries should always be single-step and not modified
+        if (intent.type !== 'query' && projectDef?.workflow) {
             // Merge project-specific workflow steps
             workflow = [...workflow, ...projectDef.workflow.filter(step => !workflow.some(w => w.id === step.id))];
         }
@@ -3706,6 +7288,11 @@ class VSCodeMasterDispatcher {
                 console.log(`🔍 [WORKFLOW STEP] Looking for agent: "${step.agent}"`);
                 console.log(`🔍 [WORKFLOW STEP] Agent registry has ${this.agents.size} agents`);
                 console.log(`🔍 [WORKFLOW STEP] Available agents: [${Array.from(this.agents.keys()).join(', ')}]`);
+                // Send partial response for workflow progress
+                if (request.onPartialResponse) {
+                    const stepIndex = workflow.indexOf(step) + 1;
+                    request.onPartialResponse(`\n🔄 **Step ${stepIndex}/${workflow.length}**: @${step.agent} - ${step.description}\n\n`);
+                }
                 let agent = this.agents.get(step.agent);
                 console.log(`🔍 [WORKFLOW STEP] Direct lookup for "${step.agent}": ${agent ? 'FOUND' : 'NOT FOUND'}`);
                 // Try alternative agent mappings if direct lookup fails
@@ -3773,8 +7360,20 @@ class VSCodeMasterDispatcher {
                 console.log(`[INTER-AGENT] ${step.agent} completed step '${step.id}' with ${stepResult.content.length} chars`);
                 console.log(`[INTER-AGENT] Result saved to conversation history`);
                 console.log(`[INTER-AGENT] Result will be passed to next agent in workflow`);
-                // Accumulate results
-                finalResult.content += `## ${step.description}\n\n${stepResult.content}\n\n`;
+                // Send partial response for step completion
+                if (request.onPartialResponse) {
+                    const preview = stepResult.content.substring(0, 200);
+                    request.onPartialResponse(`✅ Completed: ${preview}${stepResult.content.length > 200 ? '...' : ''}\n\n`);
+                }
+                // For single-step workflows (like queries), use the content directly
+                // For multi-step workflows, accumulate results
+                if (workflow.length === 1) {
+                    finalResult.content = stepResult.content;
+                    finalResult.metadata = { ...finalResult.metadata, ...stepResult.metadata, agent: step.agent };
+                }
+                else {
+                    finalResult.content += `## ${step.description}\n\n${stepResult.content}\n\n`;
+                }
                 finalResult.suggestions?.push(...(stepResult.suggestions || []));
                 finalResult.references?.push(...(stepResult.references || []));
                 if (stepResult.status === 'error') {
@@ -3920,6 +7519,711 @@ exports.VSCodeMasterDispatcher = VSCodeMasterDispatcher;
 
 /***/ }),
 
+/***/ "./src/core/WorkflowEngine.ts":
+/*!************************************!*\
+  !*** ./src/core/WorkflowEngine.ts ***!
+  \************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+/**
+ * WorkflowEngine - Graph-based workflow execution for complex task orchestration
+ * Enables parallel execution, conditional flows, and dynamic plan adjustment
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.WorkflowEngine = void 0;
+const events_1 = __webpack_require__(/*! events */ "events");
+class WorkflowEngine {
+    constructor() {
+        this.workflows = new Map();
+        this.executors = new Map();
+        this.templates = new Map();
+        this.eventBus = new events_1.EventEmitter();
+        this.initializeTemplates();
+    }
+    /**
+     * Create a new workflow
+     */
+    createWorkflow(name, template) {
+        const id = this.generateWorkflowId();
+        const workflow = {
+            id,
+            name,
+            nodes: new Map(),
+            edges: [],
+            startNode: '',
+            endNodes: [],
+            context: new Map(),
+            checkpoints: [],
+            status: {
+                state: 'pending',
+                currentNodes: [],
+                completedNodes: [],
+                failedNodes: []
+            }
+        };
+        // Apply template if provided
+        if (template && this.templates.has(template)) {
+            this.applyTemplate(workflow, this.templates.get(template));
+        }
+        this.workflows.set(id, workflow);
+        this.eventBus.emit('workflow-created', workflow);
+        return workflow;
+    }
+    /**
+     * Add a node to the workflow
+     */
+    addNode(workflowId, node) {
+        const workflow = this.workflows.get(workflowId);
+        if (!workflow) {
+            throw new Error(`Workflow ${workflowId} not found`);
+        }
+        workflow.nodes.set(node.id, node);
+        // Set as start node if it's the first
+        if (!workflow.startNode) {
+            workflow.startNode = node.id;
+        }
+        this.eventBus.emit('node-added', { workflowId, node });
+    }
+    /**
+     * Add an edge between nodes
+     */
+    addEdge(workflowId, edge) {
+        const workflow = this.workflows.get(workflowId);
+        if (!workflow) {
+            throw new Error(`Workflow ${workflowId} not found`);
+        }
+        // Validate nodes exist
+        if (!workflow.nodes.has(edge.from) || !workflow.nodes.has(edge.to)) {
+            throw new Error(`Invalid edge: nodes not found`);
+        }
+        workflow.edges.push(edge);
+        // Update node children
+        const fromNode = workflow.nodes.get(edge.from);
+        if (!fromNode.children) {
+            fromNode.children = [];
+        }
+        fromNode.children.push(edge.to);
+        // Update node dependencies
+        const toNode = workflow.nodes.get(edge.to);
+        if (!toNode.dependencies) {
+            toNode.dependencies = [];
+        }
+        toNode.dependencies.push(edge.from);
+        this.eventBus.emit('edge-added', { workflowId, edge });
+    }
+    /**
+     * Create execution plan for the workflow
+     */
+    createExecutionPlan(workflowId) {
+        const workflow = this.workflows.get(workflowId);
+        if (!workflow) {
+            throw new Error(`Workflow ${workflowId} not found`);
+        }
+        // Topological sort to find execution order
+        const sortedNodes = this.topologicalSort(workflow);
+        // Group nodes into stages based on dependencies
+        const stages = this.groupIntoStages(workflow, sortedNodes);
+        // Calculate critical path
+        const criticalPath = this.findCriticalPath(workflow);
+        // Estimate durations
+        const estimatedDuration = this.estimateDuration(stages);
+        const parallelism = this.calculateParallelism(stages);
+        return {
+            stages,
+            estimatedDuration,
+            parallelism,
+            criticalPath
+        };
+    }
+    /**
+     * Execute a workflow
+     */
+    async execute(workflowId, context) {
+        const workflow = this.workflows.get(workflowId);
+        if (!workflow) {
+            throw new Error(`Workflow ${workflowId} not found`);
+        }
+        // Initialize context
+        if (context) {
+            workflow.context = new Map([...workflow.context, ...context]);
+        }
+        // Create executor
+        const executor = new WorkflowExecutor(workflow, this.eventBus);
+        this.executors.set(workflowId, executor);
+        // Update status
+        workflow.status.state = 'running';
+        workflow.status.startTime = Date.now();
+        this.eventBus.emit('workflow-started', workflow);
+        try {
+            // Create execution plan
+            const plan = this.createExecutionPlan(workflowId);
+            // Execute plan
+            const results = await executor.execute(plan);
+            // Update status
+            workflow.status.state = 'completed';
+            workflow.status.endTime = Date.now();
+            this.eventBus.emit('workflow-completed', { workflow, results });
+            return results;
+        }
+        catch (error) {
+            workflow.status.state = 'failed';
+            workflow.status.error = error instanceof Error ? error.message : String(error);
+            workflow.status.endTime = Date.now();
+            this.eventBus.emit('workflow-failed', { workflow, error });
+            throw error;
+        }
+        finally {
+            this.executors.delete(workflowId);
+        }
+    }
+    /**
+     * Pause a running workflow
+     */
+    pause(workflowId) {
+        const executor = this.executors.get(workflowId);
+        if (executor) {
+            executor.pause();
+        }
+    }
+    /**
+     * Resume a paused workflow
+     */
+    resume(workflowId) {
+        const executor = this.executors.get(workflowId);
+        if (executor) {
+            executor.resume();
+        }
+    }
+    /**
+     * Cancel a workflow
+     */
+    cancel(workflowId) {
+        const executor = this.executors.get(workflowId);
+        if (executor) {
+            executor.cancel();
+        }
+    }
+    /**
+     * Create a checkpoint
+     */
+    createCheckpoint(workflowId, nodeId) {
+        const workflow = this.workflows.get(workflowId);
+        if (!workflow)
+            return;
+        const checkpoint = {
+            id: this.generateCheckpointId(),
+            nodeId,
+            timestamp: Date.now(),
+            context: new Map(workflow.context),
+            results: new Map()
+        };
+        workflow.checkpoints.push(checkpoint);
+        this.eventBus.emit('checkpoint-created', { workflowId, checkpoint });
+    }
+    /**
+     * Restore from checkpoint
+     */
+    restoreFromCheckpoint(workflowId, checkpointId) {
+        const workflow = this.workflows.get(workflowId);
+        if (!workflow)
+            return;
+        const checkpoint = workflow.checkpoints.find(cp => cp.id === checkpointId);
+        if (!checkpoint) {
+            throw new Error(`Checkpoint ${checkpointId} not found`);
+        }
+        // Restore context
+        workflow.context = new Map(checkpoint.context);
+        // Reset status to continue from checkpoint
+        workflow.status.completedNodes = workflow.status.completedNodes.filter(nodeId => this.isNodeBeforeCheckpoint(workflow, nodeId, checkpoint.nodeId));
+        this.eventBus.emit('checkpoint-restored', { workflowId, checkpoint });
+    }
+    /**
+     * Adjust workflow dynamically
+     */
+    adjustWorkflow(workflowId, adjustment) {
+        const workflow = this.workflows.get(workflowId);
+        if (!workflow)
+            return;
+        switch (adjustment.type) {
+            case 'add-node':
+                this.addNode(workflowId, adjustment.node);
+                break;
+            case 'remove-node':
+                this.removeNode(workflowId, adjustment.nodeId);
+                break;
+            case 'modify-node':
+                this.modifyNode(workflowId, adjustment.nodeId, adjustment.modifications);
+                break;
+            case 'reroute':
+                this.rerouteEdges(workflowId, adjustment.rerouting);
+                break;
+        }
+        this.eventBus.emit('workflow-adjusted', { workflowId, adjustment });
+    }
+    /**
+     * Initialize workflow templates
+     */
+    initializeTemplates() {
+        // Complex Task Template
+        this.templates.set('complex-task', {
+            name: 'Complex Task',
+            nodes: [
+                { id: 'research', type: 'task', agentId: 'ResearchAgent' },
+                { id: 'architect', type: 'task', agentId: 'ArchitectAgent', dependencies: ['research'] },
+                { id: 'review-arch', type: 'task', agentId: 'ReviewerGPT', dependencies: ['architect'] },
+                { id: 'implement', type: 'task', agentId: 'CodeSmithAgent', dependencies: ['review-arch'] },
+                { id: 'test', type: 'task', agentId: 'FixerBot', dependencies: ['implement'] },
+                { id: 'document', type: 'task', agentId: 'DocuBot', dependencies: ['test'] }
+            ]
+        });
+        // Parallel Research Template
+        this.templates.set('parallel-research', {
+            name: 'Parallel Research',
+            nodes: [
+                { id: 'split', type: 'parallel' },
+                { id: 'research1', type: 'task', agentId: 'ResearchAgent' },
+                { id: 'research2', type: 'task', agentId: 'ResearchAgent' },
+                { id: 'research3', type: 'task', agentId: 'ResearchAgent' },
+                { id: 'merge', type: 'sequential', dependencies: ['research1', 'research2', 'research3'] },
+                { id: 'synthesize', type: 'task', agentId: 'OrchestratorAgent', dependencies: ['merge'] }
+            ]
+        });
+        // Iterative Improvement Template
+        this.templates.set('iterative-improvement', {
+            name: 'Iterative Improvement',
+            nodes: [
+                { id: 'initial', type: 'task', agentId: 'CodeSmithAgent' },
+                { id: 'review', type: 'task', agentId: 'ReviewerGPT', dependencies: ['initial'] },
+                { id: 'decision', type: 'decision', dependencies: ['review'] },
+                { id: 'improve', type: 'task', agentId: 'FixerBot', dependencies: ['decision'] },
+                { id: 'loop', type: 'loop', dependencies: ['improve'] }
+            ]
+        });
+    }
+    /**
+     * Topological sort for node ordering
+     */
+    topologicalSort(workflow) {
+        const sorted = [];
+        const visited = new Set();
+        const visiting = new Set();
+        const visit = (nodeId) => {
+            if (visited.has(nodeId))
+                return;
+            if (visiting.has(nodeId)) {
+                throw new Error('Circular dependency detected in workflow');
+            }
+            visiting.add(nodeId);
+            const node = workflow.nodes.get(nodeId);
+            if (node?.children) {
+                node.children.forEach(childId => visit(childId));
+            }
+            visiting.delete(nodeId);
+            visited.add(nodeId);
+            if (node)
+                sorted.unshift(node);
+        };
+        // Start from root node
+        visit(workflow.startNode);
+        // Visit any disconnected nodes
+        workflow.nodes.forEach((_, nodeId) => {
+            if (!visited.has(nodeId)) {
+                visit(nodeId);
+            }
+        });
+        return sorted;
+    }
+    /**
+     * Group nodes into execution stages
+     */
+    groupIntoStages(workflow, sortedNodes) {
+        const stages = [];
+        const nodeStage = new Map();
+        sortedNodes.forEach(node => {
+            let stage = 0;
+            // Find maximum stage of dependencies
+            if (node.dependencies) {
+                node.dependencies.forEach(depId => {
+                    const depStage = nodeStage.get(depId) || 0;
+                    stage = Math.max(stage, depStage + 1);
+                });
+            }
+            nodeStage.set(node.id, stage);
+            // Add to stage
+            if (!stages[stage]) {
+                stages[stage] = {
+                    stageId: `stage_${stage}`,
+                    nodes: [],
+                    parallel: true,
+                    dependencies: stage > 0 ? [`stage_${stage - 1}`] : [],
+                    estimatedDuration: 0
+                };
+            }
+            stages[stage].nodes.push(node);
+        });
+        return stages;
+    }
+    /**
+     * Find critical path through workflow
+     */
+    findCriticalPath(workflow) {
+        const distances = new Map();
+        const previous = new Map();
+        // Initialize distances
+        workflow.nodes.forEach((_, nodeId) => {
+            distances.set(nodeId, 0);
+        });
+        // Calculate longest path (critical path)
+        const sortedNodes = this.topologicalSort(workflow);
+        sortedNodes.forEach(node => {
+            const nodeDistance = distances.get(node.id) || 0;
+            node.children?.forEach(childId => {
+                const edgeWeight = 1; // Could use actual task duration estimates
+                const childDistance = distances.get(childId) || 0;
+                if (nodeDistance + edgeWeight > childDistance) {
+                    distances.set(childId, nodeDistance + edgeWeight);
+                    previous.set(childId, node.id);
+                }
+            });
+        });
+        // Find the end node with maximum distance
+        let maxDistance = 0;
+        let endNode = '';
+        workflow.nodes.forEach((node, nodeId) => {
+            if (!node.children || node.children.length === 0) {
+                const distance = distances.get(nodeId) || 0;
+                if (distance > maxDistance) {
+                    maxDistance = distance;
+                    endNode = nodeId;
+                }
+            }
+        });
+        // Reconstruct path
+        const path = [];
+        let current = endNode;
+        while (current) {
+            path.unshift(current);
+            current = previous.get(current) || '';
+        }
+        return path;
+    }
+    /**
+     * Estimate workflow duration
+     */
+    estimateDuration(stages) {
+        return stages.reduce((total, stage) => {
+            const stageDuration = stage.parallel
+                ? Math.max(...stage.nodes.map(n => n.timeout || 5000))
+                : stage.nodes.reduce((sum, n) => sum + (n.timeout || 5000), 0);
+            return total + stageDuration;
+        }, 0);
+    }
+    /**
+     * Calculate workflow parallelism
+     */
+    calculateParallelism(stages) {
+        const parallelCounts = stages.map(stage => stage.parallel ? stage.nodes.length : 1);
+        return Math.max(...parallelCounts);
+    }
+    /**
+     * Check if node is before checkpoint
+     */
+    isNodeBeforeCheckpoint(workflow, nodeId, checkpointNodeId) {
+        // Simple check - in production, do proper graph traversal
+        const sorted = this.topologicalSort(workflow);
+        const nodeIdx = sorted.findIndex(n => n.id === nodeId);
+        const checkpointIdx = sorted.findIndex(n => n.id === checkpointNodeId);
+        return nodeIdx < checkpointIdx;
+    }
+    /**
+     * Remove a node from workflow
+     */
+    removeNode(workflowId, nodeId) {
+        const workflow = this.workflows.get(workflowId);
+        if (!workflow)
+            return;
+        // Remove node
+        workflow.nodes.delete(nodeId);
+        // Remove edges
+        workflow.edges = workflow.edges.filter(edge => edge.from !== nodeId && edge.to !== nodeId);
+        // Update dependencies
+        workflow.nodes.forEach(node => {
+            if (node.dependencies) {
+                node.dependencies = node.dependencies.filter(dep => dep !== nodeId);
+            }
+            if (node.children) {
+                node.children = node.children.filter(child => child !== nodeId);
+            }
+        });
+    }
+    /**
+     * Modify a node
+     */
+    modifyNode(workflowId, nodeId, modifications) {
+        const workflow = this.workflows.get(workflowId);
+        if (!workflow)
+            return;
+        const node = workflow.nodes.get(nodeId);
+        if (!node)
+            return;
+        Object.assign(node, modifications);
+    }
+    /**
+     * Reroute edges
+     */
+    rerouteEdges(workflowId, rerouting) {
+        const workflow = this.workflows.get(workflowId);
+        if (!workflow)
+            return;
+        rerouting.forEach(route => {
+            const edgeIdx = workflow.edges.findIndex(e => e.from === route.from && e.to === route.to);
+            if (edgeIdx >= 0) {
+                workflow.edges[edgeIdx].to = route.newTo;
+            }
+        });
+    }
+    /**
+     * Apply template to workflow
+     */
+    applyTemplate(workflow, template) {
+        template.nodes.forEach(nodeConfig => {
+            const node = {
+                id: nodeConfig.id,
+                type: nodeConfig.type,
+                agentId: nodeConfig.agentId,
+                dependencies: nodeConfig.dependencies
+            };
+            workflow.nodes.set(node.id, node);
+        });
+        // Auto-create edges based on dependencies
+        workflow.nodes.forEach(node => {
+            if (node.dependencies) {
+                node.dependencies.forEach(depId => {
+                    workflow.edges.push({ from: depId, to: node.id });
+                });
+            }
+        });
+        if (template.nodes.length > 0) {
+            workflow.startNode = template.nodes[0].id;
+        }
+    }
+    /**
+     * Generate workflow ID
+     */
+    generateWorkflowId() {
+        return `wf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    /**
+     * Generate checkpoint ID
+     */
+    generateCheckpointId() {
+        return `cp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+}
+exports.WorkflowEngine = WorkflowEngine;
+/**
+ * Workflow Executor - Handles actual execution of workflow
+ */
+class WorkflowExecutor {
+    constructor(workflow, eventBus) {
+        this.paused = false;
+        this.cancelled = false;
+        this.results = new Map();
+        this.workflow = workflow;
+        this.eventBus = eventBus;
+    }
+    async execute(plan) {
+        for (const stage of plan.stages) {
+            if (this.cancelled)
+                break;
+            // Wait if paused
+            while (this.paused && !this.cancelled) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            // Execute stage
+            await this.executeStage(stage);
+            // Create checkpoint after each stage
+            this.createCheckpoint(stage.stageId);
+        }
+        return this.results;
+    }
+    async executeStage(stage) {
+        this.eventBus.emit('stage-started', { workflowId: this.workflow.id, stage });
+        if (stage.parallel) {
+            // Execute nodes in parallel
+            const promises = stage.nodes.map(node => this.executeNode(node));
+            await Promise.all(promises);
+        }
+        else {
+            // Execute nodes sequentially
+            for (const node of stage.nodes) {
+                await this.executeNode(node);
+            }
+        }
+        this.eventBus.emit('stage-completed', { workflowId: this.workflow.id, stage });
+    }
+    async executeNode(node) {
+        const startTime = Date.now();
+        let retries = 0;
+        const maxRetries = node.retryPolicy?.maxAttempts || 1;
+        this.workflow.status.currentNodes.push(node.id);
+        this.eventBus.emit('node-started', { workflowId: this.workflow.id, node });
+        while (retries < maxRetries) {
+            try {
+                // Execute based on node type
+                let output;
+                switch (node.type) {
+                    case 'task':
+                        output = await this.executeTask(node);
+                        break;
+                    case 'decision':
+                        output = await this.executeDecision(node);
+                        break;
+                    case 'parallel':
+                        output = await this.executeParallel(node);
+                        break;
+                    case 'sequential':
+                        output = await this.executeSequential(node);
+                        break;
+                    case 'loop':
+                        output = await this.executeLoop(node);
+                        break;
+                    default:
+                        throw new Error(`Unknown node type: ${node.type}`);
+                }
+                // Store result
+                const result = {
+                    nodeId: node.id,
+                    status: 'success',
+                    output,
+                    duration: Date.now() - startTime,
+                    retries
+                };
+                this.results.set(node.id, result);
+                this.workflow.status.completedNodes.push(node.id);
+                this.workflow.status.currentNodes = this.workflow.status.currentNodes.filter(id => id !== node.id);
+                this.eventBus.emit('node-completed', { workflowId: this.workflow.id, node, result });
+                return;
+            }
+            catch (error) {
+                retries++;
+                if (retries < maxRetries) {
+                    // Calculate backoff
+                    const backoff = Math.min(1000 * Math.pow(node.retryPolicy?.backoffMultiplier || 2, retries), node.retryPolicy?.maxBackoffMs || 30000);
+                    this.eventBus.emit('node-retry', {
+                        workflowId: this.workflow.id,
+                        node,
+                        attempt: retries,
+                        error
+                    });
+                    await new Promise(resolve => setTimeout(resolve, backoff));
+                }
+                else {
+                    // Max retries exceeded
+                    const result = {
+                        nodeId: node.id,
+                        status: 'failure',
+                        error: error instanceof Error ? error.message : String(error),
+                        duration: Date.now() - startTime,
+                        retries
+                    };
+                    this.results.set(node.id, result);
+                    this.workflow.status.failedNodes.push(node.id);
+                    this.workflow.status.currentNodes = this.workflow.status.currentNodes.filter(id => id !== node.id);
+                    this.eventBus.emit('node-failed', { workflowId: this.workflow.id, node, result });
+                    throw error;
+                }
+            }
+        }
+    }
+    async executeTask(node) {
+        // Placeholder for actual task execution
+        // In production, this would call the appropriate agent
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return { result: `Task ${node.id} completed by ${node.agentId}` };
+    }
+    async executeDecision(node) {
+        if (!node.condition) {
+            throw new Error(`Decision node ${node.id} missing condition`);
+        }
+        const decision = node.condition(this.workflow.context);
+        return { decision };
+    }
+    async executeParallel(node) {
+        if (!node.children)
+            return {};
+        const childNodes = node.children
+            .map(childId => this.workflow.nodes.get(childId))
+            .filter(Boolean);
+        const promises = childNodes.map(child => this.executeNode(child));
+        const results = await Promise.all(promises);
+        return { parallel: true, results };
+    }
+    async executeSequential(node) {
+        if (!node.children)
+            return {};
+        const results = [];
+        for (const childId of node.children) {
+            const childNode = this.workflow.nodes.get(childId);
+            if (childNode) {
+                await this.executeNode(childNode);
+                results.push(this.results.get(childId));
+            }
+        }
+        return { sequential: true, results };
+    }
+    async executeLoop(node) {
+        if (!node.condition || !node.children || node.children.length === 0) {
+            throw new Error(`Loop node ${node.id} missing condition or children`);
+        }
+        const results = [];
+        let iteration = 0;
+        const maxIterations = 100; // Safety limit
+        while (node.condition(this.workflow.context) && iteration < maxIterations) {
+            for (const childId of node.children) {
+                const childNode = this.workflow.nodes.get(childId);
+                if (childNode) {
+                    await this.executeNode(childNode);
+                    results.push(this.results.get(childId));
+                }
+            }
+            iteration++;
+        }
+        return { loop: true, iterations: iteration, results };
+    }
+    createCheckpoint(stageId) {
+        const checkpoint = {
+            id: `cp_${Date.now()}`,
+            nodeId: stageId,
+            timestamp: Date.now(),
+            context: new Map(this.workflow.context),
+            results: new Map(this.results)
+        };
+        this.workflow.checkpoints.push(checkpoint);
+        this.eventBus.emit('checkpoint-created', { workflowId: this.workflow.id, checkpoint });
+    }
+    pause() {
+        this.paused = true;
+        this.workflow.status.state = 'paused';
+        this.eventBus.emit('workflow-paused', this.workflow);
+    }
+    resume() {
+        this.paused = false;
+        this.workflow.status.state = 'running';
+        this.eventBus.emit('workflow-resumed', this.workflow);
+    }
+    cancel() {
+        this.cancelled = true;
+        this.workflow.status.state = 'failed';
+        this.workflow.status.error = 'Workflow cancelled by user';
+        this.eventBus.emit('workflow-cancelled', this.workflow);
+    }
+}
+
+
+/***/ }),
+
 /***/ "./src/extension.ts":
 /*!**************************!*\
   !*** ./src/extension.ts ***!
@@ -3977,13 +8281,12 @@ const CodeSmithAgent_1 = __webpack_require__(/*! ./agents/CodeSmithAgent */ "./s
 const TradeStratAgent_1 = __webpack_require__(/*! ./agents/TradeStratAgent */ "./src/agents/TradeStratAgent.ts");
 const ResearchAgent_1 = __webpack_require__(/*! ./agents/ResearchAgent */ "./src/agents/ResearchAgent.ts");
 const OpusArbitratorAgent_1 = __webpack_require__(/*! ./agents/OpusArbitratorAgent */ "./src/agents/OpusArbitratorAgent.ts");
+const DocuBotAgent_1 = __webpack_require__(/*! ./agents/DocuBotAgent */ "./src/agents/DocuBotAgent.ts");
+const ReviewerGPTAgent_1 = __webpack_require__(/*! ./agents/ReviewerGPTAgent */ "./src/agents/ReviewerGPTAgent.ts");
+// import { FixerBotAgent } from './agents/FixerBotAgent'; // DEPRECATED - Functionality integrated into CodeSmithAgent
 // Multi-Agent Chat UI Components
 const MultiAgentChatPanel_1 = __webpack_require__(/*! ./ui/MultiAgentChatPanel */ "./src/ui/MultiAgentChatPanel.ts");
 const ChatWidget_1 = __webpack_require__(/*! ./ui/ChatWidget */ "./src/ui/ChatWidget.ts");
-// TODO: Implement remaining agents
-// import { DocuAgent } from './agents/DocuAgent';
-// import { ReviewerAgent } from './agents/ReviewerAgent';
-// import { FixerAgent } from './agents/FixerAgent';
 // Global output channel for debugging
 let outputChannel;
 async function activate(context) {
@@ -4106,6 +8409,31 @@ async function activate(context) {
             outputChannel.appendLine(`  ❌ ResearchAgent failed: ${error.message}`);
             agentCreationErrors.push(`ResearchAgent: ${error}`);
         }
+        try {
+            agents.push(new DocuBotAgent_1.DocuBotAgent(context, dispatcher));
+            outputChannel.appendLine('  ✅ DocuBotAgent created');
+        }
+        catch (error) {
+            outputChannel.appendLine(`  ❌ DocuBotAgent failed: ${error.message}`);
+            agentCreationErrors.push(`DocuBotAgent: ${error}`);
+        }
+        try {
+            agents.push(new ReviewerGPTAgent_1.ReviewerGPTAgent(context, dispatcher));
+            outputChannel.appendLine('  ✅ ReviewerGPTAgent created');
+        }
+        catch (error) {
+            outputChannel.appendLine(`  ❌ ReviewerGPTAgent failed: ${error.message}`);
+            agentCreationErrors.push(`ReviewerGPTAgent: ${error}`);
+        }
+        // DEPRECATED: FixerBot functionality has been integrated into CodeSmithAgent
+        // CodeSmith now handles: /fix, /debug, /refactor, /modernize commands
+        // try {
+        //     agents.push(new FixerBotAgent(context, dispatcher));
+        //     outputChannel.appendLine('  ✅ FixerBotAgent created');
+        // } catch (error) {
+        //     outputChannel.appendLine(`  ❌ FixerBotAgent failed: ${(error as any).message}`);
+        //     agentCreationErrors.push(`FixerBotAgent: ${error}`);
+        // }
         outputChannel.appendLine(`Agent creation completed: ${agents.length} created, ${agentCreationErrors.length} errors`);
         if (agentCreationErrors.length > 0) {
             outputChannel.appendLine('Agent creation errors:');
@@ -5210,6 +9538,18 @@ class ClaudeCodeService extends events_1.EventEmitter {
         });
     }
     /**
+     * Clean tool markers from content before sending to UI
+     */
+    cleanToolMarkers(content) {
+        // Remove tool detail markers but keep the actual text content
+        return content
+            .replace(/<<TOOL>>.*?<<TOOL_END>>/gs, '') // Remove tool call details
+            .replace(/<<TOOL_RESULT>>.*?<<TOOL_RESULT_END>>/gs, '') // Remove tool result details
+            .replace(/<<THINKING>>.*?<<THINKING_END>>/gs, '') // Remove thinking markers
+            .replace(/🛠️ \*?Claude is using tools.*?\*?\n*/g, '') // Remove tool announcements
+            .trim();
+    }
+    /**
      * Process JSON stream data from Claude
      */
     processJsonStreamData(data, callback) {
@@ -5221,13 +9561,13 @@ class ClaudeCodeService extends events_1.EventEmitter {
                 if (data.session_id) {
                     callback(null, { sessionId: data.session_id });
                 }
-                // Send a fancy initialization message
-                const initMessage = `🚀 **Claude is initializing...** Ready to assist with advanced capabilities!\n\n`;
-                callback(initMessage, null);
+                // Don't send initialization message to avoid clutter
             }
             else if (data.subtype === 'error') {
                 this.outputChannel.appendLine(`[ClaudeCodeService] System error: ${data.message || 'Unknown error'}`);
-                callback(`\n⚠️ **System Error:** ${data.message || 'An unexpected error occurred'}\n`, null);
+                // Clean error messages too
+                const cleanError = `\n⚠️ **System Error:** ${data.message || 'An unexpected error occurred'}\n`;
+                callback(cleanError, null);
                 callback(null, null, 'error');
             }
             else {
@@ -5303,9 +9643,7 @@ class ClaudeCodeService extends events_1.EventEmitter {
                                 toolInBuffer.result = result;
                             }
                         }
-                        // Send tool result notification immediately
-                        const truncatedResult = result.length > 300 ? result.substring(0, 300) + '...' : result;
-                        callback(`<<TOOL_RESULT>>${content.tool_use_id}||${truncatedResult}<<TOOL_RESULT_END>>`, null);
+                        // Don't send tool result markers to UI - they're handled internally
                     }
                 }
             }
@@ -5347,8 +9685,7 @@ class ClaudeCodeService extends events_1.EventEmitter {
                 }
                 else if (event.content_block.type === 'thinking') {
                     this.outputChannel.appendLine(`[ClaudeCodeService] Thinking block starting`);
-                    // Send thinking notification as separate message
-                    callback(`<<THINKING>>💭 **Thinking...**<<THINKING_END>>`, null);
+                    // Don't send thinking markers to UI
                 }
             }
             // Handle content block stop
@@ -5377,10 +9714,7 @@ class ClaudeCodeService extends events_1.EventEmitter {
                 if (event.delta?.stop_reason) {
                     this.outputChannel.appendLine(`[ClaudeCodeService] Stop reason: ${event.delta.stop_reason}`);
                     callback(null, { stopReason: event.delta.stop_reason });
-                    // If stop reason is tool_use, notify user that Claude is working with tools
-                    if (event.delta.stop_reason === 'tool_use') {
-                        callback(`\n\n🛠️ *Claude is using tools to help with your request...*\n`, null);
-                    }
+                    // Don't send tool usage notifications - tools are shown in separate bubbles
                 }
             }
             // Handle message stop
@@ -5600,8 +9934,9 @@ class ClaudeCodeService extends events_1.EventEmitter {
                 }
             }
         }
-        // Send the grouped notification only as a separate bubble
-        callback(`<<TOOL>>${groupedMessage}<<TOOL_END>>`, null);
+        // Send the tool notification as a separate system message (without markers)
+        // The UI will handle this as a blue bubble
+        callback(`SYSTEM_TOOL_MESSAGE:${groupedMessage}`, null, 'tool_info');
         // Clear the buffer
         this.toolGroupBuffer = [];
     }
@@ -5818,6 +10153,30 @@ exports.DEFAULT_AGENT_MODELS = {
     'tradestrat': 'claude-sonnet-4-20250514', // Trading analysis
     'research': 'llama-3.1-sonar-small-128k-online' // Web research
 };
+
+
+/***/ }),
+
+/***/ "./src/types/Memory.ts":
+/*!*****************************!*\
+  !*** ./src/types/Memory.ts ***!
+  \*****************************/
+/***/ ((__unused_webpack_module, exports) => {
+
+
+/**
+ * Memory Types for the Multi-Agent System
+ * Defines the structure of different memory types and operations
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.MemoryType = void 0;
+var MemoryType;
+(function (MemoryType) {
+    MemoryType["WORKING"] = "working";
+    MemoryType["EPISODIC"] = "episodic";
+    MemoryType["SEMANTIC"] = "semantic";
+    MemoryType["PROCEDURAL"] = "procedural"; // How to do things
+})(MemoryType || (exports.MemoryType = MemoryType = {}));
 
 
 /***/ }),
@@ -6303,9 +10662,15 @@ class MultiAgentChatPanel {
             // Process based on mode
             if (mode === 'auto' && this._dispatcher) {
                 console.log(`🎯 [CHAT MODE] ✅ Entering AUTO mode with orchestrator`);
-                // Use orchestrator for automatic routing
-                const response = await this._callAgent('orchestrator', text);
-                this._addAgentResponse(response.content, 'orchestrator', response.metadata);
+                // Create streaming message for orchestrator
+                const streamingMessageId = `streaming-${Date.now()}`;
+                this._addStreamingMessage(streamingMessageId, 'orchestrator');
+                // Show immediate feedback
+                this._updateStreamingMessage(streamingMessageId, '🎭 Analyzing your request...\n', false);
+                // Use orchestrator with streaming
+                const response = await this._callAgentWithStreaming('orchestrator', text, streamingMessageId);
+                // Finalize the streaming message
+                this._finalizeStreamingMessage(streamingMessageId, response.content, response.metadata);
                 // Save to conversation history
                 this._contextManager.addEntry({
                     timestamp: new Date().toISOString(),
@@ -6425,8 +10790,50 @@ class MultiAgentChatPanel {
                 globalContext: conversationHistory,
                 onPartialResponse: (partialContent) => {
                     console.log(`🤖 [STREAMING] Partial content: ${partialContent.length} chars`);
-                    fullContent += partialContent;
-                    this._updateStreamingMessage(messageId, partialContent);
+                    // Check if this is a workflow step notification
+                    if (partialContent.includes('🔄 **Step')) {
+                        // Send as a separate system message
+                        const stepMatch = partialContent.match(/🔄 \*\*Step (\d+)\/(\d+)\*\*: @(\w+) - (.+)/);
+                        if (stepMatch) {
+                            const [, current, total, agent, description] = stepMatch;
+                            this._addSystemMessage(`🔄 Step ${current}/${total}: @${agent} - ${description}`);
+                        }
+                    }
+                    else if (partialContent.includes('✅ Completed:')) {
+                        // Don't add completion previews to the main message
+                        // They will be shown in the final agent response
+                        return;
+                    }
+                    else {
+                        // Extract and process tool markers with agent context
+                        const currentAgent = agentId; // Agent executing the tools
+                        let cleanedContent = partialContent;
+                        // Extract <<TOOL>> markers and create tool notifications with agent color
+                        const toolMatches = [...partialContent.matchAll(/<<TOOL>>(.*?)<<TOOL_END>>/gs)];
+                        for (const match of toolMatches) {
+                            const toolContent = match[1];
+                            this._addToolNotification(toolContent, currentAgent, messageId);
+                            cleanedContent = cleanedContent.replace(match[0], '');
+                        }
+                        // Clean other markers
+                        cleanedContent = cleanedContent
+                            .replace(/<<TOOL_RESULT>>.*?<<TOOL_RESULT_END>>/gs, '')
+                            .replace(/<<THINKING>>.*?<<THINKING_END>>/gs, '')
+                            .replace(/🛠️ \*?Claude is using tools.*?\*?\n*/g, '');
+                        // Check for new system tool message format
+                        if (cleanedContent.includes('SYSTEM_TOOL_MESSAGE:')) {
+                            const parts = cleanedContent.split('SYSTEM_TOOL_MESSAGE:');
+                            if (parts[1]) {
+                                this._addToolNotification(parts[1], currentAgent, messageId);
+                                cleanedContent = parts[0];
+                            }
+                        }
+                        // Only add text content if there's actual content after cleaning
+                        if (cleanedContent.trim().length > 0) {
+                            fullContent += cleanedContent;
+                            this._updateStreamingMessage(messageId, cleanedContent);
+                        }
+                    }
                 }
             };
             // Call the dispatcher
@@ -6619,6 +11026,10 @@ class MultiAgentChatPanel {
         // Find and finalize the streaming message
         const message = this._messages.find(m => m.metadata?.messageId === messageId);
         if (message) {
+            // Update agent if metadata includes it (for workflow results)
+            if (metadata?.agent) {
+                message.agent = metadata.agent;
+            }
             // Don't add metadata info to content, add it as a separate message
             message.content = fullContent;
             message.metadata = { ...message.metadata, ...metadata, isStreaming: false };
@@ -6627,7 +11038,8 @@ class MultiAgentChatPanel {
                 type: 'finalizeStreamingMessage',
                 messageId: messageId,
                 fullContent: message.content,
-                metadata: message.metadata
+                metadata: message.metadata,
+                agent: message.agent
             });
             // Add metadata as a separate completion message if available
             if (metadata && (metadata.usage || metadata.cost || metadata.duration)) {
@@ -6802,6 +11214,74 @@ class MultiAgentChatPanel {
             message: assistantMessage
         });
         console.log(`📝 [ADD RESPONSE] postMessage result:`, postResult);
+    }
+    _addSystemMessage(content) {
+        const systemMessage = {
+            role: 'system',
+            content: content,
+            timestamp: new Date().toISOString()
+        };
+        this._messages.push(systemMessage);
+        this._panel.webview.postMessage({
+            type: 'addMessage',
+            message: systemMessage
+        });
+    }
+    _addToolNotification(content, agentName, relatedMessageId) {
+        const toolMsgId = `tool_${Date.now()}_${Math.random()}`;
+        // Get agent-specific color based on normalized agent name
+        const normalizedAgent = agentName.toLowerCase().replace('agent', '').replace('gpt', '').replace('claude', '');
+        const agentColor = this._getAgentColor(normalizedAgent);
+        const agentEmoji = this._getAgentEmoji(normalizedAgent);
+        const toolMessage = {
+            role: 'system',
+            content: content,
+            agent: agentName,
+            timestamp: new Date().toISOString(),
+            metadata: {
+                isToolNotification: true,
+                relatedMessageId,
+                toolMsgId,
+                agentColor,
+                agentEmoji,
+                agentName
+            }
+        };
+        this._messages.push(toolMessage);
+        // Send to WebView with tool notification flag
+        this._panel.webview.postMessage({
+            type: 'addMessage',
+            message: toolMessage
+        });
+        return toolMsgId;
+    }
+    _getAgentColor(agent) {
+        const colors = {
+            'orchestrator': '#8B5CF6', // Purple
+            'architect': '#10B981', // Emerald Green (changed from blue)
+            'codesmith': '#F97316', // Orange
+            'research': '#EAB308', // Gold
+            'tradestrat': '#14B8A6', // Turquoise
+            'opusarbitrator': '#DC2626', // Crimson
+            'docubot': '#6366F1', // Indigo
+            'reviewer': '#EC4899', // Pink
+            'fixer': '#8B5CF6' // Purple
+        };
+        return colors[agent.toLowerCase()] || '#3B82F6'; // Default to blue for system
+    }
+    _getAgentEmoji(agent) {
+        const emojis = {
+            'orchestrator': '🎯',
+            'architect': '🏗️',
+            'codesmith': '🛠️',
+            'research': '🔍',
+            'tradestrat': '📈',
+            'opusarbitrator': '⚖️',
+            'docubot': '📚',
+            'reviewer': '🔎',
+            'fixer': '🔧'
+        };
+        return emojis[agent.toLowerCase()] || '🤖';
     }
     _addErrorMessage(content) {
         const errorMessage = {

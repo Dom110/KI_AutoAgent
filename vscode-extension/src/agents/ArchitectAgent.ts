@@ -16,8 +16,8 @@ export class ArchitectAgent extends ChatAgent {
             participantId: 'ki-autoagent.architect',
             name: 'architect',
             fullName: 'ArchitectGPT',
-            description: 'System Architecture & Design Expert powered by GPT-4o',
-            model: 'gpt-4o',
+            description: 'System Architecture & Design Expert powered by GPT-5',
+            model: 'gpt-5-2025-09-12',
             iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'openai-icon.svg'),
             capabilities: [
                 'System Design',

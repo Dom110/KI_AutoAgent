@@ -26,38 +26,56 @@ export class AgentRegistry {
         'orchestrator': {
             specialization: 'Multi-Agent Workflow Coordination',
             canHandle: ['workflow', 'orchestration', 'multi-step', 'complex-tasks', 'coordination'],
-            model: 'gpt-4o',
+            model: 'gpt-5-2025-09-12',
             instructionSet: 'orchestrator.md'
         },
         'architect': {
             specialization: 'System Architecture & Design',
             canHandle: ['architecture', 'design', 'patterns', 'scalability', 'tech-stack', 'system-design', 'database-design'],
-            model: 'gpt-4o-2024-11-20',
+            model: 'gpt-5-2025-09-12',
             instructionSet: 'architect.md'
         },
         'codesmith': {
             specialization: 'Code Implementation & Optimization',
             canHandle: ['coding', 'implementation', 'optimization', 'testing', 'debugging', 'refactoring', 'code-review'],
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-4.1-sonnet-20250920',
             instructionSet: 'codesmith.md'
         },
         'tradestrat': {
             specialization: 'Trading Strategies & Financial Analysis',
             canHandle: ['trading', 'algorithms', 'financial', 'backtesting', 'market-analysis', 'portfolio', 'risk-management'],
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-4.1-sonnet-20250920',
             instructionSet: 'tradestrat.md'
         },
         'research': {
             specialization: 'Web Research & Information Gathering',
             canHandle: ['research', 'web-search', 'documentation', 'fact-checking', 'information-gathering', 'api-docs'],
-            model: 'llama-3.1-sonar-small-128k-online',
+            model: 'perplexity-llama-3.1-sonar-huge-128k',
             instructionSet: 'research.md'
         },
         'opus-arbitrator': {
             specialization: 'Agent Conflict Resolution',
             canHandle: ['conflicts', 'decision-making', 'arbitration', 'dispute-resolution', 'consensus'],
-            model: 'claude-opus-4-1-20250805',
+            model: 'claude-4.1-opus-20250915',
             instructionSet: 'richter.md'
+        },
+        'docu': {
+            specialization: 'Technical Documentation & API Reference',
+            canHandle: ['documentation', 'readme', 'api-docs', 'user-guides', 'comments', 'changelog', 'technical-writing', 'instruction-management'],
+            model: 'gpt-5-2025-09-12',
+            instructionSet: 'docubot-instructions.md'
+        },
+        'reviewer': {
+            specialization: 'Code Review & Security Analysis',
+            canHandle: ['code-review', 'security', 'performance-analysis', 'standards', 'testing', 'quality-assurance', 'vulnerabilities', 'architecture-validation'],
+            model: 'gpt-5-mini-2025-09-20',
+            instructionSet: 'reviewergpt-instructions.md'
+        },
+        'fixer': {
+            specialization: 'Bug Fixing & Optimization',
+            canHandle: ['bug-fixing', 'debugging', 'error-resolution', 'optimization', 'refactoring', 'modernization', 'hotfix'],
+            model: 'claude-4.1-sonnet-20250920',
+            instructionSet: 'fixerbot-instructions.md'
         }
     };
 
@@ -162,7 +180,10 @@ export class AgentRegistry {
             'codesmith': 'CodeSmithAgent',
             'tradestrat': 'TradeStratAgent',
             'research': 'ResearchAgent',
-            'opus-arbitrator': 'OpusArbitratorAgent'
+            'opus-arbitrator': 'OpusArbitratorAgent',
+            'docu': 'DocuBot',
+            'reviewer': 'ReviewerGPT',
+            'fixer': 'FixerBot'
         };
         return nameMap[agentId] || agentId;
     }

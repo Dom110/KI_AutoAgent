@@ -284,10 +284,20 @@ export class MultiAgentChatPanel {
             // Process based on mode
             if (mode === 'auto' && this._dispatcher) {
                 console.log(`🎯 [CHAT MODE] ✅ Entering AUTO mode with orchestrator`);
-                // Use orchestrator for automatic routing
-                const response = await this._callAgent('orchestrator', text);
-                this._addAgentResponse(response.content, 'orchestrator', response.metadata);
-                
+
+                // Create streaming message for orchestrator
+                const streamingMessageId = `streaming-${Date.now()}`;
+                this._addStreamingMessage(streamingMessageId, 'orchestrator');
+
+                // Show immediate feedback
+                this._updateStreamingMessage(streamingMessageId, '🎭 Analyzing your request...\n', false);
+
+                // Use orchestrator with streaming
+                const response = await this._callAgentWithStreaming('orchestrator', text, streamingMessageId);
+
+                // Finalize the streaming message
+                this._finalizeStreamingMessage(streamingMessageId, response.content, response.metadata);
+
                 // Save to conversation history
                 this._contextManager.addEntry({
                     timestamp: new Date().toISOString(),
@@ -416,8 +426,53 @@ export class MultiAgentChatPanel {
                 globalContext: conversationHistory,
                 onPartialResponse: (partialContent: string) => {
                     console.log(`🤖 [STREAMING] Partial content: ${partialContent.length} chars`);
-                    fullContent += partialContent;
-                    this._updateStreamingMessage(messageId, partialContent);
+
+                    // Check if this is a workflow step notification
+                    if (partialContent.includes('🔄 **Step')) {
+                        // Send as a separate system message
+                        const stepMatch = partialContent.match(/🔄 \*\*Step (\d+)\/(\d+)\*\*: @(\w+) - (.+)/);
+                        if (stepMatch) {
+                            const [, current, total, agent, description] = stepMatch;
+                            this._addSystemMessage(`🔄 Step ${current}/${total}: @${agent} - ${description}`);
+                        }
+                    } else if (partialContent.includes('✅ Completed:')) {
+                        // Don't add completion previews to the main message
+                        // They will be shown in the final agent response
+                        return;
+                    } else {
+                        // Extract and process tool markers with agent context
+                        const currentAgent = agentId; // Agent executing the tools
+                        let cleanedContent = partialContent;
+
+                        // Extract <<TOOL>> markers and create tool notifications with agent color
+                        const toolMatches = [...partialContent.matchAll(/<<TOOL>>(.*?)<<TOOL_END>>/gs)];
+                        for (const match of toolMatches) {
+                            const toolContent = match[1];
+                            this._addToolNotification(toolContent, currentAgent, messageId);
+                            cleanedContent = cleanedContent.replace(match[0], '');
+                        }
+
+                        // Clean other markers
+                        cleanedContent = cleanedContent
+                            .replace(/<<TOOL_RESULT>>.*?<<TOOL_RESULT_END>>/gs, '')
+                            .replace(/<<THINKING>>.*?<<THINKING_END>>/gs, '')
+                            .replace(/🛠️ \*?Claude is using tools.*?\*?\n*/g, '');
+
+                        // Check for new system tool message format
+                        if (cleanedContent.includes('SYSTEM_TOOL_MESSAGE:')) {
+                            const parts = cleanedContent.split('SYSTEM_TOOL_MESSAGE:');
+                            if (parts[1]) {
+                                this._addToolNotification(parts[1], currentAgent, messageId);
+                                cleanedContent = parts[0];
+                            }
+                        }
+
+                        // Only add text content if there's actual content after cleaning
+                        if (cleanedContent.trim().length > 0) {
+                            fullContent += cleanedContent;
+                            this._updateStreamingMessage(messageId, cleanedContent);
+                        }
+                    }
                 }
             };
 
@@ -626,16 +681,22 @@ export class MultiAgentChatPanel {
         // Find and finalize the streaming message
         const message = this._messages.find(m => m.metadata?.messageId === messageId);
         if (message) {
+            // Update agent if metadata includes it (for workflow results)
+            if (metadata?.agent) {
+                message.agent = metadata.agent;
+            }
+
             // Don't add metadata info to content, add it as a separate message
             message.content = fullContent;
             message.metadata = { ...message.metadata, ...metadata, isStreaming: false };
             message.isCollapsible = fullContent.length > 500;
-            
+
             this._panel.webview.postMessage({
                 type: 'finalizeStreamingMessage',
                 messageId: messageId,
                 fullContent: message.content,
-                metadata: message.metadata
+                metadata: message.metadata,
+                agent: message.agent
             });
 
             // Add metadata as a separate completion message if available
@@ -846,6 +907,84 @@ export class MultiAgentChatPanel {
         console.log(`📝 [ADD RESPONSE] postMessage result:`, postResult);
     }
 
+    private _addSystemMessage(content: string) {
+        const systemMessage: ChatMessage = {
+            role: 'system',
+            content: content,
+            timestamp: new Date().toISOString()
+        };
+        this._messages.push(systemMessage);
+
+        this._panel.webview.postMessage({
+            type: 'addMessage',
+            message: systemMessage
+        });
+    }
+
+    private _addToolNotification(content: string, agentName: string, relatedMessageId?: string): string {
+        const toolMsgId = `tool_${Date.now()}_${Math.random()}`;
+
+        // Get agent-specific color based on normalized agent name
+        const normalizedAgent = agentName.toLowerCase().replace('agent', '').replace('gpt', '').replace('claude', '');
+        const agentColor = this._getAgentColor(normalizedAgent);
+        const agentEmoji = this._getAgentEmoji(normalizedAgent);
+
+        const toolMessage: ChatMessage = {
+            role: 'system',
+            content: content,
+            agent: agentName,
+            timestamp: new Date().toISOString(),
+            metadata: {
+                isToolNotification: true,
+                relatedMessageId,
+                toolMsgId,
+                agentColor,
+                agentEmoji,
+                agentName
+            }
+        };
+
+        this._messages.push(toolMessage);
+
+        // Send to WebView with tool notification flag
+        this._panel.webview.postMessage({
+            type: 'addMessage',
+            message: toolMessage
+        });
+
+        return toolMsgId;
+    }
+
+    private _getAgentColor(agent: string): string {
+        const colors: { [key: string]: string } = {
+            'orchestrator': '#8B5CF6',     // Purple
+            'architect': '#10B981',        // Emerald Green (changed from blue)
+            'codesmith': '#F97316',        // Orange
+            'research': '#EAB308',         // Gold
+            'tradestrat': '#14B8A6',       // Turquoise
+            'opusarbitrator': '#DC2626',   // Crimson
+            'docubot': '#6366F1',          // Indigo
+            'reviewer': '#EC4899',         // Pink
+            'fixer': '#8B5CF6'             // Purple
+        };
+        return colors[agent.toLowerCase()] || '#3B82F6'; // Default to blue for system
+    }
+
+    private _getAgentEmoji(agent: string): string {
+        const emojis: { [key: string]: string } = {
+            'orchestrator': '🎯',
+            'architect': '🏗️',
+            'codesmith': '🛠️',
+            'research': '🔍',
+            'tradestrat': '📈',
+            'opusarbitrator': '⚖️',
+            'docubot': '📚',
+            'reviewer': '🔎',
+            'fixer': '🔧'
+        };
+        return emojis[agent.toLowerCase()] || '🤖';
+    }
+
     private _addErrorMessage(content: string) {
         const errorMessage: ChatMessage = {
             role: 'system',
@@ -853,7 +992,7 @@ export class MultiAgentChatPanel {
             timestamp: new Date().toISOString()
         };
         this._messages.push(errorMessage);
-        
+
         this._panel.webview.postMessage({
             type: 'addMessage',
             message: errorMessage

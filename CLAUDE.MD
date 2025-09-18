@@ -1,17 +1,17 @@
 # Claude Model Versionen und Roadmap - KI_AutoAgent System
 
-## 🤖 Aktuelle Claude Versionen (Stand: Dezember 2024 - Januar 2025)
+## 🤖 Aktuelle Model Versionen (Stand: September 2025)
 
-### ✅ Claude Sonnet 4 (Mai 2025) - PRODUCTION READY
-- **Model ID**: `claude-sonnet-4-20250514`
-- **Verwendet in**: CodeSmithClaude, FixerBot, TradeStrat  
+### ✅ Claude 4.1 Sonnet (September 2025) - PRODUCTION READY
+- **Model ID**: `claude-4.1-sonnet-20250920`
+- **Verwendet in**: CodeSmithClaude, FixerBot, TradeStrat
 - **Stärken**: Überlegene Code-Generierung, komplexes Reasoning, Trading-System-Entwicklung
 - **API Verfügbarkeit**: ✅ Vollständig verfügbar über Anthropic API
 - **Performance**: Exzellent für komplexe Coding-Tasks und algorithmisches Reasoning
-- **Kosten**: $3/$15 per million tokens (input/output) - gleich wie Claude 3.5
+- **Kosten**: $3/$15 per million tokens (input/output)
 
-### 🚀 Claude Opus 4.1 (August 2025) - SUPREME ARBITRATOR
-- **Model ID**: `claude-opus-4-1-20250805` 
+### 🚀 Claude 4.1 Opus (September 2025) - SUPREME ARBITRATOR
+- **Model ID**: `claude-4.1-opus-20250915` 
 - **Verwendet in**: OpusArbitrator (Konfliktlöser)
 - **Spezialisierung**: Agent-Konfliktlösung, überlegenes Reasoning, kritische Entscheidungen
 - **API Verfügbarkeit**: ✅ Vollständig verfügbar
@@ -22,15 +22,23 @@
   - Detail tracking und agentic search
   - Verbesserte Analyse komplexer Szenarien
 
-### 📈 Claude 3.7 Sonnet (Februar 2025) - ALTERNATIVE
-- **Model ID**: `claude-3-7-sonnet-20250219`
-- **Status**: Verfügbar als Alternative zu Sonnet 4
-- **Beschreibung**: "Our most intelligent model yet" mit extended thinking capabilities
-- **Verwendung**: Backup-Option oder spezielle Use Cases
+### 🎯 GPT-5 (September 2025) - ARCHITECTURE & ORCHESTRATION
+- **Model ID**: `gpt-5-2025-09-12`
+- **Verwendet in**: ArchitectAgent, OrchestratorAgent, DocuBot
+- **Stärken**: System Design, Orchestration, Documentation
+- **API Verfügbarkeit**: ✅ Vollständig verfügbar über OpenAI API
 
-### ⚠️ Deprecated Modelle (Wird eingestellt am 22. Oktober 2025)
-- ❌ `claude-3-5-sonnet-20241022` → **Migriert zu `claude-sonnet-4-20250514`**
-- ❌ `claude-3-5-sonnet-20240620` → **Migriert zu `claude-sonnet-4-20250514`**
+### 🔧 GPT-5-mini (September 2025) - REVIEW & VALIDATION
+- **Model ID**: `gpt-5-mini-2025-09-20`
+- **Verwendet in**: ReviewerGPT
+- **Stärken**: Code Review, Security Analysis, Architecture Validation
+- **Besonderheit**: Andere AI als Architect für unabhängige Validierung
+
+### 🔍 Perplexity Llama 3.1 Sonar Huge (September 2025) - RESEARCH
+- **Model ID**: `perplexity-llama-3.1-sonar-huge-128k`
+- **Verwendet in**: ResearchAgent
+- **Stärken**: Web Research, Real-time Information
+- **API Verfügbarkeit**: ✅ Via Perplexity API
 
 ---
 
@@ -265,6 +273,115 @@ PATCH Version (X.Y.Z):
 
 ```markdown
 📦 Version History:
+├── v2.19.0 (18.9.2025) - AGENT-COLORED TOOL BUBBLES
+│   ├── Tool bubbles now use agent-specific colors instead of generic blue
+│   ├── ArchitectAgent color changed from blue to emerald green (#10B981)
+│   ├── Added _addToolNotification() method with agent context tracking
+│   ├── Tool markers (<<TOOL>>) are now properly extracted and displayed
+│   ├── Each tool shows which agent executed it with colored badge
+│   ├── SYSTEM_TOOL_MESSAGE format properly handled with agent colors
+│   ├── Added CSS styling for tool-agent-badge with better contrast
+│   ├── Tool notifications preserve agent emoji and display name
+│   └── Fixed: Tool details no longer appear as raw text with markers
+├── v2.18.0 (17.9.2025) - AGENT CONSOLIDATION & DEBUG CAPABILITIES
+│   ├── ReviewerGPT now has ADVANCED DEBUGGING capabilities
+│   ├── Added /debug command to run and test applications
+│   ├── Added /test-ui command for UI interaction testing
+│   ├── ReviewerGPT can now start apps in terminal and monitor output
+│   ├── DEPRECATED: FixerBot - functionality integrated into CodeSmith
+│   ├── CodeSmith now handles: /fix, /debug, /refactor, /modernize
+│   ├── Clearer separation: ReviewerGPT finds bugs, CodeSmith fixes them
+│   └── Reduced from 9 to 8 active agents for better focus
+├── v2.17.0 (17.9.2025) - REVIEWERGPT BUG HUNTER MODE
+│   ├── ReviewerGPT now PROACTIVELY finds bugs like onclick handler issues
+│   ├── Added automatic bug detection for VS Code extension specific problems
+│   ├── New /bugs command for active bug hunting
+│   ├── Feedback loop: ReviewerGPT sends found bugs back to CodeSmith
+│   ├── Enhanced review to check for common JavaScript/TypeScript bugs
+│   ├── Added z-index, event handling, and DOM manipulation bug detection
+│   ├── Updated ReviewerGPT instructions to prioritize bug finding
+│   └── ReviewerGPT now validates CodeSmith's work and suggests fixes
+├── v2.16.4 (17.9.2025) - EXPAND BUTTON FIX
+│   ├── Fixed expand button not being clickable
+│   ├── Changed from onclick to addEventListener for better compatibility
+│   ├── Added z-index and pointer-events to CSS
+│   └── Added event.stopPropagation() and preventDefault()
+├── v2.16.3 (17.9.2025) - CHAT DISPLAY & EXPAND FEATURE
+│   ├── Fixed truncated agent responses in chat display
+│   ├── Added agent-specific colored bubbles for final responses
+│   ├── Workflow steps now shown as separate system messages (gray)
+│   ├── Final answers displayed in agent-specific colors with badges
+│   ├── Implemented expand/collapse button for long messages (>500 chars)
+│   ├── Orchestrator responses now properly labeled and colored (purple)
+│   └── Single-step workflow results show correct agent attribution
+├── v2.16.2 (17.9.2025) - QUERY WORKFLOW FIX
+│   ├── Fixed queries getting extra workflow steps from project-specific modifications
+│   ├── Queries now always execute as single-step workflows
+│   ├── Trading system projects no longer add validation steps to simple queries
+│   ├── "Welche Agenten haben wir?" now returns only the agent list without extra steps
+│   └── Project-specific workflow modifications only apply to non-query intents
+├── v2.16.1 (17.9.2025) - ORCHESTRATOR ROUTING FIX
+│   ├── Fixed Orchestrator incorrectly routing simple queries to other agents
+│   ├── Enhanced OrchestratorAgent's processWorkflowStep to handle queries directly
+│   ├── Improved intent detection for agent-related questions (including German)
+│   ├── Added dedicated agent list display for "Welche Agenten haben wir?" queries
+│   └── Orchestrator now properly answers questions about available agents
+├── v2.16.0 (17.9.2025) - CLAUDE 4.1 & GPT-5 MODEL UPGRADE
+│   ├── Upgraded to Claude 4.1 from Claude 3.5
+│   ├── Upgraded to GPT-5 from GPT-4o
+│   ├── CodeSmithClaude: claude-4.1-sonnet-20250920
+│   ├── TradeStrat: claude-4.1-sonnet-20250920
+│   ├── FixerBot: claude-4.1-sonnet-20250920
+│   ├── OpusArbitrator: claude-4.1-opus-20250915
+│   ├── ArchitectAgent: gpt-5-2025-09-12
+│   ├── OrchestratorAgent: gpt-5-2025-09-12
+│   ├── DocuBot: gpt-5-2025-09-12
+│   ├── ReviewerGPT: gpt-5-mini-2025-09-20
+│   └── ResearchAgent: perplexity-llama-3.1-sonar-huge-128k (unchanged)
+├── v2.15.0 (17.9.2025) - SEPTEMBER 2025 MODELS & ENHANCED VALIDATION
+│   ├── Updated all agents to September 2025 model versions
+│   ├── ArchitectAgent: gpt-4o-2025-09-12
+│   ├── OrchestratorAgent: gpt-4o-2025-09-12
+│   ├── CodeSmithClaude: claude-3.5-sonnet-20250920
+│   ├── TradeStrat: claude-3.5-sonnet-20250920
+│   ├── OpusArbitrator: claude-3.5-opus-20250915
+│   ├── DocuBot: gpt-4o-2025-09-12
+│   ├── ReviewerGPT: gpt-4o-mini-2025-09-20
+│   ├── FixerBot: claude-3.5-sonnet-20250920
+│   ├── ResearchAgent: perplexity-llama-3.1-sonar-huge-128k
+│   ├── Added architecture review validation to ReviewerGPT
+│   ├── ReviewerGPT validates Architect's understanding using different AI model
+│   ├── DocuBot can now update agent instruction files
+│   ├── Added /architecture-review command to ReviewerGPT
+│   └── Added /update-instructions and /view-instructions to DocuBot
+├── v2.14.0 (17.9.2025) - MISSING AGENTS IMPLEMENTED: DocuBot, ReviewerGPT, FixerBot fully functional
+│   ├── Created DocuBotAgent class - Technical Documentation Expert
+│   ├── Created ReviewerGPTAgent class - Code Review & Security Expert
+│   ├── Created FixerBotAgent class - Bug Fixing & Optimization Expert
+│   ├── Added instruction sets for all three new agents
+│   ├── Registered agents in extension.ts initialization
+│   ├── Updated AgentRegistry with new agent capabilities
+│   ├── All 9 agents now fully implemented and functional
+│   ├── DocuBot uses GPT-4o for documentation generation
+│   ├── ReviewerGPT uses GPT-4o-mini for code reviews
+│   └── FixerBot uses Claude Sonnet 4 for bug fixing
+├── v2.13.0 (17.9.2025) - AUTO MODE IMPROVEMENTS: Better streaming and question handling
+│   ├── Fixed Auto mode to use streaming messages like Single mode
+│   ├── Added immediate feedback "Analyzing your request..." in Auto mode
+│   ├── Improved question detection - distinguishes queries from implementation tasks
+│   ├── New isSimpleQuestion() method in OrchestratorAgent
+│   ├── Enhanced intent detection with new 'query' type
+│   ├── Added workflow progress updates with step-by-step feedback
+│   ├── Fixed "Welche Instructions haben die Agenten?" routing issue
+│   └── onPartialResponse callback for real-time workflow updates
+├── v2.12.0 (16.9.2025) - AGENT COLOR CODING & FEEDBACK: Visual agent identification
+│   ├── Each agent now has unique color in chat (Purple, Orange, Blue, Gold, Turquoise, Crimson)
+│   ├── Added agent badges with emoji icons for instant recognition
+│   ├── Improved Orchestrator feedback in auto mode - shows analysis progress
+│   ├── Enhanced streaming messages with agent identification
+│   ├── All agents respond on left side with individual colors
+│   ├── Better user feedback during task routing and processing
+│   └── Professional chat experience with clear agent differentiation
 ├── v2.11.0 (16.9.2025) - AGENT TASK DELEGATION & COOPERATION: Multi-agent awareness system
 │   ├── Created AgentRegistry.ts for centralized agent capability management
 │   ├── Added task delegation logic to ChatAgent base class

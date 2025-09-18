@@ -15,7 +15,7 @@ export class OpusArbitratorAgent extends ChatAgent {
             name: 'richter',
             fullName: 'OpusArbitrator',
             description: '⚖️ Supreme Quality Judge powered by Claude Opus 4.1 - Final arbitrator for agent conflicts with superior reasoning capabilities',
-            model: 'claude-opus-4-1-20250805',
+            model: 'claude-4.1-opus-20250915',
             iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'claude-icon.svg'),
             capabilities: [
                 'Agent Conflict Resolution',

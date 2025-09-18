@@ -2,7 +2,7 @@
   "name": "ki-autoagent-vscode",
   "displayName": "KI AutoAgent",
   "description": "Universal Multi-Agent AI Development Platform for VS Code",
-  "version": "2.11.0",
+  "version": "2.19.0",
   "publisher": "ki-autoagent",
   "icon": "media/multi-agent-logo.png",
   "repository": {
@@ -713,19 +713,30 @@
         },
         "kiAutoAgent.chat.responseFormat": {
           "type": "string",
-          "enum": ["simple", "detailed"],
+          "enum": [
+            "simple",
+            "detailed"
+          ],
           "default": "detailed",
           "markdownDescription": "📝 **Response Format**\nChoose between simple or detailed response format"
         },
         "kiAutoAgent.chat.logLevel": {
           "type": "string",
-          "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR"
+          ],
           "default": "INFO",
           "markdownDescription": "🔍 **Log Level**\nMinimum log level for console output"
         },
         "kiAutoAgent.chat.fallbackMode": {
           "type": "string",
-          "enum": ["graceful", "strict"],
+          "enum": [
+            "graceful",
+            "strict"
+          ],
           "default": "graceful",
           "markdownDescription": "🔄 **Fallback Mode**\nHow to handle fallback scenarios"
         },
@@ -777,6 +788,7 @@
     "@anthropic-ai/claude-code": "^1.0.111",
     "@anthropic-ai/sdk": "^0.24.0",
     "axios": "^1.6.0",
+    "eventemitter3": "^5.0.1",
     "openai": "^4.0.0"
   },
   "versionHistory": {

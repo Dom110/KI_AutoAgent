@@ -154,22 +154,36 @@
     // Add streaming message to chat
     function addStreamingMessage(message) {
         console.log('[CHAT.JS] addStreamingMessage called with:', message);
-        
+
         // Hide welcome message if it exists
         const welcomeMsg = document.querySelector('.welcome-message');
         if (welcomeMsg) {
             welcomeMsg.remove();
         }
-        
+
         // Create message wrapper with special streaming class
         const messageWrapper = document.createElement('div');
-        messageWrapper.className = `message-wrapper ${message.role} streaming`;
+        // Add agent-specific class if agent is specified
+        if (message.agent) {
+            messageWrapper.className = `message-wrapper ${message.role} ${message.agent} streaming`;
+        } else {
+            messageWrapper.className = `message-wrapper ${message.role} streaming`;
+        }
         messageWrapper.dataset.messageId = message.metadata?.messageId;
-        
+
         // Create message bubble
         const messageBubble = document.createElement('div');
         messageBubble.className = 'message-bubble';
-        
+
+        // Add agent badge for assistant messages
+        if (message.role === 'assistant' && message.agent) {
+            const agentBadge = document.createElement('div');
+            agentBadge.className = 'agent-badge';
+            agentBadge.textContent = getAgentDisplayName(message.agent);
+            agentBadge.style.color = getAgentColor(message.agent);
+            messageBubble.appendChild(agentBadge);
+        }
+
         // Add initial content (empty for streaming)
         const messageContent = document.createElement('div');
         messageContent.className = 'message-content';
@@ -240,17 +254,56 @@
     }
     
     // Finalize streaming message
-    function finalizeStreamingMessage(messageId, fullContent, metadata) {
+    function finalizeStreamingMessage(messageId, fullContent, metadata, agent) {
         const messageWrapper = document.querySelector(`[data-message-id="${messageId}"]`);
         if (messageWrapper) {
             // Remove streaming class
             messageWrapper.classList.remove('streaming');
-            
+
+            // Update agent if provided (for workflow results)
+            if (agent && agent !== messageWrapper.dataset.agent) {
+                // Update wrapper class
+                messageWrapper.classList.remove(messageWrapper.dataset.agent);
+                messageWrapper.classList.add(agent);
+                messageWrapper.dataset.agent = agent;
+
+                // Update or add agent badge
+                const messageBubble = messageWrapper.querySelector('.message-bubble');
+                let agentBadge = messageBubble.querySelector('.agent-badge');
+                if (!agentBadge) {
+                    agentBadge = document.createElement('div');
+                    agentBadge.className = 'agent-badge';
+                    messageBubble.insertBefore(agentBadge, messageBubble.firstChild);
+                }
+                agentBadge.textContent = getAgentDisplayName(agent);
+                agentBadge.style.color = getAgentColor(agent);
+            }
+
             const messageContent = messageWrapper.querySelector('.message-content');
             if (messageContent) {
                 // Set final content without cursor
                 messageContent.innerHTML = formatMessageContent(fullContent);
-                
+
+                // Check if content should have expand/collapse
+                const contentLength = fullContent?.length || 0;
+                const shouldTruncate = contentLength > 500;
+
+                if (shouldTruncate && !messageWrapper.querySelector('.expand-button')) {
+                    messageContent.classList.add('truncated');
+
+                    const expandButton = document.createElement('button');
+                    expandButton.className = 'expand-button';
+                    expandButton.textContent = '...';
+                    expandButton.title = 'Expand';
+                    expandButton.setAttribute('type', 'button');
+                    expandButton.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggleMessageExpansion(messageWrapper.querySelector('.message-bubble'));
+                    });
+                    messageWrapper.querySelector('.message-bubble').appendChild(expandButton);
+                }
+
                 // Add metadata if present
                 if (metadata && !metadata.isStreaming) {
                     const messageMeta = document.createElement('div');
@@ -258,7 +311,7 @@
                     messageMeta.innerHTML = `<span class="timestamp">${formatTimestamp(new Date().toISOString())}</span>`;
                     messageWrapper.querySelector('.message-bubble').appendChild(messageMeta);
                 }
-                
+
                 // Enhance code blocks
                 enhanceCodeBlocks(messageWrapper.querySelector('.message-bubble'));
             }
@@ -270,33 +323,91 @@
         console.log('[CHAT.JS] addMessage called with:', message);
         console.log('[CHAT.JS] Message content length:', message.content?.length || 0);
         console.log('[CHAT.JS] Message role:', message.role);
-        
+
         // Hide welcome message if it exists
         const welcomeMsg = document.querySelector('.welcome-message');
         if (welcomeMsg) {
             welcomeMsg.remove();
         }
-        
+
         // Remove typing indicator if present
         const typingIndicator = document.querySelector('.typing-indicator');
         if (typingIndicator) {
             typingIndicator.remove();
         }
-        
+
         // Create message wrapper
         const messageWrapper = document.createElement('div');
-        messageWrapper.className = `message-wrapper ${message.role}`;
-        
+        // Add agent-specific class if agent is specified
+        if (message.agent) {
+            messageWrapper.className = `message-wrapper ${message.role} ${message.agent}`;
+        } else {
+            messageWrapper.className = `message-wrapper ${message.role}`;
+        }
+
         // Create message bubble
         const messageBubble = document.createElement('div');
         messageBubble.className = 'message-bubble';
-        
+
+        // Handle tool notifications with agent-specific colors
+        if (message.metadata?.isToolNotification && message.metadata?.agentColor) {
+            // Tool notification - use agent color
+            messageBubble.style.backgroundColor = message.metadata.agentColor;
+            messageBubble.style.opacity = '0.85';
+            messageBubble.classList.add('tool-notification');
+
+            // Add agent badge for tool notification
+            if (message.metadata.agentEmoji && message.metadata.agentName) {
+                const toolBadge = document.createElement('div');
+                toolBadge.className = 'tool-agent-badge';
+                toolBadge.innerHTML = `${message.metadata.agentEmoji} ${getAgentDisplayName(message.metadata.agentName)}`;
+                messageBubble.appendChild(toolBadge);
+            }
+        }
+        // Add agent badge for assistant messages
+        else if (message.role === 'assistant' && message.agent) {
+            const agentBadge = document.createElement('div');
+            agentBadge.className = 'agent-badge';
+            agentBadge.textContent = getAgentDisplayName(message.agent);
+            agentBadge.style.color = getAgentColor(message.agent);
+            messageBubble.appendChild(agentBadge);
+        }
+
         // Add message content
         const messageContent = document.createElement('div');
         messageContent.className = 'message-content';
+
+        // Check if content should be truncated (collapsible)
+        const contentLength = message.content?.length || 0;
+        const shouldTruncate = message.isCollapsible || contentLength > 500;
+
+        if (shouldTruncate) {
+            messageContent.classList.add('truncated');
+            // Add unique ID for toggle functionality
+            const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            messageContent.setAttribute('data-message-id', messageId);
+            messageBubble.setAttribute('data-message-id', messageId);
+        }
+
         messageContent.innerHTML = formatMessageContent(message.content);
         messageBubble.appendChild(messageContent);
-        
+
+        // Add expand button if content is truncated
+        if (shouldTruncate) {
+            const expandButton = document.createElement('button');
+            expandButton.className = 'expand-button';
+            expandButton.textContent = '...';
+            expandButton.title = 'Expand';
+            expandButton.setAttribute('type', 'button');
+            // Use addEventListener instead of onclick for better compatibility
+            expandButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                toggleMessageExpansion(messageBubble);
+            });
+            messageBubble.appendChild(expandButton);
+        }
+
         // Add metadata (timestamp on hover)
         if (message.timestamp) {
             const messageMeta = document.createElement('div');
@@ -304,7 +415,7 @@
             messageMeta.innerHTML = `<span class="timestamp">${formatTimestamp(message.timestamp)}</span>`;
             messageBubble.appendChild(messageMeta);
         }
-        
+
         // Handle code blocks for copy functionality
         enhanceCodeBlocks(messageBubble);
         
@@ -318,6 +429,24 @@
         scrollToBottom();
     }
     
+    // Toggle message expansion/collapse
+    function toggleMessageExpansion(messageBubble) {
+        const contentEl = messageBubble.querySelector('.message-content');
+        const expandBtn = messageBubble.querySelector('.expand-button');
+
+        if (contentEl && expandBtn) {
+            if (contentEl.classList.contains('truncated')) {
+                contentEl.classList.remove('truncated');
+                expandBtn.textContent = '▲';
+                expandBtn.title = 'Collapse';
+            } else {
+                contentEl.classList.add('truncated');
+                expandBtn.textContent = '...';
+                expandBtn.title = 'Expand';
+            }
+        }
+    }
+
     // Show typing indicator - Claude Style
     function showTypingIndicator(agent) {
         // Remove existing typing indicator
@@ -557,6 +686,35 @@
         }
     }
     
+    // Get agent display name with emoji
+    function getAgentDisplayName(agent) {
+        const names = {
+            'orchestrator': '🎭 Orchestrator',
+            'architect': '🏗️ Architect',
+            'codesmith': '💻 CodeSmith',
+            'tradestrat': '📈 TradeStrat',
+            'research': '🔍 Research',
+            'opus-arbitrator': '⚖️ Arbitrator'
+        };
+        return names[agent] || agent;
+    }
+
+    // Get agent-specific color
+    function getAgentColor(agent) {
+        const colors = {
+            'orchestrator': '#8B5CF6',     // Purple
+            'architect': '#10B981',        // Emerald Green (changed from blue to avoid conflict)
+            'codesmith': '#F97316',        // Orange
+            'tradestrat': '#14B8A6',       // Turquoise
+            'research': '#EAB308',         // Gold
+            'opus-arbitrator': '#DC2626',  // Crimson
+            'docubot': '#6366F1',          // Indigo
+            'reviewer': '#EC4899',         // Pink
+            'fixer': '#8B5CF6'             // Purple
+        };
+        return colors[agent.toLowerCase()] || '#666';
+    }
+
     // Scroll to bottom of messages
     function scrollToBottom() {
         requestAnimationFrame(() => {
@@ -626,7 +784,7 @@
                 
             case 'finalizeStreamingMessage':
                 console.log('[CHAT.JS] Finalizing streaming message:', message.messageId);
-                finalizeStreamingMessage(message.messageId, message.fullContent, message.metadata);
+                finalizeStreamingMessage(message.messageId, message.fullContent, message.metadata, message.agent);
                 break;
                 
             case 'showTyping':

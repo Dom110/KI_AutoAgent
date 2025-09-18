@@ -18,8 +18,8 @@ export class CodeSmithAgent extends ChatAgent {
             participantId: 'ki-autoagent.codesmith',
             name: 'codesmith',
             fullName: 'CodeSmithClaude',
-            description: 'Senior Python/Web Developer powered by Claude 3.5 Sonnet',
-            model: 'claude-3.5-sonnet',
+            description: 'Senior Python/Web Developer powered by Claude 4.1 Sonnet',
+            model: 'claude-4.1-sonnet-20250920',
             iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'claude-icon.svg'),
             capabilities: [
                 'Python Development',
@@ -31,7 +31,11 @@ export class CodeSmithAgent extends ChatAgent {
             ],
             commands: [
                 { name: 'implement', description: 'Implement code based on specifications', handler: 'handleImplementCommand' },
+                { name: 'fix', description: 'Fix bugs and issues in code', handler: 'handleFixCommand' },
+                { name: 'debug', description: 'Debug and resolve issues', handler: 'handleDebugCommand' },
                 { name: 'optimize', description: 'Optimize existing code for performance', handler: 'handleOptimizeCommand' },
+                { name: 'refactor', description: 'Refactor code for better structure', handler: 'handleRefactorCommand' },
+                { name: 'modernize', description: 'Modernize legacy code', handler: 'handleModernizeCommand' },
                 { name: 'test', description: 'Generate comprehensive test suites', handler: 'handleTestCommand' }
             ]
         };
@@ -319,6 +323,154 @@ export class CodeSmithAgent extends ChatAgent {
 
         } catch (error) {
             stream.markdown(`❌ Error generating tests: ${(error as any).message}`);
+        }
+    }
+
+    private async handleFixCommand(
+        prompt: string,
+        stream: vscode.ChatResponseStream,
+        token: vscode.CancellationToken
+    ): Promise<void> {
+
+        stream.progress('🔧 Fixing bugs and issues...');
+
+        const context = await this.getWorkspaceContext();
+        const systemPrompt = `You are CodeSmithClaude, an expert bug fixer. Your task is to:
+1. Identify the root cause of the bug
+2. Implement a robust fix
+3. Ensure no new bugs are introduced
+4. Add error handling where needed
+5. Test the fix thoroughly
+
+${this.getSystemContextPrompt()}`;
+
+        const userPrompt = `Fix the following issue: ${prompt}\n\nWorkspace Context:\n${context}`;
+
+        try {
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ]);
+
+            const responseContent = typeof response === 'string'
+                ? response
+                : (response as any).content || '';
+            stream.markdown(responseContent);
+
+        } catch (error) {
+            stream.markdown(`❌ Error during bug fix: ${(error as any).message}`);
+        }
+    }
+
+    private async handleDebugCommand(
+        prompt: string,
+        stream: vscode.ChatResponseStream,
+        token: vscode.CancellationToken
+    ): Promise<void> {
+
+        stream.progress('🐛 Debugging and analyzing issue...');
+
+        const context = await this.getWorkspaceContext();
+        const systemPrompt = `You are CodeSmithClaude, an expert debugger. Your task is to:
+1. Analyze error messages and stack traces
+2. Identify the root cause
+3. Add debug logging to trace the issue
+4. Provide step-by-step debugging instructions
+5. Suggest a permanent fix
+
+${this.getSystemContextPrompt()}`;
+
+        const userPrompt = `Debug this issue: ${prompt}\n\nWorkspace Context:\n${context}`;
+
+        try {
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ]);
+
+            const responseContent = typeof response === 'string'
+                ? response
+                : (response as any).content || '';
+            stream.markdown(responseContent);
+
+        } catch (error) {
+            stream.markdown(`❌ Error during debugging: ${(error as any).message}`);
+        }
+    }
+
+    private async handleRefactorCommand(
+        prompt: string,
+        stream: vscode.ChatResponseStream,
+        token: vscode.CancellationToken
+    ): Promise<void> {
+
+        stream.progress('♻️ Refactoring code for better structure...');
+
+        const context = await this.getWorkspaceContext();
+        const systemPrompt = `You are CodeSmithClaude, a refactoring expert. Your task is to:
+1. Improve code structure and organization
+2. Apply design patterns where appropriate
+3. Reduce code duplication (DRY principle)
+4. Improve naming and readability
+5. Maintain functionality while improving quality
+
+${this.getSystemContextPrompt()}`;
+
+        const userPrompt = `Refactor the following: ${prompt}\n\nWorkspace Context:\n${context}`;
+
+        try {
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ]);
+
+            const responseContent = typeof response === 'string'
+                ? response
+                : (response as any).content || '';
+            stream.markdown(responseContent);
+
+        } catch (error) {
+            stream.markdown(`❌ Error during refactoring: ${(error as any).message}`);
+        }
+    }
+
+    private async handleModernizeCommand(
+        prompt: string,
+        stream: vscode.ChatResponseStream,
+        token: vscode.CancellationToken
+    ): Promise<void> {
+
+        stream.progress('🚀 Modernizing legacy code...');
+
+        const context = await this.getWorkspaceContext();
+        const systemPrompt = `You are CodeSmithClaude, a code modernization expert. Your task is to:
+1. Update deprecated APIs and methods
+2. Use modern language features (async/await, arrow functions, etc.)
+3. Update to latest framework versions
+4. Improve TypeScript types
+5. Add modern tooling support
+
+${this.getSystemContextPrompt()}`;
+
+        const userPrompt = `Modernize the following code: ${prompt}\n\nWorkspace Context:\n${context}`;
+
+        try {
+            const claudeService = await this.getClaudeService();
+            const response = await claudeService.chat([
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ]);
+
+            const responseContent = typeof response === 'string'
+                ? response
+                : (response as any).content || '';
+            stream.markdown(responseContent);
+
+        } catch (error) {
+            stream.markdown(`❌ Error during modernization: ${(error as any).message}`);
         }
     }
 

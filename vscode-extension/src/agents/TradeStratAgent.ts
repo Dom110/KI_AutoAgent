@@ -18,8 +18,8 @@ export class TradeStratAgent extends ChatAgent {
             participantId: 'ki-autoagent.tradestrat',
             name: 'tradestrat',
             fullName: 'TradeStrat',
-            description: 'Trading Strategy Expert powered by Claude 3.5 Sonnet',
-            model: 'claude-3.5-sonnet',
+            description: 'Trading Strategy Expert powered by Claude 4.1 Sonnet',
+            model: 'claude-4.1-sonnet-20250920',
             iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'trading-icon.svg'),
             capabilities: [
                 'Trading Strategy Development',
