@@ -4,8 +4,8 @@
 
 Ein revolutionäres, domain-agnostisches System, das automatisch spezialisierte KI-Agenten orchestriert, um komplexe Entwicklungsaufgaben in **beliebigen Softwareprojekten** zu lösen. Stelle einfach eine Aufgabe und das System erkennt automatisch den Projekttyp und orchestriert die passenden Agenten und Workflows.
 
-[![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)](https://github.com/yourusername/KI_AutoAgent)
-[![VS Code Extension](https://img.shields.io/badge/vs--code--extension-1.0.1-brightgreen.svg)](vscode-extension/)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/yourusername/KI_AutoAgent)
+[![VS Code Extension](https://img.shields.io/badge/vs--code--extension-3.0.0-brightgreen.svg)](vscode-extension/)
 [![Python](https://img.shields.io/badge/python-3.8+-green.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-red.svg)](LICENSE)
 
@@ -20,7 +20,7 @@ Ein revolutionäres, domain-agnostisches System, das automatisch spezialisierte 
 - **📈 Lernendes System** - Wird mit jeder Nutzung besser und effizienter
 - **🎛️ Moderne KI-Modelle** - GPT-4o, Claude 3.5 Sonnet, Perplexity Pro
 - **💻 Intuitive CLI** - Schöne, interaktive Benutzeroberfläche
-- **🔌 VS Code Extension** - Nahtlose Integration in VS Code Chat (v1.0.1)
+- **🔌 VS Code Extension** - Nahtlose Integration in VS Code Chat (v3.0.0)
 - **🌐 Claude Pro Web Integration** - Nutzt Claude Pro Account via Browser-Sessions (kostenlos!)
 - **🔍 Echtzeit-Recherche** - Live Web-Suche für aktuelle Informationen
 
