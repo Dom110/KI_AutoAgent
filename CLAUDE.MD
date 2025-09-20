@@ -273,6 +273,15 @@ PATCH Version (X.Y.Z):
 
 ```markdown
 📦 Version History:
+├── v3.0.1 (20.9.2025) - ORCHESTRATOR QUERY RESPONSE FIX
+│   ├── 🔧 FIXED: Orchestrator responses not showing in chat
+│   ├── Replaced hardcoded getAgentListWithFunctions() with AI-driven decision making
+│   ├── Added intelligent request classification system (query/simple_task/complex_task)
+│   ├── Implemented getSystemAgentContext() for dynamic agent information
+│   ├── Enhanced orchestrator instructions with classification intelligence
+│   ├── Orchestrator now properly answers queries about agents and capabilities
+│   ├── Uses AI reasoning instead of keyword matching or hardcoded responses
+│   └── Fixed missing responses when asking "Welche Agenten haben wir?"
 ├── v3.0.0 (19.9.2025) - MULTI-AGENT INTELLIGENCE TRANSFORMATION
 │   ├── 🧠 CORE INFRASTRUCTURE
 │   │   ├── SharedContextManager for real-time agent collaboration

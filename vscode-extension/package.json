@@ -2,7 +2,7 @@
   "name": "ki-autoagent-vscode",
   "displayName": "KI AutoAgent",
   "description": "Universal Multi-Agent AI Development Platform for VS Code",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "publisher": "ki-autoagent",
   "icon": "media/multi-agent-logo.png",
   "repository": {

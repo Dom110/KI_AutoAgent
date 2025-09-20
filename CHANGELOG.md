@@ -5,6 +5,24 @@ All notable changes to the KI AutoAgent project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - 2025-09-20
+
+### Fixed
+- Orchestrator query responses not displaying in chat interface
+- Replaced hardcoded response functions with intelligent AI-based classification
+- Orchestrator now properly answers questions about agents and system capabilities
+
+### Changed
+- **OrchestratorAgent** now uses AI to classify requests (query/simple_task/complex_task)
+- Dynamic system context generation replaces static agent lists
+- Enhanced orchestrator instructions for better request classification
+
+### Technical Details
+- Removed `getAgentListWithFunctions()` hardcoded method
+- Added `getSystemAgentContext()` for dynamic context generation
+- Rewrote `processWorkflowStep()` with AI-driven decision logic
+- Updated orchestrator-v2-instructions.md with classification rules
+
 ## [3.0.0] - 2025-09-19
 
 ### 🚀 Major Architecture Transformation
