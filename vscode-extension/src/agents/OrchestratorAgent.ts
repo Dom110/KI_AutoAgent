@@ -1269,10 +1269,96 @@ ${this.getSystemContextPrompt()}`;
         request: TaskRequest,
         previousResults: TaskResult[]
     ): Promise<TaskResult> {
-        // Route to appropriate handler based on step type
+        // Special handling for query steps where orchestrator answers directly
+        if (step.id === 'answer' && step.description === 'Answer query directly') {
+            // Handle agent-related queries
+            const lowerPrompt = request.prompt.toLowerCase();
+
+            if (lowerPrompt.includes('agent') || lowerPrompt.includes('welche') || lowerPrompt.includes('funktion')) {
+                // Return list of available agents with their functions
+                const agentList = this.getAgentListWithFunctions();
+
+                return {
+                    status: 'success',
+                    content: agentList,
+                    metadata: {
+                        step: step.id,
+                        agent: 'orchestrator',
+                        type: 'agent_query'
+                    }
+                };
+            }
+
+            // For other queries, use AI to provide a helpful response
+            const systemPrompt = `You are the Orchestrator, the central coordinator of a multi-agent AI system.
+Answer the user's question directly and concisely.
+${this.getSystemContextPrompt()}`;
+
+            try {
+                const response = await this.openAIService.chat([
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: request.prompt }
+                ]);
+
+                return {
+                    status: 'success',
+                    content: response,
+                    metadata: {
+                        step: step.id,
+                        agent: 'orchestrator',
+                        type: 'general_query'
+                    }
+                };
+            } catch (error) {
+                return {
+                    status: 'error',
+                    content: `Error processing query: ${(error as any).message}`,
+                    metadata: {
+                        step: step.id,
+                        agent: 'orchestrator',
+                        error: (error as any).message
+                    }
+                };
+            }
+        }
+
+        // For complex task steps, use the new workflow engine
         const decomposition = await this.decomposeTask(request.prompt);
 
-        // Execute the specific step
+        // If it's a simple task, execute directly
+        if (decomposition.complexity === 'simple' && decomposition.subtasks.length === 1) {
+            // Simple execution without full workflow
+            const systemPrompt = `You are the Orchestrator executing a task.
+${this.getSystemContextPrompt()}`;
+
+            try {
+                const response = await this.openAIService.chat([
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: request.prompt }
+                ]);
+
+                return {
+                    status: 'success',
+                    content: response,
+                    metadata: {
+                        step: step.id,
+                        agent: 'orchestrator'
+                    }
+                };
+            } catch (error) {
+                return {
+                    status: 'error',
+                    content: `Error: ${(error as any).message}`,
+                    metadata: {
+                        step: step.id,
+                        agent: 'orchestrator',
+                        error: (error as any).message
+                    }
+                };
+            }
+        }
+
+        // For complex tasks, use the workflow engine
         const node: WorkflowNode = {
             id: step.id,
             type: 'task',
@@ -1306,5 +1392,126 @@ ${this.getSystemContextPrompt()}`;
                 error: stepResult?.error
             }
         };
+    }
+
+    /**
+     * Get detailed list of agents and their functions
+     */
+    private getAgentListWithFunctions(): string {
+        return `## 🤖 Available Agents and Their Functions
+
+### 1. 🎯 @orchestrator - Advanced KI AutoAgent Orchestrator
+**Model:** GPT-5 (2025-09-12)
+**Functions:**
+- Task decomposition into subtasks
+- Parallel execution orchestration (up to 5x speedup)
+- Memory-based learning from past tasks
+- Dynamic workflow adjustment
+- Multi-agent coordination
+- Conflict resolution management
+
+### 2. 🏗️ @architect - System Architecture & Design Expert
+**Model:** GPT-5 (2025-09-12)
+**Functions:**
+- System architecture design
+- Technology stack selection
+- Design pattern application
+- Scalability planning
+- Database schema design
+- Architecture validation
+- Stores and reuses successful patterns
+
+### 3. 💻 @codesmith - Code Implementation & Optimization Expert
+**Model:** Claude 4.1 Sonnet (2025-09-20)
+**Functions:**
+- Code generation with pattern reuse
+- Implementation of complex features
+- Performance optimization
+- Bug fixing and debugging
+- Code refactoring
+- Test implementation
+- Learns from successful implementations
+
+### 4. 📚 @docu - Technical Documentation Expert
+**Model:** GPT-5 (2025-09-12)
+**Functions:**
+- README creation and updates
+- API documentation
+- User guides and tutorials
+- Code commenting
+- Architecture documentation
+- Instruction file management
+
+### 5. 🔍 @reviewer - Code Review & Security Expert
+**Model:** GPT-5-mini (2025-09-20)
+**Functions:**
+- Code review and quality analysis
+- Security vulnerability detection
+- Performance bottleneck identification
+- Architecture validation
+- Bug detection and reporting
+- Best practices enforcement
+
+### 6. 🔧 @fixer - Bug Fixing & Optimization Expert
+**Model:** Claude 4.1 Sonnet (2025-09-20)
+**Functions:**
+- Bug diagnosis and fixing
+- Error resolution
+- Performance optimization
+- Code cleanup and refactoring
+- Hotfix implementation
+- Recovery from failures
+
+### 7. 📈 @tradestrat - Trading Strategy & Financial Expert
+**Model:** Claude 4.1 Sonnet (2025-09-20)
+**Functions:**
+- Trading algorithm development
+- Market analysis
+- Risk management strategies
+- Backtesting implementation
+- Portfolio optimization
+- Financial modeling
+
+### 8. ⚖️ @opus-arbitrator - Supreme Agent Arbitrator
+**Model:** Claude 4.1 Opus (2025-09-15)
+**Functions:**
+- Conflict resolution between agents
+- Final decision making
+- Complex reasoning tasks
+- Quality arbitration
+- Consensus building
+- Critical decision validation
+
+### 9. 🔎 @research - Web Research & Information Expert
+**Model:** Perplexity Llama 3.1 Sonar Huge 128k
+**Functions:**
+- Real-time web research
+- Documentation lookup
+- Technology trend analysis
+- Fact-checking
+- Best practices research
+- API documentation retrieval
+
+## 🚀 System Capabilities
+
+### Memory System
+- **10,000 memory capacity** with semantic search
+- **Pattern extraction** from successful executions
+- **85% similarity threshold** for task reuse
+- **Learning from experience** to improve over time
+
+### Collaboration Features
+- **Real-time knowledge sharing** via SharedContext
+- **Inter-agent help requests** when stuck
+- **Parallel task execution** for speed
+- **Checkpoint/restore** for error recovery
+
+### Workflow Management
+- **AI-powered task decomposition**
+- **Graph-based workflow execution**
+- **Dynamic plan adjustment**
+- **Progress tracking and monitoring**
+
+All agents work together as a cohesive intelligent system, sharing knowledge and continuously improving through experience.`;
     }
 }
