@@ -5,11 +5,11 @@
  */
 
 import * as vscode from 'vscode';
-import { SystemMemoryStore } from '../memory/SystemMemory';
 import { VSCodeMasterDispatcher } from '../core/VSCodeMasterDispatcher';
+import { SystemMemoryStore } from '../memory/SystemMemory';
 import { SharedContextManager, getSharedContext } from '../core/SharedContextManager';
 import { AgentCommunicationBus, getCommunicationBus, MessageType } from '../core/AgentCommunicationBus';
-import { TaskRequest, TaskResult, WorkflowStep } from '../types';
+import { TaskRequest, TaskResult, WorkspaceContext, WorkflowStep } from '../types';
 import {
     SystemKnowledge,
     SuccessPattern,
@@ -373,7 +373,9 @@ export class PlanningProtocol {
             }
 
             // Complete collaboration
-            await this.communicationBus.completeCollaboration(session.id, { plan });
+            const resultsMap = new Map<string, any>();
+            resultsMap.set('plan', plan);
+            await this.communicationBus.completeCollaboration(session.id, resultsMap);
 
             this.outputChannel.appendLine('\n✅ Planning Protocol Complete!');
             this.outputChannel.appendLine(`  Plan ID: ${planId}`);
@@ -403,11 +405,14 @@ export class PlanningProtocol {
             - ${systemKnowledge ? Object.keys(systemKnowledge.architecture.components).length : 0} components
             - ${systemKnowledge ? systemKnowledge.architecture.patterns.length : 0} patterns
 
-            Return JSON: { "needsArchitectureChange": true/false, "reason": "..." }`,
-            context: { systemKnowledge }
+            Return JSON: { "needsArchitectureChange": true/false, "reason": "..." }`
         };
 
-        const result = await this.dispatcher.dispatchToAgent('architect', analysisRequest);
+        const workflow: WorkflowStep[] = [
+            { id: 'analyze', agent: 'architect', description: 'Analyze architectural impact' }
+        ];
+
+        const result = await this.dispatcher.executeWorkflow(workflow, analysisRequest);
 
         try {
             const parsed = JSON.parse(result.content);
@@ -436,14 +441,14 @@ export class PlanningProtocol {
             4. Potential pitfalls
             5. Performance considerations
 
-            Return comprehensive ResearchResults.`,
-            context: {
-                depth: this.config.researchDepth,
-                systemKnowledge: this.systemMemory.getSystemKnowledge()
-            }
+            Return comprehensive ResearchResults.`
         };
 
-        const result = await this.dispatcher.dispatchToAgent('research', researchRequest);
+        const workflow: WorkflowStep[] = [
+            { id: 'research', agent: 'research', description: 'Research best practices' }
+        ];
+
+        const result = await this.dispatcher.executeWorkflow(workflow, researchRequest);
 
         if (result.status !== 'success') {
             this.outputChannel.appendLine('  ⚠️ Research failed, continuing without research');
@@ -507,15 +512,14 @@ ${research.recommendations.slice(0, 3).map(r => `- ${r}`).join('\n')}
             - Applicable patterns: ${applicablePatterns.success.map(p => p.name).join(', ')}
             - Research findings: ${research ? research.findings.length : 0} items
 
-            Return a comprehensive ArchitecturePlan structure.`,
-            context: {
-                systemKnowledge,
-                patterns: applicablePatterns,
-                research
-            }
+            Return a comprehensive ArchitecturePlan structure.`
         };
 
-        const result = await this.dispatcher.dispatchToAgent('architect', planRequest);
+        const workflow: WorkflowStep[] = [
+            { id: 'plan', agent: 'architect', description: 'Create architecture plan' }
+        ];
+
+        const result = await this.dispatcher.executeWorkflow(workflow, planRequest);
 
         if (result.status !== 'success') {
             throw new Error(`Architecture planning failed: ${result.content}`);
@@ -550,15 +554,14 @@ ${research.recommendations.slice(0, 3).map(r => `- ${r}`).join('\n')}
             - Code patterns: ${applicablePatterns.code.map(p => p.name).join(', ')}
             - Optimizations: ${applicablePatterns.optimizations.map(o => o.name).join(', ')}
 
-            Return a comprehensive CodePlan structure.`,
-            context: {
-                systemKnowledge,
-                patterns: applicablePatterns,
-                research
-            }
+            Return a comprehensive CodePlan structure.`
         };
 
-        const result = await this.dispatcher.dispatchToAgent('codesmith', planRequest);
+        const workflow: WorkflowStep[] = [
+            { id: 'plan', agent: 'codesmith', description: 'Create code plan' }
+        ];
+
+        const result = await this.dispatcher.executeWorkflow(workflow, planRequest);
 
         if (result.status !== 'success') {
             throw new Error(`Code planning failed: ${result.content}`);
@@ -607,16 +610,14 @@ ${research.recommendations.slice(0, 3).map(r => `- ${r}`).join('\n')}
             4. Risk assessment
             5. Completeness
 
-            Return a comprehensive ReviewResult.`,
-            context: {
-                userRequest,
-                archPlan,
-                codePlan,
-                research
-            }
+            Return a comprehensive ReviewResult.`
         };
 
-        const result = await this.dispatcher.dispatchToAgent('reviewer', reviewRequest);
+        const workflow: WorkflowStep[] = [
+            { id: 'review', agent: 'reviewer', description: 'Review plans' }
+        ];
+
+        const result = await this.dispatcher.executeWorkflow(workflow, reviewRequest);
 
         if (result.status !== 'success') {
             this.outputChannel.appendLine('  ⚠️ Review failed, using basic validation');
@@ -655,11 +656,14 @@ ${research.recommendations.slice(0, 3).map(r => `- ${r}`).join('\n')}
             prompt: `Resolve these planning conflicts:
             ${JSON.stringify(criticalConflicts, null, 2)}
 
-            Provide final, binding decisions for each conflict.`,
-            context: { conflicts: criticalConflicts }
+            Provide final, binding decisions for each conflict.`
         };
 
-        const result = await this.dispatcher.dispatchToAgent('opus-arbitrator', arbitrationRequest);
+        const workflow: WorkflowStep[] = [
+            { id: 'arbitrate', agent: 'opus-arbitrator', description: 'Resolve conflicts' }
+        ];
+
+        const result = await this.dispatcher.executeWorkflow(workflow, arbitrationRequest);
 
         if (result.status === 'success') {
             this.outputChannel.appendLine('  ✓ Conflicts resolved by OpusArbitrator');
@@ -763,13 +767,22 @@ Do you approve this plan?`;
 
         // Send feedback to agents for plan adjustment
         const adjustRequest: TaskRequest = {
-            prompt: `Adjust the plan based on this feedback: "${feedback}"`,
-            context: { archPlan, codePlan, feedback }
+            prompt: `Adjust the plan based on this feedback: "${feedback}"
+
+            Current architecture plan: ${JSON.stringify(archPlan, null, 2)}
+            Current code plan: ${JSON.stringify(codePlan, null, 2)}`
         };
 
+        const workflow1: WorkflowStep[] = [
+            { id: 'adjust', agent: 'architect', description: 'Adjust architecture plan' }
+        ];
+        const workflow2: WorkflowStep[] = [
+            { id: 'adjust', agent: 'codesmith', description: 'Adjust code plan' }
+        ];
+
         await Promise.all([
-            this.dispatcher.dispatchToAgent('architect', adjustRequest),
-            this.dispatcher.dispatchToAgent('codesmith', adjustRequest)
+            this.dispatcher.executeWorkflow(workflow1, adjustRequest),
+            this.dispatcher.executeWorkflow(workflow2, adjustRequest)
         ]);
     }
 

@@ -32,7 +32,7 @@ import { VSCodeMasterDispatcher } from '../core/VSCodeMasterDispatcher';
 import { SharedContextManager, getSharedContext } from '../core/SharedContextManager';
 import { AgentCommunicationBus, getCommunicationBus, MessageType } from '../core/AgentCommunicationBus';
 import { WorkflowEngine } from '../core/WorkflowEngine';
-import { TaskRequest, TaskResult } from '../types';
+import { TaskRequest, TaskResult, WorkflowStep, WorkspaceContext } from '../types';
 
 /**
  * Configuration for system intelligence workflow
@@ -58,7 +58,7 @@ export class SystemIntelligenceWorkflow {
     private config: SystemIntelligenceConfig;
     private isAnalyzing: boolean = false;
     private analysisSession: string | null = null;
-    private continuousLearningTimer: NodeJS.Timer | null = null;
+    private continuousLearningTimer: NodeJS.Timeout | null = null;
     private outputChannel: vscode.OutputChannel;
 
     constructor(
@@ -150,7 +150,9 @@ export class SystemIntelligenceWorkflow {
             await this.generateDocumentation(knowledge);
 
             // Complete collaboration
-            await this.communicationBus.completeCollaboration(session.id, { knowledge });
+            const resultsMap = new Map<string, any>();
+            resultsMap.set('knowledge', knowledge);
+            await this.communicationBus.completeCollaboration(session.id, resultsMap);
 
             this.outputChannel.appendLine('\n✅ System Intelligence Analysis Complete!');
 
@@ -178,14 +180,17 @@ export class SystemIntelligenceWorkflow {
             5. Module structure analysis
             6. Quality metrics calculation
 
-            Return a comprehensive ArchitectureModel structure.`,
-            context: {
-                analysisDepth: this.config.analysisDepth,
-                sessionId: this.analysisSession
-            }
+            Return a comprehensive ArchitectureModel structure.
+
+            Analysis depth: ${this.config.analysisDepth}
+            Session ID: ${this.analysisSession}`
         };
 
-        const result = await this.dispatcher.dispatchToAgent('architect', request);
+        const workflow: WorkflowStep[] = [
+            { id: 'analyze-architecture', agent: 'architect', description: 'Analyze system architecture' }
+        ];
+
+        const result = await this.dispatcher.executeWorkflow(workflow, request);
 
         if (result.status !== 'success') {
             throw new Error(`Architecture analysis failed: ${result.content}`);
@@ -216,14 +221,17 @@ export class SystemIntelligenceWorkflow {
             5. Hotspot identification
             6. Duplicate detection
 
-            Return a comprehensive FunctionInventory structure.`,
-            context: {
-                analysisDepth: this.config.analysisDepth,
-                sessionId: this.analysisSession
-            }
+            Return a comprehensive FunctionInventory structure.
+
+            Analysis depth: ${this.config.analysisDepth}
+            Session ID: ${this.analysisSession}`
         };
 
-        const result = await this.dispatcher.dispatchToAgent('codesmith', request);
+        const workflow: WorkflowStep[] = [
+            { id: 'analyze-functions', agent: 'codesmith', description: 'Analyze all functions' }
+        ];
+
+        const result = await this.dispatcher.executeWorkflow(workflow, request);
 
         if (result.status !== 'success') {
             throw new Error(`Function analysis failed: ${result.content}`);
@@ -458,15 +466,16 @@ export class SystemIntelligenceWorkflow {
             Functions: ${JSON.stringify(functions.metrics)}
             Hotspots: ${JSON.stringify(functions.hotspots)}
 
-            Provide insights, recommendations, risks, and opportunities.`,
-            context: {
-                architecture,
-                functions,
-                sessionId: this.analysisSession
-            }
+            Provide insights, recommendations, risks, and opportunities.
+
+            Session ID: ${this.analysisSession}`
         };
 
-        const result = await this.dispatcher.dispatchToAgent('reviewer', request);
+        const workflow: WorkflowStep[] = [
+            { id: 'review-quality', agent: 'reviewer', description: 'Review system quality' }
+        ];
+
+        const result = await this.dispatcher.executeWorkflow(workflow, request);
 
         if (result.status !== 'success') {
             this.outputChannel.appendLine('  ⚠️ Quality analysis failed, using defaults');
@@ -580,15 +589,20 @@ export class SystemIntelligenceWorkflow {
             prompt: `Analyze the following changed files and update system knowledge:
             ${changes.map(c => c.fsPath).join('\n')}
 
-            Provide delta updates for architecture and functions.`,
-            context: {
-                changes: changes.map(c => c.fsPath),
-                currentKnowledge: this.systemMemory.getSystemKnowledge()
-            }
+            Provide delta updates for architecture and functions.
+
+            Current knowledge components: ${this.systemMemory.getSystemKnowledge()?.architecture ? Object.keys(this.systemMemory.getSystemKnowledge()!.architecture.components).length : 0}`
         };
 
-        const architectResult = await this.dispatcher.dispatchToAgent('architect', request);
-        const functionResult = await this.dispatcher.dispatchToAgent('codesmith', request);
+        const architectWorkflow: WorkflowStep[] = [
+            { id: 'delta-architecture', agent: 'architect', description: 'Analyze architecture changes' }
+        ];
+        const functionWorkflow: WorkflowStep[] = [
+            { id: 'delta-functions', agent: 'codesmith', description: 'Analyze function changes' }
+        ];
+
+        const architectResult = await this.dispatcher.executeWorkflow(architectWorkflow, request);
+        const functionResult = await this.dispatcher.executeWorkflow(functionWorkflow, request);
 
         if (architectResult.status === 'success') {
             updates.architecture = this.parseArchitectureResult(architectResult);
@@ -699,14 +713,16 @@ export class SystemIntelligenceWorkflow {
             - ${knowledge.learnings.successPatterns.length} identified patterns
             - ${knowledge.functions.hotspots.length} hotspots requiring attention
 
-            Create README.md and ARCHITECTURE.md files.`,
-            context: {
-                knowledge,
-                sessionId: this.analysisSession
-            }
+            Create README.md and ARCHITECTURE.md files.
+
+            Session ID: ${this.analysisSession}`
         };
 
-        const result = await this.dispatcher.dispatchToAgent('docu', request);
+        const workflow: WorkflowStep[] = [
+            { id: 'generate-docs', agent: 'docu', description: 'Generate documentation' }
+        ];
+
+        const result = await this.dispatcher.executeWorkflow(workflow, request);
 
         if (result.status === 'success') {
             this.outputChannel.appendLine('  ✓ Documentation generated successfully');
