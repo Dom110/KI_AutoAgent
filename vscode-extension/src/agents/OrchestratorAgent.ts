@@ -1269,34 +1269,69 @@ ${this.getSystemContextPrompt()}`;
         request: TaskRequest,
         previousResults: TaskResult[]
     ): Promise<TaskResult> {
-        // Special handling for query steps where orchestrator answers directly
-        if (step.id === 'answer' && step.description === 'Answer query directly') {
-            // Handle agent-related queries
-            const lowerPrompt = request.prompt.toLowerCase();
+        // Use AI to intelligently decide how to handle the request
+        const classificationPrompt = `You are the advanced orchestrator of a multi-agent AI system.
 
-            if (lowerPrompt.includes('agent') || lowerPrompt.includes('welche') || lowerPrompt.includes('funktion')) {
-                // Return list of available agents with their functions
-                const agentList = this.getAgentListWithFunctions();
+${this.getSystemAgentContext()}
 
-                return {
-                    status: 'success',
-                    content: agentList,
-                    metadata: {
-                        step: step.id,
-                        agent: 'orchestrator',
-                        type: 'agent_query'
-                    }
+Classify this request and decide how to handle it:
+Request: "${request.prompt}"
+
+Respond with a JSON object:
+{
+  "requestType": "query" | "simple_task" | "complex_task",
+  "shouldAnswer": true/false (should orchestrator answer directly?),
+  "reasoning": "brief explanation",
+  "suggestedAgent": "agent_name or null if orchestrator handles it"
+}
+
+Rules:
+- "query": Information requests, questions about the system, agent capabilities
+- "simple_task": Single-step implementation, bug fix, or straightforward coding
+- "complex_task": Multi-step projects requiring multiple agents
+- Set shouldAnswer=true for queries about agents, system capabilities, or general questions
+- Set shouldAnswer=false for implementation tasks that need specialist agents`;
+
+        try {
+            // Get AI classification
+            const classificationResponse = await this.openAIService.chat([
+                { role: 'system', content: classificationPrompt },
+                { role: 'user', content: request.prompt }
+            ]);
+
+            let classification;
+            try {
+                classification = JSON.parse(classificationResponse);
+            } catch {
+                // Fallback if JSON parsing fails
+                classification = {
+                    requestType: 'query',
+                    shouldAnswer: true,
+                    reasoning: 'Failed to parse, treating as query'
                 };
             }
 
-            // For other queries, use AI to provide a helpful response
-            const systemPrompt = `You are the Orchestrator, the central coordinator of a multi-agent AI system.
-Answer the user's question directly and concisely.
-${this.getSystemContextPrompt()}`;
+            // Handle based on classification
+            if (classification.shouldAnswer) {
+                // Orchestrator answers directly with full context
+                const answerPrompt = `You are the Advanced KI AutoAgent Orchestrator, the central intelligence coordinating a sophisticated multi-agent AI system.
 
-            try {
+${this.getSystemAgentContext()}
+
+Important: When asked about agents, provide comprehensive details including:
+- Agent names and their @mentions
+- Specific capabilities and expertise
+- AI models they use
+- How they collaborate
+- System features like memory, parallel execution, and learning
+
+Answer this question thoroughly and helpfully:
+"${request.prompt}"
+
+Provide a complete, informative response with specific details about our capabilities.`;
+
                 const response = await this.openAIService.chat([
-                    { role: 'system', content: systemPrompt },
+                    { role: 'system', content: answerPrompt },
                     { role: 'user', content: request.prompt }
                 ]);
 
@@ -1306,212 +1341,167 @@ ${this.getSystemContextPrompt()}`;
                     metadata: {
                         step: step.id,
                         agent: 'orchestrator',
-                        type: 'general_query'
-                    }
-                };
-            } catch (error) {
-                return {
-                    status: 'error',
-                    content: `Error processing query: ${(error as any).message}`,
-                    metadata: {
-                        step: step.id,
-                        agent: 'orchestrator',
-                        error: (error as any).message
+                        type: classification.requestType,
+                        reasoning: classification.reasoning
                     }
                 };
             }
-        }
 
-        // For complex task steps, use the new workflow engine
-        const decomposition = await this.decomposeTask(request.prompt);
+            // For tasks, check complexity and handle accordingly
+            if (classification.requestType === 'simple_task' && classification.suggestedAgent) {
+                // Route to specific agent
+                const node: WorkflowNode = {
+                    id: step.id,
+                    type: 'task',
+                    agentId: classification.suggestedAgent,
+                    task: request.prompt
+                };
 
-        // If it's a simple task, execute directly
-        if (decomposition.complexity === 'simple' && decomposition.subtasks.length === 1) {
-            // Simple execution without full workflow
-            const systemPrompt = `You are the Orchestrator executing a task.
-${this.getSystemContextPrompt()}`;
+                const workflow = this.workflowEngine.createWorkflow(`Simple: ${request.prompt}`);
+                this.workflowEngine.addNode(workflow.id, node);
+                const results = await this.workflowEngine.execute(workflow.id);
 
-            try {
-                const response = await this.openAIService.chat([
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: request.prompt }
-                ]);
+                const stepResult = results.get(step.id);
+                // Map workflow status to TaskResult status
+                let taskStatus: 'success' | 'partial_success' | 'error' = 'error';
+                if (stepResult?.status === 'success') {
+                    taskStatus = 'success';
+                } else if (stepResult?.status === 'failure') {
+                    taskStatus = 'error';
+                } else if (stepResult?.status === 'skipped') {
+                    taskStatus = 'partial_success';
+                }
+
+                return {
+                    status: taskStatus,
+                    content: stepResult?.output?.result || stepResult?.output || 'Task completed',
+                    metadata: {
+                        step: step.id,
+                        agent: classification.suggestedAgent,
+                        type: 'routed_task'
+                    }
+                };
+            }
+
+            // For complex tasks, use full decomposition
+            if (classification.requestType === 'complex_task') {
+                const decomposition = await this.decomposeTask(request.prompt);
+
+                // Create and execute workflow
+                const workflow = this.workflowEngine.createWorkflow(`Complex: ${request.prompt}`);
+
+                decomposition.subtasks.forEach(subtask => {
+                    const node: WorkflowNode = {
+                        id: subtask.id,
+                        type: 'task',
+                        agentId: subtask.agent,
+                        task: subtask.description,
+                        dependencies: subtask.dependencies
+                    };
+                    this.workflowEngine.addNode(workflow.id, node);
+                });
+
+                const results = await this.workflowEngine.execute(workflow.id);
+
+                // Compile results
+                const summary = this.compileWorkflowResults(results);
 
                 return {
                     status: 'success',
-                    content: response,
-                    metadata: {
-                        step: step.id,
-                        agent: 'orchestrator'
-                    }
-                };
-            } catch (error) {
-                return {
-                    status: 'error',
-                    content: `Error: ${(error as any).message}`,
+                    content: summary,
                     metadata: {
                         step: step.id,
                         agent: 'orchestrator',
-                        error: (error as any).message
+                        type: 'complex_workflow',
+                        subtasks: decomposition.subtasks.length
                     }
                 };
             }
-        }
 
-        // For complex tasks, use the workflow engine
-        const node: WorkflowNode = {
-            id: step.id,
-            type: 'task',
-            agentId: step.agent,
-            task: step.description
-        };
+            // Fallback: Orchestrator handles directly
+            const response = await this.openAIService.chat([
+                { role: 'system', content: `You are the Orchestrator. ${this.getSystemContextPrompt()}` },
+                { role: 'user', content: request.prompt }
+            ]);
 
-        const workflow = this.workflowEngine.createWorkflow(`Step: ${step.description}`);
-        this.workflowEngine.addNode(workflow.id, node);
-
-        const results = await this.workflowEngine.execute(workflow.id);
-
-        const stepResult = results.get(step.id);
-        if (stepResult && stepResult.status === 'success') {
             return {
                 status: 'success',
-                content: stepResult.output?.result || stepResult.output || 'Completed',
+                content: response,
                 metadata: {
                     step: step.id,
-                    agent: step.agent
+                    agent: 'orchestrator',
+                    type: 'direct_response'
+                }
+            };
+
+        } catch (error) {
+            return {
+                status: 'error',
+                content: `Error processing request: ${(error as any).message}`,
+                metadata: {
+                    step: step.id,
+                    agent: 'orchestrator',
+                    error: (error as any).message
                 }
             };
         }
-
-        return {
-            status: 'error',
-            content: stepResult?.error || 'Step execution failed',
-            metadata: {
-                step: step.id,
-                agent: step.agent,
-                error: stepResult?.error
-            }
-        };
     }
 
     /**
-     * Get detailed list of agents and their functions
+     * Compile workflow results into a coherent summary
      */
-    private getAgentListWithFunctions(): string {
-        return `## 🤖 Available Agents and Their Functions
+    private compileWorkflowResults(results: Map<string, any>): string {
+        const sections: string[] = [];
 
-### 1. 🎯 @orchestrator - Advanced KI AutoAgent Orchestrator
-**Model:** GPT-5 (2025-09-12)
-**Functions:**
-- Task decomposition into subtasks
-- Parallel execution orchestration (up to 5x speedup)
-- Memory-based learning from past tasks
-- Dynamic workflow adjustment
-- Multi-agent coordination
-- Conflict resolution management
+        sections.push('## Workflow Execution Complete\n');
 
-### 2. 🏗️ @architect - System Architecture & Design Expert
-**Model:** GPT-5 (2025-09-12)
-**Functions:**
-- System architecture design
-- Technology stack selection
-- Design pattern application
-- Scalability planning
-- Database schema design
-- Architecture validation
-- Stores and reuses successful patterns
+        results.forEach((result, nodeId) => {
+            if (result.status === 'success') {
+                sections.push(`### ✅ ${nodeId}`);
+                sections.push(result.output?.result || result.output || 'Completed');
+                sections.push('');
+            }
+        });
 
-### 3. 💻 @codesmith - Code Implementation & Optimization Expert
-**Model:** Claude 4.1 Sonnet (2025-09-20)
-**Functions:**
-- Code generation with pattern reuse
-- Implementation of complex features
-- Performance optimization
-- Bug fixing and debugging
-- Code refactoring
-- Test implementation
-- Learns from successful implementations
+        const failures = Array.from(results.entries())
+            .filter(([, r]) => r.status !== 'success');
 
-### 4. 📚 @docu - Technical Documentation Expert
-**Model:** GPT-5 (2025-09-12)
-**Functions:**
-- README creation and updates
-- API documentation
-- User guides and tutorials
-- Code commenting
-- Architecture documentation
-- Instruction file management
+        if (failures.length > 0) {
+            sections.push('### ⚠️ Issues Encountered');
+            failures.forEach(([nodeId, result]) => {
+                sections.push(`- **${nodeId}**: ${result.error || 'Failed'}`);
+            });
+        }
 
-### 5. 🔍 @reviewer - Code Review & Security Expert
-**Model:** GPT-5-mini (2025-09-20)
-**Functions:**
-- Code review and quality analysis
-- Security vulnerability detection
-- Performance bottleneck identification
-- Architecture validation
-- Bug detection and reporting
-- Best practices enforcement
+        return sections.join('\n');
+    }
 
-### 6. 🔧 @fixer - Bug Fixing & Optimization Expert
-**Model:** Claude 4.1 Sonnet (2025-09-20)
-**Functions:**
-- Bug diagnosis and fixing
-- Error resolution
-- Performance optimization
-- Code cleanup and refactoring
-- Hotfix implementation
-- Recovery from failures
+    /**
+     * Dynamically generate system context about agents and capabilities
+     */
+    private getSystemAgentContext(): string {
+        const registry = AgentRegistry.getInstance();
+        const agents = registry.getRegisteredAgents();
 
-### 7. 📈 @tradestrat - Trading Strategy & Financial Expert
-**Model:** Claude 4.1 Sonnet (2025-09-20)
-**Functions:**
-- Trading algorithm development
-- Market analysis
-- Risk management strategies
-- Backtesting implementation
-- Portfolio optimization
-- Financial modeling
+        // Build dynamic context about available agents
+        const agentDescriptions = agents.map(agent => {
+            return `- **${agent.id}** (${agent.name}): ${agent.specialization}. Can handle: ${agent.canHandle.join(', ')}`;
+        }).join('\n');
 
-### 8. ⚖️ @opus-arbitrator - Supreme Agent Arbitrator
-**Model:** Claude 4.1 Opus (2025-09-15)
-**Functions:**
-- Conflict resolution between agents
-- Final decision making
-- Complex reasoning tasks
-- Quality arbitration
-- Consensus building
-- Critical decision validation
+        return `You are part of an advanced multi-agent AI system with the following capabilities:
 
-### 9. 🔎 @research - Web Research & Information Expert
-**Model:** Perplexity Llama 3.1 Sonar Huge 128k
-**Functions:**
-- Real-time web research
-- Documentation lookup
-- Technology trend analysis
-- Fact-checking
-- Best practices research
-- API documentation retrieval
+## Available Specialist Agents:
+${agentDescriptions}
 
-## 🚀 System Capabilities
+## System Features:
+- **Memory System**: 10k capacity with semantic search and pattern recognition
+- **Parallel Execution**: Can run multiple tasks simultaneously for 5x speedup
+- **Inter-Agent Collaboration**: Agents share knowledge and help each other
+- **Learning**: System improves from past executions with 85% similarity threshold
+- **Conflict Resolution**: OpusArbitrator resolves disagreements with superior reasoning
 
-### Memory System
-- **10,000 memory capacity** with semantic search
-- **Pattern extraction** from successful executions
-- **85% similarity threshold** for task reuse
-- **Learning from experience** to improve over time
-
-### Collaboration Features
-- **Real-time knowledge sharing** via SharedContext
-- **Inter-agent help requests** when stuck
-- **Parallel task execution** for speed
-- **Checkpoint/restore** for error recovery
-
-### Workflow Management
-- **AI-powered task decomposition**
-- **Graph-based workflow execution**
-- **Dynamic plan adjustment**
-- **Progress tracking and monitoring**
-
-All agents work together as a cohesive intelligent system, sharing knowledge and continuously improving through experience.`;
+## Your Role as Orchestrator:
+You coordinate these agents, decompose complex tasks, and ensure efficient execution.
+For simple queries, you can answer directly. For complex tasks, orchestrate the appropriate agents.`;
     }
 }
