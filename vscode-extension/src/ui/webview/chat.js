@@ -32,12 +32,25 @@
         setupEventListeners();
         restoreState();
         focusInput();
+        initializeTokenCounter();
     }
     
     // Event Listeners
     function setupEventListeners() {
         // Send button
         sendBtn.addEventListener('click', sendMessage);
+
+        // Export chat button
+        const exportBtn = document.getElementById('export-btn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', exportChat);
+        }
+
+        // Attach file button
+        const attachBtn = document.getElementById('attach-btn');
+        if (attachBtn) {
+            attachBtn.addEventListener('click', attachFile);
+        }
         
         // Plan First button
         if (planFirstBtn) {
@@ -71,10 +84,29 @@
                 vscode.postMessage({ command: 'openSettings' });
             });
         }
-        
+
+        // History button
+        const historyBtn = document.getElementById('history-btn');
+        if (historyBtn) {
+            historyBtn.addEventListener('click', () => {
+                vscode.postMessage({ command: 'showHistory' });
+            });
+        }
+
         // Message input
         messageInput.addEventListener('keydown', handleInputKeydown);
         messageInput.addEventListener('input', autoResizeTextarea);
+
+        // Add click handler for compact mode message expansion
+        document.addEventListener('click', (e) => {
+            if (!isCompactMode) return;
+
+            const messageBubble = e.target.closest('.message-bubble');
+            if (messageBubble && !messageBubble.classList.contains('system')
+                && !messageBubble.classList.contains('tool-notification')) {
+                messageBubble.classList.toggle('expanded');
+            }
+        });
         
         // Mode selector buttons
         modeOptions.forEach(btn => {
@@ -332,6 +364,27 @@
         }
     }
     
+    // Clear all messages
+    function clearMessages() {
+        messagesContainer.innerHTML = `
+            <div class="welcome-message">
+                <h2>Welcome to KI AutoAgent</h2>
+                <p>Start a conversation with our AI agents</p>
+            </div>
+        `;
+    }
+
+    // Add a system message
+    function addSystemMessage(content) {
+        const message = {
+            role: 'system',
+            content: content,
+            timestamp: new Date().toISOString(),
+            metadata: { isSystemNotification: true }
+        };
+        addMessage(message);
+    }
+
     // Add message to chat - Claude Code Style
     function addMessage(message) {
         console.log('[CHAT.JS] addMessage called with:', message);
@@ -358,6 +411,10 @@
         } else {
             messageWrapper.className = `message-wrapper ${message.role}`;
         }
+
+        // Store message ID for action buttons
+        const messageId = message.metadata?.messageId || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        messageWrapper.dataset.messageId = messageId;
 
         // Create message bubble
         const messageBubble = document.createElement('div');
@@ -428,6 +485,42 @@
             messageMeta.className = 'message-meta';
             messageMeta.innerHTML = `<span class="timestamp">${formatTimestamp(message.timestamp)}</span>`;
             messageBubble.appendChild(messageMeta);
+        }
+
+        // Add action buttons for user and assistant messages
+        if ((message.role === 'user' || message.role === 'assistant') && !message.metadata?.isSystemNotification) {
+            const messageActions = document.createElement('div');
+            messageActions.className = 'message-actions';
+
+            // Copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'message-action-btn';
+            copyBtn.innerHTML = '📋';
+            copyBtn.title = 'Copy message';
+            copyBtn.onclick = () => copyMessageToClipboard(message.content);
+            messageActions.appendChild(copyBtn);
+
+            // Regenerate button (for assistant messages)
+            if (message.role === 'assistant') {
+                const regenerateBtn = document.createElement('button');
+                regenerateBtn.className = 'message-action-btn';
+                regenerateBtn.innerHTML = '🔄';
+                regenerateBtn.title = 'Regenerate response';
+                regenerateBtn.onclick = () => regenerateResponse(messageId, message.agent);
+                messageActions.appendChild(regenerateBtn);
+            }
+
+            // Edit button (for user messages)
+            if (message.role === 'user') {
+                const editBtn = document.createElement('button');
+                editBtn.className = 'message-action-btn';
+                editBtn.innerHTML = '✏️';
+                editBtn.title = 'Edit message';
+                editBtn.onclick = () => editMessage(messageId, message.content);
+                messageActions.appendChild(editBtn);
+            }
+
+            messageBubble.appendChild(messageActions);
         }
 
         // Handle code blocks for copy functionality
@@ -972,6 +1065,192 @@
         }
     });
     
+    // Copy message to clipboard
+    function copyMessageToClipboard(content) {
+        // Remove markdown formatting for plain text
+        const plainText = content.replace(/[*_~`#]/g, '');
+        navigator.clipboard.writeText(plainText).then(() => {
+            showToast('✅ Message copied to clipboard');
+        }).catch(err => {
+            console.error('Failed to copy:', err);
+            showToast('❌ Failed to copy message');
+        });
+    }
+
+    // Regenerate response from agent
+    function regenerateResponse(messageId, agent) {
+        // Find the previous user message
+        const messages = document.querySelectorAll('.message-wrapper');
+        let lastUserMessage = null;
+        let foundTarget = false;
+
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const wrapper = messages[i];
+            if (wrapper.dataset.messageId === messageId) {
+                foundTarget = true;
+            }
+            if (foundTarget && wrapper.classList.contains('user')) {
+                const content = wrapper.querySelector('.message-content');
+                if (content) {
+                    lastUserMessage = content.textContent;
+                    break;
+                }
+            }
+        }
+
+        if (lastUserMessage) {
+            // Remove the old response
+            const oldMessage = document.querySelector(`[data-message-id="${messageId}"]`);
+            if (oldMessage) {
+                oldMessage.remove();
+            }
+
+            // Send regenerate command
+            vscode.postMessage({
+                command: 'regenerate',
+                text: lastUserMessage,
+                agent: agent || currentAgent,
+                mode: 'single'
+            });
+        }
+    }
+
+    // Edit user message
+    function editMessage(messageId, originalContent) {
+        const messageWrapper = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (!messageWrapper) return;
+
+        const messageContent = messageWrapper.querySelector('.message-content');
+        if (!messageContent) return;
+
+        // Create edit textarea
+        const editArea = document.createElement('textarea');
+        editArea.className = 'message-edit-area';
+        editArea.value = originalContent;
+        editArea.rows = 3;
+
+        // Create button container
+        const editButtons = document.createElement('div');
+        editButtons.className = 'message-edit-buttons';
+
+        // Save button
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'edit-save-btn';
+        saveBtn.textContent = 'Save & Send';
+        saveBtn.onclick = () => {
+            const newContent = editArea.value;
+            if (newContent.trim()) {
+                // Remove all messages after this one
+                const allMessages = Array.from(document.querySelectorAll('.message-wrapper'));
+                const currentIndex = allMessages.findIndex(m => m.dataset.messageId === messageId);
+                for (let i = currentIndex + 1; i < allMessages.length; i++) {
+                    allMessages[i].remove();
+                }
+
+                // Update the message content
+                messageContent.innerHTML = formatMessageContent(newContent);
+                messageWrapper.classList.remove('editing');
+
+                // Send the edited message
+                vscode.postMessage({
+                    command: 'sendMessage',
+                    text: newContent,
+                    agent: currentAgent,
+                    mode: 'auto'
+                });
+            }
+        };
+
+        // Cancel button
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'edit-cancel-btn';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.onclick = () => {
+            messageContent.innerHTML = formatMessageContent(originalContent);
+            messageWrapper.classList.remove('editing');
+        };
+
+        editButtons.appendChild(saveBtn);
+        editButtons.appendChild(cancelBtn);
+
+        // Replace content with edit area
+        messageContent.innerHTML = '';
+        messageContent.appendChild(editArea);
+        messageContent.appendChild(editButtons);
+        messageWrapper.classList.add('editing');
+        editArea.focus();
+    }
+
+    // Export chat to markdown
+    function exportChat() {
+        const messages = document.querySelectorAll('.message-wrapper');
+        let markdown = '# KI AutoAgent Chat Export\n';
+        markdown += `Date: ${new Date().toLocaleString()}\n\n`;
+
+        messages.forEach(wrapper => {
+            const role = wrapper.classList.contains('user') ? 'User' :
+                        wrapper.classList.contains('assistant') ? 'Assistant' : 'System';
+            const content = wrapper.querySelector('.message-content')?.textContent || '';
+            const agent = wrapper.dataset.agent || '';
+
+            if (content) {
+                markdown += `## ${role}${agent ? ` (${agent})` : ''}\n\n`;
+                markdown += `${content}\n\n`;
+                markdown += '---\n\n';
+            }
+        });
+
+        vscode.postMessage({
+            command: 'exportChat',
+            content: markdown
+        });
+    }
+
+    // Attach file to conversation
+    function attachFile() {
+        vscode.postMessage({
+            command: 'attachFile'
+        });
+    }
+
+    // Initialize token counter
+    function initializeTokenCounter() {
+        const tokenDisplay = document.createElement('div');
+        tokenDisplay.id = 'token-counter';
+        tokenDisplay.className = 'token-counter';
+        tokenDisplay.innerHTML = '🤖 Tokens: <span id="token-count">0</span>';
+
+        const header = document.getElementById('chat-header');
+        if (header) {
+            header.appendChild(tokenDisplay);
+        }
+    }
+
+    // Update token count
+    function updateTokenCount(count) {
+        const tokenCount = document.getElementById('token-count');
+        if (tokenCount) {
+            tokenCount.textContent = count.toLocaleString();
+        }
+    }
+
+    // Show toast notification
+    function showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast-notification';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
+    }
+
     // Initialize on load
     init();
 })();

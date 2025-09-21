@@ -75,30 +75,56 @@ export class ArchitectAgent extends ChatAgent {
 
         switch (step.id) {
             case 'analyze':
+            case 'analyze_project':
                 systemPrompt = this.getAnalyzeSystemPrompt();
-                userPrompt = `Analyze the architecture requirements for: ${request.prompt}\n\nWorkspace Context:\n${context}`;
+                const analyzeContext = request.globalContext || '';
+                userPrompt = `${analyzeContext ? `Conversation Context:\n${analyzeContext}\n\n` : ''}Analyze the architecture requirements for: ${request.prompt}\n\nWorkspace Context:\n${context}`;
                 break;
-                
+
             case 'design':
                 systemPrompt = this.getDesignSystemPrompt();
-                userPrompt = `Create a system architecture design for: ${request.prompt}\n\nPrevious Analysis:\n${this.extractPreviousContent(previousResults)}`;
+                const conversationContext = request.globalContext || '';
+                userPrompt = `${conversationContext ? `Conversation Context:\n${conversationContext}\n\n` : ''}Create a system architecture design for: ${request.prompt}\n\nPrevious Analysis:\n${this.extractPreviousContent(previousResults)}`;
                 break;
-                
+
+            case 'synthesize_recommendations':
+                systemPrompt = this.getSynthesisSystemPrompt();
+                const synthesisContext = request.globalContext || '';
+                userPrompt = `${synthesisContext ? `Conversation Context:\n${synthesisContext}\n\n` : ''}\nOriginal Request: ${request.prompt}\n\nFindings from previous steps:\n${this.extractPreviousContent(previousResults)}\n\nSynthesize all findings into comprehensive, actionable recommendations.`;
+                break;
+
             default:
                 systemPrompt = this.getGeneralSystemPrompt();
-                userPrompt = `${request.prompt}\n\nContext:\n${context}`;
+                const globalCtx = request.globalContext || '';
+                userPrompt = `${globalCtx ? `Conversation History:\n${globalCtx}\n\n` : ''}${request.prompt}\n\nContext:\n${context}`;
         }
 
         try {
-            const response = await this.openAIService.chat([
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ]);
+            let response = '';
+
+            // Use streaming if callback provided and available
+            if ((request as any).onPartialResponse && this.openAIService.streamChat) {
+                await this.openAIService.streamChat(
+                    [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    (chunk: string) => {
+                        response += chunk;
+                        (request as any).onPartialResponse!(chunk);
+                    }
+                );
+            } else {
+                response = await this.openAIService.chat([
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ]);
+            }
 
             return {
                 status: 'success',
                 content: response,
-                metadata: { 
+                metadata: {
                     step: step.id,
                     agent: 'architect',
                     model: 'gpt-4o'
@@ -251,23 +277,41 @@ export class ArchitectAgent extends ChatAgent {
     // System Prompts
 
     private getGeneralSystemPrompt(): string {
-        return `You are ArchitectGPT, a senior system architect and design expert. You specialize in:
+        return `You are ArchitectGPT, a senior system architect and design expert.
 
+CORE RESPONSIBILITY:
+You analyze and understand any software project by examining its codebase, then provide architectural guidance based on what you discover.
+
+PROJECT DISCOVERY APPROACH:
+1. **Analyze Project Structure**: Identify project type from files (package.json, requirements.txt, Cargo.toml, etc.)
+2. **Detect Technology Stack**: Understand frameworks, libraries, and tools being used
+3. **Find UI Components**: Locate and catalog existing UI elements if present
+4. **Map Architecture**: Identify patterns (MVC, MVVM, microservices, etc.)
+5. **Understand Context**: Use discovered information to provide relevant recommendations
+
+You specialize in:
 - System architecture design and patterns
 - Technology stack selection and evaluation
+- Component discovery and analysis
 - Scalability and performance planning
-- Microservices and distributed systems
 - Database design and data modeling
 - API design and integration patterns
 - Security architecture
 - DevOps and deployment strategies
 
+When asked about UI components or architecture:
+1. First analyze the current project to understand what you're working with
+2. Scan for existing components in the actual codebase
+3. Provide recommendations based on the discovered project type
+4. Suggest improvements that fit the current technology stack
+5. Never assume - always discover first
+
 Always provide:
-1. Clear architectural reasoning
+1. Clear architectural reasoning based on project analysis
 2. Multiple solution options when applicable
 3. Trade-offs and considerations
-4. Implementation guidance
-5. Best practices and patterns
+4. Implementation guidance specific to the discovered stack
+5. Best practices for the identified project type
 
 Format your responses with clear headings, diagrams where helpful (using mermaid syntax), and actionable recommendations.
 
@@ -325,7 +369,16 @@ ${this.getSystemContextPrompt()}`;
     }
 
     private getAnalyzeSystemPrompt(): string {
-        return `You are ArchitectGPT analyzing an existing codebase architecture. Provide:
+        return `You are ArchitectGPT analyzing software architecture.
+
+ANALYSIS APPROACH:
+1. **Project Type Detection**: Identify what kind of project this is
+2. **Technology Stack**: List all technologies, frameworks, and libraries found
+3. **Component Scanning**: Find and catalog all UI components if present
+4. **Architecture Patterns**: Identify design patterns and structure
+5. **Integration Points**: Map APIs, services, and external dependencies
+
+Provide:
 
 ## Architecture Analysis
 
@@ -356,6 +409,46 @@ ${this.getSystemContextPrompt()}`;
 - Migration strategies
 
 Be specific and provide actionable insights based on the codebase structure.
+
+${this.getSystemContextPrompt()}`;
+    }
+
+    private getSynthesisSystemPrompt(): string {
+        return `You are ArchitectGPT synthesizing findings from multiple sources to provide comprehensive recommendations.
+
+YOUR TASK:
+1. **Combine Findings**: Integrate project analysis, code scanning results, and web research
+2. **Contextual Recommendations**: Provide suggestions specific to the discovered project type
+3. **Practical Guidance**: Offer implementable solutions that fit the current codebase
+4. **Best Practices**: Include industry standards relevant to the project
+5. **Clear Structure**: Organize recommendations logically and actionably
+
+STRUCTURE YOUR RESPONSE:
+
+## Comprehensive UI Component Recommendations
+
+### 📊 Project Analysis Summary
+- Project Type: [discovered type]
+- Technology Stack: [discovered stack]
+- UI Framework: [if applicable]
+- Architecture Pattern: [discovered pattern]
+
+### 🔍 Current Components in Your Codebase
+[List components found during code scan]
+
+### 🌐 Industry Best Practices & Research Findings
+[Relevant practices for this project type]
+
+### 💡 Recommended UI Components/Solutions
+[Specific recommendations based on all findings]
+
+### 🛠️ Implementation Guide
+[Step-by-step implementation for the current project]
+
+### 📝 Code Examples
+[Specific code examples using the project's technology stack]
+
+Be specific, practical, and ensure all recommendations fit the discovered project context.
 
 ${this.getSystemContextPrompt()}`;
     }

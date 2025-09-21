@@ -2,7 +2,7 @@
   "name": "ki-autoagent-vscode",
   "displayName": "KI AutoAgent",
   "description": "Universal Multi-Agent AI Development Platform for VS Code",
-  "version": "3.2.0",
+  "version": "3.80.0",
   "publisher": "ki-autoagent",
   "icon": "media/multi-agent-logo.png",
   "repository": {
@@ -417,6 +417,12 @@
         "title": "KI AutoAgent: Open Configuration Directory",
         "category": "KI AutoAgent",
         "icon": "$(folder-opened)"
+      },
+      {
+        "command": "ki-autoagent.configureIntentDetection",
+        "title": "KI AutoAgent: Configure Intent Detection (When to Execute vs Explain)",
+        "category": "KI AutoAgent",
+        "icon": "$(settings-gear)"
       }
     ],
     "menus": {
@@ -451,6 +457,10 @@
         },
         {
           "command": "ki-autoagent.openConfigDirectory",
+          "when": "true"
+        },
+        {
+          "command": "ki-autoagent.configureIntentDetection",
           "when": "true"
         }
       ],
@@ -758,6 +768,155 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "📖 **Show Agent Instructions**\nDisplay which instruction set each agent uses",
+          "scope": "window"
+        },
+        "kiAutoAgent.intentDetection.mode": {
+          "type": "string",
+          "enum": [
+            "strict",
+            "balanced",
+            "relaxed"
+          ],
+          "default": "balanced",
+          "markdownDescription": "🎯 **Intent Detection Mode**\n• **strict**: Favors classifying as tasks (less queries)\n• **balanced**: Standard detection logic\n• **relaxed**: Favors classifying as queries (less tasks)",
+          "scope": "window"
+        },
+        "kiAutoAgent.intentDetection.queryKeywords": {
+          "type": "array",
+          "default": [
+            "what",
+            "how",
+            "why",
+            "when",
+            "where",
+            "who",
+            "which",
+            "explain",
+            "describe",
+            "tell me",
+            "was",
+            "wer",
+            "wie",
+            "warum",
+            "wann",
+            "wo",
+            "welche",
+            "erkläre"
+          ],
+          "markdownDescription": "❓ **Query Keywords**\nKeywords that indicate the request is likely a question/query",
+          "scope": "window"
+        },
+        "kiAutoAgent.intentDetection.taskKeywords": {
+          "type": "array",
+          "default": [
+            "implement",
+            "create",
+            "build",
+            "fix",
+            "update",
+            "modify",
+            "add",
+            "remove",
+            "delete",
+            "write",
+            "develop",
+            "refactor",
+            "optimize",
+            "debug",
+            "test",
+            "deploy",
+            "erstelle",
+            "baue",
+            "fixe",
+            "aktualisiere",
+            "füge hinzu",
+            "lösche",
+            "schreibe"
+          ],
+          "markdownDescription": "⚡ **Task Keywords**\nKeywords that indicate the request is likely an action/task",
+          "scope": "window"
+        },
+        "kiAutoAgent.intentDetection.preferTaskExecution": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "🚀 **Prefer Task Execution**\nWhen uncertain, prefer executing as task rather than answering as query",
+          "scope": "window"
+        },
+        "kiAutoAgent.intentDetection.confidenceThreshold": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 1,
+          "markdownDescription": "📊 **Confidence Threshold**\nMinimum confidence level (0.0-1.0) for intent classification",
+          "scope": "window"
+        },
+        "kiAutoAgent.intentDetection.useAIClassification": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "🤖 **Use AI Classification**\nEnhance keyword-based detection with AI when confidence is low",
+          "scope": "window"
+        },
+        "kiAutoAgent.intentDetection.debugLogging": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🐛 **Debug Logging**\nShow intent detection details in console",
+          "scope": "window"
+        },
+        "kiAutoAgent.history.maxConversations": {
+          "type": "number",
+          "default": 50,
+          "minimum": 1,
+          "maximum": 200,
+          "markdownDescription": "📚 **Max Conversations**\nMaximum number of conversations to keep in history",
+          "scope": "window"
+        },
+        "kiAutoAgent.history.maxMessagesPerConversation": {
+          "type": "number",
+          "default": 100,
+          "minimum": 10,
+          "maximum": 500,
+          "markdownDescription": "💬 **Max Messages Per Conversation**\nMaximum messages to keep per conversation",
+          "scope": "window"
+        },
+        "kiAutoAgent.history.autoSave": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "💾 **Auto Save**\nAutomatically save conversation history",
+          "scope": "window"
+        },
+        "kiAutoAgent.ui.compactMode": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "📦 **Compact Mode**\nStart chat in compact message view",
+          "scope": "window"
+        },
+        "kiAutoAgent.validationWorkflow.enabled": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "🔍 **Enable Validation Workflow**\nAutomatically validate implementations with ReviewerGPT after each task",
+          "scope": "window"
+        },
+        "kiAutoAgent.validationWorkflow.maxIterations": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "markdownDescription": "🔄 **Max Validation Iterations**\nMaximum number of validation/fix cycles to perform",
+          "scope": "window"
+        },
+        "kiAutoAgent.validationWorkflow.agents": {
+          "type": "array",
+          "default": [
+            "reviewer",
+            "fixerbot"
+          ],
+          "markdownDescription": "👥 **Validation Agents**\nAgents to use in the validation workflow",
+          "scope": "window"
+        },
+        "kiAutoAgent.validationWorkflow.autoFix": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "🔧 **Auto-Fix Issues**\nAutomatically attempt to fix issues found during validation with FixerBot",
           "scope": "window"
         }
       }

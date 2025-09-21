@@ -115,4 +115,12 @@ export class ConversationContextManager {
             console.error(`[CONTEXT-MANAGER] Failed to import history: ${error}`);
         }
     }
+
+    /**
+     * Clear the conversation context
+     */
+    public clearContext(): void {
+        this.conversationHistory = [];
+        console.log('[CONTEXT-MANAGER] Conversation history cleared');
+    }
 }

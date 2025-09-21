@@ -756,3 +756,296 @@ body {
         margin-left: 0;
     }
 }
+
+/* Compact Mode Styles */
+.compact-mode .message-bubble {
+    max-height: 150px;
+    overflow: hidden;
+    position: relative;
+    transition: max-height 0.3s ease;
+}
+
+.compact-mode .message-bubble.expanded {
+    max-height: none;
+}
+
+.compact-mode .message-bubble:not(.expanded)::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 30px;
+    background: linear-gradient(to bottom, transparent, var(--vscode-editor-background));
+    pointer-events: none;
+}
+
+.compact-mode .message-bubble:not(.expanded) {
+    cursor: pointer;
+}
+
+.compact-mode .message-bubble:not(.expanded):hover::after {
+    background: linear-gradient(to bottom, transparent, var(--vscode-editor-background));
+    opacity: 0.8;
+}
+
+/* Add expand indicator for compact messages */
+.compact-mode .message-bubble:not(.expanded)::before {
+    content: '... Click to expand';
+    position: absolute;
+    bottom: 5px;
+    right: 10px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    background: var(--vscode-editor-background);
+    padding: 2px 5px;
+    border-radius: 3px;
+    z-index: 1;
+}
+
+.compact-mode .message-bubble.system {
+    max-height: none; /* System messages always visible */
+}
+
+.compact-mode .message-bubble.tool-notification {
+    max-height: none; /* Tool notifications always visible */
+}
+
+/* Compact mode toggle button active state */
+#compact-btn.active {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+/* ========== NEW UI ENHANCEMENTS ========== */
+
+/* Message Action Buttons */
+.message-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: none;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.message-wrapper:hover .message-actions {
+    display: flex;
+    opacity: 1;
+}
+
+.message-action-btn {
+    background: var(--vscode-button-secondaryBackground);
+    border: 1px solid var(--vscode-button-border, transparent);
+    color: var(--vscode-button-secondaryForeground);
+    padding: 4px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+    opacity: 0.7;
+}
+
+.message-action-btn:hover {
+    opacity: 1;
+    background: var(--vscode-button-hoverBackground);
+}
+
+/* Edit Message Area */
+.message-edit-area {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+    resize: vertical;
+}
+
+.message-edit-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.edit-save-btn, .edit-cancel-btn {
+    padding: 4px 12px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.edit-save-btn {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.edit-cancel-btn {
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+}
+
+.message-wrapper.editing .message-bubble {
+    background: var(--vscode-editorWidget-background);
+    border: 2px solid var(--vscode-focusBorder);
+}
+
+/* Toast Notifications */
+.toast-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--vscode-notifications-background);
+    color: var(--vscode-notifications-foreground);
+    padding: 12px 16px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(100px);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+}
+
+.toast-notification.show {
+    transform: translateY(0);
+}
+
+/* Input Controls Enhanced */
+#input-controls {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+/* Quick Actions Suggestions */
+.quick-actions {
+    display: flex;
+    gap: 8px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--vscode-panel-border);
+    background: var(--vscode-editorWidget-background);
+}
+
+.quick-action-btn {
+    padding: 4px 10px;
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Reasoning Toggle */
+#reasoning-toggle.active {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+/* Agent Handoff Indicator */
+.agent-handoff {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: var(--vscode-textBlockQuote-background);
+    border-left: 3px solid var(--vscode-textLink-foreground);
+    margin: 8px 0;
+    font-size: 12px;
+}
+
+/* Token Counter Enhanced */
+.token-counter {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    padding: 2px 8px;
+    background: var(--vscode-badge-background);
+    border-radius: 10px;
+}
+
+.token-counter.warning {
+    background: var(--vscode-notificationsWarningIcon-foreground);
+    color: white;
+}
+
+.token-counter.danger {
+    background: var(--vscode-notificationsErrorIcon-foreground);
+    color: white;
+}
+
+/* Thinking Intensity Selector */
+.thinking-select {
+    padding: 4px 8px;
+    background: var(--vscode-dropdown-background);
+    color: var(--vscode-dropdown-foreground);
+    border: 1px solid var(--vscode-dropdown-border);
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+/* File Attachment Indicator */
+.file-attachment {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: var(--vscode-textBlockQuote-background);
+    border: 1px dashed var(--vscode-input-border);
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.file-attachment-name {
+    flex: 1;
+    font-size: 12px;
+    color: var(--vscode-textLink-foreground);
+}
+
+.file-attachment-remove {
+    background: transparent;
+    border: none;
+    color: var(--vscode-errorForeground);
+    cursor: pointer;
+    padding: 2px 4px;
+}
+
+/* Enhanced Mode Selector */
+#mode-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1;
+    max-width: 700px;
+}
+
+.mode-option {
+    flex: 0 1 auto;
+    min-width: 70px;
+}
+
+/* Responsive improvements */
+@media (max-width: 800px) {
+    #mode-selector {
+        max-width: 100%;
+    }
+
+    .mode-option {
+        flex: 1 1 calc(33% - 4px);
+        min-width: 60px;
+    }
+}

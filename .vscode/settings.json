@@ -1,2 +1,28 @@
 {
+  // Intent Detection - Controls when bot executes vs explains
+  "kiAutoAgent.intentDetection.mode": "strict",
+  "kiAutoAgent.intentDetection.preferTaskExecution": true,
+  "kiAutoAgent.intentDetection.useAIClassification": true,
+  "kiAutoAgent.intentDetection.confidenceThreshold": 0.6,
+  "kiAutoAgent.intentDetection.debugLogging": true,
+
+  // Extended task keywords for better research detection
+  "kiAutoAgent.intentDetection.taskKeywords": [
+    "implement", "create", "build", "fix", "update", "modify", "add",
+    "remove", "delete", "write", "develop", "refactor", "optimize",
+    "debug", "test", "deploy", "erstelle", "baue", "fixe",
+    "aktualisiere", "füge hinzu", "lösche", "schreibe",
+    "recherchiere", "suche", "finde", "zeige", "hole", "sammle",
+    "durchsuche", "analysiere", "untersuche", "erkunde", "prüfe",
+    "search", "find", "show", "fetch", "gather", "research",
+    "look for", "get", "retrieve", "discover", "identify"
+  ],
+
+  // Reduce query keywords to avoid misclassification
+  "kiAutoAgent.intentDetection.queryKeywords": [
+    "what", "why", "when", "where", "who", "which",
+    "explain", "describe", "tell me",
+    "was", "wer", "wie funktioniert", "warum", "wann", "wo",
+    "erkläre mir", "beschreibe"
+  ]
 }

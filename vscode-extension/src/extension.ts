@@ -20,25 +20,33 @@ import { MultiAgentChatPanel } from './ui/MultiAgentChatPanel';
 import { ChatWidget } from './ui/ChatWidget';
 // Auto-Versioning System
 import { AutoVersioning } from './utils/AutoVersioning';
+// Conversation History Management
+import { ConversationHistory } from './core/ConversationHistory';
 
 // Global output channel for debugging
 let outputChannel: vscode.OutputChannel;
 
 export async function activate(context: vscode.ExtensionContext) {
-    // VERSION 2.3.9 - CLAUDE CODE CLI INTEGRATION (CORRECTED)
-    console.log('🚀 KI AutoAgent v2.3.9: Extension activation started');
+    // VERSION 3.18.0 - PERSISTENT CONVERSATION HISTORY & UI ENHANCEMENTS
+    console.log('🚀 KI AutoAgent v3.18.0: Extension activation started');
+
+    // Make context globally available for ConversationHistory
+    (global as any).extensionContext = context;
     
     // Create single output channel
     outputChannel = vscode.window.createOutputChannel('KI AutoAgent');
     outputChannel.clear();
     outputChannel.show(true);
     
-    outputChannel.appendLine('🚀 KI AutoAgent Extension v2.3.9 Activating');
+    outputChannel.appendLine('🚀 KI AutoAgent Extension v3.18.0 Activating');
     outputChannel.appendLine('============================================');
     outputChannel.appendLine(`Time: ${new Date().toLocaleString()}`);
     outputChannel.appendLine(`VS Code Version: ${vscode.version}`);
     outputChannel.appendLine('');
-    outputChannel.appendLine('✨ NEW: Claude Code CLI integration - Install with: npm install -g @anthropic-ai/claude-code');
+    outputChannel.appendLine('✨ NEW: Persistent conversation history with VS Code global state');
+    outputChannel.appendLine('🆕 NEW: New Chat button for fresh conversations');
+    outputChannel.appendLine('📦 NEW: Compact mode for condensed message display');
+    outputChannel.appendLine('💭 NEW: Thinking mode tooltips with explanations');
 
     try {
         // Initialize the Agent Configuration Manager
@@ -63,6 +71,11 @@ export async function activate(context: vscode.ExtensionContext) {
         const versionWatcher = autoVersioning.startWatching();
         context.subscriptions.push(versionWatcher);
         outputChannel.appendLine('✅ Auto-Versioning System active');
+
+        // Initialize Conversation History
+        outputChannel.appendLine('Initializing Conversation History...');
+        const conversationHistory = ConversationHistory.initialize(context);
+        outputChannel.appendLine('✅ Conversation History ready');
     
     // Register chat panel commands with error handling
     const commandsToRegister = [
@@ -268,7 +281,34 @@ export async function activate(context: vscode.ExtensionContext) {
     
     // Single success notification
     vscode.window.showInformationMessage(`🎉 KI AutoAgent v${context.extension.packageJSON.version} activated! ${agents.length} agents ready.`);
-    
+
+    // Check if intent detection needs setup (only on first run after update)
+    const INTENT_DETECTION_SETUP_KEY = 'intentDetectionSetupShown_v344';
+    const hasShownSetup = context.globalState.get<boolean>(INTENT_DETECTION_SETUP_KEY, false);
+
+    if (!hasShownSetup) {
+        // Check current configuration
+        const config = vscode.workspace.getConfiguration('kiAutoAgent.intentDetection');
+        const currentMode = config.get<string>('mode', 'balanced');
+        const preferTask = config.get<boolean>('preferTaskExecution', false);
+
+        // Show notification if not configured for task execution
+        if (currentMode !== 'strict' || !preferTask) {
+            const message = '🎯 New: Configure when bot should execute tasks vs explain. Currently bot might explain instead of doing.';
+            const configureAction = 'Configure Now';
+            const laterAction = 'Later';
+
+            vscode.window.showInformationMessage(message, configureAction, laterAction).then(selection => {
+                if (selection === configureAction) {
+                    vscode.commands.executeCommand('ki-autoagent.configureIntentDetection');
+                }
+            });
+        }
+
+        // Mark as shown
+        context.globalState.update(INTENT_DETECTION_SETUP_KEY, true);
+    }
+
     } catch (error) {
         // Handle any errors during extension activation
         const errorMsg = `KI AutoAgent activation failed: ${(error as any).message || error}`;
@@ -571,6 +611,124 @@ function registerCommands(context: vscode.ExtensionContext, dispatcher: VSCodeMa
         }
     );
 
+    // Command: Configure Intent Detection
+    const configureIntentDetectionCommand = vscode.commands.registerCommand(
+        'ki-autoagent.configureIntentDetection',
+        async () => {
+            // Show quick pick with current settings info
+            const currentMode = vscode.workspace.getConfiguration('kiAutoAgent.intentDetection').get<string>('mode', 'balanced');
+            const preferTask = vscode.workspace.getConfiguration('kiAutoAgent.intentDetection').get<boolean>('preferTaskExecution', false);
+
+            const options = [
+                {
+                    label: '🎯 Open Intent Detection Settings',
+                    description: `Current: ${currentMode} mode, Prefer execution: ${preferTask}`,
+                    action: 'settings'
+                },
+                {
+                    label: '🚀 Enable Task Execution Mode',
+                    description: 'Bot will execute tasks instead of explaining how to do them',
+                    action: 'enable-task'
+                },
+                {
+                    label: '💭 Enable Query Mode',
+                    description: 'Bot will explain and provide information',
+                    action: 'enable-query'
+                },
+                {
+                    label: '📖 View Documentation',
+                    description: 'Learn about intent detection configuration',
+                    action: 'docs'
+                }
+            ];
+
+            const selected = await vscode.window.showQuickPick(options, {
+                title: 'Configure Intent Detection',
+                placeHolder: 'How should the bot interpret your requests?'
+            });
+
+            if (!selected) return;
+
+            switch (selected.action) {
+                case 'settings':
+                    // Open settings with search filter
+                    await vscode.commands.executeCommand('workbench.action.openSettings', 'kiAutoAgent.intentDetection');
+                    break;
+
+                case 'enable-task':
+                    // Configure for task execution
+                    const config = vscode.workspace.getConfiguration('kiAutoAgent.intentDetection');
+                    await config.update('mode', 'strict', vscode.ConfigurationTarget.Workspace);
+                    await config.update('preferTaskExecution', true, vscode.ConfigurationTarget.Workspace);
+                    await config.update('useAIClassification', true, vscode.ConfigurationTarget.Workspace);
+                    vscode.window.showInformationMessage('✅ Task Execution Mode enabled! Bot will now execute research and tasks directly.');
+                    break;
+
+                case 'enable-query':
+                    // Configure for query mode
+                    const config2 = vscode.workspace.getConfiguration('kiAutoAgent.intentDetection');
+                    await config2.update('mode', 'relaxed', vscode.ConfigurationTarget.Workspace);
+                    await config2.update('preferTaskExecution', false, vscode.ConfigurationTarget.Workspace);
+                    vscode.window.showInformationMessage('💭 Query Mode enabled! Bot will explain and provide information.');
+                    break;
+
+                case 'docs':
+                    // Show documentation
+                    const panel = vscode.window.createWebviewPanel(
+                        'intentDetectionDocs',
+                        'Intent Detection Documentation',
+                        vscode.ViewColumn.One,
+                        {}
+                    );
+
+                    panel.webview.html = `<!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            body { font-family: system-ui; padding: 20px; line-height: 1.6; }
+                            h1 { color: #007ACC; }
+                            code { background: #f0f0f0; padding: 2px 4px; border-radius: 3px; }
+                            .example { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>🎯 Intent Detection Configuration</h1>
+
+                        <h2>Problem: Bot explains instead of executing</h2>
+                        <p>When you ask "Research buttons for my UI", the bot might explain <em>how</em> it would research instead of actually doing it.</p>
+
+                        <h2>Solution: Configure Intent Detection</h2>
+
+                        <h3>Mode Settings:</h3>
+                        <ul>
+                            <li><code>strict</code> - Favors task execution (recommended)</li>
+                            <li><code>balanced</code> - Standard detection</li>
+                            <li><code>relaxed</code> - Favors queries/explanations</li>
+                        </ul>
+
+                        <h3>Key Settings:</h3>
+                        <ul>
+                            <li><code>preferTaskExecution</code> - When true, uncertain requests are executed</li>
+                            <li><code>useAIClassification</code> - Enhanced AI-powered intent detection</li>
+                        </ul>
+
+                        <h3>Examples:</h3>
+                        <div class="example">
+                            <strong>Before:</strong> "Research UI buttons" → Bot explains how to research<br>
+                            <strong>After:</strong> "Research UI buttons" → Bot searches and returns results
+                        </div>
+
+                        <div class="example">
+                            <strong>Task Keywords:</strong> research, find, search, create, build, implement<br>
+                            <strong>Query Keywords:</strong> what, why, explain, describe
+                        </div>
+                    </body>
+                    </html>`;
+                    break;
+            }
+        }
+    );
+
     // Register all commands
     context.subscriptions.push(
         createFileCommand,
@@ -583,7 +741,8 @@ function registerCommands(context: vscode.ExtensionContext, dispatcher: VSCodeMa
         executeWorkflowCommand,
         configureAgentModelsCommand,
         showAgentPerformanceCommand,
-        openConfigDirectoryCommand
+        openConfigDirectoryCommand,
+        configureIntentDetectionCommand
     );
 
     console.log('✅ All extension commands registered');

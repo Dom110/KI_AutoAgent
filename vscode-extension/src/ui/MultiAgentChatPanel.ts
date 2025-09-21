@@ -5,6 +5,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { ConversationContextManager } from '../core/ConversationContextManager';
+import { ConversationHistory, ConversationMessage } from '../core/ConversationHistory';
 
 interface ChatMessage {
     role: 'user' | 'assistant' | 'system' | 'agent-to-agent';
@@ -30,6 +31,10 @@ export class MultiAgentChatPanel {
     private _thinkingIntensity: 'quick' | 'normal' | 'deep' | 'layered' = 'normal'; // Thinking intensity
     private _currentOperation: any = null; // Current operation for cancellation
     private _isProcessing: boolean = false; // Track if processing
+    private _conversationHistory: ConversationHistory | null = null; // Conversation history
+    private _showReasoning: boolean = false; // Show agent reasoning
+    private _attachedFiles: string[] = []; // Attached files for context
+    private _isCompactMode: boolean = false; // Compact display mode
 
     // Singleton pattern für Panel
     public static createOrShow(extensionUri: vscode.Uri, dispatcher?: any) {
@@ -66,6 +71,30 @@ export class MultiAgentChatPanel {
         this._extensionUri = extensionUri;
         this._dispatcher = dispatcher;
         this._contextManager = ConversationContextManager.getInstance();
+
+        // Initialize conversation history if context available
+        try {
+            const context = (global as any).extensionContext;
+            if (context) {
+                this._conversationHistory = ConversationHistory.initialize(context);
+                // Load existing messages from current session after webview is ready
+                setTimeout(() => {
+                    this._loadHistoryMessages();
+
+                    // Check and apply compact mode setting
+                    const config = vscode.workspace.getConfiguration('kiAutoAgent.ui');
+                    this._isCompactMode = config.get<boolean>('compactMode', false);
+                    if (this._isCompactMode) {
+                        this._panel.webview.postMessage({
+                            type: 'setCompactMode',
+                            enabled: true
+                        });
+                    }
+                }, 500);
+            }
+        } catch (error) {
+            console.log('[Chat] Conversation history not available:', error);
+        }
         
         // Set the webview's initial html content
         this._update();
@@ -151,6 +180,15 @@ export class MultiAgentChatPanel {
                     <div id="input-section">
                         <!-- Action buttons above input -->
                         <div id="action-buttons">
+                            <button id="new-chat-btn" class="action-btn" title="Start New Chat (Ctrl+N)">
+                                ➕ New Chat
+                            </button>
+                            <button id="compact-btn" class="action-btn toggle" title="Toggle Compact View">
+                                📦 Compact
+                            </button>
+                            <button id="history-btn" class="action-btn" title="Browse Conversation History">
+                                📜 History
+                            </button>
                             <button id="plan-first-btn" class="action-btn" title="Plan before implementing">
                                 📋 Plan First
                             </button>
@@ -192,11 +230,25 @@ export class MultiAgentChatPanel {
                                 <button class="mode-option" data-agent="opus" title="Conflict resolution">
                                     ⚖️ Opus
                                 </button>
+                                <button class="mode-option" data-agent="docubot" title="Documentation">
+                                    📝 DocuBot
+                                </button>
+                                <button class="mode-option" data-agent="reviewer" title="Code Review">
+                                    🔍 Reviewer
+                                </button>
+                                <button class="mode-option" data-agent="fixer" title="Bug Fixing">
+                                    🔧 Fixer
+                                </button>
                             </div>
-                            
-                            <button id="send-btn" title="Send message">
-                                Send
-                            </button>
+
+                            <div id="input-controls">
+                                <button id="attach-btn" class="input-btn" title="Attach file">
+                                    📎
+                                </button>
+                                <button id="send-btn" title="Send message">
+                                    Send
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -241,6 +293,18 @@ export class MultiAgentChatPanel {
                 this._thinkingIntensity = message.intensity;
                 vscode.window.showInformationMessage(`Thinking intensity: ${this._thinkingIntensity}`);
                 break;
+            case 'newChat':
+                await this._handleNewChat();
+                break;
+            case 'setCompactMode':
+                this._isCompactMode = message.enabled;
+                const config = vscode.workspace.getConfiguration('kiAutoAgent.ui');
+                config.update('compactMode', this._isCompactMode, vscode.ConfigurationTarget.Global);
+                break;
+            case 'loadHistory':
+            case 'showHistory':
+                await this.showHistoryPicker();
+                break;
         }
     }
 
@@ -259,8 +323,9 @@ export class MultiAgentChatPanel {
             timestamp: new Date().toISOString()
         };
         this._messages.push(userMessage);
-        
+
         // Save to conversation history
+        this._saveToHistory('user', text);
         this._contextManager.addEntry({
             timestamp: new Date().toISOString(),
             agent: 'user',
@@ -323,7 +388,10 @@ export class MultiAgentChatPanel {
                 // Finalize the streaming message
                 this._finalizeStreamingMessage(streamingMessageId, response.content, response.metadata);
 
-                // Save to conversation history
+                // Save orchestrator response to conversation history
+                this._saveToHistory('assistant', response.content, 'orchestrator');
+
+                // Save to context manager for future reference
                 this._contextManager.addEntry({
                     timestamp: new Date().toISOString(),
                     agent: 'orchestrator',
@@ -344,9 +412,12 @@ export class MultiAgentChatPanel {
                 
                 // Direct chat with selected agent
                 const response = await this._callAgentWithStreaming(agent, text, streamingMessageId);
-                
+
                 // Finalize the streaming message with metadata
                 this._finalizeStreamingMessage(streamingMessageId, response.content, response.metadata);
+
+                // Save agent response to conversation history
+                this._saveToHistory('assistant', response.content, agent);
             } else if (mode === 'workflow') {
                 console.log(`🎯 [CHAT MODE] ✅ Entering WORKFLOW mode`);
                 // Multi-agent workflow - show inter-agent communication
@@ -427,7 +498,7 @@ export class MultiAgentChatPanel {
         console.log(`🤖 [STREAMING] AgentId exact: '${agentId}'`);
         console.log(`🤖 [STREAMING] MessageId: "${messageId}"`);
         console.log(`🤖 [STREAMING] Creating task request with command: '${agentId}'`);
-        
+
         if (!this._dispatcher) {
             const errorMsg = 'Error: No dispatcher available. Please check agent configuration.';
             console.error(`🤖 [STREAMING] ❌ ${errorMsg}`);
@@ -437,12 +508,32 @@ export class MultiAgentChatPanel {
             };
         }
 
+        let stallCheckInterval: NodeJS.Timeout | undefined;
+        let fullContent = ''; // Moved outside try block for access in catch
+
         try {
-            let fullContent = '';
-            
+            let lastUpdateTime = Date.now();
+            const TIMEOUT_MS = 120000; // 2 minutes timeout
+            const STALL_DETECTION_MS = 30000; // 30 seconds without update
+
             // Get conversation history for context
             const conversationHistory = this._contextManager.getFormattedContext(10);
-            
+
+            // Create timeout promise
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error(`Agent response timed out after ${TIMEOUT_MS / 1000} seconds`));
+                }, TIMEOUT_MS);
+            });
+
+            // Create stall detection interval
+            stallCheckInterval = setInterval(() => {
+                const timeSinceLastUpdate = Date.now() - lastUpdateTime;
+                if (timeSinceLastUpdate > STALL_DETECTION_MS) {
+                    console.warn(`[STREAMING] Warning: No updates for ${timeSinceLastUpdate / 1000} seconds`);
+                }
+            }, 10000); // Check every 10 seconds
+
             // Create task request with streaming callback and conversation history
             const taskRequest = {
                 prompt: prompt,
@@ -452,6 +543,7 @@ export class MultiAgentChatPanel {
                 thinkingMode: this._thinkingMode, // Pass thinking mode to agents
                 mode: this._thinkingIntensity === 'layered' ? 'layered' : undefined,
                 onPartialResponse: (partialContent: string) => {
+                    lastUpdateTime = Date.now(); // Update timestamp on each chunk
                     console.log(`🤖 [STREAMING] Partial content: ${partialContent.length} chars`);
 
                     // Check if this is a workflow step notification
@@ -503,11 +595,18 @@ export class MultiAgentChatPanel {
                 }
             };
 
-            // Call the dispatcher
-            const result = await this._dispatcher.processRequest(taskRequest);
-            
-            // Use accumulated content if available, otherwise use result content
-            const finalContent = fullContent || result.content;
+            // Call the dispatcher with timeout
+            const result = await Promise.race([
+                this._dispatcher.processRequest(taskRequest),
+                timeoutPromise
+            ]);
+
+            // Clear stall detection
+            clearInterval(stallCheckInterval);
+
+            // Prioritize accumulated streaming content if available and non-empty
+            // Fall back to result content if streaming didn't provide content
+            const finalContent = fullContent.trim().length > 0 ? fullContent : result.content;
             
             // Save agent response to conversation history
             if (finalContent) {
@@ -533,11 +632,32 @@ export class MultiAgentChatPanel {
                 };
             }
         } catch (error) {
+            // Clear stall detection if still running
+            if (typeof stallCheckInterval !== 'undefined') {
+                clearInterval(stallCheckInterval);
+            }
+
             const errorMsg = `Agent Error: ${(error as any).message}`;
-            console.error('[STREAMING]', errorMsg);
+            console.error('[STREAMING] Error during agent execution:', error);
+            console.error('[STREAMING] Stack trace:', (error as any).stack);
+
+            // Try to salvage partial content if available
+            if (fullContent.trim().length > 0) {
+                console.log('[STREAMING] Recovering partial content:', fullContent.length, 'chars');
+                return {
+                    content: fullContent + '\n\n[Response interrupted due to error]',
+                    metadata: {
+                        error: errorMsg,
+                        partial: true
+                    }
+                };
+            }
+
             return {
                 content: errorMsg,
-                metadata: null
+                metadata: {
+                    error: errorMsg
+                }
             };
         }
     }
@@ -553,7 +673,9 @@ export class MultiAgentChatPanel {
             metadata: { messageId, isStreaming: true }
         };
         this._messages.push(streamingMessage);
-        
+        // Save streaming start to history
+        this._saveToHistory('assistant', '', agent);
+
         this._panel.webview.postMessage({
             type: 'addStreamingMessage',
             message: streamingMessage
@@ -720,7 +842,9 @@ export class MultiAgentChatPanel {
             }
         };
         this._messages.push(systemMessage);
-        
+        // Save system notification to history
+        this._saveToHistory('system', content);
+
         // Send as a separate addMessage event to create a new bubble
         setTimeout(() => {
             this._panel.webview.postMessage({
@@ -971,7 +1095,9 @@ export class MultiAgentChatPanel {
             metadata: metadata
         };
         this._messages.push(assistantMessage);
-        
+        // Save complete response to history
+        this._saveToHistory('assistant', content + metadataInfo, agent);
+
         console.log(`📝 [ADD RESPONSE] Final message to send:`, assistantMessage);
         console.log(`📝 [ADD RESPONSE] Total messages in history: ${this._messages.length}`);
         
@@ -1306,10 +1432,196 @@ Please provide a numbered step-by-step plan only.`;
         };
 
         this._messages.push(finalMessage);
+        // Save final result to history
+        this._saveToHistory('assistant', content, 'orchestrator');
         this._panel.webview.postMessage({
             type: 'addFinalResult',
             message: finalMessage
         });
+    }
+
+    /**
+     * Load messages from conversation history
+     */
+    private _loadHistoryMessages(): void {
+        if (!this._conversationHistory) return;
+
+        const messages = this._conversationHistory.getCurrentMessages();
+        if (messages && messages.length > 0) {
+            // Convert history messages to chat messages
+            this._messages = messages.map(msg => ({
+                role: msg.role,
+                content: msg.content,
+                agent: msg.agent || 'assistant',
+                timestamp: msg.timestamp,
+                metadata: msg.metadata
+            }));
+
+            // Send messages to webview
+            this._restoreMessages();
+        }
+    }
+
+    /**
+     * Save message to conversation history
+     */
+    private _saveToHistory(role: 'user' | 'assistant' | 'system', content: string, agent?: string): void {
+        if (!this._conversationHistory) return;
+
+        const historyMessage: ConversationMessage = {
+            role,
+            content,
+            agent,
+            timestamp: new Date().toISOString(),
+            metadata: {
+                thinkingMode: this._thinkingMode,
+                thinkingIntensity: this._thinkingIntensity
+            }
+        };
+
+        this._conversationHistory.addMessage(historyMessage);
+    }
+
+    /**
+     * Handle new chat request
+     */
+    private async _handleNewChat(): Promise<void> {
+        if (!this._conversationHistory) {
+            // If no history manager, just clear messages
+            this._messages = [];
+            this._contextManager.clearContext();
+            this._panel.webview.postMessage({ type: 'clearChat' });
+            return;
+        }
+
+        // Save current conversation
+        this._conversationHistory.saveCurrentConversation();
+
+        // Create new session
+        const newSessionId = this._conversationHistory.createNewSession();
+
+        // Clear messages and context
+        this._messages = [];
+        this._contextManager.clearContext();
+
+        // Notify webview
+        this._panel.webview.postMessage({
+            type: 'clearChat',
+            sessionId: newSessionId
+        });
+
+        // Add system message
+        const systemMessage: ChatMessage = {
+            role: 'system',
+            content: '🆕 New chat session started',
+            timestamp: new Date().toISOString(),
+            metadata: { isSystemNotification: true }
+        };
+        this._messages.push(systemMessage);
+        this._panel.webview.postMessage({ type: 'addMessage', message: systemMessage });
+    }
+
+    /**
+     * Show history picker
+     */
+    public async showHistoryPicker(): Promise<void> {
+        if (!this._conversationHistory) {
+            vscode.window.showWarningMessage('Conversation history is not available');
+            return;
+        }
+
+        const conversations = this._conversationHistory.listConversations();
+        if (conversations.length === 0) {
+            vscode.window.showInformationMessage('No conversation history available');
+            return;
+        }
+
+        const items = conversations.map(conv => ({
+            label: conv.title,
+            description: `${new Date(conv.lastModified).toLocaleString()} - ${conv.messages.length} messages`,
+            detail: conv.id,
+            conversation: conv
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select a conversation to load',
+            canPickMany: false
+        });
+
+        if (selected) {
+            // Load the selected conversation
+            const conversation = this._conversationHistory.loadConversation(selected.conversation.id);
+            if (conversation) {
+                // Clear current messages
+                this._messages = [];
+                this._contextManager.clearContext();
+
+                // Load historical messages
+                this._loadHistoryMessages();
+
+                // Notify webview
+                this._panel.webview.postMessage({
+                    type: 'conversationLoaded',
+                    title: conversation.title,
+                    messageCount: conversation.messages.length
+                });
+            }
+        }
+    }
+
+    /**
+     * Handle regenerate response
+     */
+    private async _handleRegenerate(text: string, agent: string, mode: string): Promise<void> {
+        // Re-send the message to get a new response
+        await this._processUserMessage(text, agent, mode);
+    }
+
+    /**
+     * Handle export chat to file
+     */
+    private async _handleExportChat(content: string): Promise<void> {
+        const options: vscode.SaveDialogOptions = {
+            defaultUri: vscode.Uri.file(`chat-export-${new Date().toISOString().split('T')[0]}.md`),
+            filters: {
+                'Markdown': ['md'],
+                'All Files': ['*']
+            }
+        };
+
+        const uri = await vscode.window.showSaveDialog(options);
+        if (uri) {
+            await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
+            vscode.window.showInformationMessage(`Chat exported to ${uri.fsPath}`);
+        }
+    }
+
+    /**
+     * Handle file attachment
+     */
+    private async _handleAttachFile(): Promise<void> {
+        const options: vscode.OpenDialogOptions = {
+            canSelectMany: false,
+            openLabel: 'Attach',
+            filters: {
+                'All Files': ['*']
+            }
+        };
+
+        const fileUri = await vscode.window.showOpenDialog(options);
+        if (fileUri && fileUri[0]) {
+            const filePath = fileUri[0].fsPath;
+            this._attachedFiles.push(filePath);
+
+            // Notify webview about attached file
+            this._panel.webview.postMessage({
+                type: 'fileAttached',
+                fileName: vscode.Uri.file(filePath).path.split('/').pop(),
+                filePath: filePath
+            });
+
+            vscode.window.showInformationMessage(`File attached: ${filePath.split('/').pop()}`);
+        }
     }
 
     public dispose() {

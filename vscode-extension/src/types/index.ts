@@ -108,3 +108,19 @@ export interface APIConfig {
         baseURL?: string;
     };
 }
+
+export interface ValidationResult {
+    isComplete: boolean;
+    completedItems: string[];
+    missingItems: string[];
+    bugs: string[];
+    recommendations: string[];
+    confidence: number;
+}
+
+export interface ValidationWorkflow {
+    enabled: boolean;
+    maxIterations: number;
+    agents: string[];
+    autoFix: boolean;
+}

@@ -133,22 +133,40 @@ export class CodeSmithAgent extends ChatAgent {
         }
 
         try {
-            // Pass streaming callback if provided
+            // Get service with streaming support
             const claudeService = await this.getClaudeService(request.onPartialResponse);
-            const response = await claudeService.chat([
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userPrompt }
-            ]);
+            let responseContent = '';
+            let responseMetadata = {};
 
-            // Extract content string from response object
-            const responseContent = typeof response === 'string' 
-                ? response 
-                : (response as any).content || '';
+            // Use streaming if available and callback provided
+            if (request.onPartialResponse && claudeService.streamChat) {
+                await claudeService.streamChat(
+                    [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt }
+                    ],
+                    (chunk: string) => {
+                        responseContent += chunk;
+                        request.onPartialResponse!(chunk);
+                    }
+                );
+            } else {
+                // Fallback to non-streaming
+                const response = await claudeService.chat([
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt }
+                ]);
 
-            // Extract metadata from response if available
-            const responseMetadata = typeof response === 'object' && response !== null
-                ? (response as any).metadata
-                : {};
+                // Extract content string from response object
+                responseContent = typeof response === 'string'
+                    ? response
+                    : (response as any).content || '';
+
+                // Extract metadata from response if available
+                responseMetadata = typeof response === 'object' && response !== null
+                    ? (response as any).metadata
+                    : {};
+            }
 
             this.showDebug('Response received', {
                 contentLength: responseContent.length,
@@ -669,7 +687,7 @@ ${this.getSystemContextPrompt()}`;
         return true;
     }
 
-    private async getClaudeService(onPartialResponse?: (content: string) => void): Promise<{ chat: (messages: any[]) => Promise<any> }> {
+    private async getClaudeService(onPartialResponse?: (content: string) => void): Promise<{ chat: (messages: any[]) => Promise<any>, streamChat?: (messages: any[], onChunk: (chunk: string) => void) => Promise<any> }> {
         const config = vscode.workspace.getConfiguration('kiAutoAgent');
         const serviceMode = config.get<string>('claude.serviceMode', 'claude-code');
 
@@ -688,23 +706,26 @@ ${this.getSystemContextPrompt()}`;
                         const userMessage = messages.find(m => m.role === 'user')?.content || '';
                         const systemMessage = messages.find(m => m.role === 'system')?.content || '';
                         const fullPrompt = systemMessage ? `${systemMessage}\n\n${userMessage}` : userMessage;
-                        
-                        // Use streaming if callback provided
-                        if (onPartialResponse) {
-                            this.showDebug('Using streaming message');
-                            const response = await this.claudeCodeService.sendStreamingMessage(fullPrompt, {
-                                model: 'sonnet',
-                                temperature: 0.7,
-                                onPartialResponse: onPartialResponse
-                            });
-                            return response;
-                        } else {
-                            const response = await this.claudeCodeService.sendMessage(fullPrompt, {
-                                model: 'sonnet',
-                                temperature: 0.7
-                            });
-                            return response.content;
-                        }
+
+                        const response = await this.claudeCodeService.sendMessage(fullPrompt, {
+                            model: 'sonnet',
+                            temperature: 0.7
+                        });
+                        return response.content;
+                    },
+                    streamChat: async (messages: any[], onChunk: (chunk: string) => void) => {
+                        // Extract the main user message content
+                        const userMessage = messages.find(m => m.role === 'user')?.content || '';
+                        const systemMessage = messages.find(m => m.role === 'system')?.content || '';
+                        const fullPrompt = systemMessage ? `${systemMessage}\n\n${userMessage}` : userMessage;
+
+                        this.showDebug('Using streaming message');
+                        const response = await this.claudeCodeService.sendStreamingMessage(fullPrompt, {
+                            model: 'sonnet',
+                            temperature: 0.7,
+                            onPartialResponse: onChunk
+                        });
+                        return response;
                     }
                 };
             } else {
@@ -717,6 +738,9 @@ ${this.getSystemContextPrompt()}`;
         return {
             chat: async (messages: any[]) => {
                 return await this.anthropicService.chat(messages);
+            },
+            streamChat: async (messages: any[], onChunk: (chunk: string) => void) => {
+                return await this.anthropicService.streamChat(messages, onChunk);
             }
         };
     }
