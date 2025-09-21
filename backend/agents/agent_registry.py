@@ -1,0 +1,264 @@
+"""
+Agent Registry - Central registration and dispatch for all agents
+Manages agent lifecycle and routing
+"""
+
+import logging
+from typing import Dict, Any, Optional, List
+from dataclasses import dataclass
+from enum import Enum
+
+from .base.base_agent import BaseAgent, TaskRequest, TaskResult
+from .specialized.orchestrator_agent import OrchestratorAgent
+
+logger = logging.getLogger(__name__)
+
+class AgentType(Enum):
+    """Agent type enumeration"""
+    ORCHESTRATOR = "orchestrator"
+    ARCHITECT = "architect"
+    CODESMITH = "codesmith"
+    OPUS_ARBITRATOR = "opus-arbitrator"
+    RESEARCH = "research"
+    REVIEWER = "reviewer"
+    DOCU = "docu"
+    TRADESTRAT = "tradestrat"
+    FIXER = "fixer"
+
+@dataclass
+class RegisteredAgent:
+    """Registered agent information"""
+    agent_id: str
+    agent_type: AgentType
+    instance: BaseAgent
+    capabilities: List[str]
+    model: str
+    status: str = "ready"
+
+class AgentRegistry:
+    """
+    Central registry for all agents
+    Handles agent registration, discovery, and dispatch
+    """
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
+    def __init__(self):
+        if self._initialized:
+            return
+
+        self._initialized = True
+        self.agents: Dict[str, RegisteredAgent] = {}
+        self.default_agent = AgentType.ORCHESTRATOR
+
+        logger.info("🎯 Agent Registry initialized")
+
+    async def initialize_all_agents(self):
+        """
+        Initialize all available agents
+        """
+        logger.info("📦 Initializing all agents...")
+
+        # Initialize core agents
+        await self.register_agent(OrchestratorAgent())
+
+        # TODO: Register other agents as they are ported
+        # await self.register_agent(ArchitectAgent())
+        # await self.register_agent(CodeSmithAgent())
+        # await self.register_agent(OpusArbitratorAgent())
+        # await self.register_agent(ResearchAgent())
+        # await self.register_agent(ReviewerAgent())
+        # await self.register_agent(DocuAgent())
+
+        logger.info(f"✅ Initialized {len(self.agents)} agents")
+
+    async def register_agent(self, agent: BaseAgent) -> bool:
+        """
+        Register an agent with the registry
+        """
+        try:
+            agent_id = agent.config.agent_id
+
+            if agent_id in self.agents:
+                logger.warning(f"Agent {agent_id} already registered, updating...")
+
+            registered = RegisteredAgent(
+                agent_id=agent_id,
+                agent_type=AgentType(agent_id),
+                instance=agent,
+                capabilities=[cap.value for cap in agent.config.capabilities],
+                model=agent.config.model,
+                status="ready"
+            )
+
+            self.agents[agent_id] = registered
+
+            logger.info(
+                f"✅ Registered agent: {agent_id} "
+                f"({agent.config.full_name}) "
+                f"with model {agent.config.model}"
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to register agent: {e}")
+            return False
+
+    def get_agent(self, agent_id: str) -> Optional[BaseAgent]:
+        """
+        Get agent by ID
+        """
+        if agent_id in self.agents:
+            return self.agents[agent_id].instance
+
+        logger.warning(f"Agent {agent_id} not found")
+        return None
+
+    def get_available_agents(self) -> List[Dict[str, Any]]:
+        """
+        Get list of available agents
+        """
+        agents = []
+        for agent_id, registered in self.agents.items():
+            agents.append({
+                "id": agent_id,
+                "name": registered.instance.config.full_name,
+                "model": registered.model,
+                "capabilities": registered.capabilities,
+                "status": registered.status
+            })
+
+        return agents
+
+    async def dispatch_task(
+        self,
+        agent_id: str,
+        request: TaskRequest
+    ) -> TaskResult:
+        """
+        Dispatch task to specific agent
+        """
+        agent = self.get_agent(agent_id)
+
+        if not agent:
+            # Fallback to orchestrator
+            logger.warning(f"Agent {agent_id} not found, using orchestrator")
+            agent = self.get_agent(self.default_agent.value)
+
+            if not agent:
+                return TaskResult(
+                    status="error",
+                    content="No agents available",
+                    agent="system"
+                )
+
+        try:
+            # Mark agent as busy
+            if agent_id in self.agents:
+                self.agents[agent_id].status = "busy"
+
+            # Execute task
+            result = await agent.execute_with_memory(request)
+
+            # Mark agent as ready
+            if agent_id in self.agents:
+                self.agents[agent_id].status = "ready"
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error dispatching task to {agent_id}: {e}")
+
+            # Mark agent as ready
+            if agent_id in self.agents:
+                self.agents[agent_id].status = "ready"
+
+            return TaskResult(
+                status="error",
+                content=f"Agent execution failed: {str(e)}",
+                agent=agent_id
+            )
+
+    def find_agent_by_capability(self, capability: str) -> Optional[BaseAgent]:
+        """
+        Find agent with specific capability
+        """
+        for agent_id, registered in self.agents.items():
+            if capability in registered.capabilities:
+                return registered.instance
+
+        return None
+
+    def get_agents_by_capability(self, capability: str) -> List[BaseAgent]:
+        """
+        Get all agents with specific capability
+        """
+        agents = []
+        for agent_id, registered in self.agents.items():
+            if capability in registered.capabilities:
+                agents.append(registered.instance)
+
+        return agents
+
+    async def broadcast_message(self, message: Dict[str, Any]):
+        """
+        Broadcast message to all agents
+        """
+        for agent_id, registered in self.agents.items():
+            try:
+                # Send via communication bus if available
+                if hasattr(registered.instance, 'communication_bus'):
+                    await registered.instance.communication_bus.publish(
+                        "agent.broadcast",
+                        message
+                    )
+            except Exception as e:
+                logger.error(f"Failed to broadcast to {agent_id}: {e}")
+
+    def get_status(self) -> Dict[str, Any]:
+        """
+        Get registry status
+        """
+        return {
+            "total_agents": len(self.agents),
+            "ready_agents": sum(1 for a in self.agents.values() if a.status == "ready"),
+            "busy_agents": sum(1 for a in self.agents.values() if a.status == "busy"),
+            "agents": self.get_available_agents()
+        }
+
+    async def shutdown(self):
+        """
+        Shutdown all agents gracefully
+        """
+        logger.info("🛑 Shutting down all agents...")
+
+        for agent_id, registered in self.agents.items():
+            try:
+                # Call agent cleanup if available
+                if hasattr(registered.instance, 'cleanup'):
+                    await registered.instance.cleanup()
+
+                logger.info(f"✅ Agent {agent_id} shutdown complete")
+
+            except Exception as e:
+                logger.error(f"Error shutting down {agent_id}: {e}")
+
+        self.agents.clear()
+        logger.info("✅ All agents shutdown complete")
+
+# Global registry instance
+_registry = None
+
+def get_agent_registry() -> AgentRegistry:
+    """Get global agent registry instance"""
+    global _registry
+    if _registry is None:
+        _registry = AgentRegistry()
+    return _registry

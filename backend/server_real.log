@@ -1,0 +1,95 @@
+INFO:     Will watch for changes in these directories: ['/Users/dominikfoert/git/KI_AutoAgent/backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [95115] using StatReload
+INFO:     Started server process [95118]
+INFO:     Waiting for application startup.
+2025-09-21 19:01:20,082 - api.server - INFO - 🚀 KI AutoAgent Backend starting...
+2025-09-21 19:01:20,082 - agents.agent_registry - INFO - 🎯 Agent Registry initialized
+2025-09-21 19:01:20,082 - api.server - INFO - 📦 Registering agents...
+ERROR:    Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/venv/lib/python3.13/site-packages/starlette/routing.py", line 694, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+               ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/api/server.py", line 45, in lifespan
+    await registry.register_agent(OrchestratorAgent())
+                                  ~~~~~~~~~~~~~~~~~^^
+TypeError: Can't instantiate abstract class OrchestratorAgent without an implementation for abstract method '_process_agent_request'
+
+ERROR:    Application startup failed. Exiting.
+WARNING:  StatReload detected changes in 'agents/specialized/orchestrator_agent.py'. Reloading...
+INFO:     Started server process [95316]
+INFO:     Waiting for application startup.
+2025-09-21 19:03:30,759 - api.server - INFO - 🚀 KI AutoAgent Backend starting...
+2025-09-21 19:03:30,759 - agents.agent_registry - INFO - 🎯 Agent Registry initialized
+2025-09-21 19:03:30,759 - api.server - INFO - 📦 Registering agents...
+2025-09-21 19:03:30,759 - agents.base.base_agent - INFO - 🤖 🎯 OrchestratorAgent initialized (Model: gpt-5-2025-09-12)
+2025-09-21 19:03:30,759 - agents.agent_registry - INFO - ✅ Registered agent: orchestrator (Advanced KI AutoAgent Orchestrator) with model gpt-5-2025-09-12
+ERROR:    Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/venv/lib/python3.13/site-packages/starlette/routing.py", line 694, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+               ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/api/server.py", line 46, in lifespan
+    await registry.register_agent(ArchitectAgent())
+                                  ~~~~~~~~~~~~~~^^
+TypeError: Can't instantiate abstract class ArchitectAgent without an implementation for abstract method '_process_agent_request'
+
+ERROR:    Application startup failed. Exiting.
+WARNING:  StatReload detected changes in 'agents/specialized/architect_agent.py'. Reloading...
+INFO:     Started server process [95348]
+INFO:     Waiting for application startup.
+2025-09-21 19:03:37,603 - api.server - INFO - 🚀 KI AutoAgent Backend starting...
+2025-09-21 19:03:37,603 - agents.agent_registry - INFO - 🎯 Agent Registry initialized
+2025-09-21 19:03:37,603 - api.server - INFO - 📦 Registering agents...
+2025-09-21 19:03:37,603 - agents.base.base_agent - INFO - 🤖 🎯 OrchestratorAgent initialized (Model: gpt-5-2025-09-12)
+2025-09-21 19:03:37,603 - agents.agent_registry - INFO - ✅ Registered agent: orchestrator (Advanced KI AutoAgent Orchestrator) with model gpt-5-2025-09-12
+2025-09-21 19:03:37,603 - agents.base.base_agent - INFO - 🤖 🏗️ ArchitectAgent initialized (Model: gpt-5-2025-09-12)
+2025-09-21 19:03:37,620 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-5-2025-09-12
+2025-09-21 19:03:37,620 - agents.agent_registry - INFO - ✅ Registered agent: architect (System Architecture Specialist) with model gpt-5-2025-09-12
+ERROR:    Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/venv/lib/python3.13/site-packages/starlette/routing.py", line 694, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+               ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/api/server.py", line 47, in lifespan
+    await registry.register_agent(CodeSmithAgent())
+                                  ~~~~~~~~~~~~~~^^
+TypeError: Can't instantiate abstract class CodeSmithAgent without an implementation for abstract method '_process_agent_request'
+
+ERROR:    Application startup failed. Exiting.
+WARNING:  StatReload detected changes in 'agents/specialized/codesmith_agent.py'. Reloading...
+INFO:     Started server process [95380]
+INFO:     Waiting for application startup.
+2025-09-21 19:03:44,886 - api.server - INFO - 🚀 KI AutoAgent Backend starting...
+2025-09-21 19:03:44,886 - agents.agent_registry - INFO - 🎯 Agent Registry initialized
+2025-09-21 19:03:44,886 - api.server - INFO - 📦 Registering agents...
+2025-09-21 19:03:44,886 - agents.base.base_agent - INFO - 🤖 🎯 OrchestratorAgent initialized (Model: gpt-5-2025-09-12)
+2025-09-21 19:03:44,887 - agents.agent_registry - INFO - ✅ Registered agent: orchestrator (Advanced KI AutoAgent Orchestrator) with model gpt-5-2025-09-12
+2025-09-21 19:03:44,887 - agents.base.base_agent - INFO - 🤖 🏗️ ArchitectAgent initialized (Model: gpt-5-2025-09-12)
+2025-09-21 19:03:44,902 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-5-2025-09-12
+2025-09-21 19:03:44,902 - agents.agent_registry - INFO - ✅ Registered agent: architect (System Architecture Specialist) with model gpt-5-2025-09-12
+2025-09-21 19:03:44,902 - agents.base.base_agent - INFO - 🤖 💻 CodeSmithAgent initialized (Model: claude-4.1-sonnet-20250920)
+2025-09-21 19:03:44,902 - utils.anthropic_service - WARNING - Anthropic API key not found in environment variables
+2025-09-21 19:03:44,902 - agents.agent_registry - INFO - ✅ Registered agent: codesmith (Code Implementation Specialist) with model claude-4.1-sonnet-20250920
+2025-09-21 19:03:44,902 - api.server - INFO - ✅ Registered 3 agents
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56465 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56478 - "GET /api/agents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56512 - "WebSocket /ws/chat" [accepted]
+2025-09-21 19:04:45,304 - api.server - INFO - ✅ Client client_0 connected. Total: 1
+INFO:     connection open
+2025-09-21 19:04:45,305 - api.server - INFO - 📨 Received from client_0: chat
+2025-09-21 19:04:46,307 - api.server - INFO - 📨 Received from client_0: chat
+2025-09-21 19:04:46,921 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-09-21 19:04:46,922 - utils.openai_service - ERROR - OpenAI API error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************5OIA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+2025-09-21 19:04:47,251 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 401 Unauthorized"
+2025-09-21 19:04:47,251 - utils.openai_service - ERROR - OpenAI API error: Error code: 401 - {'error': {'message': 'Incorrect API key provided: sk-proj-********************************************************************************************************************************************************5OIA. You can find your API key at https://platform.openai.com/account/api-keys.', 'type': 'invalid_request_error', 'param': None, 'code': 'invalid_api_key'}}
+2025-09-21 19:04:47,252 - api.server - INFO - ❌ Client client_0 disconnected. Total: 0
+INFO:     connection closed

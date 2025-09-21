@@ -1,3 +1,70 @@
+# ⚠️ KRITISCHE ARCHITEKTUR-REGELN - KI_AutoAgent System
+
+## 🚨 WICHTIGSTE REGEL: PYTHON-BACKEND ARCHITEKTUR (September 2025)
+
+### ⛔ NIEMALS - ABSOLUTE VERBOTE:
+1. **KEINE Agent-Implementierungen in TypeScript/JavaScript**
+   - Alle Agents MÜSSEN im Python Backend sein (`backend/agents/`)
+   - TypeScript ist NUR für UI-Komponenten
+
+2. **KEINE Business-Logic im VS Code Extension Frontend**
+   - Keine direkten AI-API Calls aus TypeScript
+   - Keine Workflow-Logic in VS Code Extension
+   - Keine Agent-Intelligence im Frontend
+
+3. **KEINE direkten Model-Calls aus TypeScript**
+   - Alle OpenAI/Anthropic/Perplexity Calls NUR aus Python Backend
+   - Frontend kommuniziert NUR über WebSocket mit Backend
+
+### ✅ ARCHITEKTUR-ÜBERBLICK:
+
+```
+📦 KI_AutoAgent/
+├── 🐍 backend/                  # ALLE INTELLIGENZ HIER!
+│   ├── api/                     # FastAPI Server (Port 8000)
+│   ├── agents/                  # ALLE Agent-Implementierungen
+│   ├── core/                    # Memory, SharedContext, Workflows
+│   └── utils/                   # AI Service Integrations
+│
+└── 🎨 vscode-extension/          # NUR UI - KEINE LOGIC!
+    ├── src/
+    │   ├── api/BackendClient.ts # WebSocket zu Python
+    │   └── webview/             # Chat UI
+    └── [DEPRECATED]/            # Alte TS Agents - NICHT VERWENDEN!
+```
+
+### 🎯 GOLDEN RULES:
+
+| Component | Location | Responsibility |
+|-----------|----------|----------------|
+| **Agents** | `backend/agents/` | ALLE AI-Agent Implementierungen |
+| **AI APIs** | `backend/utils/` | OpenAI, Anthropic, Perplexity Calls |
+| **Memory** | `backend/core/memory/` | Vector DB, Pattern Recognition |
+| **Workflows** | `backend/core/workflow/` | Task Decomposition, Parallel Execution |
+| **VS Code UI** | `vscode-extension/` | NUR Visual Display & User Input |
+| **WebSocket** | `ws://localhost:8000/ws/chat` | Einzige Verbindung Frontend↔Backend |
+
+### 🔄 WORKFLOW:
+
+```
+User Input (VS Code)
+    ↓ [WebSocket]
+Python Backend (localhost:8000)
+    ↓ [Process]
+Agent Intelligence (Python)
+    ↓ [WebSocket]
+Display Result (VS Code)
+```
+
+### ⚠️ MIGRATION STATUS (September 2025):
+- ✅ Python Backend läuft auf Port 8000
+- ✅ FastAPI mit WebSocket Support
+- ✅ BaseAgent & ChatAgent in Python implementiert
+- 🚧 TypeScript Agents werden NICHT mehr verwendet
+- 🚧 VS Code Extension wird zu reinem UI-Client
+
+---
+
 # Claude Model Versionen und Roadmap - KI_AutoAgent System
 
 ## 🤖 Aktuelle Model Versionen (Stand: September 2025)
@@ -814,6 +881,38 @@ PATCH Version (X.Y.Z):
 - [x] OpusArbitrator: Claude Opus 4.1
 
 ### 🎯 Ergebnis
-Das KI_AutoAgent System nutzt jetzt die **neuesten und mächtigsten Claude-Modelle (2025)** mit automatischer **Agent-Konfliktlösung durch Opus 4.1**. 
+Das KI_AutoAgent System nutzt jetzt die **neuesten und mächtigsten Claude-Modelle (2025)** mit automatischer **Agent-Konfliktlösung durch Opus 4.1**.
 
 **Das System ist bereit für Production mit überlegener KI-Performance! 🚀**
+
+---
+
+## 🚨 KRITISCHER REMINDER: ARCHITEKTUR-REGELN STRIKT BEFOLGEN!
+
+**Bei JEDER Änderung oder Erweiterung des Systems:**
+
+### ⚠️ PYTHON BACKEND (backend/):
+- ✅ ALLE Agent-Implementierungen
+- ✅ ALLE AI-Model Integrationen (OpenAI, Anthropic, Perplexity)
+- ✅ ALLE Workflow-Engine Logic
+- ✅ ALLE Memory Management Systeme
+- ✅ ALLE SharedContext und Communication
+
+### ⚠️ TYPESCRIPT FRONTEND (vscode-extension/):
+- ✅ NUR UI-Components (Chat, Buttons, etc.)
+- ✅ NUR BackendClient für WebSocket
+- ✅ NUR Visual Feedback und User Input
+- ❌ KEINE Agent-Logic
+- ❌ KEINE AI-API Calls
+- ❌ KEINE Business Logic
+
+### 🔴 WARUM DIESE TRENNUNG KRITISCH IST:
+1. **Verhindert Duplikation**: Keine doppelten Agent-Implementierungen mehr
+2. **Klare Verantwortung**: Backend = Brain, Frontend = Display
+3. **Wartbarkeit**: Änderungen nur an einer Stelle nötig
+4. **Skalierbarkeit**: Backend kann separat deployed werden
+5. **Multi-Client**: Andere UIs (Web, CLI) können Backend nutzen
+
+**VERSTÖSSE GEGEN DIESE REGELN FÜHRTEN ZU DEN PROBLEMEN, DIE WIR GERADE BEHOBEN HABEN!**
+
+---
