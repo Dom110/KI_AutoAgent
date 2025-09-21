@@ -8,6 +8,7 @@ import { getClaudeCodeService } from './services/ClaudeCodeService';
 import { AgentConfigurationManager } from './core/AgentConfigurationManager';
 import { ArchitectAgent } from './agents/ArchitectAgent';
 import { OrchestratorAgent } from './agents/OrchestratorAgent';
+import { EnhancedOrchestratorAgent } from './agents/EnhancedOrchestratorAgent';
 import { CodeSmithAgent } from './agents/CodeSmithAgent';
 import { TradeStratAgent } from './agents/TradeStratAgent';
 import { ResearchAgent } from './agents/ResearchAgent';
@@ -15,6 +16,8 @@ import { OpusArbitratorAgent } from './agents/OpusArbitratorAgent';
 import { DocuBotAgent } from './agents/DocuBotAgent';
 import { ReviewerGPTAgent } from './agents/ReviewerGPTAgent';
 import { FixerBotAgent } from './agents/FixerBotAgent'; // REVIVED - Now handles live testing and validation
+import { EnhancedReviewerAgent } from './agents/EnhancedReviewerAgent';
+import { EnhancedFixerBot } from './agents/EnhancedFixerBot';
 // Multi-Agent Chat UI Components
 import { MultiAgentChatPanel } from './ui/MultiAgentChatPanel';
 import { ChatWidget } from './ui/ChatWidget';
@@ -126,11 +129,13 @@ export async function activate(context: vscode.ExtensionContext) {
         let agentCreationErrors = [];
         
         try {
-            agents.push(new OrchestratorAgent(context, dispatcher));
-            outputChannel.appendLine('  ✅ OrchestratorAgent created');
+            // Use EnhancedOrchestratorAgent with debug logging enabled
+            const enhancedOrchestrator = new EnhancedOrchestratorAgent(context, dispatcher, true, outputChannel);
+            agents.push(enhancedOrchestrator);
+            outputChannel.appendLine('  ✅ EnhancedOrchestratorAgent created (with workflow execution fix)');
         } catch (error) {
-            outputChannel.appendLine(`  ❌ OrchestratorAgent failed: ${(error as any).message}`);
-            agentCreationErrors.push(`OrchestratorAgent: ${error}`);
+            outputChannel.appendLine(`  ❌ EnhancedOrchestratorAgent failed: ${(error as any).message}`);
+            agentCreationErrors.push(`EnhancedOrchestratorAgent: ${error}`);
         }
         
         try {
@@ -182,21 +187,25 @@ export async function activate(context: vscode.ExtensionContext) {
         }
 
         try {
-            agents.push(new ReviewerGPTAgent(context, dispatcher));
-            outputChannel.appendLine('  ✅ ReviewerGPTAgent created');
+            // Use EnhancedReviewerAgent with enterprise capabilities
+            const enhancedReviewer = new EnhancedReviewerAgent(context, dispatcher);
+            agents.push(enhancedReviewer);
+            outputChannel.appendLine('  ✅ EnhancedReviewerAgent created - Enterprise-grade review & runtime analysis');
         } catch (error) {
-            outputChannel.appendLine(`  ❌ ReviewerGPTAgent failed: ${(error as any).message}`);
-            agentCreationErrors.push(`ReviewerGPTAgent: ${error}`);
+            outputChannel.appendLine(`  ❌ EnhancedReviewerAgent failed: ${(error as any).message}`);
+            agentCreationErrors.push(`EnhancedReviewerAgent: ${error}`);
         }
 
-        // REVIVED: FixerBot now handles live testing and validation
-        // New role: Run applications, test changes, validate output
+        // REVIVED: FixerBot now handles live testing and validation with enterprise patterns
+        // New role: Run applications, test changes, validate output, enterprise fixes
         try {
-            agents.push(new FixerBotAgent(context, dispatcher));
-            outputChannel.appendLine('  ✅ FixerBotAgent created - Live Testing Expert');
+            // Use EnhancedFixerBot with automated enterprise fixing
+            const enhancedFixer = new EnhancedFixerBot(context, dispatcher);
+            agents.push(enhancedFixer);
+            outputChannel.appendLine('  ✅ EnhancedFixerBot created - Live Testing & Enterprise Fixes');
         } catch (error) {
-            outputChannel.appendLine(`  ❌ FixerBotAgent failed: ${(error as any).message}`);
-            agentCreationErrors.push(`FixerBotAgent: ${error}`);
+            outputChannel.appendLine(`  ❌ EnhancedFixerBot failed: ${(error as any).message}`);
+            agentCreationErrors.push(`EnhancedFixerBot: ${error}`);
         }
 
         outputChannel.appendLine(`Agent creation completed: ${agents.length} created, ${agentCreationErrors.length} errors`);

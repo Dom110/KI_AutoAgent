@@ -1448,17 +1448,39 @@ Please provide a numbered step-by-step plan only.`;
 
         const messages = this._conversationHistory.getCurrentMessages();
         if (messages && messages.length > 0) {
-            // Convert history messages to chat messages
-            this._messages = messages.map(msg => ({
-                role: msg.role,
-                content: msg.content,
-                agent: msg.agent || 'assistant',
-                timestamp: msg.timestamp,
-                metadata: msg.metadata
-            }));
+            // Clear context manager before loading history
+            this._contextManager.clearContext();
+
+            // Convert history messages to chat messages and add to context
+            this._messages = messages.map(msg => {
+                const chatMessage = {
+                    role: msg.role,
+                    content: msg.content,
+                    agent: msg.agent || 'assistant',
+                    timestamp: msg.timestamp,
+                    metadata: msg.metadata
+                };
+
+                // Add each message to context manager for agent access
+                if (msg.role === 'user' || msg.role === 'assistant') {
+                    this._contextManager.addEntry({
+                        timestamp: msg.timestamp || new Date().toISOString(),
+                        agent: msg.agent || (msg.role === 'user' ? 'user' : 'assistant'),
+                        step: msg.role === 'user' ? 'input' : 'response',
+                        input: msg.role === 'user' ? msg.content : '',
+                        output: msg.role === 'assistant' ? msg.content : '',
+                        metadata: msg.metadata
+                    });
+                }
+
+                return chatMessage;
+            });
 
             // Send messages to webview
             this._restoreMessages();
+
+            console.log('[HISTORY] Loaded', messages.length, 'messages into context manager');
+            console.log('[HISTORY] Context now contains:', this._contextManager.getFormattedContext(10));
         }
     }
 

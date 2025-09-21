@@ -2,7 +2,7 @@
   "name": "ki-autoagent-vscode",
   "displayName": "KI AutoAgent",
   "description": "Universal Multi-Agent AI Development Platform for VS Code",
-  "version": "3.80.0",
+  "version": "3.80.60",
   "publisher": "ki-autoagent",
   "icon": "media/multi-agent-logo.png",
   "repository": {
@@ -862,6 +862,73 @@
           "markdownDescription": "🐛 **Debug Logging**\nShow intent detection details in console",
           "scope": "window"
         },
+        "kiAutoAgent.ai.intentClassification.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🧠 **Enable AI Intent Classification**\nUse advanced AI-based intent classification instead of keywords",
+          "scope": "window"
+        },
+        "kiAutoAgent.ai.intentClassification.provider": {
+          "type": "string",
+          "enum": [
+            "gpt-4",
+            "claude",
+            "auto"
+          ],
+          "default": "auto",
+          "markdownDescription": "🤖 **AI Provider**\nWhich AI model to use for intent classification\n• **auto**: Automatically select best available\n• **gpt-4**: Use OpenAI GPT-4\n• **claude**: Use Anthropic Claude",
+          "scope": "window"
+        },
+        "kiAutoAgent.ai.intentClassification.confidenceThreshold": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0.3,
+          "maximum": 0.95,
+          "markdownDescription": "📊 **AI Confidence Threshold**\nMinimum confidence (0.3-0.95) for automatic execution\n• <0.6: Always ask for clarification\n• 0.6-0.8: May ask for confirmation\n• >0.8: Execute without confirmation",
+          "scope": "window"
+        },
+        "kiAutoAgent.ai.intentClassification.requireExplicitConfirmation": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "✅ **Require Explicit Confirmation**\nAlways ask for confirmation even with high confidence",
+          "scope": "window"
+        },
+        "kiAutoAgent.ai.intentClassification.learnFromCorrections": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "📚 **Learn from Corrections**\nImprove classification accuracy by learning from user corrections",
+          "scope": "window"
+        },
+        "kiAutoAgent.ai.intentClassification.multiModelConsensus": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "🤝 **Multi-Model Consensus**\nUse multiple AI models for critical decisions (slower but more accurate)",
+          "scope": "window"
+        },
+        "kiAutoAgent.ai.intentClassification.detectSarcasm": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "😏 **Detect Sarcasm**\nDetect and handle sarcastic responses appropriately",
+          "scope": "window"
+        },
+        "kiAutoAgent.ai.intentClassification.openaiApiKey": {
+          "type": "string",
+          "markdownDescription": "🔑 **OpenAI API Key for Classification**\nOptional dedicated key for intent classification (uses main key if not set)",
+          "scope": "application"
+        },
+        "kiAutoAgent.ai.intentClassification.anthropicApiKey": {
+          "type": "string",
+          "markdownDescription": "🔑 **Anthropic API Key for Classification**\nOptional dedicated key for intent classification (uses main key if not set)",
+          "scope": "application"
+        },
+        "kiAutoAgent.ai.intentClassification.cacheDuration": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0,
+          "maximum": 60,
+          "markdownDescription": "⏱️ **Cache Duration (seconds)**\nHow long to cache classification results (0 to disable)",
+          "scope": "window"
+        },
         "kiAutoAgent.history.maxConversations": {
           "type": "number",
           "default": 50,
@@ -938,10 +1005,12 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.90.0",
+    "@types/ws": "^8.18.1",
     "ts-loader": "^9.5.4",
     "typescript": "^5.0.0",
     "webpack": "^5.101.3",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^6.0.1",
+    "ws": "^8.18.3"
   },
   "dependencies": {
     "@anthropic-ai/claude-code": "^1.0.111",

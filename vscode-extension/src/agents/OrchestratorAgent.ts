@@ -1413,6 +1413,19 @@ Answer helpfully, but when project-specific knowledge is needed, suggest using a
             'best practices'
         ];
 
+        // Special handling for retry/unclear requests
+        const retryPatterns = [
+            'versuch',
+            'noch mal',
+            'nochmal',
+            'try again',
+            'repeat',
+            'was meinst du',
+            'what do you mean',
+            'erkläre',
+            'explain'
+        ];
+
         // Check if this is a UI/architecture question
         const isUIQuestion = uiQuestionPatterns.some(pattern => promptLower.includes(pattern));
         if (isUIQuestion) {
@@ -1421,6 +1434,18 @@ Answer helpfully, but when project-specific knowledge is needed, suggest using a
                 shouldAnswer: true,
                 confidence: 0.95,
                 reasoning: 'UI/Architecture question detected - orchestrator should provide comprehensive answer',
+                suggestedAgent: undefined
+            };
+        }
+
+        // Check if this is a retry/unclear request (should clarify)
+        const isRetryRequest = retryPatterns.some(pattern => promptLower.includes(pattern));
+        if (isRetryRequest && promptLower.length < 50) {  // Short retry requests
+            return {
+                requestType: 'query',
+                shouldAnswer: true,
+                confidence: 0.9,
+                reasoning: 'Retry or clarification request - orchestrator should ask for clarification',
                 suggestedAgent: undefined
             };
         }
@@ -1662,7 +1687,22 @@ If the question is about UI components or architecture, suggest using agents to 
                     taskStatus = 'partial_success';
                 }
 
-                let finalContent = stepResult?.output?.result || stepResult?.output || 'Task completed';
+                // Extract content from workflow result
+                let finalContent = '';
+                if (stepResult?.output?.content) {
+                    finalContent = stepResult.output.content;
+                } else if (stepResult?.output?.result) {
+                    finalContent = stepResult.output.result;
+                } else if (typeof stepResult?.output === 'string') {
+                    finalContent = stepResult.output;
+                } else if (stepResult?.output) {
+                    // Try to extract content from output object
+                    finalContent = JSON.stringify(stepResult.output);
+                } else {
+                    finalContent = 'Task completed';
+                }
+
+                console.log('[ORCHESTRATOR] Simple task result content:', finalContent.substring(0, 200));
                 let finalStatus = taskStatus;
 
                 // Check if validation workflow is enabled
@@ -1942,12 +1982,30 @@ Run and validate:
      * Compile workflow results into a coherent summary
      */
     private compileWorkflowResults(results: Map<string, any>): string {
+        // Debug logging
+        console.log('[ORCHESTRATOR] compileWorkflowResults called with', results.size, 'results');
+
         // If there's only one result, return it directly without wrapping
         if (results.size === 1) {
-            const singleResult = Array.from(results.values())[0];
+            const [nodeId, singleResult] = Array.from(results.entries())[0];
+            console.log('[ORCHESTRATOR] Single result:', {
+                nodeId,
+                status: singleResult.status,
+                hasOutput: !!singleResult.output,
+                hasContent: !!singleResult.content,
+                outputType: typeof singleResult.output
+            });
+
             if (singleResult.status === 'success') {
-                // Return the actual content directly without workflow wrapper
-                return singleResult.output?.result || singleResult.output || 'Task completed';
+                // Try multiple possible locations for the content
+                const content = singleResult.content ||
+                               singleResult.output?.content ||
+                               singleResult.output?.result ||
+                               singleResult.output ||
+                               'No content available';
+
+                console.log('[ORCHESTRATOR] Returning content:', content.substring(0, 200));
+                return content;
             }
         }
 
@@ -1973,7 +2031,30 @@ Run and validate:
 
         results.forEach((result, nodeId) => {
             if (result.status === 'success') {
-                const content = result.output?.result || result.output || 'Completed';
+                // More thorough content extraction
+                let content = '';
+                if (result.output?.content) {
+                    content = result.output.content;
+                } else if (result.output?.result) {
+                    content = result.output.result;
+                } else if (typeof result.output === 'string') {
+                    content = result.output;
+                } else if (result.output) {
+                    // Try to extract meaningful content from output
+                    if (typeof result.output === 'object') {
+                        content = JSON.stringify(result.output);
+                    } else {
+                        content = String(result.output);
+                    }
+                } else {
+                    content = 'Completed';
+                }
+
+                // Avoid showing nodeId as content
+                if (content === nodeId || content.includes('task_1 completed')) {
+                    console.log('[ORCHESTRATOR] WARNING: Content looks like nodeId, searching for actual content');
+                    content = result.output ? String(result.output) : 'Task completed successfully';
+                }
 
                 // For single agent workflows, just show the content
                 if (!hasMultipleAgents) {
