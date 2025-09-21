@@ -13,6 +13,7 @@
     const sendBtn = document.getElementById('send-btn');
     const planFirstBtn = document.getElementById('plan-first-btn');
     const thinkingModeBtn = document.getElementById('thinking-mode-btn');
+    const thinkingIntensitySelect = document.getElementById('thinking-intensity');
     const stopBtn = document.getElementById('stop-btn');
     const settingsBtn = document.getElementById('settings-btn');
     const modeOptions = document.querySelectorAll('.mode-option');
@@ -23,6 +24,7 @@
     let messageHistory = [];
     let historyIndex = -1;
     let thinkingMode = false;
+    let thinkingIntensity = 'normal';
     let isProcessing = false;
     
     // Initialize
@@ -45,6 +47,17 @@
         // Thinking Mode toggle
         if (thinkingModeBtn) {
             thinkingModeBtn.addEventListener('click', toggleThinkingMode);
+        }
+
+        // Thinking Intensity selector
+        if (thinkingIntensitySelect) {
+            thinkingIntensitySelect.addEventListener('change', (e) => {
+                thinkingIntensity = e.target.value;
+                vscode.postMessage({
+                    command: 'setThinkingIntensity',
+                    intensity: thinkingIntensity
+                });
+            });
         }
         
         // Stop button
@@ -135,7 +148,8 @@
             text: text,
             agent: currentAgent,
             mode: mode,
-            thinkingMode: thinkingMode
+            thinkingMode: thinkingMode,
+            thinkingIntensity: thinkingIntensity
         });
         
         // Set processing state
@@ -598,9 +612,16 @@
         thinkingMode = !thinkingMode;
         if (thinkingModeBtn) {
             thinkingModeBtn.classList.toggle('active', thinkingMode);
+
+            // Show/hide thinking intensity selector
+            if (thinkingIntensitySelect) {
+                thinkingIntensitySelect.style.display = thinkingMode ? 'inline-block' : 'none';
+            }
+
             vscode.postMessage({
                 command: 'toggleThinkingMode',
-                enabled: thinkingMode
+                enabled: thinkingMode,
+                intensity: thinkingIntensity
             });
         }
     }
@@ -755,6 +776,100 @@
         }
     }
     
+    // Workflow management
+    let activeWorkflows = new Map();
+
+    function createWorkflowContainer(messageId) {
+        const container = document.createElement('div');
+        container.className = 'workflow-container';
+        container.dataset.messageId = messageId;
+        container.innerHTML = `
+            <div class="workflow-header" onclick="toggleWorkflow('${messageId}')">
+                <span class="workflow-icon">🎯</span>
+                <span class="workflow-title">Multi-Agent Workflow</span>
+                <span class="workflow-toggle">▼</span>
+            </div>
+            <div class="workflow-steps" id="workflow-steps-${messageId}"></div>
+        `;
+        messagesContainer.appendChild(container);
+        return container;
+    }
+
+    function addWorkflowStep(messageId, stepData) {
+        let container = document.querySelector(`[data-message-id="${messageId}"]`);
+        if (!container) {
+            container = createWorkflowContainer(messageId);
+        }
+
+        const stepsContainer = container.querySelector('.workflow-steps');
+        const stepElement = document.createElement('div');
+        stepElement.className = 'workflow-step';
+        stepElement.dataset.stepNumber = stepData.step;
+        stepElement.innerHTML = `
+            <div class="step-header" onclick="toggleStepContent('${messageId}-${stepData.step}')">
+                <span class="step-status">${stepData.status === 'completed' ? '✅' : '🔄'}</span>
+                <span class="step-info">Step ${stepData.step}/${stepData.total}: @${stepData.agent}</span>
+                <span class="step-description">${stepData.description}</span>
+                <span class="step-toggle">▼</span>
+            </div>
+            <div class="step-content collapsed" id="step-content-${messageId}-${stepData.step}">
+                <div class="step-result">${stepData.result || 'Processing...'}</div>
+            </div>
+        `;
+
+        const existingStep = stepsContainer.querySelector(`[data-step-number="${stepData.step}"]`);
+        if (existingStep) {
+            existingStep.replaceWith(stepElement);
+        } else {
+            stepsContainer.appendChild(stepElement);
+        }
+    }
+
+    window.toggleStepContent = function(stepId) {
+        const content = document.getElementById(`step-content-${stepId}`);
+        const header = content.previousElementSibling;
+        const toggle = header.querySelector('.step-toggle');
+
+        if (content.classList.contains('collapsed')) {
+            content.classList.remove('collapsed');
+            toggle.textContent = '▲';
+        } else {
+            content.classList.add('collapsed');
+            toggle.textContent = '▼';
+        }
+    }
+
+    window.toggleWorkflow = function(messageId) {
+        const container = document.querySelector(`[data-message-id="${messageId}"]`);
+        const stepsContainer = container.querySelector('.workflow-steps');
+        const toggle = container.querySelector('.workflow-toggle');
+
+        if (stepsContainer.style.display === 'none') {
+            stepsContainer.style.display = 'block';
+            toggle.textContent = '▼';
+        } else {
+            stepsContainer.style.display = 'none';
+            toggle.textContent = '▶';
+        }
+    }
+
+    function addFinalResultBubble(message) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'message-wrapper assistant final-result-wrapper';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble assistant-bubble final-result';
+        bubble.innerHTML = `
+            <div class="final-result-header">✨ Final Result</div>
+            <div class="message-content">${formatMessageContent(message.content)}</div>
+            <div class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</div>
+        `;
+
+        wrapper.appendChild(bubble);
+        messagesContainer.appendChild(wrapper);
+        scrollToBottom();
+    }
+
     // Handle messages from extension
     window.addEventListener('message', event => {
         const message = event.data;
@@ -833,6 +948,26 @@
                     currentAgent = message.state.agent || currentAgent;
                     saveState();
                 }
+                break;
+
+            case 'initWorkflow':
+                console.log('[CHAT] Initializing workflow:', message.messageId);
+                createWorkflowContainer(message.messageId);
+                break;
+
+            case 'updateWorkflowStep':
+                console.log('[CHAT] Updating workflow step:', message.stepData);
+                addWorkflowStep(message.messageId, message.stepData);
+                break;
+
+            case 'completeWorkflowStep':
+                console.log('[CHAT] Completing workflow step:', message.stepData);
+                addWorkflowStep(message.messageId, message.stepData);
+                break;
+
+            case 'addFinalResult':
+                console.log('[CHAT] Adding final result:', message.message);
+                addFinalResultBubble(message.message);
                 break;
         }
     });

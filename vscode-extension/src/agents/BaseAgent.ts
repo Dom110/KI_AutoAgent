@@ -35,6 +35,8 @@ export interface TaskRequest {
         content: string;
     }>;
     onPartialResponse?: (content: string) => void;
+    thinkingMode?: boolean;
+    mode?: 'single' | 'auto' | 'workflow' | 'planning' | 'layered';
 }
 
 export interface TaskResult {
@@ -196,7 +198,10 @@ export abstract class BaseAgent extends UnifiedChatMixin {
             const enhancedRequest = await this.buildContextWithMemory(request);
 
             // Build context-aware prompt
-            const contextPrompt = this.buildWorkflowPrompt(step, enhancedRequest, previousResults);
+            let contextPrompt = this.buildWorkflowPrompt(step, enhancedRequest, previousResults);
+
+            // Apply thinking mode if enabled
+            contextPrompt = this.applyThinkingMode(contextPrompt, request);
 
             // Update shared context with current task
             await this.updateSharedContext(`current_task_${this.config.agentId}`, {
@@ -606,6 +611,119 @@ Provide the updated instructions in the same format, keeping what works well and
     // Abstract methods that subclasses must implement
     protected abstract getDefaultModel(): string;
     protected abstract getDefaultInstructions(): string;
+
+    // ================ THINKING MODE METHODS ================
+
+    /**
+     * Deep thinking mode for enhanced reasoning
+     * Each agent implements its own thinking strategy
+     */
+    public async deepThink(request: TaskRequest): Promise<TaskResult> {
+        const modelProvider = this.getModelProvider(this.selectedModel);
+        const thinkingPrompt = this.getThinkingPromptForModel(modelProvider, request.prompt);
+
+        // Execute with thinking mode
+        return await this.executeWithModel(thinkingPrompt, request);
+    }
+
+    /**
+     * Get model-specific thinking prompt
+     */
+    protected getThinkingPromptForModel(modelType: string, prompt: string): string {
+        switch(modelType) {
+            case 'anthropic':
+                return this.enableClaudeThinking(prompt);
+            case 'openai':
+                return this.enableGPTThinking(prompt);
+            case 'perplexity':
+                return this.enablePerplexityThinking(prompt);
+            default:
+                return prompt;
+        }
+    }
+
+    /**
+     * Enable Claude's deep thinking mode
+     */
+    protected enableClaudeThinking(prompt: string): string {
+        return `Please engage in deep, systematic thinking about this problem.
+
+Take your time to:
+1. Thoroughly analyze all aspects and implications
+2. Consider edge cases, potential issues, and failure modes
+3. Reason through multiple possible approaches
+4. Evaluate trade-offs between different solutions
+5. Select the optimal approach based on your analysis
+
+Think step-by-step, showing your reasoning process:
+
+${prompt}
+
+Begin with your detailed reasoning, then provide your solution.`;
+    }
+
+    /**
+     * Enable GPT's chain-of-thought reasoning
+     */
+    protected enableGPTThinking(prompt: string): string {
+        return `Let's approach this systematically using chain-of-thought reasoning.
+
+Work through these steps explicitly:
+
+Step 1: Problem Understanding
+- What exactly is being asked?
+- What are the constraints and requirements?
+- What context is important?
+
+Step 2: Component Breakdown
+- Break the problem into manageable parts
+- Identify dependencies between components
+
+Step 3: Deep Analysis
+- Analyze each component thoroughly
+- Consider interactions and side effects
+
+Step 4: Solution Synthesis
+- Combine insights into a coherent solution
+- Ensure all requirements are met
+
+Step 5: Verification
+- Check the solution against requirements
+- Identify any gaps or issues
+
+Question: ${prompt}
+
+Work through each step explicitly, showing your thinking, before providing your final answer.`;
+    }
+
+    /**
+     * Enable Perplexity's research-oriented thinking
+     */
+    protected enablePerplexityThinking(prompt: string): string {
+        return `Conduct comprehensive research and analysis on this topic.
+
+Research approach:
+1. Search for multiple perspectives and viewpoints
+2. Verify facts from authoritative sources
+3. Analyze any contradicting information
+4. Consider historical context and trends
+5. Synthesize findings into actionable insights
+
+Research query: ${prompt}
+
+Provide thorough analysis with source citations where applicable.`;
+    }
+
+    /**
+     * Apply thinking mode to prompts if enabled
+     */
+    protected applyThinkingMode(prompt: string, request: TaskRequest): string {
+        if (request.thinkingMode) {
+            const modelProvider = this.getModelProvider(this.selectedModel);
+            return this.getThinkingPromptForModel(modelProvider, prompt);
+        }
+        return prompt;
+    }
 
     // ================ MEMORY & COLLABORATION METHODS ================
 

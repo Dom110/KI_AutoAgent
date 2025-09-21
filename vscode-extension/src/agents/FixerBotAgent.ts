@@ -1,6 +1,7 @@
 /**
- * FixerBot - Bug Fixing & Optimization Expert
- * Specializes in debugging, fixing bugs, and optimizing code
+ * FixerBot - Live Testing & Validation Expert
+ * Runs applications, tests changes live, validates output, and suggests fixes
+ * Enhanced with automated testing and real-time validation capabilities
  */
 import * as vscode from 'vscode';
 import { ChatAgent } from './base/ChatAgent';
@@ -8,16 +9,54 @@ import { AgentConfig, TaskRequest, TaskResult, WorkflowStep } from '../types';
 import { VSCodeMasterDispatcher } from '../core/VSCodeMasterDispatcher';
 import { ClaudeCodeService } from '../services/ClaudeCodeService';
 import * as path from 'path';
+import * as child_process from 'child_process';
+import * as fs from 'fs';
+import * as http from 'http';
+import * as https from 'https';
+
+interface TestResult {
+    status: 'OK' | 'NOT_OK';
+    errors?: string[];
+    output?: string;
+    suggestions?: string[];
+    validations?: ValidationResult[];
+}
+
+interface ValidationResult {
+    test: string;
+    passed: boolean;
+    message: string;
+}
+
+interface ProcessResult {
+    success: boolean;
+    output: string;
+    error?: string;
+    exitCode?: number;
+}
 
 export class FixerBotAgent extends ChatAgent {
     private claudeService: ClaudeCodeService;
+    private runningProcesses: Map<string, child_process.ChildProcess> = new Map();
+    private testCommands: Map<string, string[]> = new Map([
+        ['npm', ['npm test', 'npm run test', 'npm run test:unit']],
+        ['python', ['pytest', 'python -m pytest', 'python -m unittest']],
+        ['java', ['mvn test', 'gradle test']],
+        ['go', ['go test ./...']]
+    ]);
+    private startCommands: Map<string, string[]> = new Map([
+        ['npm', ['npm start', 'npm run dev', 'npm run serve']],
+        ['python', ['python app.py', 'python main.py', 'flask run', 'uvicorn main:app --reload']],
+        ['java', ['mvn spring-boot:run', 'java -jar target/*.jar']],
+        ['go', ['go run .', 'go run main.go']]
+    ]);
 
     constructor(context: vscode.ExtensionContext, dispatcher: VSCodeMasterDispatcher) {
         const config: AgentConfig = {
             participantId: 'ki-autoagent.fixer',
             name: 'fixer',
             fullName: 'FixerBot',
-            description: 'Bug Fixing & Optimization Expert - Debugs, patches, and refactors code',
+            description: 'Live Testing Expert - Runs apps, validates changes, and ensures quality',
             model: 'claude-4.1-sonnet-20250920',
             iconPath: vscode.Uri.joinPath(context.extensionUri, 'media', 'fixer-icon.svg'),
             capabilities: [
@@ -609,5 +648,322 @@ ${this.getSystemContextPrompt()}`;
         // Extract changes section
         const changesMatch = content.match(/changes?:?\s*([\s\S]*?)(?:\n##|\n###|$)/i);
         return changesMatch ? changesMatch[1].trim() : '';
+    }
+
+    // ================ LIVE TESTING & VALIDATION METHODS ================
+
+    /**
+     * Test code changes live by running the application
+     */
+    public async testLive(code: string, projectPath?: string): Promise<TestResult> {
+        console.log('[FIXERBOT] Starting live testing...');
+
+        try {
+            // Detect project type
+            const projectType = await this.detectProjectType(projectPath);
+            console.log(`[FIXERBOT] Detected project type: ${projectType}`);
+
+            // Start application
+            const appProcess = await this.runApplication(projectType, projectPath);
+
+            // Give app time to start
+            await this.waitForAppStart(appProcess, 5000);
+
+            // Run validation tests
+            const validations = await this.validateApplication(projectType);
+
+            // Run unit tests
+            const testResults = await this.runTests(projectType, projectPath);
+
+            // Analyze results
+            const analysis = this.analyzeResults(validations, testResults, appProcess.output);
+
+            // Kill the process
+            this.killProcess(appProcess.pid);
+
+            return analysis;
+
+        } catch (error) {
+            console.error('[FIXERBOT] Live testing error:', error);
+            return {
+                status: 'NOT_OK',
+                errors: [(error as any).message],
+                suggestions: ['Check project setup', 'Verify dependencies are installed']
+            };
+        }
+    }
+
+    /**
+     * Detect project type from files
+     */
+    private async detectProjectType(projectPath?: string): Promise<string> {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const basePath = projectPath || workspaceFolder?.uri.fsPath || '';
+
+        // Check for package.json (Node.js)
+        if (fs.existsSync(path.join(basePath, 'package.json'))) {
+            return 'npm';
+        }
+
+        // Check for requirements.txt or setup.py (Python)
+        if (fs.existsSync(path.join(basePath, 'requirements.txt')) ||
+            fs.existsSync(path.join(basePath, 'setup.py'))) {
+            return 'python';
+        }
+
+        // Check for pom.xml or build.gradle (Java)
+        if (fs.existsSync(path.join(basePath, 'pom.xml'))) {
+            return 'maven';
+        }
+        if (fs.existsSync(path.join(basePath, 'build.gradle'))) {
+            return 'gradle';
+        }
+
+        // Check for go.mod (Go)
+        if (fs.existsSync(path.join(basePath, 'go.mod'))) {
+            return 'go';
+        }
+
+        return 'unknown';
+    }
+
+    /**
+     * Run the application
+     */
+    private async runApplication(projectType: string, projectPath?: string): Promise<ProcessResult & { pid: number }> {
+        const commands = this.startCommands.get(projectType) || [];
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const cwd = projectPath || workspaceFolder?.uri.fsPath || process.cwd();
+
+        for (const command of commands) {
+            try {
+                console.log(`[FIXERBOT] Trying to start app with: ${command}`);
+
+                const child = child_process.spawn(command, {
+                    cwd,
+                    shell: true,
+                    env: { ...process.env, NODE_ENV: 'test' }
+                });
+
+                const processKey = `app_${Date.now()}`;
+                this.runningProcesses.set(processKey, child);
+
+                // Collect output
+                let output = '';
+                let error = '';
+
+                child.stdout?.on('data', (data) => {
+                    output += data.toString();
+                });
+
+                child.stderr?.on('data', (data) => {
+                    error += data.toString();
+                });
+
+                // Return immediately with running process
+                return {
+                    success: true,
+                    output,
+                    error,
+                    pid: child.pid!
+                };
+
+            } catch (error) {
+                console.error(`[FIXERBOT] Failed to start with ${command}:`, error);
+            }
+        }
+
+        throw new Error('Could not start application with any known command');
+    }
+
+    /**
+     * Wait for application to start
+     */
+    private async waitForAppStart(process: ProcessResult, timeout: number): Promise<void> {
+        return new Promise((resolve) => {
+            setTimeout(resolve, timeout);
+        });
+    }
+
+    /**
+     * Validate running application
+     */
+    private async validateApplication(projectType: string): Promise<ValidationResult[]> {
+        const validations: ValidationResult[] = [];
+
+        // Check if HTTP server is responding
+        const httpCheck = await this.checkHttpEndpoint('http://localhost:3000');
+        validations.push({
+            test: 'HTTP Server Check',
+            passed: httpCheck.success,
+            message: httpCheck.message
+        });
+
+        // Check for common API endpoints
+        const apiCheck = await this.checkHttpEndpoint('http://localhost:3000/api/health');
+        validations.push({
+            test: 'API Health Check',
+            passed: apiCheck.success,
+            message: apiCheck.message
+        });
+
+        return validations;
+    }
+
+    /**
+     * Check HTTP endpoint
+     */
+    private async checkHttpEndpoint(url: string): Promise<{ success: boolean; message: string }> {
+        return new Promise((resolve) => {
+            const protocol = url.startsWith('https') ? https : http;
+
+            protocol.get(url, (res) => {
+                resolve({
+                    success: res.statusCode === 200,
+                    message: `Status: ${res.statusCode}`
+                });
+            }).on('error', (error) => {
+                resolve({
+                    success: false,
+                    message: error.message
+                });
+            });
+        });
+    }
+
+    /**
+     * Run unit tests
+     */
+    private async runTests(projectType: string, projectPath?: string): Promise<ProcessResult> {
+        const commands = this.testCommands.get(projectType) || [];
+        const cwd = projectPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+
+        for (const command of commands) {
+            try {
+                console.log(`[FIXERBOT] Running tests with: ${command}`);
+
+                const result = await this.executeCommand(command, cwd);
+
+                if (result.success || result.output.includes('passing') || result.output.includes('passed')) {
+                    return result;
+                }
+            } catch (error) {
+                console.error(`[FIXERBOT] Test command failed: ${command}`, error);
+            }
+        }
+
+        return {
+            success: false,
+            output: 'No test command found or all tests failed',
+            error: 'Could not run tests'
+        };
+    }
+
+    /**
+     * Execute command and wait for result
+     */
+    private async executeCommand(command: string, cwd: string): Promise<ProcessResult> {
+        return new Promise((resolve) => {
+            child_process.exec(command, { cwd }, (error, stdout, stderr) => {
+                resolve({
+                    success: !error,
+                    output: stdout,
+                    error: stderr,
+                    exitCode: error?.code
+                });
+            });
+        });
+    }
+
+    /**
+     * Analyze test results and generate report
+     */
+    private analyzeResults(
+        validations: ValidationResult[],
+        testResults: ProcessResult,
+        appOutput: string
+    ): TestResult {
+        const errors: string[] = [];
+        const suggestions: string[] = [];
+
+        // Check validations
+        const failedValidations = validations.filter(v => !v.passed);
+        failedValidations.forEach(v => {
+            errors.push(`${v.test}: ${v.message}`);
+        });
+
+        // Check test results
+        if (!testResults.success) {
+            errors.push('Unit tests failed');
+            if (testResults.error) {
+                errors.push(testResults.error);
+            }
+        }
+
+        // Check for common errors in app output
+        if (appOutput.includes('Error') || appOutput.includes('Exception')) {
+            errors.push('Application errors detected in console output');
+        }
+
+        // Generate suggestions based on errors
+        if (errors.length > 0) {
+            if (errors.some(e => e.includes('Cannot find module'))) {
+                suggestions.push('Run npm install to install missing dependencies');
+            }
+            if (errors.some(e => e.includes('port') || e.includes('EADDRINUSE'))) {
+                suggestions.push('Port already in use. Kill other processes or use different port');
+            }
+            if (errors.some(e => e.includes('syntax'))) {
+                suggestions.push('Check for syntax errors in recent changes');
+            }
+            if (errors.some(e => e.includes('test'))) {
+                suggestions.push('Review failing test cases and update implementation');
+            }
+        }
+
+        return {
+            status: errors.length === 0 ? 'OK' : 'NOT_OK',
+            errors,
+            output: appOutput.substring(0, 1000), // First 1000 chars
+            suggestions,
+            validations
+        };
+    }
+
+    /**
+     * Kill running process
+     */
+    private killProcess(pid: number): void {
+        try {
+            process.kill(pid, 'SIGTERM');
+            console.log(`[FIXERBOT] Killed process ${pid}`);
+        } catch (error) {
+            console.error(`[FIXERBOT] Failed to kill process ${pid}:`, error);
+        }
+    }
+
+    /**
+     * Generate fix suggestions based on errors
+     */
+    public generateFixSuggestions(testResult: TestResult): string[] {
+        const suggestions: string[] = [...(testResult.suggestions || [])];
+
+        // Add specific suggestions based on error patterns
+        testResult.errors?.forEach(error => {
+            if (error.includes('undefined')) {
+                suggestions.push('Check for undefined variables or missing initializations');
+            }
+            if (error.includes('null')) {
+                suggestions.push('Add null checks before accessing properties');
+            }
+            if (error.includes('timeout')) {
+                suggestions.push('Increase timeouts or optimize async operations');
+            }
+            if (error.includes('connection')) {
+                suggestions.push('Verify network connections and API endpoints');
+            }
+        });
+
+        return [...new Set(suggestions)]; // Remove duplicates
     }
 }

@@ -25,6 +25,11 @@ export class MultiAgentChatPanel {
     private _currentMode: 'single' | 'auto' | 'workflow' = 'auto';
     private _dispatcher: any; // Will be set from extension
     private _contextManager: ConversationContextManager;
+    private workflowSteps: Map<string, any> = new Map(); // Track workflow steps
+    private _thinkingMode: boolean = false; // Thinking mode state
+    private _thinkingIntensity: 'quick' | 'normal' | 'deep' | 'layered' = 'normal'; // Thinking intensity
+    private _currentOperation: any = null; // Current operation for cancellation
+    private _isProcessing: boolean = false; // Track if processing
 
     // Singleton pattern für Panel
     public static createOrShow(extensionUri: vscode.Uri, dispatcher?: any) {
@@ -152,6 +157,12 @@ export class MultiAgentChatPanel {
                             <button id="thinking-mode-btn" class="action-btn toggle" title="Enable thinking mode">
                                 💭 Thinking
                             </button>
+                            <select id="thinking-intensity" class="thinking-select" title="Select thinking intensity" style="display:none;">
+                                <option value="quick">🧠 Quick</option>
+                                <option value="normal" selected>🧠🧠 Normal</option>
+                                <option value="deep">🧠🧠🧠 Deep</option>
+                                <option value="layered">🧠➕🧠 Layered</option>
+                            </select>
                             <button id="stop-btn" class="action-btn danger" title="Stop current operation">
                                 ⏹ Stop
                             </button>
@@ -215,6 +226,20 @@ export class MultiAgentChatPanel {
                 break;
             case 'planFirst':
                 await this._handlePlanFirst(message.text, message.agent, message.mode);
+                break;
+            case 'stopOperation':
+                this._cancelCurrentOperation();
+                break;
+            case 'toggleThinkingMode':
+                this._thinkingMode = message.enabled;
+                if (message.intensity) {
+                    this._thinkingIntensity = message.intensity;
+                }
+                vscode.window.showInformationMessage(`Thinking mode ${message.enabled ? 'enabled' : 'disabled'} (${this._thinkingIntensity})`);
+                break;
+            case 'setThinkingIntensity':
+                this._thinkingIntensity = message.intensity;
+                vscode.window.showInformationMessage(`Thinking intensity: ${this._thinkingIntensity}`);
                 break;
         }
     }
@@ -424,6 +449,8 @@ export class MultiAgentChatPanel {
                 command: agentId,
                 context: await this._getWorkspaceContext(),
                 globalContext: conversationHistory,
+                thinkingMode: this._thinkingMode, // Pass thinking mode to agents
+                mode: this._thinkingIntensity === 'layered' ? 'layered' : undefined,
                 onPartialResponse: (partialContent: string) => {
                     console.log(`🤖 [STREAMING] Partial content: ${partialContent.length} chars`);
 
@@ -539,6 +566,55 @@ export class MultiAgentChatPanel {
         let hasToolNotifications = false;
         let needsNewBubble = false;
         
+        // Check for workflow step notifications
+        if (contentToAdd.includes('🔄 **Step')) {
+            const stepMatch = contentToAdd.match(/🔄 \*\*Step (\d+)\/(\d+)\*\*: @(\w+) - (.+)/);
+            if (stepMatch) {
+                const [fullMatch, current, total, agent, description] = stepMatch;
+
+                // Initialize workflow container if first step
+                if (current === '1') {
+                    this._initWorkflowContainer(messageId);
+                }
+
+                // Update workflow step
+                this._updateWorkflowStep(messageId, parseInt(current), parseInt(total), agent, description);
+
+                // Remove step notification from main content
+                contentToAdd = contentToAdd.replace(fullMatch, '');
+            }
+        }
+
+        // Check for step completion
+        if (contentToAdd.includes('✅ Completed:')) {
+            const completionMatch = contentToAdd.match(/✅ Completed: (.+)/);
+            if (completionMatch) {
+                // Find current step number from workflow steps
+                const stepKeys = Array.from(this.workflowSteps.keys()).filter(key => key.startsWith(`${messageId}-step-`));
+                const currentStep = stepKeys.length;
+
+                if (currentStep > 0) {
+                    this._completeWorkflowStep(messageId, currentStep, completionMatch[1]);
+                    contentToAdd = contentToAdd.replace(completionMatch[0], '');
+                }
+            }
+        }
+
+        // Check for final result marker
+        if (contentToAdd.includes('✅ Task completed') || contentToAdd.includes('<<FINAL_RESULT>>')) {
+            if (this.workflowSteps.size > 0) {
+                // Clean up markers
+                contentToAdd = contentToAdd.replace(/<<FINAL_RESULT>>/g, '');
+                contentToAdd = contentToAdd.replace(/✅ Task completed successfully!/g, '');
+
+                // Create final result bubble
+                if (contentToAdd.trim()) {
+                    this._createFinalResultBubble(messageId, contentToAdd.trim());
+                    return; // Don't process further
+                }
+            }
+        }
+
         // Check for thinking notifications
         while (contentToAdd.includes('<<THINKING>>') && contentToAdd.includes('<<THINKING_END>>')) {
             const thinkingMatch = contentToAdd.match(/<<THINKING>>(.*?)<<THINKING_END>>/s);
@@ -1058,48 +1134,82 @@ export class MultiAgentChatPanel {
     }
 
     private async _handlePlanFirst(text: string, agent: string, mode: string) {
-        // Add user message with plan request
-        const planPrompt = `PLAN FIRST: ${text}\n\nPlease provide a detailed plan before implementing. Break down the task into clear steps.`;
-        
+        // Add user message with plan request - PLANNING ONLY MODE
+        const planPrompt = `PLANNING MODE ONLY - DO NOT IMPLEMENT OR WRITE CODE:
+
+${text}
+
+Instructions for planning:
+1. Break down the task into detailed steps
+2. List ALL changes that need to be made (be comprehensive)
+3. Identify which files need to be modified
+4. Specify what each change will accomplish
+5. DO NOT write any code or make any implementations
+6. Wait for user approval before proceeding with implementation
+
+Please provide a numbered step-by-step plan only.`;
+
         const userMessage: ChatMessage = {
             role: 'user',
-            content: planPrompt,
+            content: `📋 **PLAN FIRST REQUEST**\n\n${text}`,
             timestamp: new Date().toISOString()
         };
         this._messages.push(userMessage);
-        
+
         this._panel.webview.postMessage({
             type: 'addMessage',
             message: userMessage
         });
-        
-        // Save to conversation history
+
+        // Save to conversation history with planning flag
         this._contextManager.addEntry({
             timestamp: new Date().toISOString(),
             agent: 'user',
             step: 'plan_request',
             input: planPrompt,
             output: '',
-            metadata: { mode, selectedAgent: agent, isPlanFirst: true }
+            metadata: {
+                mode: 'planning',
+                selectedAgent: agent,
+                isPlanFirst: true,
+                originalRequest: text
+            }
         });
-        
+
         // Process with agent
         this._panel.webview.postMessage({
             type: 'showTyping',
             agent: agent
         });
-        
+
         try {
-            // Force single agent mode for planning
+            // Route to orchestrator for planning regardless of selected agent
+            const planningAgent = 'orchestrator';
             const streamingMessageId = `streaming-${Date.now()}`;
-            this._addStreamingMessage(streamingMessageId, agent);
-            
-            const response = await this._callAgentWithStreaming(agent === 'auto' ? 'codesmith' : agent, planPrompt, streamingMessageId);
-            
-            this._finalizeStreamingMessage(streamingMessageId, response.content, response.metadata);
+            this._addStreamingMessage(streamingMessageId, planningAgent);
+
+            // Call orchestrator with planning-only prompt
+            const response = await this._dispatcher.processRequest({
+                command: 'plan',
+                prompt: planPrompt,
+                mode: 'planning',
+                projectType: 'generic',
+                onPartialResponse: (partial: string) => {
+                    this._updateStreamingMessage(streamingMessageId, partial);
+                }
+            });
+
+            // Add confirmation request
+            const confirmMessage = '\n\n---\n✅ **Plan complete!** Would you like me to proceed with implementation? Reply "yes" to continue or provide feedback to adjust the plan.';
+
+            this._finalizeStreamingMessage(
+                streamingMessageId,
+                response.content + confirmMessage,
+                { ...response.metadata, isPlan: true }
+            );
         } catch (error) {
             console.error('[PLAN FIRST] Error:', error);
-            this._addErrorMessage(`Error: ${(error as any).message}`);
+            this._addErrorMessage(`Error creating plan: ${(error as any).message}`);
         } finally {
             this._panel.webview.postMessage({
                 type: 'hideTyping'
@@ -1107,11 +1217,98 @@ export class MultiAgentChatPanel {
         }
     }
 
+    private _cancelCurrentOperation() {
+        console.log('[CHAT] Cancelling current operation...');
+        this._isProcessing = false;
+
+        // Cancel any ongoing operations
+        if (this._currentOperation) {
+            if (typeof this._currentOperation.cancel === 'function') {
+                this._currentOperation.cancel();
+            }
+            this._currentOperation = null;
+        }
+
+        // Notify webview
+        this._panel.webview.postMessage({
+            type: 'operationStopped'
+        });
+
+        // Add system message
+        this._addSystemMessage('⛔ Operation cancelled by user');
+    }
+
     public addMessage(message: ChatMessage) {
         this._messages.push(message);
         this._panel.webview.postMessage({
             type: 'addMessage',
             message: message
+        });
+    }
+
+    // Workflow step management methods
+    private _initWorkflowContainer(messageId: string): void {
+        this._panel.webview.postMessage({
+            type: 'initWorkflow',
+            messageId,
+            timestamp: new Date().toISOString()
+        });
+    }
+
+    private _updateWorkflowStep(messageId: string, step: number, total: number, agent: string, description: string): void {
+        const stepId = `${messageId}-step-${step}`;
+        const stepData = {
+            step,
+            total,
+            agent,
+            description,
+            status: 'in_progress',
+            startTime: Date.now(),
+            result: null
+        };
+
+        this.workflowSteps.set(stepId, stepData);
+
+        this._panel.webview.postMessage({
+            type: 'updateWorkflowStep',
+            messageId,
+            stepData
+        });
+    }
+
+    private _completeWorkflowStep(messageId: string, step: number, result: string): void {
+        const stepId = `${messageId}-step-${step}`;
+        const stepData = this.workflowSteps.get(stepId);
+
+        if (stepData) {
+            stepData.status = 'completed';
+            stepData.result = result;
+            stepData.endTime = Date.now();
+
+            this._panel.webview.postMessage({
+                type: 'completeWorkflowStep',
+                messageId,
+                stepData
+            });
+        }
+    }
+
+    private _createFinalResultBubble(messageId: string, content: string): void {
+        const finalMessage: ChatMessage = {
+            role: 'assistant',
+            content,
+            agent: 'orchestrator',
+            timestamp: new Date().toISOString(),
+            metadata: {
+                messageId: `${messageId}-final`,
+                isFinalResult: true
+            }
+        };
+
+        this._messages.push(finalMessage);
+        this._panel.webview.postMessage({
+            type: 'addFinalResult',
+            message: finalMessage
         });
     }
 

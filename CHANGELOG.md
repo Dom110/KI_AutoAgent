@@ -5,6 +5,44 @@ All notable changes to the KI AutoAgent project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2025-09-20
+
+### 🎨 Enhanced UI & Auto-Versioning
+
+This release delivers the promised UI improvements and automatic versioning system that were planned but not implemented in v3.1.0.
+
+### Added
+
+#### UI Improvements
+- **Collapsible Workflow Steps** - Interactive workflow display with expandable/collapsible steps
+- **Final Result Bubbles** - Results now appear in new conversation bubbles at the end
+- **Workflow Progress Tracking** - Real-time step-by-step progress indicators
+- **Enhanced CSS Animations** - Smooth transitions for workflow UI elements
+
+#### Automatic Versioning System
+- **AutoVersioning Module** - Automatic version calculation based on conventional commits
+- **File Watching** - Monitors code changes and triggers versioning
+- **Changelog Updates** - Automatic CHANGELOG.md and CLAUDE.md updates
+- **DocuBot Integration** - Automatic documentation updates on version changes
+- **Package.json Updates** - Semantic versioning applied automatically
+
+#### System Integration
+- **System Intelligence Connected** - System knowledge now properly integrated with dispatcher
+- **Memory Store Initialization** - Fixed SystemMemoryStore configuration
+- **Pattern Recognition Active** - Agents receive applicable patterns from memory
+
+### Fixed
+- SystemMemoryStore initialization errors
+- TypeScript compilation issues with memory configuration
+- Workflow step notifications not being detected
+- Final results appearing in wrong location
+
+### Technical Details
+- Files Modified: 6
+- New Files: 1 (AutoVersioning.ts)
+- Tests: Comprehensive test checklist created
+- Compilation: All TypeScript errors resolved
+
 ## [3.1.0] - 2025-09-20
 
 ### 🧠 Major Feature: System Intelligence Foundation

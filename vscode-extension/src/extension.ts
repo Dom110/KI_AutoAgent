@@ -14,10 +14,12 @@ import { ResearchAgent } from './agents/ResearchAgent';
 import { OpusArbitratorAgent } from './agents/OpusArbitratorAgent';
 import { DocuBotAgent } from './agents/DocuBotAgent';
 import { ReviewerGPTAgent } from './agents/ReviewerGPTAgent';
-// import { FixerBotAgent } from './agents/FixerBotAgent'; // DEPRECATED - Functionality integrated into CodeSmithAgent
+import { FixerBotAgent } from './agents/FixerBotAgent'; // REVIVED - Now handles live testing and validation
 // Multi-Agent Chat UI Components
 import { MultiAgentChatPanel } from './ui/MultiAgentChatPanel';
 import { ChatWidget } from './ui/ChatWidget';
+// Auto-Versioning System
+import { AutoVersioning } from './utils/AutoVersioning';
 
 // Global output channel for debugging
 let outputChannel: vscode.OutputChannel;
@@ -49,11 +51,18 @@ export async function activate(context: vscode.ExtensionContext) {
         outputChannel.appendLine('Initializing Master Dispatcher...');
         const dispatcher = new VSCodeMasterDispatcher(context);
         outputChannel.appendLine('✅ Master Dispatcher ready');
-    
+
         // Initialize Chat Widget (Status Bar)
         outputChannel.appendLine('Initializing Chat Widget...');
         const chatWidget = new ChatWidget(context, dispatcher);
         outputChannel.appendLine('✅ Chat Widget ready');
+
+        // Initialize Auto-Versioning System
+        outputChannel.appendLine('Initializing Auto-Versioning System...');
+        const autoVersioning = new AutoVersioning(dispatcher);
+        const versionWatcher = autoVersioning.startWatching();
+        context.subscriptions.push(versionWatcher);
+        outputChannel.appendLine('✅ Auto-Versioning System active');
     
     // Register chat panel commands with error handling
     const commandsToRegister = [
@@ -167,15 +176,15 @@ export async function activate(context: vscode.ExtensionContext) {
             agentCreationErrors.push(`ReviewerGPTAgent: ${error}`);
         }
 
-        // DEPRECATED: FixerBot functionality has been integrated into CodeSmithAgent
-        // CodeSmith now handles: /fix, /debug, /refactor, /modernize commands
-        // try {
-        //     agents.push(new FixerBotAgent(context, dispatcher));
-        //     outputChannel.appendLine('  ✅ FixerBotAgent created');
-        // } catch (error) {
-        //     outputChannel.appendLine(`  ❌ FixerBotAgent failed: ${(error as any).message}`);
-        //     agentCreationErrors.push(`FixerBotAgent: ${error}`);
-        // }
+        // REVIVED: FixerBot now handles live testing and validation
+        // New role: Run applications, test changes, validate output
+        try {
+            agents.push(new FixerBotAgent(context, dispatcher));
+            outputChannel.appendLine('  ✅ FixerBotAgent created - Live Testing Expert');
+        } catch (error) {
+            outputChannel.appendLine(`  ❌ FixerBotAgent failed: ${(error as any).message}`);
+            agentCreationErrors.push(`FixerBotAgent: ${error}`);
+        }
 
         outputChannel.appendLine(`Agent creation completed: ${agents.length} created, ${agentCreationErrors.length} errors`);
         

@@ -589,3 +589,170 @@ body {
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* ========== WORKFLOW CONTAINER STYLES ========== */
+.workflow-container {
+    margin: 1rem auto;
+    max-width: 800px;
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--vscode-editor-background);
+    animation: slideIn 0.3s ease;
+}
+
+.workflow-header {
+    padding: 12px 16px;
+    background: linear-gradient(135deg, var(--vscode-button-background), var(--vscode-button-hoverBackground));
+    color: var(--vscode-button-foreground);
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 600;
+    user-select: none;
+}
+
+.workflow-header:hover {
+    opacity: 0.9;
+}
+
+.workflow-icon {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+.workflow-title {
+    flex-grow: 1;
+}
+
+.workflow-toggle {
+    margin-left: auto;
+    font-size: 12px;
+    transition: transform 0.2s;
+}
+
+/* Workflow Steps Container */
+.workflow-steps {
+    padding: 8px;
+    background: var(--vscode-editor-inactiveSelectionBackground);
+}
+
+.workflow-step {
+    margin: 4px 0;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--vscode-editor-background);
+}
+
+.step-header {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.step-header:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.step-status {
+    font-size: 16px;
+}
+
+.step-info {
+    color: var(--vscode-foreground);
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.step-description {
+    color: var(--vscode-descriptionForeground);
+    font-size: 13px;
+    margin-left: 8px;
+}
+
+.step-toggle {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--vscode-descriptionForeground);
+}
+
+/* Step Content (Collapsible) */
+.step-content {
+    padding: 12px;
+    background: var(--vscode-editor-inactiveSelectionBackground);
+    border-top: 1px solid var(--vscode-widget-border);
+    max-height: 300px;
+    overflow-y: auto;
+    transition: all 0.3s ease;
+}
+
+.step-content.collapsed {
+    max-height: 0;
+    padding: 0 12px;
+    border-top: none;
+    overflow: hidden;
+}
+
+.step-result {
+    font-size: 13px;
+    color: var(--vscode-foreground);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* ========== FINAL RESULT BUBBLE STYLES ========== */
+.final-result-wrapper {
+    margin-top: 2rem;
+    animation: slideIn 0.3s ease;
+}
+
+.message-bubble.final-result {
+    border: 2px solid var(--vscode-charts-green, #10B981);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    position: relative;
+    padding-top: 0;
+}
+
+.final-result-header {
+    background: linear-gradient(90deg, var(--vscode-charts-green, #10B981), var(--vscode-charts-blue, #3B82F6));
+    color: white;
+    padding: 10px 12px;
+    margin: 0 0 12px 0;
+    font-weight: bold;
+    text-align: center;
+    border-radius: 4px 4px 0 0;
+}
+
+/* Animation */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design for Workflow */
+@media (max-width: 600px) {
+    .workflow-container {
+        margin: 0.5rem;
+    }
+
+    .step-header {
+        flex-wrap: wrap;
+    }
+
+    .step-description {
+        width: 100%;
+        margin-top: 4px;
+        margin-left: 0;
+    }
+}

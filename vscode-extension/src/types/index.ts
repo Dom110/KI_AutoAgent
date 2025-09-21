@@ -32,6 +32,8 @@ export interface TaskRequest {
         content: string;
     }>;
     onPartialResponse?: (content: string) => void;
+    thinkingMode?: boolean;
+    mode?: 'single' | 'auto' | 'workflow' | 'planning' | 'layered';
 }
 
 export interface TaskResult {

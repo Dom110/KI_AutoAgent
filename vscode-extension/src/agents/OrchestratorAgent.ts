@@ -431,7 +431,14 @@ export class OrchestratorAgent extends ChatAgent {
         }
 
         // Use AI to decompose
-        const systemPrompt = `You are an expert task decomposer. Break down complex tasks into subtasks.
+        const systemPrompt = `You are an expert task decomposer. Your job is to capture ALL requested changes comprehensively.
+
+CRITICAL REQUIREMENTS:
+1. **CAPTURE EVERY CHANGE**: Break down the task to ensure NO requested change is missed
+2. **BE EXHAUSTIVE**: It's better to have too many subtasks than too few
+3. **DETAIL EVERYTHING**: Each distinct modification should be its own subtask
+4. **INCLUDE VALIDATION**: Add review/testing steps after implementation
+5. **NO LIMITS**: Create as many subtasks as needed (10, 20, 50+ if necessary)
 
 ${this.getSystemContextPrompt()}
 
@@ -442,12 +449,13 @@ Analyze the task and provide a JSON response with:
   "subtasks": [
     {
       "id": "unique_id",
-      "description": "what to do",
+      "description": "DETAILED description of what to do",
       "agent": "best agent for this",
       "priority": 1-5,
       "dependencies": ["other_task_ids"],
       "expectedOutput": "what this produces",
-      "estimatedDuration": milliseconds
+      "estimatedDuration": milliseconds,
+      "files": ["specific files to modify if known"]
     }
   ],
   "dependencies": [
@@ -460,8 +468,12 @@ Analyze the task and provide a JSON response with:
   ],
   "estimatedDuration": total_milliseconds,
   "requiredAgents": ["agent1", "agent2"],
-  "parallelizable": boolean
+  "parallelizable": boolean,
+  "verificationSteps": ["how to verify completeness"]
 }
+
+IMPORTANT: Err on the side of being TOO detailed rather than missing something.
+Each UI change, each function modification, each bug fix should be its own subtask.
 
 Available agents: architect, codesmith, docu, reviewer, fixer, tradestrat, opus-arbitrator, research`;
 

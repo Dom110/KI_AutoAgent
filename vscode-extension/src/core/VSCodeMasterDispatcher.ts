@@ -5,6 +5,8 @@
 import * as vscode from 'vscode';
 import { TaskRequest, TaskResult, Intent, WorkspaceContext, ProjectTypeDefinition, WorkflowStep } from '../types';
 import { ConversationContextManager } from './ConversationContextManager';
+import { SystemMemoryStore } from '../memory/SystemMemory';
+import { SystemKnowledge } from '../types/SystemKnowledge';
 
 export class VSCodeMasterDispatcher {
     private agents: Map<string, any> = new Map();
@@ -12,12 +14,37 @@ export class VSCodeMasterDispatcher {
     private contextManager: ConversationContextManager;
     private intentPatterns: Map<string, RegExp[]> = new Map();
     private context: vscode.ExtensionContext;
+    private systemMemory: SystemMemoryStore;
+    private systemKnowledge: SystemKnowledge | null = null;
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
         this.contextManager = ConversationContextManager.getInstance();
+        // Initialize System Memory Store with configuration
+        this.systemMemory = new SystemMemoryStore({
+            maxArchitectureVersions: 10,
+            maxPatternHistory: 100,
+            similarityThreshold: 0.85,
+            autoCompaction: true,
+            persistToDisk: true,
+            memoryPath: '.kiautoagent/system-memory'
+        });
+        this.loadSystemKnowledge(); // Load existing knowledge
         this.initializeProjectTypes();
         this.initializeIntentPatterns();
+    }
+
+    private async loadSystemKnowledge(): Promise<void> {
+        try {
+            this.systemKnowledge = this.systemMemory.getSystemKnowledge();
+            if (this.systemKnowledge) {
+                console.log(`[DISPATCHER] System Knowledge loaded: ${Object.keys(this.systemKnowledge.architecture.components).length} components`);
+            } else {
+                console.log('[DISPATCHER] No existing system knowledge found, will build on first analysis');
+            }
+        } catch (error) {
+            console.error('[DISPATCHER] Error loading system knowledge:', error);
+        }
     }
 
     /**
@@ -36,7 +63,34 @@ export class VSCodeMasterDispatcher {
         try {
             // Get workspace context
             const workspaceContext = await this.getWorkspaceContext();
-            
+
+            // Check if this is a planning-only request
+            if (request.command === 'plan') {
+                console.log(`📋 [DISPATCHER] PLANNING MODE ACTIVATED - No implementation`);
+
+                // Route to orchestrator for planning
+                const workflow = [{
+                    id: 'plan',
+                    agent: 'orchestrator',
+                    description: 'Create implementation plan'
+                }];
+
+                const result = await this.executeWorkflow(workflow, {
+                    ...request,
+                    context: workspaceContext,
+                    projectType: request.projectType || 'generic',
+                    mode: 'planning'
+                });
+
+                return result;
+            }
+
+            // Check if layered thinking mode is requested
+            if (request.thinkingMode && request.mode === 'layered') {
+                console.log(`🧠➕🧠 [DISPATCHER] LAYERED THINKING MODE ACTIVATED`);
+                return await this.executeLayeredThinking(request, workspaceContext);
+            }
+
             // Check if a specific agent was requested (single agent mode)
             if (request.command && request.command !== 'auto' && request.command !== 'orchestrator') {
                 console.log(`🎯 [DISPATCHER] ✅ SINGLE AGENT MODE ACTIVATED`);
@@ -323,6 +377,100 @@ export class VSCodeMasterDispatcher {
     }
 
     /**
+     * Execute layered thinking - multiple AIs thinking in sequence
+     */
+    async executeLayeredThinking(request: TaskRequest, workspaceContext: any): Promise<TaskResult> {
+        console.log('[LAYERED THINKING] Starting multi-layer AI thinking process');
+
+        const thoughts: Record<string, string> = {};
+
+        try {
+            // Layer 1: Architect thinks about structure and design
+            console.log('[LAYERED THINKING] Layer 1: Architect analyzing structure...');
+            const architectAgent = this.agents.get('architect');
+            if (architectAgent) {
+                const architectThought = await architectAgent.deepThink({
+                    ...request,
+                    prompt: `Think deeply about the architecture and design for: ${request.prompt}`,
+                    context: workspaceContext
+                });
+                thoughts['architecture'] = architectThought.content;
+                console.log('[LAYERED THINKING] Architect thinking complete');
+            }
+
+            // Layer 2: CodeSmith thinks about implementation based on architecture
+            console.log('[LAYERED THINKING] Layer 2: CodeSmith analyzing implementation...');
+            const codesmithAgent = this.agents.get('codesmith');
+            if (codesmithAgent) {
+                const codesmithThought = await codesmithAgent.deepThink({
+                    ...request,
+                    prompt: `Given this architectural thinking:
+${thoughts['architecture'] || 'No architecture thoughts available'}
+
+Now think deeply about the implementation for: ${request.prompt}`,
+                    context: workspaceContext
+                });
+                thoughts['implementation'] = codesmithThought.content;
+                console.log('[LAYERED THINKING] CodeSmith thinking complete');
+            }
+
+            // Layer 3: Reviewer validates and enhances the thinking
+            console.log('[LAYERED THINKING] Layer 3: Reviewer analyzing quality...');
+            const reviewerAgent = this.agents.get('reviewer');
+            if (reviewerAgent) {
+                const reviewerThought = await reviewerAgent.deepThink({
+                    ...request,
+                    prompt: `Review this multi-layer thinking process:
+
+Architecture Thinking:
+${thoughts['architecture'] || 'No architecture thoughts'}
+
+Implementation Thinking:
+${thoughts['implementation'] || 'No implementation thoughts'}
+
+Provide quality assessment and improvements for: ${request.prompt}`,
+                    context: workspaceContext
+                });
+                thoughts['review'] = reviewerThought.content;
+                console.log('[LAYERED THINKING] Reviewer thinking complete');
+            }
+
+            // Synthesize all thoughts into final result
+            const synthesizedContent = `# 🧠➕🧠 Layered AI Thinking Results
+
+## 🏗️ Architecture Layer (GPT)
+${thoughts['architecture'] || 'No architecture analysis available'}
+
+## 💻 Implementation Layer (Claude)
+${thoughts['implementation'] || 'No implementation analysis available'}
+
+## ✅ Review Layer (GPT)
+${thoughts['review'] || 'No review analysis available'}
+
+## 🎯 Synthesized Conclusion
+Based on the layered thinking above, the optimal approach combines architectural clarity with robust implementation and quality assurance. Each layer of thinking has contributed unique insights that together form a comprehensive solution.`;
+
+            return {
+                status: 'success',
+                content: synthesizedContent,
+                metadata: {
+                    thinkingMode: 'layered',
+                    layers: Object.keys(thoughts),
+                    timestamp: new Date().toISOString()
+                }
+            };
+
+        } catch (error) {
+            console.error('[LAYERED THINKING] Error in layered thinking:', error);
+            return {
+                status: 'error',
+                content: `Error in layered thinking: ${(error as any).message}`,
+                metadata: { error: (error as any).message }
+            };
+        }
+    }
+
+    /**
      * Execute workflow steps
      */
     async executeWorkflow(workflow: WorkflowStep[], request: TaskRequest): Promise<TaskResult> {
@@ -399,8 +547,18 @@ export class VSCodeMasterDispatcher {
 
                 // Get recent conversation history from context manager
                 const recentHistory = this.contextManager.getFormattedContext(5);
-                
-                // Create enriched request with accumulated context
+
+                // Get applicable patterns for this request
+                let applicablePatterns = null;
+                if (this.systemMemory) {
+                    try {
+                        applicablePatterns = await this.systemMemory.getApplicablePatterns(request.prompt);
+                    } catch (error) {
+                        console.log('[DISPATCHER] Could not get applicable patterns:', error);
+                    }
+                }
+
+                // Create enriched request with accumulated context and system knowledge
                 const enrichedRequest = {
                     ...request,
                     prompt: request.prompt,
@@ -409,7 +567,9 @@ export class VSCodeMasterDispatcher {
                         step: r.metadata?.step || 'unknown',
                         content: r.content
                     })),
-                    globalContext: recentHistory
+                    globalContext: recentHistory,
+                    systemKnowledge: this.systemKnowledge, // Add system knowledge
+                    applicablePatterns: applicablePatterns // Add applicable patterns
                 };
 
                 const stepResult = await agent.executeStep(step, enrichedRequest, results);
@@ -602,5 +762,51 @@ export class VSCodeMasterDispatcher {
         ]);
         
         // Add more patterns as needed
+    }
+
+    /**
+     * Trigger System Intelligence analysis to build knowledge
+     */
+    public async triggerSystemAnalysis(): Promise<void> {
+        console.log('[DISPATCHER] Triggering System Intelligence analysis...');
+
+        try {
+            // Import SystemIntelligenceWorkflow dynamically to avoid circular dependency
+            const { SystemIntelligenceWorkflow } = await import('../workflows/SystemIntelligenceWorkflow');
+
+            const workflow = new SystemIntelligenceWorkflow(
+                this,
+                {
+                    autoAnalyze: true,
+                    continuousLearning: true,
+                    analysisDepth: 'deep',
+                    patternExtractionThreshold: 0.7,
+                    updateInterval: 300000, // 5 minutes
+                    memoryConfig: {
+                        maxArchitectureVersions: 10,
+                        maxPatternHistory: 100,
+                        similarityThreshold: 0.85,
+                        autoCompaction: true,
+                        persistToDisk: true,
+                        memoryPath: '.kiautoagent/memory'
+                    }
+                }
+            );
+
+            const result = await workflow.initializeSystemUnderstanding();
+            this.systemKnowledge = result.knowledge;
+
+            console.log('[DISPATCHER] System Intelligence analysis complete');
+            console.log(`[DISPATCHER] Knowledge stored: ${Object.keys(this.systemKnowledge.architecture.components).length} components`);
+        } catch (error) {
+            console.error('[DISPATCHER] Error in system analysis:', error);
+        }
+    }
+
+    /**
+     * Get current system knowledge
+     */
+    public getSystemKnowledge(): SystemKnowledge | null {
+        return this.systemKnowledge;
     }
 }
