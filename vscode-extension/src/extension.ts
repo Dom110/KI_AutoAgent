@@ -1,854 +1,238 @@
 /**
- * KI AutoAgent VS Code Extension
- * Main extension entry point that registers all chat participants
+ * KI AutoAgent VS Code Extension - BACKEND INTEGRATED VERSION
+ * Connects to Python backend for all agent intelligence
  */
 import * as vscode from 'vscode';
-import { VSCodeMasterDispatcher } from './core/VSCodeMasterDispatcher';
-import { getClaudeCodeService } from './services/ClaudeCodeService';
-import { AgentConfigurationManager } from './core/AgentConfigurationManager';
-import { ArchitectAgent } from './agents/ArchitectAgent';
-import { OrchestratorAgent } from './agents/OrchestratorAgent';
-import { EnhancedOrchestratorAgent } from './agents/EnhancedOrchestratorAgent';
-import { CodeSmithAgent } from './agents/CodeSmithAgent';
-import { TradeStratAgent } from './agents/TradeStratAgent';
-import { ResearchAgent } from './agents/ResearchAgent';
-import { OpusArbitratorAgent } from './agents/OpusArbitratorAgent';
-import { DocuBotAgent } from './agents/DocuBotAgent';
-import { ReviewerGPTAgent } from './agents/ReviewerGPTAgent';
-import { FixerBotAgent } from './agents/FixerBotAgent'; // REVIVED - Now handles live testing and validation
-import { EnhancedReviewerAgent } from './agents/EnhancedReviewerAgent';
-import { EnhancedFixerBot } from './agents/EnhancedFixerBot';
-// Multi-Agent Chat UI Components
+import { BackendManager } from './backend/BackendManager';
+import { BackendClient } from './backend/BackendClient';
 import { MultiAgentChatPanel } from './ui/MultiAgentChatPanel';
-import { ChatWidget } from './ui/ChatWidget';
-// Auto-Versioning System
-import { AutoVersioning } from './utils/AutoVersioning';
-// Conversation History Management
-import { ConversationHistory } from './core/ConversationHistory';
 
-// Global output channel for debugging
+// Global instances
 let outputChannel: vscode.OutputChannel;
+let backendManager: BackendManager;
+let backendClient: BackendClient;
 
 export async function activate(context: vscode.ExtensionContext) {
-    // VERSION 3.18.0 - PERSISTENT CONVERSATION HISTORY & UI ENHANCEMENTS
-    console.log('🚀 KI AutoAgent v3.18.0: Extension activation started');
+    // VERSION 4.0.0 - PYTHON BACKEND ARCHITECTURE
+    console.log('🚀 KI AutoAgent v4.0.0: Python Backend Architecture');
 
-    // Make context globally available for ConversationHistory
-    (global as any).extensionContext = context;
-    
-    // Create single output channel
+    // Create output channel
     outputChannel = vscode.window.createOutputChannel('KI AutoAgent');
     outputChannel.clear();
     outputChannel.show(true);
-    
-    outputChannel.appendLine('🚀 KI AutoAgent Extension v3.18.0 Activating');
+
+    outputChannel.appendLine('🚀 KI AutoAgent Extension v4.0.0 Activating');
     outputChannel.appendLine('============================================');
     outputChannel.appendLine(`Time: ${new Date().toLocaleString()}`);
     outputChannel.appendLine(`VS Code Version: ${vscode.version}`);
     outputChannel.appendLine('');
-    outputChannel.appendLine('✨ NEW: Persistent conversation history with VS Code global state');
-    outputChannel.appendLine('🆕 NEW: New Chat button for fresh conversations');
-    outputChannel.appendLine('📦 NEW: Compact mode for condensed message display');
-    outputChannel.appendLine('💭 NEW: Thinking mode tooltips with explanations');
-
-    try {
-        // Initialize the Agent Configuration Manager
-        outputChannel.appendLine('Initializing Agent Configuration Manager...');
-        const configManager = AgentConfigurationManager.getInstance(context);
-        await configManager.initialize();
-        outputChannel.appendLine('✅ Agent Configuration Manager ready');
-
-        // Initialize the master dispatcher
-        outputChannel.appendLine('Initializing Master Dispatcher...');
-        const dispatcher = new VSCodeMasterDispatcher(context);
-        outputChannel.appendLine('✅ Master Dispatcher ready');
-
-        // Initialize Chat Widget (Status Bar)
-        outputChannel.appendLine('Initializing Chat Widget...');
-        const chatWidget = new ChatWidget(context, dispatcher);
-        outputChannel.appendLine('✅ Chat Widget ready');
-
-        // Initialize Auto-Versioning System
-        outputChannel.appendLine('Initializing Auto-Versioning System...');
-        const autoVersioning = new AutoVersioning(dispatcher);
-        const versionWatcher = autoVersioning.startWatching();
-        context.subscriptions.push(versionWatcher);
-        outputChannel.appendLine('✅ Auto-Versioning System active');
-
-        // Initialize Conversation History
-        outputChannel.appendLine('Initializing Conversation History...');
-        const conversationHistory = ConversationHistory.initialize(context);
-        outputChannel.appendLine('✅ Conversation History ready');
-    
-    // Register chat panel commands with error handling
-    const commandsToRegister = [
-        {
-            id: 'ki-autoagent.showChat',
-            handler: () => MultiAgentChatPanel.createOrShow(context.extensionUri, dispatcher)
-        },
-        {
-            id: 'ki-autoagent.toggleChat',
-            handler: () => MultiAgentChatPanel.createOrShow(context.extensionUri, dispatcher)
-        },
-        {
-            id: 'ki-autoagent.quickChat',
-            handler: () => {
-                MultiAgentChatPanel.createOrShow(context.extensionUri, dispatcher);
-                vscode.window.showInformationMessage('🤖 KI AutoAgent Chat ready! Use @ki for universal assistance or specific agents like @richter, @architect, @codesmith');
-            }
-        },
-        {
-            id: 'ki-autoagent.clearUnread',
-            handler: () => {
-                if (!outputChannel) {
-                    outputChannel = vscode.window.createOutputChannel('KI AutoAgent');
-                }
-                outputChannel.clear();
-                outputChannel.appendLine('Cleared messages');
-            }
-        }
-    ];
-
-    // Register commands with duplicate check
-    for (const cmd of commandsToRegister) {
-        try {
-            const disposable = vscode.commands.registerCommand(cmd.id, cmd.handler);
-            context.subscriptions.push(disposable);
-            outputChannel.appendLine(`  ✅ Registered command: ${cmd.id}`);
-        } catch (error) {
-            outputChannel.appendLine(`  ⚠️ Command already exists: ${cmd.id} - skipping`);
-        }
-    }
-
-    // Command registration complete
+    outputChannel.appendLine('🆕 NEW: Python Backend Architecture');
+    outputChannel.appendLine('🆕 NEW: All agents run in Python backend');
+    outputChannel.appendLine('🆕 NEW: WebSocket real-time communication');
+    outputChannel.appendLine('🆕 NEW: Auto-start backend on extension activation');
     outputChannel.appendLine('');
 
-        // Initialize and register all agents 
-        outputChannel.appendLine('\nCreating Agent Instances...');
-        let agents = [];
-        let agentCreationErrors = [];
-        
-        try {
-            // Use EnhancedOrchestratorAgent with debug logging enabled
-            const enhancedOrchestrator = new EnhancedOrchestratorAgent(context, dispatcher, true, outputChannel);
-            agents.push(enhancedOrchestrator);
-            outputChannel.appendLine('  ✅ EnhancedOrchestratorAgent created (with workflow execution fix)');
-        } catch (error) {
-            outputChannel.appendLine(`  ❌ EnhancedOrchestratorAgent failed: ${(error as any).message}`);
-            agentCreationErrors.push(`EnhancedOrchestratorAgent: ${error}`);
-        }
-        
-        try {
-            agents.push(new OpusArbitratorAgent(context, dispatcher));
-            outputChannel.appendLine('  ✅ OpusArbitratorAgent created');
-        } catch (error) {
-            outputChannel.appendLine(`  ❌ OpusArbitratorAgent failed: ${(error as any).message}`);
-            agentCreationErrors.push(`OpusArbitratorAgent: ${error}`);
-        }
-        
-        try {
-            agents.push(new ArchitectAgent(context, dispatcher));
-            outputChannel.appendLine('  ✅ ArchitectAgent created');
-        } catch (error) {
-            outputChannel.appendLine(`  ❌ ArchitectAgent failed: ${(error as any).message}`);
-            agentCreationErrors.push(`ArchitectAgent: ${error}`);
-        }
-        
-        try {
-            agents.push(new CodeSmithAgent(context, dispatcher));
-            outputChannel.appendLine('  ✅ CodeSmithAgent created');
-        } catch (error) {
-            outputChannel.appendLine(`  ❌ CodeSmithAgent failed: ${(error as any).message}`);
-            agentCreationErrors.push(`CodeSmithAgent: ${error}`);
-        }
-        
-        try {
-            agents.push(new TradeStratAgent(context, dispatcher));
-            outputChannel.appendLine('  ✅ TradeStratAgent created');
-        } catch (error) {
-            outputChannel.appendLine(`  ❌ TradeStratAgent failed: ${(error as any).message}`);
-            agentCreationErrors.push(`TradeStratAgent: ${error}`);
-        }
-        
-        try {
-            agents.push(new ResearchAgent(context, dispatcher));
-            outputChannel.appendLine('  ✅ ResearchAgent created');
-        } catch (error) {
-            outputChannel.appendLine(`  ❌ ResearchAgent failed: ${(error as any).message}`);
-            agentCreationErrors.push(`ResearchAgent: ${error}`);
-        }
+    try {
+        // Initialize Backend Manager
+        outputChannel.appendLine('📦 Initializing Backend Manager...');
+        backendManager = BackendManager.getInstance(context);
 
-        try {
-            agents.push(new DocuBotAgent(context, dispatcher));
-            outputChannel.appendLine('  ✅ DocuBotAgent created');
-        } catch (error) {
-            outputChannel.appendLine(`  ❌ DocuBotAgent failed: ${(error as any).message}`);
-            agentCreationErrors.push(`DocuBotAgent: ${error}`);
-        }
+        // Start Python backend automatically
+        outputChannel.appendLine('🐍 Starting Python backend...');
+        const backendStarted = await backendManager.startBackend();
 
-        try {
-            // Use EnhancedReviewerAgent with enterprise capabilities
-            const enhancedReviewer = new EnhancedReviewerAgent(context, dispatcher);
-            agents.push(enhancedReviewer);
-            outputChannel.appendLine('  ✅ EnhancedReviewerAgent created - Enterprise-grade review & runtime analysis');
-        } catch (error) {
-            outputChannel.appendLine(`  ❌ EnhancedReviewerAgent failed: ${(error as any).message}`);
-            agentCreationErrors.push(`EnhancedReviewerAgent: ${error}`);
-        }
-
-        // REVIVED: FixerBot now handles live testing and validation with enterprise patterns
-        // New role: Run applications, test changes, validate output, enterprise fixes
-        try {
-            // Use EnhancedFixerBot with automated enterprise fixing
-            const enhancedFixer = new EnhancedFixerBot(context, dispatcher);
-            agents.push(enhancedFixer);
-            outputChannel.appendLine('  ✅ EnhancedFixerBot created - Live Testing & Enterprise Fixes');
-        } catch (error) {
-            outputChannel.appendLine(`  ❌ EnhancedFixerBot failed: ${(error as any).message}`);
-            agentCreationErrors.push(`EnhancedFixerBot: ${error}`);
-        }
-
-        outputChannel.appendLine(`Agent creation completed: ${agents.length} created, ${agentCreationErrors.length} errors`);
-        
-        if (agentCreationErrors.length > 0) {
-            outputChannel.appendLine('Agent creation errors:');
-            agentCreationErrors.forEach(error => outputChannel.appendLine(`  - ${error}`));
-        }
-
-    // Initialize all agents (TODO: Update agents to use new BaseAgent system)
-    for (const agent of agents) {
-        try {
-            // Enhanced initialization will be added when agents are updated to use new BaseAgent
-            console.log(`✅ Agent ${(agent as any).config?.participantId || 'unknown'} ready`);
-        } catch (error) {
-            console.warn(`Failed to initialize agent:`, error);
-        }
-    }
-
-    // Register each agent as a chat participant
-    outputChannel.appendLine(`\nRegistering ${agents.length} agents...`);
-    let registrationErrors: string[] = [];
-    
-    agents.forEach((agent, index) => {
-        try {
-            const participantId = (agent as any).config.participantId;
-            const participant = vscode.chat.createChatParticipant(
-                participantId,
-                agent.createHandler()
+        if (!backendStarted) {
+            // Backend failed to start, show warning
+            const action = await vscode.window.showWarningMessage(
+                'Python backend failed to start automatically. The extension will work with limited functionality.',
+                'Start Manually',
+                'Continue Anyway'
             );
-            
-            // Set icon if available
-            const iconPath = (agent as any).config?.iconPath;
-            if (iconPath) {
-                participant.iconPath = iconPath;
+
+            if (action === 'Start Manually') {
+                // Show instructions
+                outputChannel.appendLine('📝 Showing manual start instructions...');
+                vscode.commands.executeCommand('ki-autoagent.showBackendInstructions');
             }
-            
-            // Register the agent with dispatcher for orchestration
-            const dispatcherAgentId = participantId.split('.')[1];
-            outputChannel.appendLine(`  Registering with dispatcher: ${participantId} as '${dispatcherAgentId}'`);
-            dispatcher.registerAgent(dispatcherAgentId, agent);
-            
-            // Add to subscriptions for cleanup
-            context.subscriptions.push(participant);
-            
-            outputChannel.appendLine(`  ✅ Registered: ${participantId} (dispatcher ID: ${dispatcherAgentId})`);
-            
-        } catch (error) {
-            const errorMsg = `Failed to register agent ${index + 1}: ${(error as any).message}`;
-            outputChannel.appendLine(`  ❌ ${errorMsg}`);
-            registrationErrors.push(errorMsg);
+        } else {
+            outputChannel.appendLine('✅ Python backend is running!');
         }
+
+        // Initialize Backend Client
+        outputChannel.appendLine('🔌 Initializing Backend Client...');
+        const wsUrl = backendManager.getWebSocketUrl();
+        backendClient = BackendClient.getInstance(wsUrl);
+
+        // Connect to backend
+        outputChannel.appendLine('🔗 Connecting to backend WebSocket...');
+        await backendClient.connect();
+        outputChannel.appendLine('✅ Connected to backend!');
+
+        // Set up event handlers
+        setupBackendEventHandlers();
+
+        // Register commands
+        registerCommands(context);
+
+        // Register status bar item
+        const statusBarItem = vscode.window.createStatusBarItem(
+            vscode.StatusBarAlignment.Right,
+            100
+        );
+        statusBarItem.text = '🤖 KI AutoAgent';
+        statusBarItem.tooltip = 'Click to open KI AutoAgent Chat';
+        statusBarItem.command = 'ki-autoagent.showChat';
+        statusBarItem.show();
+        context.subscriptions.push(statusBarItem);
+
+        // Success message
+        outputChannel.appendLine('');
+        outputChannel.appendLine('✅ KI AutoAgent Extension activated successfully!');
+        outputChannel.appendLine('✅ Python backend is running on http://localhost:8000');
+        outputChannel.appendLine('✅ WebSocket connected to ws://localhost:8000/ws/chat');
+        outputChannel.appendLine('');
+        outputChannel.appendLine('Use Ctrl+Shift+P and type "KI AutoAgent" to see available commands');
+
+        // Show success notification
+        vscode.window.showInformationMessage(
+            '🤖 KI AutoAgent is ready! Python backend is running.'
+        );
+
+    } catch (error: any) {
+        outputChannel.appendLine(`❌ Activation failed: ${error.message}`);
+        vscode.window.showErrorMessage(
+            `KI AutoAgent activation failed: ${error.message}`
+        );
+    }
+}
+
+function setupBackendEventHandlers() {
+    // Handle backend responses
+    backendClient.on('response', (message) => {
+        outputChannel.appendLine(`📨 Agent Response: ${message.agent}`);
+        // Forward to chat panel if open
+        MultiAgentChatPanel.sendMessageToPanel(message);
     });
-    
-    // Verify agent registration
-    outputChannel.appendLine('\nVerifying agent registration with dispatcher:');
-    const registeredAgents = dispatcher.getRegisteredAgents();
-    outputChannel.appendLine(`  Registered agents: [${registeredAgents.join(', ')}]`);
-    
-    outputChannel.appendLine(`Registration completed: ${agents.length - registrationErrors.length} succeeded, ${registrationErrors.length} failed`);
-    
-    if (registrationErrors.length > 0) {
-        outputChannel.appendLine('Registration errors:');
-        registrationErrors.forEach(error => outputChannel.appendLine(`  - ${error}`));
-    }
 
-    // Register extension commands
-    outputChannel.appendLine('\nRegistering extension commands...');
-    registerCommands(context, dispatcher);
-    outputChannel.appendLine('✅ Extension commands registered');
+    backendClient.on('thinking', (message) => {
+        outputChannel.appendLine(`🤔 Agent Thinking: ${message.agent}`);
+        MultiAgentChatPanel.sendMessageToPanel(message);
+    });
 
-    // Show welcome message in output channel
-    showWelcomeMessage(outputChannel);
+    backendClient.on('error', (error) => {
+        outputChannel.appendLine(`❌ Backend Error: ${error.message || error}`);
+        vscode.window.showErrorMessage(`Backend error: ${error.message || error}`);
+    });
 
-    // Final success
-    outputChannel.appendLine('\n✅ KI AUTOAGENT EXTENSION ACTIVATED!');
-    outputChannel.appendLine('============================================');
-    outputChannel.appendLine(`Total agents: ${agents.length}`);
-    outputChannel.appendLine(`Registration errors: ${registrationErrors.length}`);
-    outputChannel.appendLine(`Activated at: ${new Date().toLocaleString()}`);
-    outputChannel.appendLine('\nType "@ki" in chat to get started!');
-    
-    // Single success notification
-    vscode.window.showInformationMessage(`🎉 KI AutoAgent v${context.extension.packageJSON.version} activated! ${agents.length} agents ready.`);
+    backendClient.on('disconnected', () => {
+        outputChannel.appendLine('❌ Disconnected from backend');
+        vscode.window.showWarningMessage(
+            'Disconnected from Python backend. Trying to reconnect...'
+        );
+    });
 
-    // Check if intent detection needs setup (only on first run after update)
-    const INTENT_DETECTION_SETUP_KEY = 'intentDetectionSetupShown_v344';
-    const hasShownSetup = context.globalState.get<boolean>(INTENT_DETECTION_SETUP_KEY, false);
+    backendClient.on('connected', () => {
+        outputChannel.appendLine('✅ Reconnected to backend');
+        vscode.window.showInformationMessage('Reconnected to Python backend');
+    });
+}
 
-    if (!hasShownSetup) {
-        // Check current configuration
-        const config = vscode.workspace.getConfiguration('kiAutoAgent.intentDetection');
-        const currentMode = config.get<string>('mode', 'balanced');
-        const preferTask = config.get<boolean>('preferTaskExecution', false);
-
-        // Show notification if not configured for task execution
-        if (currentMode !== 'strict' || !preferTask) {
-            const message = '🎯 New: Configure when bot should execute tasks vs explain. Currently bot might explain instead of doing.';
-            const configureAction = 'Configure Now';
-            const laterAction = 'Later';
-
-            vscode.window.showInformationMessage(message, configureAction, laterAction).then(selection => {
-                if (selection === configureAction) {
-                    vscode.commands.executeCommand('ki-autoagent.configureIntentDetection');
-                }
-            });
+function registerCommands(context: vscode.ExtensionContext) {
+    // Main chat command
+    const showChatCmd = vscode.commands.registerCommand(
+        'ki-autoagent.showChat',
+        () => {
+            MultiAgentChatPanel.createOrShow(
+                context.extensionUri,
+                backendClient
+            );
         }
+    );
+    context.subscriptions.push(showChatCmd);
 
-        // Mark as shown
-        context.globalState.update(INTENT_DETECTION_SETUP_KEY, true);
-    }
+    // Backend status command
+    const backendStatusCmd = vscode.commands.registerCommand(
+        'ki-autoagent.backendStatus',
+        async () => {
+            const status = backendManager.getStatus();
+            const health = await backendManager.checkBackendHealth();
 
-    } catch (error) {
-        // Handle any errors during extension activation
-        const errorMsg = `KI AutoAgent activation failed: ${(error as any).message || error}`;
-        console.error(errorMsg);
-        
-        // Show error
-        vscode.window.showErrorMessage(errorMsg);
-        
-        // Try to show error in output channel if available
-        if (outputChannel) {
-            outputChannel.appendLine(`\n❌ ACTIVATION ERROR:`);
-            outputChannel.appendLine(`Error: ${error}`);
-            outputChannel.appendLine(`Message: ${(error as any).message}`);
-            outputChannel.appendLine(`Stack: ${(error as any).stack}`);
-            outputChannel.show(true);
+            vscode.window.showInformationMessage(
+                `Backend: ${status.running ? 'Running ✅' : 'Stopped ❌'} | ` +
+                `Health: ${health ? 'Healthy ✅' : 'Unhealthy ❌'} | ` +
+                `URL: ${status.url}`
+            );
         }
-    }
+    );
+    context.subscriptions.push(backendStatusCmd);
+
+    // Restart backend command
+    const restartBackendCmd = vscode.commands.registerCommand(
+        'ki-autoagent.restartBackend',
+        async () => {
+            outputChannel.appendLine('🔄 Restarting backend...');
+            await backendManager.stopBackend();
+            await backendManager.startBackend();
+            await backendClient.connect();
+            vscode.window.showInformationMessage('Backend restarted successfully');
+        }
+    );
+    context.subscriptions.push(restartBackendCmd);
+
+    // Show backend logs command
+    const showLogsCmd = vscode.commands.registerCommand(
+        'ki-autoagent.showBackendLogs',
+        () => {
+            outputChannel.show();
+        }
+    );
+    context.subscriptions.push(showLogsCmd);
+
+    // Manual backend start instructions
+    const showInstructionsCmd = vscode.commands.registerCommand(
+        'ki-autoagent.showBackendInstructions',
+        () => {
+            const panel = vscode.window.createWebviewPanel(
+                'backendInstructions',
+                'Backend Start Instructions',
+                vscode.ViewColumn.One,
+                {}
+            );
+
+            panel.webview.html = `
+                <html>
+                <body>
+                    <h1>Start Python Backend Manually</h1>
+                    <ol>
+                        <li>Open a terminal</li>
+                        <li>Navigate to backend directory: <code>cd backend</code></li>
+                        <li>Activate virtual environment: <code>source venv/bin/activate</code></li>
+                        <li>Start server: <code>python -m uvicorn api.server:app --reload</code></li>
+                    </ol>
+                    <p>The backend should be available at <a href="http://localhost:8000">http://localhost:8000</a></p>
+                </body>
+                </html>
+            `;
+        }
+    );
+    context.subscriptions.push(showInstructionsCmd);
 }
 
 export function deactivate() {
-    console.log('👋 KI AutoAgent extension is deactivated');
-}
+    outputChannel.appendLine('🛑 KI AutoAgent Extension deactivating...');
 
-function registerCommands(context: vscode.ExtensionContext, dispatcher: VSCodeMasterDispatcher) {
-    
-    // Command: Create File
-    const createFileCommand = vscode.commands.registerCommand(
-        'ki-autoagent.createFile',
-        async (filename: string, content: string) => {
-            try {
-                const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-                if (!workspaceFolder) {
-                    vscode.window.showErrorMessage('No workspace folder open');
-                    return;
-                }
-
-                const fileUri = vscode.Uri.joinPath(workspaceFolder.uri, filename);
-                await vscode.workspace.fs.writeFile(fileUri, Buffer.from(content, 'utf8'));
-                
-                // Open the created file
-                const document = await vscode.workspace.openTextDocument(fileUri);
-                await vscode.window.showTextDocument(document);
-                
-                vscode.window.showInformationMessage(`✅ Created file: ${filename}`);
-            } catch (error) {
-                vscode.window.showErrorMessage(`❌ Failed to create file: ${(error as any).message}`);
-            }
-        }
-    );
-
-    // Command: Insert at Cursor
-    const insertAtCursorCommand = vscode.commands.registerCommand(
-        'ki-autoagent.insertAtCursor',
-        async (content: string) => {
-            try {
-                const editor = vscode.window.activeTextEditor;
-                if (!editor) {
-                    vscode.window.showErrorMessage('No active text editor');
-                    return;
-                }
-
-                const position = editor.selection.active;
-                await editor.edit(editBuilder => {
-                    editBuilder.insert(position, content);
-                });
-                
-                vscode.window.showInformationMessage('✅ Content inserted at cursor');
-            } catch (error) {
-                vscode.window.showErrorMessage(`❌ Failed to insert content: ${(error as any).message}`);
-            }
-        }
-    );
-
-    // Command: Apply Suggestion
-    const applySuggestionCommand = vscode.commands.registerCommand(
-        'ki-autoagent.applySuggestion',
-        async (suggestionData: any) => {
-            try {
-                // Handle different types of suggestions
-                if (suggestionData.type === 'file_creation') {
-                    await vscode.commands.executeCommand(
-                        'ki-autoagent.createFile',
-                        suggestionData.filename,
-                        suggestionData.content
-                    );
-                } else if (suggestionData.type === 'code_insertion') {
-                    await vscode.commands.executeCommand(
-                        'ki-autoagent.insertAtCursor',
-                        suggestionData.code
-                    );
-                } else {
-                    vscode.window.showInformationMessage(`Applied suggestion: ${suggestionData.description}`);
-                }
-            } catch (error) {
-                vscode.window.showErrorMessage(`❌ Failed to apply suggestion: ${(error as any).message}`);
-            }
-        }
-    );
-
-    // Command: Test Claude Code CLI
-    const testClaudeCommand = vscode.commands.registerCommand(
-        'ki-autoagent.testClaudeCLI',
-        async () => {
-            const outputChannel = vscode.window.createOutputChannel('Claude CLI Test');
-            outputChannel.show();
-            outputChannel.appendLine('🔍 Testing Claude Code CLI Integration...');
-            outputChannel.appendLine('==========================================\n');
-            
-            try {
-                const claudeService = getClaudeCodeService();
-                
-                // Check if CLI is available
-                outputChannel.appendLine('1. Checking Claude CLI availability...');
-                const isAvailable = await claudeService.isAvailable();
-                
-                if (!isAvailable) {
-                    outputChannel.appendLine('❌ Claude CLI not found!');
-                    outputChannel.appendLine('\nTo install Claude CLI:');
-                    outputChannel.appendLine('  npm install -g @anthropic-ai/claude-code');
-                    outputChannel.appendLine('\nOr use Anthropic API by configuring your API key in VS Code settings.');
-                    vscode.window.showErrorMessage('Claude CLI not installed. See output for installation instructions.');
-                    return;
-                }
-                
-                outputChannel.appendLine('✅ Claude CLI is available!\n');
-                
-                // Test connection
-                outputChannel.appendLine('2. Testing Claude CLI connection...');
-                const testResult = await claudeService.testConnection();
-                
-                if (testResult.success) {
-                    outputChannel.appendLine(`✅ ${testResult.message}\n`);
-                    outputChannel.appendLine('3. Claude CLI Integration Status: WORKING');
-                    outputChannel.appendLine('==========================================');
-                    outputChannel.appendLine('✨ Everything is working correctly!');
-                    outputChannel.appendLine('\nYou can now use Claude-powered agents in your chat.');
-                    vscode.window.showInformationMessage('✅ Claude CLI is working correctly!');
-                } else {
-                    outputChannel.appendLine(`❌ ${testResult.message}\n`);
-                    outputChannel.appendLine('3. Claude CLI Integration Status: ERROR');
-                    outputChannel.appendLine('==========================================');
-                    outputChannel.appendLine('Please check the error message above.');
-                    vscode.window.showErrorMessage(`Claude CLI test failed: ${testResult.message}`);
-                }
-                
-            } catch (error) {
-                outputChannel.appendLine(`\n❌ Test failed with error: ${(error as any).message}`);
-                outputChannel.appendLine('\nPlease check your configuration and try again.');
-                vscode.window.showErrorMessage(`Claude CLI test failed: ${(error as any).message}`);
-            }
-        }
-    );
-
-    // Command: Show Agent Statistics
-    const showAgentStatsCommand = vscode.commands.registerCommand(
-        'ki-autoagent.showAgentStats',
-        async () => {
-            try {
-                const stats = await dispatcher.getAgentStats();
-                
-                if (Object.keys(stats).length === 0) {
-                    vscode.window.showInformationMessage('No agent statistics available yet');
-                    return;
-                }
-
-                // Create a new document to display stats
-                const statsContent = formatAgentStats(stats);
-                const document = await vscode.workspace.openTextDocument({
-                    content: statsContent,
-                    language: 'markdown'
-                });
-                
-                await vscode.window.showTextDocument(document);
-            } catch (error) {
-                vscode.window.showErrorMessage(`❌ Failed to show stats: ${(error as any).message}`);
-            }
-        }
-    );
-
-    // Command: Show Help
-    const showHelpCommand = vscode.commands.registerCommand(
-        'ki-autoagent.showHelp',
-        async (agentId?: string) => {
-            const helpContent = generateHelpContent(agentId);
-            
-            const document = await vscode.workspace.openTextDocument({
-                content: helpContent,
-                language: 'markdown'
-            });
-            
-            await vscode.window.showTextDocument(document);
-        }
-    );
-
-    // Command: Plan Implementation
-    const planImplementationCommand = vscode.commands.registerCommand(
-        'ki-autoagent.planImplementation',
-        async (task: string, architecture: string) => {
-            // This would trigger the orchestrator to create an implementation plan
-            vscode.window.showInformationMessage('Creating implementation plan...');
-            // Could open chat with pre-filled message
-        }
-    );
-
-    // Command: Execute Workflow
-    const executeWorkflowCommand = vscode.commands.registerCommand(
-        'ki-autoagent.executeWorkflow',
-        async (task: string, workflow: string) => {
-            vscode.window.showInformationMessage('Executing workflow...');
-            // Implementation for workflow execution
-        }
-    );
-
-    // Command: Configure Agent Models
-    const configureAgentModelsCommand = vscode.commands.registerCommand(
-        'ki-autoagent.configureAgentModels',
-        async () => {
-            const configManager = AgentConfigurationManager.getInstance(context);
-            const availableModels = configManager.getAvailableModels();
-            
-            // Show agent model configuration UI
-            const agentIds = ['orchestrator', 'richter', 'architect', 'codesmith', 'tradestrat', 'research'];
-            
-            for (const agentId of agentIds) {
-                const currentModel = configManager.getAgentModel(agentId);
-                const modelOptions = Object.keys(availableModels).map(modelId => ({
-                    label: availableModels[modelId].name,
-                    description: `${availableModels[modelId].provider} - ${availableModels[modelId].tier}`,
-                    detail: `$${availableModels[modelId].costPerMillion.input}/$${availableModels[modelId].costPerMillion.output} per million tokens`,
-                    modelId
-                }));
-                
-                const selected = await vscode.window.showQuickPick(modelOptions, {
-                    title: `Select model for ${agentId}`,
-                    placeHolder: `Current: ${currentModel}`,
-                    ignoreFocusOut: true
-                });
-                
-                if (selected && selected.modelId !== currentModel) {
-                    await configManager.setAgentModel(agentId, selected.modelId);
-                    vscode.window.showInformationMessage(`✅ Updated ${agentId} model to ${selected.label}`);
-                }
-            }
-        }
-    );
-
-    // Command: Show Agent Performance
-    const showAgentPerformanceCommand = vscode.commands.registerCommand(
-        'ki-autoagent.showAgentPerformance',
-        async () => {
-            const configManager = AgentConfigurationManager.getInstance(context);
-            const agentIds = ['orchestrator', 'richter', 'architect', 'codesmith', 'tradestrat', 'research'];
-            
-            let performanceReport = '# Agent Performance Report\n\n';
-            performanceReport += `Generated: ${new Date().toLocaleString()}\n\n`;
-            
-            for (const agentId of agentIds) {
-                const metrics = configManager.getAgentMetrics(agentId);
-                const model = configManager.getAgentModel(agentId);
-                
-                performanceReport += `## ${agentId.charAt(0).toUpperCase() + agentId.slice(1)}\n`;
-                performanceReport += `**Model:** ${model}\n`;
-                
-                if (metrics) {
-                    const successRate = (metrics.successfulExecutions / metrics.totalExecutions * 100).toFixed(1);
-                    performanceReport += `**Success Rate:** ${successRate}%\n`;
-                    performanceReport += `**Total Executions:** ${metrics.totalExecutions}\n`;
-                    performanceReport += `**Average Response Time:** ${metrics.averageResponseTime.toFixed(0)}ms\n`;
-                    performanceReport += `**Current Streak:** ${metrics.currentStreak}\n`;
-                    performanceReport += `**Best Streak:** ${metrics.bestStreak}\n`;
-                } else {
-                    performanceReport += `**Status:** No performance data yet\n`;
-                }
-                performanceReport += '\n';
-            }
-            
-            const document = await vscode.workspace.openTextDocument({
-                content: performanceReport,
-                language: 'markdown'
-            });
-            await vscode.window.showTextDocument(document);
-        }
-    );
-
-    // Command: Open Configuration Directory
-    const openConfigDirectoryCommand = vscode.commands.registerCommand(
-        'ki-autoagent.openConfigDirectory',
-        async () => {
-            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-            if (workspaceFolder) {
-                const configPath = vscode.Uri.joinPath(workspaceFolder.uri, '.kiautoagent');
-                try {
-                    await vscode.commands.executeCommand('vscode.openFolder', configPath, { forceNewWindow: false });
-                } catch {
-                    vscode.window.showInformationMessage('Configuration directory will be created when first used');
-                }
-            } else {
-                vscode.window.showWarningMessage('No workspace folder open');
-            }
-        }
-    );
-
-    // Command: Configure Intent Detection
-    const configureIntentDetectionCommand = vscode.commands.registerCommand(
-        'ki-autoagent.configureIntentDetection',
-        async () => {
-            // Show quick pick with current settings info
-            const currentMode = vscode.workspace.getConfiguration('kiAutoAgent.intentDetection').get<string>('mode', 'balanced');
-            const preferTask = vscode.workspace.getConfiguration('kiAutoAgent.intentDetection').get<boolean>('preferTaskExecution', false);
-
-            const options = [
-                {
-                    label: '🎯 Open Intent Detection Settings',
-                    description: `Current: ${currentMode} mode, Prefer execution: ${preferTask}`,
-                    action: 'settings'
-                },
-                {
-                    label: '🚀 Enable Task Execution Mode',
-                    description: 'Bot will execute tasks instead of explaining how to do them',
-                    action: 'enable-task'
-                },
-                {
-                    label: '💭 Enable Query Mode',
-                    description: 'Bot will explain and provide information',
-                    action: 'enable-query'
-                },
-                {
-                    label: '📖 View Documentation',
-                    description: 'Learn about intent detection configuration',
-                    action: 'docs'
-                }
-            ];
-
-            const selected = await vscode.window.showQuickPick(options, {
-                title: 'Configure Intent Detection',
-                placeHolder: 'How should the bot interpret your requests?'
-            });
-
-            if (!selected) return;
-
-            switch (selected.action) {
-                case 'settings':
-                    // Open settings with search filter
-                    await vscode.commands.executeCommand('workbench.action.openSettings', 'kiAutoAgent.intentDetection');
-                    break;
-
-                case 'enable-task':
-                    // Configure for task execution
-                    const config = vscode.workspace.getConfiguration('kiAutoAgent.intentDetection');
-                    await config.update('mode', 'strict', vscode.ConfigurationTarget.Workspace);
-                    await config.update('preferTaskExecution', true, vscode.ConfigurationTarget.Workspace);
-                    await config.update('useAIClassification', true, vscode.ConfigurationTarget.Workspace);
-                    vscode.window.showInformationMessage('✅ Task Execution Mode enabled! Bot will now execute research and tasks directly.');
-                    break;
-
-                case 'enable-query':
-                    // Configure for query mode
-                    const config2 = vscode.workspace.getConfiguration('kiAutoAgent.intentDetection');
-                    await config2.update('mode', 'relaxed', vscode.ConfigurationTarget.Workspace);
-                    await config2.update('preferTaskExecution', false, vscode.ConfigurationTarget.Workspace);
-                    vscode.window.showInformationMessage('💭 Query Mode enabled! Bot will explain and provide information.');
-                    break;
-
-                case 'docs':
-                    // Show documentation
-                    const panel = vscode.window.createWebviewPanel(
-                        'intentDetectionDocs',
-                        'Intent Detection Documentation',
-                        vscode.ViewColumn.One,
-                        {}
-                    );
-
-                    panel.webview.html = `<!DOCTYPE html>
-                    <html>
-                    <head>
-                        <style>
-                            body { font-family: system-ui; padding: 20px; line-height: 1.6; }
-                            h1 { color: #007ACC; }
-                            code { background: #f0f0f0; padding: 2px 4px; border-radius: 3px; }
-                            .example { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
-                        </style>
-                    </head>
-                    <body>
-                        <h1>🎯 Intent Detection Configuration</h1>
-
-                        <h2>Problem: Bot explains instead of executing</h2>
-                        <p>When you ask "Research buttons for my UI", the bot might explain <em>how</em> it would research instead of actually doing it.</p>
-
-                        <h2>Solution: Configure Intent Detection</h2>
-
-                        <h3>Mode Settings:</h3>
-                        <ul>
-                            <li><code>strict</code> - Favors task execution (recommended)</li>
-                            <li><code>balanced</code> - Standard detection</li>
-                            <li><code>relaxed</code> - Favors queries/explanations</li>
-                        </ul>
-
-                        <h3>Key Settings:</h3>
-                        <ul>
-                            <li><code>preferTaskExecution</code> - When true, uncertain requests are executed</li>
-                            <li><code>useAIClassification</code> - Enhanced AI-powered intent detection</li>
-                        </ul>
-
-                        <h3>Examples:</h3>
-                        <div class="example">
-                            <strong>Before:</strong> "Research UI buttons" → Bot explains how to research<br>
-                            <strong>After:</strong> "Research UI buttons" → Bot searches and returns results
-                        </div>
-
-                        <div class="example">
-                            <strong>Task Keywords:</strong> research, find, search, create, build, implement<br>
-                            <strong>Query Keywords:</strong> what, why, explain, describe
-                        </div>
-                    </body>
-                    </html>`;
-                    break;
-            }
-        }
-    );
-
-    // Register all commands
-    context.subscriptions.push(
-        createFileCommand,
-        insertAtCursorCommand,
-        applySuggestionCommand,
-        testClaudeCommand,
-        showAgentStatsCommand,
-        showHelpCommand,
-        planImplementationCommand,
-        executeWorkflowCommand,
-        configureAgentModelsCommand,
-        showAgentPerformanceCommand,
-        openConfigDirectoryCommand,
-        configureIntentDetectionCommand
-    );
-
-    console.log('✅ All extension commands registered');
-}
-
-function showWelcomeMessage(outputChannel: vscode.OutputChannel) {
-    
-    outputChannel.appendLine('🤖 KI AutoAgent VS Code Extension');
-    outputChannel.appendLine('=======================================');
-    outputChannel.appendLine('');
-    outputChannel.appendLine('✅ Extension activated successfully!');
-    outputChannel.appendLine('');
-    outputChannel.appendLine('Available Agents:');
-    outputChannel.appendLine('• @ki - Universal orchestrator (routes to best agent)');
-    outputChannel.appendLine('• @richter - ⚖️ Supreme judge & conflict resolver (Opus 4.1)');
-    outputChannel.appendLine('• @architect - System architecture & design');
-    outputChannel.appendLine('• @codesmith - Code implementation & testing');
-    outputChannel.appendLine('• @docu - Documentation generation');
-    outputChannel.appendLine('• @reviewer - Code review & security');
-    outputChannel.appendLine('• @fixer - Bug fixing & debugging');
-    outputChannel.appendLine('• @tradestrat - Trading strategy development');
-    outputChannel.appendLine('• @research - Web research & information gathering');
-    outputChannel.appendLine('');
-    outputChannel.appendLine('Getting Started:');
-    outputChannel.appendLine('1. Open VS Code Chat panel (Ctrl+Shift+I)');
-    outputChannel.appendLine('2. Type @ki followed by your request');
-    outputChannel.appendLine('3. Or use specific agents like @architect, @codesmith, etc.');
-    outputChannel.appendLine('');
-    outputChannel.appendLine('Configuration:');
-    outputChannel.appendLine('• Set your API keys in VS Code Settings');
-    outputChannel.appendLine('• Search for "KI AutoAgent" in settings');
-    outputChannel.appendLine('• Configure OpenAI, Anthropic, and Perplexity API keys');
-    outputChannel.appendLine('');
-    outputChannel.appendLine('Need help? Type "@ki /agents" to see all available agents!');
-}
-
-function formatAgentStats(stats: Record<string, any>): string {
-    let content = '# KI AutoAgent Statistics\n\n';
-    content += `Generated at: ${new Date().toLocaleString()}\n\n`;
-    
-    for (const [agentId, agentStats] of Object.entries(stats)) {
-        const { totalExecutions, successRate, averageResponseTime, lastExecution } = agentStats as any;
-        
-        content += `## ${agentId}\n\n`;
-        content += `- **Total Executions:** ${totalExecutions}\n`;
-        content += `- **Success Rate:** ${(successRate * 100).toFixed(1)}%\n`;
-        content += `- **Average Response Time:** ${averageResponseTime.toFixed(0)}ms\n`;
-        
-        if (lastExecution) {
-            content += `- **Last Execution:** ${new Date(lastExecution).toLocaleString()}\n`;
-        }
-        
-        content += '\n';
+    // Stop backend
+    if (backendManager) {
+        backendManager.stopBackend();
+        backendManager.dispose();
     }
-    
-    return content;
-}
 
-function generateHelpContent(agentId?: string): string {
-    let content = '# KI AutoAgent Help\n\n';
-    
-    if (agentId) {
-        content += `## Help for ${agentId}\n\n`;
-        // Add agent-specific help
-    } else {
-        content += '## Getting Started\n\n';
-        content += 'KI AutoAgent is a universal multi-agent AI development platform for VS Code.\n\n';
-        content += '### Available Agents\n\n';
-        content += '- **@ki** - Universal orchestrator that automatically routes tasks\n';
-        content += '- **@richter** - ⚖️ Supreme judge & conflict resolver (Claude Opus 4.1)\n';
-        content += '- **@architect** - System architecture and design expert\n';
-        content += '- **@codesmith** - Senior Python/Web developer\n';
-        content += '- **@docu** - Technical documentation expert\n';
-        content += '- **@reviewer** - Code review and security expert\n';
-        content += '- **@fixer** - Bug fixing and optimization expert\n';
-        content += '- **@tradestrat** - Trading strategy expert\n';
-        content += '- **@research** - Research and information expert\n\n';
-        content += '### Usage Examples\n\n';
-        content += '```\n';
-        content += '@ki create a REST API with FastAPI\n';
-        content += '@richter judge which approach is better: microservices vs monolith\n';
-        content += '@richter resolve this disagreement between @architect and @codesmith\n';
-        content += '@architect design a microservices architecture\n';
-        content += '@codesmith implement a Python class for user management\n';
-        content += '@tradestrat develop a momentum trading strategy\n';
-        content += '@fixer debug this error message\n';
-        content += '```\n\n';
-        content += '### Configuration\n\n';
-        content += '1. Open VS Code Settings (Ctrl+,)\n';
-        content += '2. Search for "KI AutoAgent"\n';
-        content += '3. Configure your API keys:\n';
-        content += '   - OpenAI API Key (for GPT models)\n';
-        content += '   - Anthropic API Key (for Claude models)\n';
-        content += '   - Perplexity API Key (for research)\n\n';
-        content += '### Support\n\n';
-        content += 'For issues and feature requests, please visit the GitHub repository.\n';
+    // Disconnect client
+    if (backendClient) {
+        backendClient.disconnect();
+        backendClient.dispose();
     }
-    
-    return content;
+
+    outputChannel.appendLine('✅ Extension deactivated');
+    outputChannel.dispose();
 }

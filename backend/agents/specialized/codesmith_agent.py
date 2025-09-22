@@ -15,7 +15,18 @@ from ..base.chat_agent import ChatAgent
 from ..base.base_agent import (
     AgentConfig, TaskRequest, TaskResult, AgentCapability
 )
-from utils.anthropic_service import AnthropicService
+from utils.claude_code_service import ClaudeCodeService, ClaudeCodeConfig
+
+# Import new analysis tools
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from core.indexing.tree_sitter_indexer import TreeSitterIndexer
+from core.indexing.code_indexer import CodeIndexer
+from core.analysis.vulture_analyzer import VultureAnalyzer
+from core.analysis.radon_metrics import RadonMetrics
+from services.diagram_service import DiagramService
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +68,30 @@ class CodeSmithAgent(ChatAgent):
         )
         super().__init__(config)
 
-        # Initialize Anthropic service
-        self.anthropic = AnthropicService()
+        # Initialize Claude Code CLI service (NO FALLBACKS)
+        self.claude_cli = ClaudeCodeService(
+            ClaudeCodeConfig(model="sonnet")  # Use Sonnet model via CLI
+        )
+
+        # Check if CLI is available
+        if not self.claude_cli.is_available():
+            error_msg = (
+                "CodeSmithAgent requires Claude Code CLI!\n"
+                "Install with: npm install -g @anthropic-ai/claude-code\n"
+                "Or configure a different agent/model for code tasks."
+            )
+            logger.error(error_msg)
+            # Don't raise here, but log the error
+
+        # Initialize code analysis tools
+        self.tree_sitter = TreeSitterIndexer()
+        self.code_indexer = CodeIndexer()
+        self.vulture = VultureAnalyzer()
+        self.metrics = RadonMetrics()
+        self.diagram_service = DiagramService()
+
+        # Code intelligence cache
+        self.code_knowledge = None
 
         # Code patterns and templates
         self.code_patterns = self._load_code_patterns()
@@ -148,7 +181,10 @@ class CodeSmithAgent(ChatAgent):
         - Include documentation: yes/no
         """
 
-        response = await self.anthropic.complete(analysis_prompt, system_prompt)
+        if not self.claude_cli.is_available():
+            raise Exception("Claude CLI not available for code analysis")
+
+        response = await self.claude_cli.complete(analysis_prompt, system_prompt)
 
         return {
             "prompt": prompt,
@@ -193,7 +229,10 @@ class CodeSmithAgent(ChatAgent):
         Code should be ready to use without modifications.
         """
 
-        code = await self.anthropic.generate_code(
+        if not self.claude_cli.is_available():
+            raise Exception("Claude CLI not available for code generation")
+
+        code = await self.claude_cli.generate_code(
             specification=spec['prompt'],
             language=language,
             context=str(spec.get('functionality', ''))
@@ -244,7 +283,10 @@ class CodeSmithAgent(ChatAgent):
         Make tests production-ready.
         """
 
-        tests = await self.anthropic.complete(test_prompt, system_prompt)
+        if not self.claude_cli.is_available():
+            raise Exception("Claude CLI not available for test generation")
+
+        tests = await self.claude_cli.complete(test_prompt, system_prompt)
 
         return tests
 
@@ -276,7 +318,10 @@ class CodeSmithAgent(ChatAgent):
         Use markdown format.
         """
 
-        documentation = await self.anthropic.complete(doc_prompt, system_prompt)
+        if not self.claude_cli.is_available():
+            raise Exception("Claude CLI not available for documentation generation")
+
+        documentation = await self.claude_cli.complete(doc_prompt, system_prompt)
 
         return documentation
 
@@ -315,7 +360,10 @@ class CodeSmithAgent(ChatAgent):
         Provide the refactored code with comments explaining major changes.
         """
 
-        refactored = await self.anthropic.complete(refactor_prompt, system_prompt)
+        if not self.claude_cli.is_available():
+            raise Exception("Claude CLI not available for code refactoring")
+
+        refactored = await self.claude_cli.complete(refactor_prompt, system_prompt)
 
         return refactored
 
@@ -349,7 +397,10 @@ class CodeSmithAgent(ChatAgent):
         Make sure the fix is complete and tested.
         """
 
-        fixed_code = await self.anthropic.complete(fix_prompt, system_prompt)
+        if not self.claude_cli.is_available():
+            raise Exception("Claude CLI not available for bug fixing")
+
+        fixed_code = await self.claude_cli.complete(fix_prompt, system_prompt)
 
         return fixed_code
 
@@ -552,6 +603,209 @@ class CodeSmithAgent(ChatAgent):
                 "target": "ES2022",
             }
         }
+
+    async def analyze_codebase(self, root_path: str = '.') -> Dict[str, Any]:
+        """
+        Perform deep code analysis for intelligent code generation
+
+        Uses Tree-sitter AST and metrics to understand:
+        - Existing code patterns
+        - Coding style
+        - Common abstractions
+        - Performance hotspots
+        """
+        logger.info("Analyzing codebase for pattern extraction...")
+
+        # Build complete code index
+        self.code_knowledge = await self.code_indexer.build_full_index(root_path)
+
+        # Extract code patterns for reuse
+        patterns = self.code_knowledge.get('patterns', {})
+
+        # Find dead code that can be removed
+        dead_code = await self.vulture.find_dead_code(root_path)
+
+        # Calculate code metrics
+        metrics = await self.metrics.calculate_all_metrics(root_path)
+
+        self.code_knowledge['dead_code'] = dead_code
+        self.code_knowledge['metrics'] = metrics
+
+        return self.code_knowledge
+
+    async def implement_with_patterns(self, spec: str) -> str:
+        """
+        Implement feature using existing code patterns from the codebase
+
+        This ensures new code matches existing style and patterns
+        """
+        if not self.code_knowledge:
+            await self.analyze_codebase()
+
+        # Extract relevant patterns
+        patterns = self.code_knowledge.get('patterns', {})
+        architecture = self.code_knowledge.get('architecture', {})
+
+        # Build context-aware prompt
+        context_prompt = f"""
+        Implement the following feature using these existing patterns:
+
+        Architecture Style: {architecture.get('style', 'Unknown')}
+        Design Patterns Found: {', '.join(patterns.get('design_patterns', []))}
+
+        Feature Specification:
+        {spec}
+
+        Follow the existing code style and patterns exactly.
+        """
+
+        # Generate implementation
+        response = await self.claude_cli.process_message(context_prompt)
+        return response
+
+    async def refactor_complex_code(self, file_path: str = None) -> List[Dict[str, Any]]:
+        """
+        Identify and refactor complex code sections
+
+        Uses Radon metrics to find complex functions and suggest refactoring
+        """
+        if not self.code_knowledge:
+            await self.analyze_codebase()
+
+        metrics = self.code_knowledge.get('metrics', {})
+
+        # Find refactoring candidates
+        candidates = await self.metrics.identify_refactoring_candidates(metrics)
+
+        refactorings = []
+        for candidate in candidates[:3]:  # Limit to top 3
+            if candidate['type'] == 'function':
+                # Generate refactoring suggestion
+                prompt = f"""
+                Refactor this complex function:
+                File: {candidate['file']}
+                Function: {candidate['name']}
+                Complexity: {candidate['complexity']}
+
+                Suggestion: {candidate['suggestion']}
+
+                Provide refactored code that reduces complexity.
+                """
+
+                refactored_code = await self.claude_cli.process_message(prompt)
+
+                refactorings.append({
+                    'original': candidate,
+                    'refactored_code': refactored_code,
+                    'improvement': 'Reduced complexity'
+                })
+
+        return refactorings
+
+    async def optimize_performance_hotspots(self) -> List[Dict[str, str]]:
+        """
+        Find and optimize performance bottlenecks in the code
+
+        Uses pattern analysis to identify inefficient code
+        """
+        if not self.code_knowledge:
+            await self.analyze_codebase()
+
+        patterns = self.code_knowledge.get('patterns', {})
+        perf_issues = patterns.get('performance_issues', [])
+
+        optimizations = []
+
+        for issue in perf_issues[:5]:  # Top 5 issues
+            optimization_prompt = f"""
+            Optimize this performance issue:
+            Type: {issue.get('type')}
+            File: {issue.get('file')}
+            Line: {issue.get('line')}
+
+            Current code causing issue:
+            {issue.get('code', 'N/A')}
+
+            Provide optimized version.
+            """
+
+            optimized = await self.claude_cli.process_message(optimization_prompt)
+
+            optimizations.append({
+                'issue': issue,
+                'optimized_code': optimized,
+                'expected_improvement': 'Significant performance gain'
+            })
+
+        return optimizations
+
+    async def generate_missing_tests(self) -> str:
+        """
+        Identify untested code and generate comprehensive tests
+
+        Uses code index to find functions without tests
+        """
+        if not self.code_knowledge:
+            await self.analyze_codebase()
+
+        # Find functions without tests
+        all_functions = self.code_knowledge.get('ast', {}).get('functions', {})
+
+        # Simple heuristic: functions without 'test_' prefix likely need tests
+        untested = []
+        for func_key, func_info in all_functions.items():
+            func_name = func_info.get('name', '')
+            if not func_name.startswith('test_') and not func_name.startswith('_'):
+                untested.append(func_info)
+
+        if not untested:
+            return "All functions appear to have tests!"
+
+        # Generate tests for top untested functions
+        test_prompt = f"""
+        Generate comprehensive unit tests for these functions:
+
+        {json.dumps(untested[:5], indent=2)}
+
+        Use pytest framework with proper fixtures and assertions.
+        """
+
+        tests = await self.claude_cli.process_message(test_prompt)
+        return tests
+
+    async def cleanup_dead_code(self) -> str:
+        """
+        Generate script to remove dead code safely
+
+        Uses Vulture analysis to identify unused code
+        """
+        if not self.code_knowledge:
+            await self.analyze_codebase()
+
+        dead_code = self.code_knowledge.get('dead_code', {})
+
+        if not dead_code.get('summary', {}).get('total_dead_code'):
+            return "No dead code found!"
+
+        # Generate cleanup script
+        cleanup_script = await self.vulture.generate_cleanup_script(dead_code)
+
+        return f"""
+## Dead Code Cleanup Report
+
+### Summary
+- **{dead_code['summary']['total_dead_code']}** items of dead code found
+- **{dead_code['summary']['estimated_lines_to_remove']}** lines can be removed
+- **Priority**: {dead_code['summary']['cleanup_priority']}
+
+### Cleanup Script
+```python
+{cleanup_script}
+```
+
+Run this script to safely comment out dead code for review.
+"""
+
     async def _process_agent_request(self, message) -> Any:
         """
         Process request from another agent

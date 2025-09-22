@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from .base.base_agent import BaseAgent, TaskRequest, TaskResult
-from .specialized.orchestrator_agent import OrchestratorAgent
+from .specialized.orchestrator_agent_v2 import OrchestratorAgentV2
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class AgentType(Enum):
     OPUS_ARBITRATOR = "opus-arbitrator"
     RESEARCH = "research"
     REVIEWER = "reviewer"
-    DOCU = "docu"
+    DOCUBOT = "docubot"
     TRADESTRAT = "tradestrat"
     FIXER = "fixer"
 
@@ -66,7 +66,7 @@ class AgentRegistry:
         logger.info("📦 Initializing all agents...")
 
         # Initialize core agents
-        await self.register_agent(OrchestratorAgent())
+        await self.register_agent(OrchestratorAgentV2())
 
         # TODO: Register other agents as they are ported
         # await self.register_agent(ArchitectAgent())

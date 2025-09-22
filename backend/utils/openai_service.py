@@ -20,14 +20,14 @@ logger = logging.getLogger(__name__)
 class OpenAIConfig:
     """OpenAI configuration"""
     api_key: str
-    model: str = "gpt-5-2025-09-12"
+    model: str = "gpt-4o-2024-11-20"  # Updated to actual available model
     temperature: float = 0.7
     max_tokens: int = 4000
     streaming: bool = True
 
 class OpenAIService:
     """
-    OpenAI Service for GPT-5 models
+    OpenAI Service for GPT-4 models
     Used by: OrchestratorAgent, ArchitectAgent, DocuBot
     """
 
@@ -187,6 +187,25 @@ class OpenAIService:
         """
 
         return await self.complete(prompt, system_prompt)
+
+    async def get_completion(
+        self,
+        user_prompt: str,
+        system_prompt: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None
+    ) -> str:
+        """
+        Get completion from OpenAI (alias for complete method)
+        This method matches the interface used by OrchestratorAgentV2
+        """
+        return await self.complete(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=False
+        )
 
     def is_available(self) -> bool:
         """Check if service is available"""

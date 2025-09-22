@@ -1,0 +1,76 @@
+{
+  "project": "KI_AutoAgent",
+  "version": "4.0.0",
+  "last_worked": "2025-09-22",
+  "main_developer": "Dominik Foert",
+  "ai_assistant": "Claude (Anthropic)",
+  "architecture": {
+    "backend": "Python (FastAPI, Port 8000)",
+    "frontend": "VS Code Extension (TypeScript, UI only)",
+    "agents": "9 agents in Python backend",
+    "communication": "WebSocket (ws://localhost:8000/ws/chat)"
+  },
+  "critical_files": [
+    "backend/agents/specialized/architect_agent.py",
+    "backend/agents/specialized/codesmith_agent.py",
+    "backend/core/indexing/tree_sitter_indexer.py",
+    "backend/core/indexing/code_indexer.py",
+    "backend/services/diagram_service.py",
+    "backend/test_system_understanding.py",
+    "CLAUDE.md",
+    "CLAUDE_SYSTEM_MEMORY.md"
+  ],
+  "current_focus": "Infrastructure analysis and self-understanding capabilities",
+  "key_features": {
+    "v4.0.0": [
+      "Tree-sitter AST code indexing",
+      "Infrastructure improvement analysis",
+      "Mermaid diagram generation",
+      "Security scanning (Semgrep)",
+      "Dead code detection (Vulture)",
+      "Code metrics (Radon)",
+      "Pattern-based code generation"
+    ]
+  },
+  "main_question": "Was kann an der Infrastruktur verbessert werden?",
+  "working_style": {
+    "approach": "Pragmatic, quick wins over perfection",
+    "communication": "Direct, no corporate language",
+    "focus": "Concrete improvements with code examples",
+    "team_size": "2 people (Dominik + Claude)"
+  },
+  "remember": [
+    "ALL agents are in Python backend",
+    "NO business logic in VS Code frontend",
+    "System should understand itself",
+    "We work pragmatically, not academically",
+    "Infrastructure improvements are main priority",
+    "Version 4.0.0 has breaking changes",
+    "v3.60-v3.81 are undocumented (gap in history)"
+  ],
+  "quick_commands": {
+    "test": "cd backend && python test_system_understanding.py",
+    "analyze": "python -c \"from agents.specialized.architect_agent import ArchitectAgent; import asyncio; print(asyncio.run(ArchitectAgent().analyze_infrastructure_improvements()))\"",
+    "server": "cd backend && uvicorn api.server:app --reload --port 8000",
+    "install": "cd backend && pip install -r requirements.txt"
+  },
+  "dependencies_added": {
+    "count": 25,
+    "main": [
+      "tree-sitter",
+      "semgrep",
+      "radon",
+      "vulture",
+      "mermaid-py",
+      "graphviz"
+    ]
+  },
+  "breaking_changes": {
+    "v4.0.0": [
+      "Extended Agent APIs with new methods",
+      "System knowledge cache required",
+      "New initialization parameters",
+      "Enhanced TaskResult metadata"
+    ]
+  }
+}

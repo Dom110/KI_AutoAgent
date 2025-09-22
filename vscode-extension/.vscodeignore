@@ -11,8 +11,9 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 
-# Node modules - exclude everything except bundled output
+# Node modules - exclude everything except required dependencies
 node_modules/**
+!node_modules/ws/**
 
 # Development files
 webpack.config.js

@@ -12,6 +12,16 @@ import logging
 import json
 from enum import Enum
 
+# Import core systems
+try:
+    from core.memory_manager import get_memory_manager, MemoryType
+    from core.shared_context_manager import get_shared_context
+    from core.conversation_context_manager import get_conversation_context
+    CORE_SYSTEMS_AVAILABLE = True
+except ImportError:
+    CORE_SYSTEMS_AVAILABLE = False
+    logging.warning("Core systems (Memory, Context) not available")
+
 # Setup logging
 logger = logging.getLogger(__name__)
 
@@ -26,6 +36,9 @@ class AgentCapability(Enum):
     CODE_REVIEW = "code_review"
     DOCUMENTATION = "documentation"
     BUG_FIXING = "bug_fixing"
+    SECURITY_ANALYSIS = "security_analysis"
+    WEB_SEARCH = "web_search"
+    RESEARCH = "research"
 
 @dataclass
 class AgentConfig:
@@ -89,6 +102,7 @@ class BaseAgent(ABC):
     def __init__(self, config: AgentConfig):
         self.config = config
         self.name = config.name
+        self.role = config.description  # Add role attribute
         self.model = config.model
         self.instructions = self._load_instructions()
 
@@ -97,11 +111,15 @@ class BaseAgent(ABC):
         self.total_tokens_used = 0
         self.last_execution_time = None
 
-        # Memory system (will be initialized separately)
-        self.memory_manager = None
-
-        # Shared context (will be initialized separately)
-        self.shared_context = None
+        # Initialize core systems if available
+        if CORE_SYSTEMS_AVAILABLE:
+            self.memory_manager = get_memory_manager()
+            self.shared_context = get_shared_context()
+            self.conversation = get_conversation_context()
+        else:
+            self.memory_manager = None
+            self.shared_context = None
+            self.conversation = None
 
         # Communication bus (will be initialized separately)
         self.communication_bus = None
@@ -194,24 +212,47 @@ class BaseAgent(ABC):
         pass
 
     async def execute_with_memory(self, request: TaskRequest) -> TaskResult:
-        """Execute task with memory enhancement"""
+        """Execute task with memory enhancement and context integration"""
         start_time = datetime.now()
 
         # Search memory for similar tasks
         if self.memory_manager:
             similar_tasks = await self.memory_manager.search(
                 request.prompt,
-                memory_type="episodic",
+                memory_type=MemoryType.EPISODIC,
+                agent_id=self.config.agent_id,
                 k=5
             )
-            request.context["similar_tasks"] = similar_tasks
+            request.context["similar_tasks"] = [
+                {"content": task.entry.content, "relevance": task.relevance}
+                for task in similar_tasks
+            ]
+
+            # Get relevant patterns
+            patterns = await self.memory_manager.get_relevant_patterns(
+                context=request.prompt,
+                limit=3
+            )
+            if patterns:
+                request.context["patterns"] = patterns
+
+        # Get conversation context
+        if self.conversation:
+            conv_context = self.conversation.get_context_for_agent(
+                self.config.agent_id,
+                include_self=False,
+                limit=5
+            )
+            if conv_context:
+                request.context["conversation"] = conv_context
 
         # Update shared context
         if self.shared_context:
-            await self.shared_context.set_agent_status(
+            await self.shared_context.update_context(
                 self.config.agent_id,
-                "executing",
-                {"task": request.prompt[:100]}
+                "agent_status",
+                {"status": "executing", "task": request.prompt[:100]},
+                metadata={"timestamp": datetime.now().isoformat()}
             )
 
         # Execute the task
@@ -219,23 +260,54 @@ class BaseAgent(ABC):
 
         # Store in memory
         if self.memory_manager:
-            await self.memory_manager.store({
-                "agent": self.config.agent_id,
-                "task": request.prompt,
-                "result": result.content,
-                "status": result.status,
-                "timestamp": datetime.now().isoformat()
-            })
+            await self.memory_manager.store(
+                agent_id=self.config.agent_id,
+                content={
+                    "task": request.prompt,
+                    "result": result.content[:2000],
+                    "status": result.status
+                },
+                memory_type=MemoryType.EPISODIC,
+                metadata={
+                    "importance": 0.7 if result.status == "success" else 0.5,
+                    "tags": ["task_result", self.config.agent_id]
+                }
+            )
+
+            # Store successful patterns
+            if result.status == "success" and "code" in result.content.lower():
+                # Extract and store code patterns if applicable
+                self.memory_manager.store_code_pattern(
+                    name=f"Pattern_{self.config.agent_id}_{self.execution_count}",
+                    description=request.prompt[:100],
+                    language="python",  # Default, could be detected
+                    code=result.content[:1000],
+                    use_cases=[request.prompt[:50]]
+                )
+
+        # Update conversation context
+        if self.conversation:
+            self.conversation.add_entry(
+                agent=self.config.agent_id,
+                step="execute",
+                input_text=request.prompt,
+                output_text=result.content,
+                metadata=result.metadata,
+                tokens_used=result.tokens_used,
+                execution_time=execution_time
+            )
 
         # Update shared context with result
         if self.shared_context:
-            await self.shared_context.set_agent_output(
+            await self.shared_context.update_context(
                 self.config.agent_id,
+                f"agent_output_{self.config.agent_id}",
                 {
                     "result": result.content[:500],  # Store summary
                     "status": result.status,
                     "timestamp": datetime.now().isoformat()
-                }
+                },
+                metadata={"execution_time": execution_time}
             )
 
         # Calculate execution time

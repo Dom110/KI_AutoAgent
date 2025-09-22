@@ -16,6 +16,18 @@ from ..base.base_agent import (
 )
 from utils.openai_service import OpenAIService
 
+# Import new analysis and visualization tools
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from core.indexing.tree_sitter_indexer import TreeSitterIndexer
+from core.indexing.code_indexer import CodeIndexer
+from core.analysis.semgrep_analyzer import SemgrepAnalyzer
+from core.analysis.vulture_analyzer import VultureAnalyzer
+from core.analysis.radon_metrics import RadonMetrics
+from services.diagram_service import DiagramService
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -59,6 +71,18 @@ class ArchitectAgent(ChatAgent):
 
         # Initialize OpenAI service
         self.openai = OpenAIService()
+
+        # Initialize code analysis tools
+        self.tree_sitter = TreeSitterIndexer()
+        self.code_indexer = CodeIndexer()
+        self.semgrep = SemgrepAnalyzer()
+        self.vulture = VultureAnalyzer()
+        self.metrics = RadonMetrics()
+        self.diagram_service = DiagramService()
+
+        # System knowledge cache
+        self.system_knowledge = None
+        self.last_index_time = None
 
         # Architecture patterns library
         self.architecture_patterns = self._load_architecture_patterns()
@@ -378,3 +402,270 @@ class ArchitectAgent(ChatAgent):
             return {"architecture_result": result.content}
 
         return {"message": "Architect received request"}
+
+    async def understand_system(self, root_path: str = '.') -> Dict[str, Any]:
+        """
+        Build comprehensive understanding of the system through code analysis
+
+        This method performs deep analysis using:
+        - Tree-sitter AST indexing
+        - Semantic code analysis
+        - Metrics calculation
+        - Architecture extraction
+        """
+        logger.info("Building comprehensive system understanding...")
+
+        # Phase 1: Complete code indexing
+        logger.info("Phase 1: Indexing codebase with AST parsing")
+        code_index = await self.code_indexer.build_full_index(root_path)
+
+        # Phase 2: Security and quality analysis
+        logger.info("Phase 2: Running security and quality analysis")
+        security_analysis = await self.semgrep.run_analysis(root_path)
+        dead_code = await self.vulture.find_dead_code(root_path)
+        metrics = await self.metrics.calculate_all_metrics(root_path)
+
+        # Phase 3: Generate visualizations
+        logger.info("Phase 3: Generating architecture diagrams")
+        diagrams = {
+            'system_context': await self.diagram_service.generate_architecture_diagram(code_index, 'context'),
+            'container': await self.diagram_service.generate_architecture_diagram(code_index, 'container'),
+            'component': await self.diagram_service.generate_architecture_diagram(code_index, 'component'),
+            'dependency_graph': await self.diagram_service.generate_dependency_graph(
+                code_index.get('import_graph', {})
+            ),
+            'sequence': await self.diagram_service.generate_sequence_diagram({}),
+            'state': await self.diagram_service.generate_state_diagram({})
+        }
+
+        # Store system knowledge
+        self.system_knowledge = {
+            'code_index': code_index,
+            'security': security_analysis,
+            'dead_code': dead_code,
+            'metrics': metrics,
+            'diagrams': diagrams,
+            'timestamp': datetime.now().isoformat()
+        }
+
+        logger.info(f"System understanding complete: {len(code_index.get('ast', {}).get('files', {}))} files analyzed")
+        return self.system_knowledge
+
+    async def analyze_infrastructure_improvements(self) -> str:
+        """
+        Analyze codebase and suggest infrastructure improvements
+
+        This is the main method to answer: "Was kann an der Infrastruktur verbessert werden?"
+        """
+        if not self.system_knowledge:
+            await self.understand_system()
+
+        # Extract insights from analysis
+        code_index = self.system_knowledge['code_index']
+        security = self.system_knowledge['security']
+        metrics = self.system_knowledge['metrics']
+        dead_code = self.system_knowledge['dead_code']
+
+        # Build comprehensive response
+        response = []
+        response.append("## 🔍 System-Analyse Report\n")
+
+        # Statistics
+        stats = code_index.get('statistics', {})
+        response.append(f"### 📊 Code-Index Status")
+        response.append(f"- **{stats.get('total_files', 0)}** Files vollständig indiziert")
+        response.append(f"- **{stats.get('total_functions', 0)}** Functions analysiert")
+        response.append(f"- **{stats.get('total_classes', 0)}** Classes dokumentiert")
+        response.append(f"- **{stats.get('total_api_endpoints', 0)}** API Endpoints gefunden")
+        response.append(f"- **{stats.get('lines_of_code', 0)}** Lines of Code\n")
+
+        # Architecture Overview (with Mermaid diagram)
+        response.append("### 🏗️ Architecture Overview")
+        response.append("```mermaid")
+        response.append(self.system_knowledge['diagrams']['container'])
+        response.append("```\n")
+
+        # Security Analysis
+        security_summary = security.get('summary', {})
+        if security_summary:
+            response.append("### 🔒 Security Analysis")
+            if security_summary.get('critical', 0) > 0:
+                response.append(f"- ⛔ **{security_summary['critical']} Critical** issues found")
+            if security_summary.get('high', 0) > 0:
+                response.append(f"- 🔴 **{security_summary['high']} High** risk vulnerabilities")
+            if security_summary.get('medium', 0) > 0:
+                response.append(f"- 🟡 **{security_summary['medium']} Medium** risk issues")
+            response.append("")
+
+        # Performance Metrics
+        metrics_summary = metrics.get('summary', {})
+        response.append("### 📈 Performance Metrics")
+        response.append(f"- **Average Complexity**: {metrics_summary.get('average_complexity', 0):.1f}")
+        response.append(f"- **Maintainability Index**: {metrics_summary.get('average_maintainability', 0):.1f}")
+        response.append(f"- **Quality Score**: {metrics_summary.get('quality_score', 0):.1f}/100")
+
+        # Dead Code
+        dead_code_summary = dead_code.get('summary', {})
+        if dead_code_summary.get('total_dead_code', 0) > 0:
+            response.append(f"\n### 🧹 Dead Code: **{dead_code_summary['total_dead_code']}** unused items found\n")
+
+        # Concrete Improvements
+        response.append("### 🚀 Konkrete Verbesserungen (Priorisiert)\n")
+
+        improvements = await self._generate_improvement_suggestions()
+        for i, improvement in enumerate(improvements, 1):
+            response.append(f"#### {i}. {improvement['title']} [{improvement['priority']}]")
+            response.append(f"**Problem**: {improvement['problem']}")
+            response.append(f"**Lösung**: {improvement['solution']}")
+            if 'code' in improvement:
+                response.append(f"```python\n{improvement['code']}\n```")
+            response.append(f"**Impact**: {improvement['impact']}\n")
+
+        # Dependency Graph
+        response.append("### 📊 Dependency Graph")
+        response.append("```mermaid")
+        response.append(self.system_knowledge['diagrams']['dependency_graph'])
+        response.append("```\n")
+
+        return "\n".join(response)
+
+    async def _generate_improvement_suggestions(self) -> List[Dict[str, str]]:
+        """
+        Generate specific improvement suggestions based on analysis
+        """
+        improvements = []
+
+        # Check for missing caching
+        code_index = self.system_knowledge['code_index']
+        has_redis = await self._check_for_technology("redis")
+        has_cache = await self._check_for_technology("cache")
+
+        if not has_redis and not has_cache:
+            improvements.append({
+                'title': 'Add Redis Caching',
+                'priority': 'QUICK WIN',
+                'problem': 'No caching layer detected - all API responses computed fresh',
+                'solution': 'Implement Redis for session and response caching',
+                'code': '''# backend/utils/cache_service.py
+import redis
+import json
+from functools import wraps
+
+redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
+
+def cache_response(ttl=300):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            cache_key = f"{func.__name__}:{str(args)}:{str(kwargs)}"
+
+            # Try cache first
+            cached = redis_client.get(cache_key)
+            if cached:
+                return json.loads(cached)
+
+            # Compute and cache
+            result = await func(*args, **kwargs)
+            redis_client.setex(cache_key, ttl, json.dumps(result))
+            return result
+        return wrapper
+    return decorator''',
+                'impact': '70% reduction in API response time, 60% less AI API calls'
+            })
+
+        # Check for connection pooling
+        has_pool = await self._check_for_technology("pool")
+        if not has_pool:
+            improvements.append({
+                'title': 'Connection Pooling',
+                'priority': 'QUICK WIN',
+                'problem': 'Creating new HTTP connections for each API call',
+                'solution': 'Use connection pooling for API clients',
+                'code': '''# backend/utils/http_pool.py
+import httpx
+
+# Singleton connection pool
+class ConnectionPool:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.client = httpx.AsyncClient(
+                limits=httpx.Limits(
+                    max_connections=100,
+                    max_keepalive_connections=20
+                )
+            )
+        return cls._instance
+
+pool = ConnectionPool()''',
+                'impact': '40% faster external API calls, reduced latency'
+            })
+
+        # Check for async issues
+        patterns = self.system_knowledge['code_index'].get('patterns', {})
+        perf_issues = patterns.get('performance_issues', [])
+
+        for issue in perf_issues:
+            if 'sync_in_async' in str(issue):
+                improvements.append({
+                    'title': 'Fix Sync Operations in Async Functions',
+                    'priority': 'MEDIUM',
+                    'problem': f"Blocking operations in async context: {issue.get('file', 'multiple files')}",
+                    'solution': 'Replace with async alternatives',
+                    'impact': 'Better concurrency and responsiveness'
+                })
+                break
+
+        # Check complexity
+        metrics = self.system_knowledge['metrics']
+        if metrics.get('summary', {}).get('average_complexity', 0) > 10:
+            improvements.append({
+                'title': 'Reduce Code Complexity',
+                'priority': 'MEDIUM',
+                'problem': f"High average complexity: {metrics['summary']['average_complexity']:.1f}",
+                'solution': 'Refactor complex functions, extract methods',
+                'impact': 'Better maintainability and fewer bugs'
+            })
+
+        # Add database optimization if no indexes found
+        has_indexes = await self._check_for_technology("index")
+        has_postgres = await self._check_for_technology("postgres")
+
+        if has_postgres and not has_indexes:
+            improvements.append({
+                'title': 'Add Database Indexes',
+                'priority': 'QUICK WIN',
+                'problem': 'No database indexes detected for queries',
+                'solution': 'Add indexes for frequently queried columns',
+                'impact': '10-100x faster database queries'
+            })
+
+        return improvements[:5]  # Return top 5 improvements
+
+    async def _check_for_technology(self, tech: str) -> bool:
+        """
+        Check if a technology is used in the codebase
+        """
+        if not self.system_knowledge:
+            return False
+
+        # Search in code index
+        results = await self.code_indexer.tree_sitter.search_pattern(tech)
+        return len(results) > 0
+
+    async def generate_architecture_flowchart(self) -> str:
+        """
+        Generate a detailed architecture flowchart of the current system
+        """
+        if not self.system_knowledge:
+            await self.understand_system()
+
+        # Generate comprehensive flowchart
+        flowchart = await self.diagram_service.generate_architecture_diagram(
+            self.system_knowledge['code_index'],
+            'component'
+        )
+
+        return f"## System Architecture Flowchart\n\n```mermaid\n{flowchart}\n```"

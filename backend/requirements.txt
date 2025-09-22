@@ -38,3 +38,37 @@ pytest-cov==4.1.0
 black==23.11.0
 ruff==0.1.6
 mypy==1.7.0
+
+# Code Analysis & Indexing
+tree-sitter==0.21.0
+tree-sitter-python==0.21.0
+tree-sitter-javascript==0.21.0
+tree-sitter-typescript==0.21.0
+jedi==0.19.1
+parso==0.8.3
+
+# Language Server Protocol
+python-lsp-server==1.10.0
+# typescript-language-server==4.3.0  # Install via npm if needed
+
+# Visualization
+mermaid-py==0.5.0
+graphviz==0.20.3
+pyvis==0.3.2
+diagrams==0.23.4
+
+# Code Analysis Tools
+semgrep==1.52.0
+bandit==1.7.6
+vulture==2.11
+radon==6.0.1
+
+# Profiling
+py-spy==0.3.14
+austin-python==1.7.0
+memory-profiler==0.61.0
+scalene==1.5.38
+
+# Additional Utilities
+pygments==2.17.2  # Syntax highlighting
+rich==13.7.0      # Pretty output
