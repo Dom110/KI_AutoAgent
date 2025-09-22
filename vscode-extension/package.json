@@ -2,7 +2,7 @@
   "name": "ki-autoagent-vscode",
   "displayName": "KI AutoAgent",
   "description": "Universal Multi-Agent AI Development Platform for VS Code",
-  "version": "4.0.4",
+  "version": "4.0.7",
   "publisher": "ki-autoagent",
   "icon": "media/multi-agent-logo.png",
   "repository": {
@@ -423,6 +423,24 @@
         "title": "KI AutoAgent: Configure Intent Detection (When to Execute vs Explain)",
         "category": "KI AutoAgent",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "ki-autoagent.stopBackend",
+        "title": "KI AutoAgent: Stop Backend",
+        "category": "KI AutoAgent",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "ki-autoagent.restartBackend",
+        "title": "KI AutoAgent: Restart Backend",
+        "category": "KI AutoAgent",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "ki-autoagent.showBackendStatus",
+        "title": "KI AutoAgent: Show Backend Status",
+        "category": "KI AutoAgent",
+        "icon": "$(info)"
       }
     ],
     "menus": {

@@ -96,7 +96,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="KI AutoAgent Backend",
     description="Advanced Multi-Agent System with Memory and Collaboration",
-    version="4.0.4",
+    version="4.0.6",
     lifespan=lifespan
 )
 

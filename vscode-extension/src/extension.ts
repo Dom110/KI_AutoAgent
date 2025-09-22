@@ -21,7 +21,7 @@ export async function activate(context: vscode.ExtensionContext) {
     outputChannel.clear();
     outputChannel.show(true);
 
-    outputChannel.appendLine('🚀 KI AutoAgent Extension v4.0.0 Activating');
+    outputChannel.appendLine('🚀 KI AutoAgent Extension v4.0.5 Activating');
     outputChannel.appendLine('============================================');
     outputChannel.appendLine(`Time: ${new Date().toLocaleString()}`);
     outputChannel.appendLine(`VS Code Version: ${vscode.version}`);
@@ -32,10 +32,27 @@ export async function activate(context: vscode.ExtensionContext) {
     outputChannel.appendLine('🆕 NEW: Auto-start backend on extension activation');
     outputChannel.appendLine('');
 
+    // Initialize Backend Manager early
+    outputChannel.appendLine('📦 Initializing Backend Manager...');
+    backendManager = BackendManager.getInstance(context);
+
+    // Register commands early so they're always available
+    outputChannel.appendLine('📝 Registering commands...');
+    registerCommandsEarly(context);
+    outputChannel.appendLine('✅ Commands registered');
+
+    // Register status bar item
+    const statusBarItem = vscode.window.createStatusBarItem(
+        vscode.StatusBarAlignment.Right,
+        100
+    );
+    statusBarItem.text = '🤖 KI AutoAgent';
+    statusBarItem.tooltip = 'Click to open KI AutoAgent Chat';
+    statusBarItem.command = 'ki-autoagent.showChat';
+    statusBarItem.show();
+    context.subscriptions.push(statusBarItem);
+
     try {
-        // Initialize Backend Manager
-        outputChannel.appendLine('📦 Initializing Backend Manager...');
-        backendManager = BackendManager.getInstance(context);
 
         // Start Python backend automatically
         outputChannel.appendLine('🐍 Starting Python backend...');
@@ -71,19 +88,8 @@ export async function activate(context: vscode.ExtensionContext) {
         // Set up event handlers
         setupBackendEventHandlers();
 
-        // Register commands
-        registerCommands(context);
-
-        // Register status bar item
-        const statusBarItem = vscode.window.createStatusBarItem(
-            vscode.StatusBarAlignment.Right,
-            100
-        );
-        statusBarItem.text = '🤖 KI AutoAgent';
-        statusBarItem.tooltip = 'Click to open KI AutoAgent Chat';
-        statusBarItem.command = 'ki-autoagent.showChat';
-        statusBarItem.show();
-        context.subscriptions.push(statusBarItem);
+        // Register remaining commands that need backend
+        registerBackendCommands(context);
 
         // Success message
         outputChannel.appendLine('');
@@ -119,6 +125,15 @@ function setupBackendEventHandlers() {
         MultiAgentChatPanel.sendMessageToPanel(message);
     });
 
+    backendClient.on('progress', (message) => {
+        outputChannel.appendLine(`📊 ${message.agent}: ${message.message}`);
+        MultiAgentChatPanel.sendMessageToPanel({
+            type: 'progress',
+            agent: message.agent,
+            content: message.message
+        });
+    });
+
     backendClient.on('error', (error) => {
         outputChannel.appendLine(`❌ Backend Error: ${error.message || error}`);
         vscode.window.showErrorMessage(`Backend error: ${error.message || error}`);
@@ -137,11 +152,17 @@ function setupBackendEventHandlers() {
     });
 }
 
-function registerCommands(context: vscode.ExtensionContext) {
-    // Main chat command
+// Register commands that can work without backend
+function registerCommandsEarly(context: vscode.ExtensionContext) {
+    // Main chat command - can open even if backend not ready
     const showChatCmd = vscode.commands.registerCommand(
         'ki-autoagent.showChat',
         () => {
+            if (!backendClient) {
+                // Create a temporary client if backend is not ready
+                const wsUrl = 'ws://localhost:8000/ws/chat';
+                backendClient = BackendClient.getInstance(wsUrl);
+            }
             MultiAgentChatPanel.createOrShow(
                 context.extensionUri,
                 backendClient
@@ -150,44 +171,75 @@ function registerCommands(context: vscode.ExtensionContext) {
     );
     context.subscriptions.push(showChatCmd);
 
-    // Backend status command
-    const backendStatusCmd = vscode.commands.registerCommand(
-        'ki-autoagent.backendStatus',
-        async () => {
-            const status = backendManager.getStatus();
-            const health = await backendManager.checkBackendHealth();
 
+    // Help command
+    const helpCmd = vscode.commands.registerCommand(
+        'ki-autoagent.showHelp',
+        () => {
             vscode.window.showInformationMessage(
-                `Backend: ${status.running ? 'Running ✅' : 'Stopped ❌'} | ` +
-                `Health: ${health ? 'Healthy ✅' : 'Unhealthy ❌'} | ` +
-                `URL: ${status.url}`
+                'KI AutoAgent v4.0.5 - Use Ctrl+Shift+P and type "KI AutoAgent" to see all commands'
             );
         }
     );
-    context.subscriptions.push(backendStatusCmd);
+    context.subscriptions.push(helpCmd);
+
+    // Stop backend command
+    const stopBackendCmd = vscode.commands.registerCommand(
+        'ki-autoagent.stopBackend',
+        async () => {
+            if (backendManager) {
+                outputChannel.appendLine('🛑 Stopping backend...');
+                await backendManager.stopBackend();
+                vscode.window.showInformationMessage('Backend stopped');
+            } else {
+                vscode.window.showWarningMessage('Backend manager not initialized');
+            }
+        }
+    );
+    context.subscriptions.push(stopBackendCmd);
 
     // Restart backend command
     const restartBackendCmd = vscode.commands.registerCommand(
         'ki-autoagent.restartBackend',
         async () => {
-            outputChannel.appendLine('🔄 Restarting backend...');
-            await backendManager.stopBackend();
-            await backendManager.startBackend();
-            await backendClient.connect();
-            vscode.window.showInformationMessage('Backend restarted successfully');
+            if (backendManager) {
+                outputChannel.appendLine('🔄 Restarting backend...');
+                await backendManager.stopBackend();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                const started = await backendManager.startBackend();
+                if (started && backendClient) {
+                    await backendClient.connect();
+                    vscode.window.showInformationMessage('Backend restarted successfully');
+                }
+            } else {
+                vscode.window.showWarningMessage('Backend manager not initialized');
+            }
         }
     );
     context.subscriptions.push(restartBackendCmd);
 
-    // Show backend logs command
-    const showLogsCmd = vscode.commands.registerCommand(
-        'ki-autoagent.showBackendLogs',
-        () => {
-            outputChannel.show();
+    // Backend status command
+    const backendStatusCmd = vscode.commands.registerCommand(
+        'ki-autoagent.showBackendStatus',
+        async () => {
+            if (backendManager) {
+                const status = backendManager.getStatus();
+                const health = await backendManager.checkBackendHealth();
+                vscode.window.showInformationMessage(
+                    `Backend: ${status.running ? 'Running ✅' : 'Stopped ❌'} | ` +
+                    `Health: ${health ? 'Healthy ✅' : 'Unhealthy ❌'} | ` +
+                    `URL: ${status.url}`
+                );
+            } else {
+                vscode.window.showWarningMessage('Backend not yet initialized');
+            }
         }
     );
-    context.subscriptions.push(showLogsCmd);
+    context.subscriptions.push(backendStatusCmd);
+}
 
+// Register commands that need backend connection
+function registerBackendCommands(context: vscode.ExtensionContext) {
     // Manual backend start instructions
     const showInstructionsCmd = vscode.commands.registerCommand(
         'ki-autoagent.showBackendInstructions',

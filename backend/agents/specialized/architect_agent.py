@@ -139,11 +139,17 @@ class ArchitectAgent(ChatAgent):
         start_time = datetime.now()
         files_created = []
 
+        # Get client_id for progress updates
+        client_id = request.context.get('client_id')
+
         try:
             # Get workspace path
             workspace_path = request.context.get('workspace_path', os.getcwd())
             ki_autoagent_dir = os.path.join(workspace_path, '.ki_autoagent')
             os.makedirs(ki_autoagent_dir, exist_ok=True)
+
+            # Send initial progress
+            await self._send_progress(client_id, "🏗️ Architect starting system analysis...")
 
             # Determine which tools to use based on the request
             prompt_lower = request.prompt.lower()
@@ -151,9 +157,10 @@ class ArchitectAgent(ChatAgent):
             # Tool 1: understand_system() - Always use for infrastructure tasks
             if any(word in prompt_lower for word in ['understand', 'analyze', 'infrastructure', 'improve', 'optimize']):
                 logger.info("🔍 Using understand_system() to analyze workspace...")
+                await self._send_progress(client_id, "🔍 Using understand_system() to analyze workspace...")
 
                 if INDEXING_AVAILABLE and self.code_indexer:
-                    system_analysis = await self.understand_system(workspace_path)
+                    system_analysis = await self.understand_system(workspace_path, client_id, request.prompt)
 
                     # Save to file
                     analysis_file = os.path.join(ki_autoagent_dir, 'system_analysis.json')
@@ -524,7 +531,7 @@ class ArchitectAgent(ChatAgent):
 
         return {"message": "Architect received request"}
 
-    async def understand_system(self, root_path: str = '.') -> Dict[str, Any]:
+    async def understand_system(self, root_path: str = '.', client_id: str = None, request_prompt: str = '') -> Dict[str, Any]:
         """
         Build comprehensive understanding of the system through code analysis
 
@@ -542,19 +549,32 @@ class ArchitectAgent(ChatAgent):
             }
 
         logger.info("Building comprehensive system understanding...")
+        await self._send_progress(client_id, "🏗️ Building comprehensive system understanding...")
+
+        # Detect request type for smart analysis
+        request_type = self._detect_request_type(request_prompt)
+        logger.info(f"Request type detected: {request_type}")
 
         # Phase 1: Complete code indexing
         logger.info("Phase 1: Indexing codebase with AST parsing")
-        code_index = await self.code_indexer.build_full_index(root_path)
+        await self._send_progress(client_id, "📂 Phase 1: Indexing codebase with AST parsing...")
+
+        # Create progress callback
+        async def progress_callback(msg: str):
+            await self._send_progress(client_id, msg)
+
+        code_index = await self.code_indexer.build_full_index(root_path, progress_callback, request_type)
 
         # Phase 2: Security and quality analysis
         logger.info("Phase 2: Running security and quality analysis")
+        await self._send_progress(client_id, "🔒 Phase 2: Running security and quality analysis...")
         security_analysis = await self.semgrep.run_analysis(root_path)
         dead_code = await self.vulture.find_dead_code(root_path)
         metrics = await self.metrics.calculate_all_metrics(root_path)
 
         # Phase 3: Generate visualizations
         logger.info("Phase 3: Generating architecture diagrams")
+        await self._send_progress(client_id, "📊 Phase 3: Generating architecture diagrams...")
         diagrams = {
             'system_context': await self.diagram_service.generate_architecture_diagram(code_index, 'context'),
             'container': await self.diagram_service.generate_architecture_diagram(code_index, 'container'),
@@ -586,7 +606,7 @@ class ArchitectAgent(ChatAgent):
         This is the main method to answer: "Was kann an der Infrastruktur verbessert werden?"
         """
         if not self.system_knowledge:
-            await self.understand_system()
+            await self.understand_system('.', None, 'infrastructure improvements')
 
         # Extract insights from analysis
         code_index = self.system_knowledge['code_index']
@@ -788,7 +808,7 @@ pool = ConnectionPool()''',
         Generate a detailed architecture flowchart of the current system
         """
         if not self.system_knowledge:
-            await self.understand_system()
+            await self.understand_system('.', None, 'architecture flowchart')
 
         # Generate comprehensive flowchart
         flowchart = await self.diagram_service.generate_architecture_diagram(
@@ -797,3 +817,46 @@ pool = ConnectionPool()''',
         )
 
         return f"## System Architecture Flowchart\n\n```mermaid\n{flowchart}\n```"
+
+    def _detect_request_type(self, prompt: str) -> str:
+        """Detect the type of request from the prompt"""
+        prompt_lower = prompt.lower()
+
+        # Check for specific request types
+        if any(word in prompt_lower for word in ['infrastructure', 'infra', 'caching', 'redis', 'database', 'scale']):
+            return 'infrastructure'
+        elif any(word in prompt_lower for word in ['architecture', 'design', 'pattern', 'structure']):
+            return 'architecture'
+        elif any(word in prompt_lower for word in ['refactor', 'restructure', 'reorganize']):
+            return 'refactor'
+        elif any(word in prompt_lower for word in ['optimize', 'performance', 'speed', 'faster']):
+            return 'optimize'
+        elif any(word in prompt_lower for word in ['dead code', 'unused', 'cleanup']):
+            return 'dead_code'
+        elif any(word in prompt_lower for word in ['security', 'vulnerability', 'exploit']):
+            return 'security'
+        elif any(word in prompt_lower for word in ['dependency', 'dependencies', 'imports', 'requires']):
+            return 'dependencies'
+        elif any(word in prompt_lower for word in ['impact', 'affect', 'change', 'modify']):
+            return 'impact_analysis'
+        else:
+            return 'general'
+
+    async def _send_progress(self, client_id: str, message: str):
+        """Send progress update to WebSocket client"""
+        if not client_id:
+            return
+
+        try:
+            # Import here to avoid circular imports
+            from api.server import manager
+
+            if manager and client_id in manager.active_connections:
+                await manager.send_json(client_id, {
+                    "type": "agent_progress",
+                    "agent": "architect",
+                    "message": message,
+                    "timestamp": datetime.now().isoformat()
+                })
+        except Exception as e:
+            logger.debug(f"Could not send progress update: {e}")

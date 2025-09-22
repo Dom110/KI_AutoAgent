@@ -78,6 +78,15 @@ class OrchestratorAgentV2(ChatAgent):
         """
         try:
             prompt = request.prompt
+            mode = request.mode if hasattr(request, 'mode') else 'auto'
+
+            # In Auto mode, always use multi-agent workflow for complex tasks
+            if mode == 'auto':
+                # For infrastructure/complex questions, always use workflow
+                if any(word in prompt.lower() for word in ['infrastructure', 'caching', 'optimize', 'improve', 'architecture',
+                                                             'performance', 'system', 'verstehen', 'analyse', 'verbessern']):
+                    logger.info(f"Auto mode: Triggering multi-agent workflow for infrastructure analysis")
+                    return await self._handle_complex_task(prompt)
 
             # First, understand what the user is asking
             intent = await self._analyze_intent(prompt)
@@ -417,26 +426,34 @@ Guidelines:
             from agents.agent_registry import get_agent_registry
             self.agent_registry = get_agent_registry()
 
+        # Log workflow start
+        logger.info(f"🚀 Starting workflow with {len(decomposition.subtasks)} tasks in {decomposition.execution_mode} mode")
+
         # Execute based on mode
         if decomposition.execution_mode == "parallel":
             # Execute tasks in parallel
             tasks = []
             for subtask in decomposition.subtasks:
                 if not subtask.dependencies:  # Only start tasks with no dependencies
+                    logger.info(f"▶️ Starting parallel task: {subtask.id} with agent {subtask.agent}")
                     tasks.append(self._execute_subtask(subtask))
 
             if tasks:
                 task_results = await asyncio.gather(*tasks)
                 for subtask, result in zip(decomposition.subtasks, task_results):
                     results[subtask.id] = result
+                    logger.info(f"✅ Completed parallel task: {subtask.id}")
 
         else:
             # Execute sequentially
-            for subtask in decomposition.subtasks:
+            for i, subtask in enumerate(decomposition.subtasks, 1):
+                logger.info(f"▶️ Step {i}/{len(decomposition.subtasks)}: Executing {subtask.id} with agent {subtask.agent}")
                 result = await self._execute_subtask(subtask)
                 results[subtask.id] = result
                 subtask.result = result
+                logger.info(f"✅ Step {i}/{len(decomposition.subtasks)} completed: {subtask.id}")
 
+        logger.info(f"🎯 Workflow complete with {len(results)} results")
         return results
 
     async def _execute_subtask(self, subtask: SubTask) -> str:

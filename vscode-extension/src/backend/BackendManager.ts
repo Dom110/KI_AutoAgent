@@ -4,10 +4,11 @@
  */
 
 import * as vscode from 'vscode';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess, exec } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import axios from 'axios';
+import * as net from 'net';
 
 export class BackendManager {
     private static instance: BackendManager;
@@ -15,6 +16,7 @@ export class BackendManager {
     private outputChannel: vscode.OutputChannel;
     private isRunning: boolean = false;
     private startupAttempts: number = 0;
+    private lastAttemptTime: number = 0;
     private readonly maxStartupAttempts: number = 3;
 
     // Get configuration from settings
@@ -72,12 +74,31 @@ export class BackendManager {
         this.outputChannel.appendLine('🚀 Starting Python backend...');
 
         try {
-            // Check if backend is already running (started manually)
+            // Extract port from backend URL
+            const urlParts = this.backendUrl.match(/:(\d+)/);
+            const port = parseInt(urlParts ? urlParts[1] : '8000');
+
+            // Check if backend is already running and healthy
             const isAlreadyRunning = await this.checkBackendHealth();
             if (isAlreadyRunning) {
-                this.outputChannel.appendLine('✅ Backend already running (external process)');
+                this.outputChannel.appendLine('✅ Backend already running and healthy');
                 this.isRunning = true;
                 return true;
+            }
+
+            // Check if port is occupied by a stale process
+            const portInUse = await this.isPortInUse(port);
+            if (portInUse) {
+                this.outputChannel.appendLine(`⚠️ Port ${port} is in use. Attempting to free it...`);
+                const killed = await this.killProcessOnPort(port);
+                if (killed) {
+                    this.outputChannel.appendLine(`✅ Freed port ${port}`);
+                    // Wait for port to be fully released
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                } else {
+                    this.outputChannel.appendLine(`❌ Could not free port ${port}. Please manually stop the process.`);
+                    throw new Error(`Port ${port} is already in use`);
+                }
             }
 
             // Get backend directory path
@@ -104,15 +125,11 @@ export class BackendManager {
             // Start the backend process
             const pythonExecutable = fs.existsSync(venvPython) ? venvPython : this.pythonPath;
 
-            // Extract port from backend URL
-            const urlParts = this.backendUrl.match(/:(\d+)$/);
-            const port = urlParts ? urlParts[1] : '8000';
-
             this.backendProcess = spawn(pythonExecutable, [
                 '-m', 'uvicorn',
                 'api.server:app',
                 '--host', '0.0.0.0',
-                '--port', port,
+                '--port', port.toString(),
                 '--reload'
             ], {
                 cwd: backendDir,
@@ -135,9 +152,19 @@ export class BackendManager {
                 }
             });
 
-            // Handle stderr
+            // Handle stderr - Python logs INFO to stderr by default
             this.backendProcess.stderr?.on('data', (data) => {
-                this.outputChannel.append(`❌ Error: ${data.toString()}`);
+                const output = data.toString();
+
+                // Check if it's actually an error or just INFO/DEBUG logs
+                if (output.includes('ERROR') || output.includes('CRITICAL') || output.includes('Exception') || output.includes('Traceback')) {
+                    this.outputChannel.append(`❌ Error: ${output}`);
+                } else if (output.includes('WARNING')) {
+                    this.outputChannel.append(`⚠️ Warning: ${output}`);
+                } else {
+                    // It's just INFO or DEBUG output from Python logging
+                    this.outputChannel.append(output);
+                }
             });
 
             // Handle process exit
@@ -145,11 +172,26 @@ export class BackendManager {
                 this.outputChannel.appendLine(`Backend process exited with code ${code}`);
                 this.isRunning = false;
 
-                // Auto-restart if crashed unexpectedly
-                if (code !== 0 && this.startupAttempts < this.maxStartupAttempts) {
+                // Only restart if not manually stopped
+                if (code !== 0 && this.startupAttempts < this.maxStartupAttempts && this.backendProcess) {
                     this.startupAttempts++;
                     this.outputChannel.appendLine(`Attempting restart (${this.startupAttempts}/${this.maxStartupAttempts})...`);
-                    setTimeout(() => this.startBackend(), 2000);
+
+                    // Clean up the old process
+                    this.backendProcess = null;
+
+                    // Try to restart after a delay
+                    setTimeout(async () => {
+                        // Reset attempts if it's been a while since last attempt
+                        if (Date.now() - (this.lastAttemptTime || 0) > 60000) {
+                            this.startupAttempts = 0;
+                        }
+                        this.lastAttemptTime = Date.now();
+                        await this.startBackend();
+                    }, 3000);
+                } else if (code !== 0) {
+                    this.outputChannel.appendLine('❌ Backend failed to start after maximum attempts');
+                    vscode.window.showErrorMessage('KI AutoAgent Backend failed to start. Please check the output for errors.');
                 }
             });
 
@@ -177,19 +219,6 @@ export class BackendManager {
             }
 
             return false;
-        }
-    }
-
-    /**
-     * Stop the Python backend
-     */
-    public async stopBackend(): Promise<void> {
-        if (this.backendProcess) {
-            this.outputChannel.appendLine('🛑 Stopping Python backend...');
-            this.backendProcess.kill('SIGTERM');
-            this.backendProcess = null;
-            this.isRunning = false;
-            this.outputChannel.appendLine('✅ Backend stopped');
         }
     }
 
@@ -276,6 +305,102 @@ export class BackendManager {
      */
     public getWebSocketUrl(): string {
         return this.wsUrl;
+    }
+
+    /**
+     * Check if a port is in use
+     */
+    private async isPortInUse(port: number): Promise<boolean> {
+        return new Promise((resolve) => {
+            const server = net.createServer();
+
+            server.once('error', (err: any) => {
+                if (err.code === 'EADDRINUSE') {
+                    resolve(true);
+                } else {
+                    resolve(false);
+                }
+            });
+
+            server.once('listening', () => {
+                server.close();
+                resolve(false);
+            });
+
+            server.listen(port, '127.0.0.1');
+        });
+    }
+
+    /**
+     * Kill process on specific port
+     */
+    private async killProcessOnPort(port: number): Promise<boolean> {
+        return new Promise((resolve) => {
+            const platform = process.platform;
+            let command: string;
+
+            if (platform === 'darwin' || platform === 'linux') {
+                // On macOS/Linux, find and kill the process
+                command = `lsof -i :${port} -t | xargs kill -9 2>/dev/null || true`;
+            } else if (platform === 'win32') {
+                // On Windows, use netstat and taskkill
+                command = `for /f "tokens=5" %a in ('netstat -aon ^| findstr :${port}') do taskkill /PID %a /F`;
+            } else {
+                this.outputChannel.appendLine(`⚠️ Unsupported platform: ${platform}`);
+                resolve(false);
+                return;
+            }
+
+            exec(command, (error, stdout, stderr) => {
+                if (error) {
+                    this.outputChannel.appendLine(`⚠️ Could not kill process on port ${port}: ${error.message}`);
+                    resolve(false);
+                } else {
+                    this.outputChannel.appendLine(`✅ Killed process on port ${port}`);
+                    resolve(true);
+                }
+            });
+        });
+    }
+
+    /**
+     * Gracefully stop the backend with cleanup
+     */
+    public async stopBackend(force: boolean = false): Promise<void> {
+        if (!this.backendProcess) {
+            this.outputChannel.appendLine('No backend process to stop');
+            return;
+        }
+
+        this.outputChannel.appendLine('Stopping backend...');
+
+        // Try graceful shutdown first
+        if (!force) {
+            this.backendProcess.kill('SIGTERM');
+
+            // Wait for graceful shutdown
+            await new Promise((resolve) => {
+                let timeout = setTimeout(() => {
+                    this.outputChannel.appendLine('⚠️ Graceful shutdown timeout, forcing...');
+                    this.backendProcess?.kill('SIGKILL');
+                    resolve(void 0);
+                }, 5000);
+
+                this.backendProcess?.once('exit', () => {
+                    clearTimeout(timeout);
+                    this.outputChannel.appendLine('✅ Backend stopped gracefully');
+                    resolve(void 0);
+                });
+            });
+        } else {
+            // Force kill immediately
+            this.backendProcess.kill('SIGKILL');
+            this.outputChannel.appendLine('✅ Backend force stopped');
+        }
+
+        this.backendProcess = null;
+        this.isRunning = false;
+        this.startupAttempts = 0;
     }
 
     /**

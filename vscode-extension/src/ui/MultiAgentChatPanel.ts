@@ -598,6 +598,11 @@ export class MultiAgentChatPanel {
                             addThinkingMessage(message.agent, message.content);
                             break;
 
+                        case 'progress':
+                            // Show progress as a system message
+                            addMessage(message.content, 'system', message.agent + ' Progress');
+                            break;
+
                         case 'agentResponse':
                             // Always reset processing state on response
                             isProcessing = false;

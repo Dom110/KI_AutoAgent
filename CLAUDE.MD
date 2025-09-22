@@ -450,6 +450,87 @@ PATCH Version (X.Y.Z):
 │   │   ├── Standard tasks: 120 seconds (2 minutes)
 │   │   └── Infrastructure analysis: 180 seconds (3 minutes)
 │   └── 🎯 IMPACT: Complex infrastructure analysis now completes successfully
+├── v4.0.6 (22.9.2025) - ROBUST BACKEND MANAGEMENT & COMMAND REGISTRATION
+│   ├── 🛠️ BACKEND RESTART MANAGEMENT
+│   │   ├── Automatic port cleanup before starting backend
+│   │   ├── Kill stale processes on port 8000 using lsof
+│   │   ├── Graceful shutdown with SIGTERM, then SIGKILL after 5s
+│   │   ├── Smart retry logic with 3 attempts and 60s cooldown
+│   │   └── Prevents "Address already in use" errors
+│   ├── 🎯 COMMAND REGISTRATION FIX
+│   │   ├── Fixed "ki-autoagent.showChat command not found" error
+│   │   ├── Commands registered immediately on activation
+│   │   ├── Two-phase registration: early vs backend-dependent
+│   │   ├── Chat can open even if backend not ready
+│   │   └── Status bar always functional
+│   ├── 🔧 NEW BACKEND COMMANDS
+│   │   ├── ki-autoagent.stopBackend - Stop backend gracefully
+│   │   ├── ki-autoagent.restartBackend - Full restart with cleanup
+│   │   ├── ki-autoagent.showBackendStatus - Health check
+│   │   └── All commands available in Command Palette
+│   ├── 💪 RESILIENT ACTIVATION
+│   │   ├── Extension activates even if backend fails
+│   │   ├── Backend failures don't block command registration
+│   │   ├── Temporary BackendClient creation on demand
+│   │   ├── Better error messages and recovery
+│   │   └── Manual start instructions if auto-start fails
+│   └── 🎯 IMPACT: Extension now handles backend crashes gracefully and all commands always work
+├── v4.0.7 (22.9.2025) - FULL ANALYSIS WITH INTELLIGENT EXCLUSIONS
+│   ├── 🗂️ GITIGNORE-AWARE INDEXING
+│   │   ├── Reads and respects .gitignore patterns automatically
+│   │   ├── Default exclusion patterns for common non-project files
+│   │   ├── Excludes: node_modules, venv, __pycache__, dist, build, etc.
+│   │   ├── Reduces file count from 12,305 to 124 actual project files
+│   │   └── Intelligent filtering prevents indexing of dependencies
+│   ├── 🔄 REMOVED SELECTIVE ANALYSIS
+│   │   ├── No more partial analysis limiting to 50 files / 100 symbols
+│   │   ├── Full analysis of ALL project files for complete understanding
+│   │   ├── Infrastructure queries get complete system view
+│   │   ├── No blind spots or missed patterns
+│   │   └── Architect agent has full system knowledge
+│   ├── 📊 ENHANCED PROGRESS TRACKING
+│   │   ├── Real-time progress updates during all 6 phases
+│   │   ├── File-by-file progress for call graph building
+│   │   ├── Shows files processed vs total (e.g., 45/124 files)
+│   │   ├── Progress updates every 10 files for large projects
+│   │   └── Prevents appearance of hanging during long operations
+│   ├── ⚡ PERFORMANCE IMPROVEMENTS
+│   │   ├── _count_project_files() pre-counts actual files to analyze
+│   │   ├── _should_exclude_path() checks gitignore + defaults
+│   │   ├── _load_gitignore() parses .gitignore patterns
+│   │   ├── Call graph processes ALL files with progress tracking
+│   │   └── No artificial limits - complete analysis with feedback
+│   └── 🎯 IMPACT: Full system understanding without analyzing dependencies (12,305 → 124 files)
+├── v4.0.5 (22.9.2025) - AUTO MODE FIX & MULTI-AGENT WORKFLOW RESTORATION
+│   ├── 🔧 FIXED INFO LOGS DISPLAY
+│   │   ├── Python INFO logs no longer appear as errors in VS Code output
+│   │   ├── BackendManager now properly distinguishes log levels
+│   │   ├── INFO and DEBUG logs display normally without error prefix
+│   │   ├── Only actual ERROR and CRITICAL logs show with ❌ prefix
+│   │   └── WARNING logs show with ⚠️ prefix for better visibility
+│   ├── ⚡ PERFORMANCE OPTIMIZATION
+│   │   ├── Fixed cross-reference building timeout for large codebases
+│   │   ├── Limited symbol reference search to first 100 symbols
+│   │   ├── Prevents agent hanging after Phase 2 with 2777+ files
+│   │   ├── Maintains full definition indexing, selective reference search
+│   │   └── Dramatically improved indexing speed for large projects
+│   ├── 🤝 AUTO MODE RESTORATION
+│   │   ├── Fixed orchestrator to properly use Auto mode
+│   │   ├── Infrastructure questions trigger multi-agent workflows
+│   │   ├── Added workflow progress logging with step indicators
+│   │   ├── Multiple agents now collaborate in Auto mode
+│   │   ├── Enhanced workflow execution with parallel/sequential support
+│   │   └── Better visibility of which agent is working on what
+│   ├── 📊 WORKFLOW IMPROVEMENTS
+│   │   ├── Added detailed workflow logging with emojis
+│   │   ├── Step-by-step progress indicators (Step 1/6, Step 2/6, etc.)
+│   │   ├── Agent names shown for each workflow step
+│   │   ├── Workflow completion summary with result count
+│   │   └── Dynamic timeout configuration (30s/120s/180s based on complexity)
+│   └── 🎯 IMPACT: System now properly orchestrates multiple agents with visible progress
+├── v4.0.4 (22.9.2025) - ACTIVE AGENTS WITH FILE CREATION & TOOL USAGE
+│   ├── [Previous v4.0.4 content - implementation of active agents]
+│   └── Made agents actively use their v4.0.0 tools to create files
 ├── v4.0.3 (22.9.2025) - BACKEND CONFIGURATION & COMPLETE PYTHON INTEGRATION
 │   ├── 🐍 FULL PYTHON BACKEND CONFIGURATION
 │   │   ├── Added kiAutoAgent.backend.url setting (default: localhost:8000)

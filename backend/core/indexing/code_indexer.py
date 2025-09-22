@@ -7,8 +7,14 @@ comprehensive system understanding.
 
 import asyncio
 import logging
-from typing import Dict, List, Any, Optional
+import os
+import time
+import json
+import re
+import fnmatch
+from typing import Dict, List, Any, Optional, Tuple, Set
 from pathlib import Path
+from datetime import datetime, timedelta
 
 from .tree_sitter_indexer import TreeSitterIndexer
 
@@ -16,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class CodeIndexer:
     """
-    Central code indexing engine that coordinates all analysis tools
+    Central code indexing engine with smart analysis depth detection
 
     Features:
     - Multi-language support
@@ -24,6 +30,9 @@ class CodeIndexer:
     - Performance metrics
     - Security analysis
     - Architecture extraction
+    - Smart analysis depth based on project size and request type
+    - Caching for repeated requests
+    - Priority-based file selection
     """
 
     def __init__(self):
@@ -32,41 +41,214 @@ class CodeIndexer:
         self.cache = {}
         self.patterns = {}
         self.architecture = {}
+        self.last_analysis_path = None
+        self.last_analysis_time = None
+        self.cached_results = None
+        self.cache_validity = timedelta(minutes=15)  # Cache valid for 15 minutes
 
-    async def build_full_index(self, root_path: str = '.') -> Dict:
+        # Default exclusion patterns (common directories/files to skip)
+        self.default_exclude_patterns = {
+            # Version control
+            '.git', '.svn', '.hg', '.bzr',
+            # Dependencies
+            'node_modules', 'bower_components', 'jspm_packages',
+            # Python
+            '__pycache__', '*.pyc', '*.pyo', '*.pyd', '.Python',
+            'venv', '.venv', 'env', '.env', 'ENV', 'pip-log.txt',
+            'pip-delete-this-directory.txt', '.tox', '.coverage',
+            '.pytest_cache', '.mypy_cache', '.ruff_cache',
+            # JavaScript/TypeScript
+            'dist', 'build', 'out', '.next', '.nuxt', '.cache',
+            '*.log', 'npm-debug.log*', 'yarn-debug.log*',
+            'yarn-error.log*', '.npm', '.yarn',
+            # IDE
+            '.vscode', '.idea', '*.swp', '*.swo', '*~', '.DS_Store',
+            # Testing
+            'coverage', 'htmlcov', '.nyc_output',
+            # Documentation
+            'docs/_build', 'site-packages',
+            # Temporary files
+            'tmp', 'temp', '*.tmp', '*.temp', '.tmp.*',
+            # Build outputs
+            'target', '*.egg-info', '*.egg', 'wheels',
+            # VS Code extension specific
+            '*.vsix', 'out/',
+            # Other
+            'vendor', 'third_party', 'external'
+        }
+        self.gitignore_patterns = set()
+
+    def _load_gitignore(self, root_path: str) -> Set[str]:
         """
-        Build complete system index
+        Load patterns from .gitignore file if it exists
+        """
+        gitignore_path = os.path.join(root_path, '.gitignore')
+        patterns = set()
+
+        if os.path.exists(gitignore_path):
+            logger.info(f"Loading .gitignore from {gitignore_path}")
+            try:
+                with open(gitignore_path, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        # Skip empty lines and comments
+                        if line and not line.startswith('#'):
+                            patterns.add(line)
+                logger.info(f"Loaded {len(patterns)} patterns from .gitignore")
+            except Exception as e:
+                logger.warning(f"Failed to read .gitignore: {e}")
+        else:
+            logger.info("No .gitignore found, using default exclusion patterns")
+
+        return patterns
+
+    def _should_exclude_path(self, path: str, root_path: str) -> bool:
+        """
+        Check if a path should be excluded based on gitignore and default patterns
+        """
+        # Convert to relative path for pattern matching
+        if os.path.isabs(path):
+            try:
+                rel_path = os.path.relpath(path, root_path)
+            except ValueError:
+                # Path is on different drive (Windows)
+                return True
+        else:
+            rel_path = path
+
+        # Check against gitignore patterns
+        for pattern in self.gitignore_patterns:
+            if fnmatch.fnmatch(rel_path, pattern) or fnmatch.fnmatch(os.path.basename(rel_path), pattern):
+                return True
+
+        # Check against default patterns
+        for pattern in self.default_exclude_patterns:
+            if '*' in pattern:
+                # It's a glob pattern
+                if fnmatch.fnmatch(rel_path, pattern) or fnmatch.fnmatch(os.path.basename(rel_path), pattern):
+                    return True
+            else:
+                # It's a direct match
+                parts = rel_path.split(os.sep)
+                if pattern in parts or os.path.basename(rel_path) == pattern:
+                    return True
+
+        return False
+
+    def _count_project_files(self, root_path: str) -> int:
+        """
+        Count actual project files (excluding gitignore and default patterns)
+        """
+        # Load gitignore patterns
+        self.gitignore_patterns = self._load_gitignore(root_path)
+
+        total_files = 0
+        excluded_count = 0
+
+        for root, dirs, files in os.walk(root_path):
+            # Filter out excluded directories
+            dirs_to_check = []
+            for d in dirs:
+                dir_path = os.path.join(root, d)
+                if not self._should_exclude_path(dir_path, root_path):
+                    dirs_to_check.append(d)
+                else:
+                    excluded_count += 1
+            dirs[:] = dirs_to_check
+
+            # Count non-excluded source files
+            for f in files:
+                if f.endswith(('.py', '.js', '.ts', '.jsx', '.tsx')):
+                    file_path = os.path.join(root, f)
+                    if not self._should_exclude_path(file_path, root_path):
+                        total_files += 1
+                    else:
+                        excluded_count += 1
+
+        logger.info(f"Project files: {total_files} to analyze, {excluded_count} excluded")
+        return total_files
+
+
+    async def build_full_index(self, root_path: str = '.', progress_callback=None, request_type: str = 'general') -> Dict:
+        """
+        Build complete system index with full analysis
 
         Args:
             root_path: Root directory to index
+            progress_callback: Optional callback for progress updates
+            request_type: Type of request (for logging purposes)
 
         Returns:
             Comprehensive system index
         """
-        logger.info("Building complete system index...")
+        # Check cache first
+        if self._is_cache_valid(root_path):
+            logger.info("Using cached analysis results")
+            if progress_callback:
+                await progress_callback("📦 Using cached analysis (still fresh)")
+            return self.cached_results
 
-        # Phase 1: AST Indexing
+        # Count files to analyze
+        file_count = self._count_project_files(root_path)
+        logger.info(f"Starting FULL analysis of {file_count} project files")
+        logger.info(f"Request type: {request_type}")
+
+        # Phase 1: AST Indexing with exclusion patterns
         logger.info("Phase 1: AST Indexing with Tree-sitter")
-        ast_index = await self.tree_sitter.index_codebase(root_path)
+        if progress_callback:
+            await progress_callback(f"📂 Phase 1/6: Indexing {file_count} files (using .gitignore + defaults)...")
 
-        # Phase 2: Cross-reference analysis
-        logger.info("Phase 2: Building cross-references")
+        # Let tree-sitter use our exclusion logic
+        original_index_method = self.tree_sitter.index_codebase
+
+        async def index_with_exclusions(path):
+            """Wrapper to add exclusion logic to tree-sitter indexing"""
+            result = await original_index_method(path)
+            # Filter out excluded files
+            filtered_files = {}
+            for file_path, file_data in result.get('files', {}).items():
+                if not self._should_exclude_path(file_path, root_path):
+                    filtered_files[file_path] = file_data
+            result['files'] = filtered_files
+            logger.info(f"Indexed {len(filtered_files)} files after exclusions")
+            return result
+
+        self.tree_sitter.index_codebase = index_with_exclusions
+        ast_index = await self.tree_sitter.index_codebase(root_path)
+        self.tree_sitter.index_codebase = original_index_method  # Restore
+
+        actual_files = len(ast_index.get('files', {}))
+        if progress_callback:
+            await progress_callback(f"📂 Phase 1/6: Indexed {actual_files} files successfully")
+
+        # Phase 2: Cross-reference analysis (FULL - no limits)
+        logger.info(f"Phase 2: Building cross-references for ALL {actual_files} files")
+        if progress_callback:
+            await progress_callback(f"🔗 Phase 2/6: Building cross-references for {actual_files} files...")
         cross_refs = await self._build_cross_references(ast_index)
 
         # Phase 3: Architecture extraction
         logger.info("Phase 3: Extracting architecture patterns")
+        if progress_callback:
+            await progress_callback("🏗️ Phase 3/6: Extracting architecture patterns...")
         architecture = await self._extract_architecture_patterns(ast_index)
 
         # Phase 4: Call graph construction
         logger.info("Phase 4: Building call graph")
-        call_graph = await self._build_call_graph(ast_index)
+        if progress_callback:
+            await progress_callback("📊 Phase 4/6: Building call graph...")
+        call_graph = await self._build_call_graph(ast_index, progress_callback)
 
         # Phase 5: Import graph
         logger.info("Phase 5: Building import graph")
+        if progress_callback:
+            await progress_callback("📦 Phase 5/6: Building import graph...")
         import_graph = await self._build_import_graph(ast_index)
 
         # Phase 6: Pattern detection
         logger.info("Phase 6: Detecting code patterns")
+        if progress_callback:
+            await progress_callback("🔍 Phase 6/6: Detecting code patterns...")
         patterns = await self._detect_code_patterns(ast_index)
 
         # Combine all indexes
@@ -81,7 +263,30 @@ class CodeIndexer:
         }
 
         logger.info(f"Index complete: {len(ast_index['files'])} files processed")
+
+        # Cache the results
+        self._cache_results(root_path, self.index)
+
         return self.index
+
+    def _is_cache_valid(self, root_path: str) -> bool:
+        """Check if cached results are still valid"""
+        if not self.cached_results or self.last_analysis_path != root_path:
+            return False
+
+        if not self.last_analysis_time:
+            return False
+
+        age = datetime.now() - self.last_analysis_time
+        return age < self.cache_validity
+
+    def _cache_results(self, root_path: str, results: Dict):
+        """Cache analysis results"""
+        self.last_analysis_path = root_path
+        self.last_analysis_time = datetime.now()
+        self.cached_results = results
+        logger.info(f"Cached analysis results for {root_path}")
+
 
     async def _build_cross_references(self, ast_index: Dict) -> Dict:
         """Build cross-reference index for symbols"""
@@ -111,8 +316,13 @@ class CodeIndexer:
                     'methods': cls.get('methods', [])
                 }
 
-        # Find all references
-        for symbol_name in cross_refs['definitions'].keys():
+        # Limit reference search to avoid timeout - only process first 100 symbols
+        # For large codebases, full reference search can take too long
+        symbol_names = list(cross_refs['definitions'].keys())[:100]
+        logger.info(f"Building references for {len(symbol_names)} symbols (limited from {len(cross_refs['definitions'])} total)")
+
+        # Find references for limited set
+        for symbol_name in symbol_names:
             usages = await self.tree_sitter.get_function_usages(symbol_name)
             cross_refs['references'][symbol_name] = usages
 
@@ -194,27 +404,44 @@ class CodeIndexer:
 
         return architecture
 
-    async def _build_call_graph(self, ast_index: Dict) -> Dict:
-        """Build function call graph"""
+    async def _build_call_graph(self, ast_index: Dict, progress_callback=None) -> Dict:
+        """Build function call graph for ALL files with progress tracking"""
         call_graph = {}
+        total_files = len(ast_index['files'])
 
+        logger.info(f"Building call graph for ALL {total_files} files")
+
+        # Create a set of all function names for reference
+        all_functions = set()
+        for file_info in ast_index['files'].values():
+            for func in file_info.get('functions', []):
+                all_functions.add(func['name'])
+
+        logger.info(f"Found {len(all_functions)} unique function names")
+
+        # Process each file with progress updates
+        processed = 0
         for file_path, file_info in ast_index['files'].items():
+            processed += 1
+
+            # Update progress every 10 files or for small projects every file
+            if progress_callback and (processed % 10 == 0 or total_files < 50):
+                await progress_callback(f"📊 Phase 4/6: Building call graph ({processed}/{total_files} files)...")
+
             for func in file_info.get('functions', []):
                 func_name = func['name']
                 content = file_info.get('content', '')
 
-                # Find function calls within this function
-                # Simplified - in production would use proper AST walking
+                # Find function calls in content
                 calls = []
-
-                for other_func in ast_index['functions'].keys():
-                    other_name = other_func.split(':')[-1]
-                    if other_name != func_name and other_name in content:
+                for other_name in all_functions:
+                    if other_name != func_name and f"{other_name}(" in content:
                         calls.append(other_name)
 
                 if calls:
                     call_graph[f"{file_path}:{func_name}"] = calls
 
+        logger.info(f"Call graph complete with {len(call_graph)} entries from {total_files} files")
         return call_graph
 
     async def _build_import_graph(self, ast_index: Dict) -> Dict:

@@ -8,7 +8,7 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 
 export interface BackendMessage {
-    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'error' | 'connection' | 'complete';
+    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress';
     content?: string;
     agent?: string;
     metadata?: any;
@@ -193,6 +193,10 @@ export class BackendClient extends EventEmitter {
 
             case 'agent_thinking':
                 this.emit('thinking', message);
+                break;
+
+            case 'agent_progress':
+                this.emit('progress', message);
                 break;
 
             case 'agent_response':
