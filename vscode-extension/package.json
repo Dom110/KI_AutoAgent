@@ -2,7 +2,7 @@
   "name": "ki-autoagent-vscode",
   "displayName": "KI AutoAgent",
   "description": "Universal Multi-Agent AI Development Platform for VS Code",
-  "version": "4.0.0",
+  "version": "4.0.4",
   "publisher": "ki-autoagent",
   "icon": "media/multi-agent-logo.png",
   "repository": {
@@ -488,6 +488,32 @@
         "kiAutoAgent.perplexity.apiKey": {
           "type": "string",
           "markdownDescription": "🔑 **Perplexity API Key** for web research (optional)\n- Get your key at [perplexity.ai](https://perplexity.ai)",
+          "scope": "application"
+        },
+        "kiAutoAgent.backend.url": {
+          "type": "string",
+          "default": "localhost:8000",
+          "markdownDescription": "🐍 **Python Backend URL**\n- Default: `localhost:8000`\n- The KI AutoAgent Python backend server\n- All AI intelligence runs here",
+          "scope": "application"
+        },
+        "kiAutoAgent.backend.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🚀 **Auto-Start Backend**\n- Automatically start Python backend on extension activation\n- Requires Python 3.8+ and backend dependencies installed",
+          "scope": "application"
+        },
+        "kiAutoAgent.backend.pythonPath": {
+          "type": "string",
+          "default": "python3",
+          "markdownDescription": "🐍 **Python Executable Path**\n- Path to Python executable\n- Default: `python3` (uses system Python)\n- Can be absolute path or command in PATH",
+          "scope": "application"
+        },
+        "kiAutoAgent.backend.timeout": {
+          "type": "number",
+          "default": 180,
+          "minimum": 30,
+          "maximum": 600,
+          "markdownDescription": "⏱️ **Backend Request Timeout (seconds)**\n- How long to wait for backend responses\n- Default: 180s (3 minutes) for complex tasks\n- Increase for infrastructure analysis or large codebases",
           "scope": "application"
         },
         "kiAutoAgent.claude.serviceMode": {

@@ -417,6 +417,59 @@ PATCH Version (X.Y.Z):
 │   │   ├── Enhanced TaskResult with metrics metadata
 │   │   └── Workflow engine integration mandatory
 │   └── 🎯 IMPACT: KI AutoAgent is now a cognitive system that understands code like a senior developer
+├── v4.0.1 (22.9.2025) - CRITICAL BUG FIXES & INSTALLATION IMPROVEMENTS
+│   ├── 🔧 EXECUTION TIME FIX
+│   │   ├── Fixed UnboundLocalError: "execution_time" variable scope issue
+│   │   ├── Added initialization at function start in base_agent.py
+│   │   ├── Moved execution_time calculation immediately after task execution
+│   │   ├── Added execution_time=0 to all error responses in agent_registry.py
+│   │   └── Ensures all TaskResult objects have required execution_time field
+│   ├── 🛡️ IMPORT GUARD IMPROVEMENTS
+│   │   ├── Fixed logger usage before definition in architect_agent.py
+│   │   ├── Added comprehensive import guards for optional dependencies
+│   │   ├── Graceful fallback when analysis tools not installed
+│   │   ├── System continues working without optional features
+│   │   └── Clear warning messages for unavailable capabilities
+│   ├── ✅ VERIFIED FUNCTIONALITY
+│   │   ├── All v4.0.0 features properly integrated and tested
+│   │   ├── Infrastructure analysis ("Was kann an der Infrastruktur verbessert werden?") working
+│   │   ├── Tree-sitter indexing, Semgrep analysis, Mermaid diagrams functional
+│   │   ├── Pattern learning and code understanding operational
+│   │   └── All 6/6 feature verification tests passing
+│   ├── 📦 INSTALLATION READY
+│   │   ├── Version properly incremented for clean installation
+│   │   ├── All critical runtime errors resolved
+│   │   ├── Dependencies properly handled with fallbacks
+│   │   └── Production-ready release package
+│   └── 🎯 IMPACT: v4.0.0 features now stable and installable without errors
+├── v4.0.2 (22.9.2025) - TIMEOUT FIX FOR INFRASTRUCTURE ANALYSIS
+│   ├── 🔧 DYNAMIC TIMEOUT CONFIGURATION
+│   │   ├── Fixed 5-second timeout causing infrastructure analysis failures
+│   │   ├── Implemented dynamic timeouts based on task complexity
+│   │   ├── Simple queries: 30 seconds timeout
+│   │   ├── Standard tasks: 120 seconds (2 minutes)
+│   │   └── Infrastructure analysis: 180 seconds (3 minutes)
+│   └── 🎯 IMPACT: Complex infrastructure analysis now completes successfully
+├── v4.0.3 (22.9.2025) - BACKEND CONFIGURATION & COMPLETE PYTHON INTEGRATION
+│   ├── 🐍 FULL PYTHON BACKEND CONFIGURATION
+│   │   ├── Added kiAutoAgent.backend.url setting (default: localhost:8000)
+│   │   ├── Added kiAutoAgent.backend.autoStart setting for automatic startup
+│   │   ├── Added kiAutoAgent.backend.pythonPath for custom Python executable
+│   │   ├── Added kiAutoAgent.backend.timeout for request timeout configuration
+│   │   └── All backend communication now uses configured settings
+│   ├── 🏗️ ARCHITECTURE COMPLIANCE
+│   │   ├── VS Code Extension: ONLY UI components (no business logic)
+│   │   ├── Python Backend: ALL AI intelligence and agent implementations
+│   │   ├── No TypeScript agent implementations remain
+│   │   ├── All agent calls routed through Python backend via WebSocket
+│   │   └── Complete separation of concerns achieved
+│   ├── 📝 CONFIGURATION IMPROVEMENTS
+│   │   ├── BackendManager uses configured Python path and URL
+│   │   ├── BackendClient dynamically reads backend URL from settings
+│   │   ├── Port extraction from backend URL for flexible deployment
+│   │   ├── Support for custom Python environments and virtual envs
+│   │   └── Claude Code CLI properly integrated as default service mode
+│   └── 🎯 IMPACT: Complete Python backend integration with full configuration control
 ├── v3.60.0 - v3.81.3 - INCREMENTAL IMPROVEMENTS [UNDOCUMENTED]
 │   ├── Various bug fixes and minor enhancements
 │   ├── Version history to be reconstructed from git log

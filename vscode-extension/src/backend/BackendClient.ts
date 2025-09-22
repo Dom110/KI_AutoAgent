@@ -39,7 +39,16 @@ export class BackendClient extends EventEmitter {
         this.outputChannel = vscode.window.createOutputChannel('Backend Client');
     }
 
-    public static getInstance(wsUrl: string = 'ws://localhost:8000/ws/chat'): BackendClient {
+    public static getInstance(wsUrl?: string): BackendClient {
+        // Get URL from configuration if not provided
+        if (!wsUrl) {
+            const config = vscode.workspace.getConfiguration('kiAutoAgent');
+            const backendUrl = config.get<string>('backend.url', 'localhost:8000');
+            const wsProtocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
+            const cleanUrl = backendUrl.replace(/^https?:\/\//, '');
+            wsUrl = `${wsProtocol}://${cleanUrl}/ws/chat`;
+        }
+
         if (!BackendClient.instance) {
             BackendClient.instance = new BackendClient(wsUrl);
         }

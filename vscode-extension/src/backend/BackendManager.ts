@@ -16,8 +16,31 @@ export class BackendManager {
     private isRunning: boolean = false;
     private startupAttempts: number = 0;
     private readonly maxStartupAttempts: number = 3;
-    private readonly backendUrl: string = 'http://localhost:8000';
-    private readonly wsUrl: string = 'ws://localhost:8000/ws/chat';
+
+    // Get configuration from settings
+    private get backendUrl(): string {
+        const config = vscode.workspace.getConfiguration('kiAutoAgent');
+        const url = config.get<string>('backend.url', 'localhost:8000');
+        return url.startsWith('http') ? url : `http://${url}`;
+    }
+
+    private get wsUrl(): string {
+        const config = vscode.workspace.getConfiguration('kiAutoAgent');
+        const url = config.get<string>('backend.url', 'localhost:8000');
+        const wsProtocol = url.startsWith('https') ? 'wss' : 'ws';
+        const cleanUrl = url.replace(/^https?:\/\//, '');
+        return `${wsProtocol}://${cleanUrl}/ws/chat`;
+    }
+
+    private get pythonPath(): string {
+        const config = vscode.workspace.getConfiguration('kiAutoAgent');
+        return config.get<string>('backend.pythonPath', 'python3');
+    }
+
+    private get autoStart(): boolean {
+        const config = vscode.workspace.getConfiguration('kiAutoAgent');
+        return config.get<boolean>('backend.autoStart', true);
+    }
 
     private constructor(private context: vscode.ExtensionContext) {
         this.outputChannel = vscode.window.createOutputChannel('KI AutoAgent Backend');
@@ -34,6 +57,12 @@ export class BackendManager {
      * Start the Python backend automatically
      */
     public async startBackend(): Promise<boolean> {
+        // Check if auto-start is disabled
+        if (!this.autoStart) {
+            this.outputChannel.appendLine('⚠️ Backend auto-start is disabled in settings');
+            this.outputChannel.appendLine('Starting backend check only...');
+            return await this.checkBackendHealth();
+        }
         if (this.isRunning) {
             this.outputChannel.appendLine('✅ Backend already running');
             return true;
@@ -73,13 +102,17 @@ export class BackendManager {
             }
 
             // Start the backend process
-            const pythonExecutable = fs.existsSync(venvPython) ? venvPython : 'python3';
+            const pythonExecutable = fs.existsSync(venvPython) ? venvPython : this.pythonPath;
+
+            // Extract port from backend URL
+            const urlParts = this.backendUrl.match(/:(\d+)$/);
+            const port = urlParts ? urlParts[1] : '8000';
 
             this.backendProcess = spawn(pythonExecutable, [
                 '-m', 'uvicorn',
                 'api.server:app',
                 '--host', '0.0.0.0',
-                '--port', '8000',
+                '--port', port,
                 '--reload'
             ], {
                 cwd: backendDir,

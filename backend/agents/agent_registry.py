@@ -174,7 +174,7 @@ class AgentRegistry:
             return result
 
         except Exception as e:
-            logger.error(f"Error dispatching task to {agent_id}: {e}")
+            logger.error(f"Error dispatching task to {agent_id}: {e}", exc_info=True)  # Added stack trace
 
             # Mark agent as ready
             if agent_id in self.agents:
@@ -183,7 +183,8 @@ class AgentRegistry:
             return TaskResult(
                 status="error",
                 content=f"Agent execution failed: {str(e)}",
-                agent=agent_id
+                agent=agent_id,
+                execution_time=0  # Ensure execution_time is set
             )
 
     def find_agent_by_capability(self, capability: str) -> Optional[BaseAgent]:

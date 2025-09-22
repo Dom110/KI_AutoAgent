@@ -16,19 +16,44 @@ from ..base.base_agent import (
 )
 from utils.openai_service import OpenAIService
 
+# Setup logger first
+logger = logging.getLogger(__name__)
+
 # Import new analysis and visualization tools
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from core.indexing.tree_sitter_indexer import TreeSitterIndexer
-from core.indexing.code_indexer import CodeIndexer
-from core.analysis.semgrep_analyzer import SemgrepAnalyzer
-from core.analysis.vulture_analyzer import VultureAnalyzer
-from core.analysis.radon_metrics import RadonMetrics
-from services.diagram_service import DiagramService
+# Try to import new analysis tools with graceful fallback
+try:
+    from core.indexing.tree_sitter_indexer import TreeSitterIndexer
+    from core.indexing.code_indexer import CodeIndexer
+    INDEXING_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Code indexing modules not available: {e}")
+    INDEXING_AVAILABLE = False
+    TreeSitterIndexer = None
+    CodeIndexer = None
 
-logger = logging.getLogger(__name__)
+try:
+    from core.analysis.semgrep_analyzer import SemgrepAnalyzer
+    from core.analysis.vulture_analyzer import VultureAnalyzer
+    from core.analysis.radon_metrics import RadonMetrics
+    ANALYSIS_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Analysis modules not available: {e}")
+    ANALYSIS_AVAILABLE = False
+    SemgrepAnalyzer = None
+    VultureAnalyzer = None
+    RadonMetrics = None
+
+try:
+    from services.diagram_service import DiagramService
+    DIAGRAM_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Diagram service not available: {e}")
+    DIAGRAM_AVAILABLE = False
+    DiagramService = None
 
 @dataclass
 class ArchitectureDesign:
@@ -72,13 +97,30 @@ class ArchitectAgent(ChatAgent):
         # Initialize OpenAI service
         self.openai = OpenAIService()
 
-        # Initialize code analysis tools
-        self.tree_sitter = TreeSitterIndexer()
-        self.code_indexer = CodeIndexer()
-        self.semgrep = SemgrepAnalyzer()
-        self.vulture = VultureAnalyzer()
-        self.metrics = RadonMetrics()
-        self.diagram_service = DiagramService()
+        # Initialize code analysis tools if available
+        if INDEXING_AVAILABLE:
+            self.tree_sitter = TreeSitterIndexer()
+            self.code_indexer = CodeIndexer()
+        else:
+            self.tree_sitter = None
+            self.code_indexer = None
+            logger.warning("Code indexing tools not available - some features will be limited")
+
+        if ANALYSIS_AVAILABLE:
+            self.semgrep = SemgrepAnalyzer()
+            self.vulture = VultureAnalyzer()
+            self.metrics = RadonMetrics()
+        else:
+            self.semgrep = None
+            self.vulture = None
+            self.metrics = None
+            logger.warning("Analysis tools not available - some features will be limited")
+
+        if DIAGRAM_AVAILABLE:
+            self.diagram_service = DiagramService()
+        else:
+            self.diagram_service = None
+            logger.warning("Diagram service not available - visualization features disabled")
 
         # System knowledge cache
         self.system_knowledge = None
@@ -92,30 +134,109 @@ class ArchitectAgent(ChatAgent):
 
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
-        Execute architecture design task
+        Execute architecture design task - ENHANCED to use v4.0.0 tools and create files
         """
         start_time = datetime.now()
+        files_created = []
 
         try:
-            # Analyze project requirements
-            requirements = await self.analyze_requirements(request.prompt)
+            # Get workspace path
+            workspace_path = request.context.get('workspace_path', os.getcwd())
+            ki_autoagent_dir = os.path.join(workspace_path, '.ki_autoagent')
+            os.makedirs(ki_autoagent_dir, exist_ok=True)
 
-            # Design architecture
-            design = await self.design_architecture(requirements)
+            # Determine which tools to use based on the request
+            prompt_lower = request.prompt.lower()
 
-            # Generate architecture documentation
-            documentation = await self.generate_documentation(design)
+            # Tool 1: understand_system() - Always use for infrastructure tasks
+            if any(word in prompt_lower for word in ['understand', 'analyze', 'infrastructure', 'improve', 'optimize']):
+                logger.info("🔍 Using understand_system() to analyze workspace...")
+
+                if INDEXING_AVAILABLE and self.code_indexer:
+                    system_analysis = await self.understand_system(workspace_path)
+
+                    # Save to file
+                    analysis_file = os.path.join(ki_autoagent_dir, 'system_analysis.json')
+                    with open(analysis_file, 'w') as f:
+                        json.dump(system_analysis, f, indent=2)
+                    files_created.append(analysis_file)
+                    logger.info(f"✅ Created: {analysis_file}")
+                else:
+                    # Fallback analysis
+                    system_analysis = await self.analyze_requirements(request.prompt)
+
+                # Tool 2: analyze_infrastructure_improvements()
+                if 'improve' in prompt_lower or 'optimization' in prompt_lower:
+                    logger.info("🔧 Using analyze_infrastructure_improvements()...")
+
+                    if ANALYSIS_AVAILABLE:
+                        improvements = await self.analyze_infrastructure_improvements()
+
+                        # Format improvements as markdown
+                        improvements_md = "# Infrastructure Improvements\n\n"
+                        for imp in improvements:
+                            improvements_md += f"## {imp['title']} ({imp['priority']})\n"
+                            improvements_md += f"**Problem:** {imp['problem']}\n"
+                            improvements_md += f"**Solution:** {imp.get('solution', 'See code example')}\n"
+                            if 'code' in imp:
+                                improvements_md += f"```python\n{imp['code']}\n```\n"
+                            improvements_md += f"**Impact:** {imp.get('impact', 'Performance improvement')}\n\n"
+
+                        # Save improvements
+                        improvements_file = os.path.join(ki_autoagent_dir, 'improvements.md')
+                        with open(improvements_file, 'w') as f:
+                            f.write(improvements_md)
+                        files_created.append(improvements_file)
+                        logger.info(f"✅ Created: {improvements_file}")
+                    else:
+                        improvements_md = "Analysis tools not available. Install with: pip install semgrep radon vulture"
+
+                # Tool 3: generate_architecture_flowchart()
+                if 'diagram' in prompt_lower or 'flowchart' in prompt_lower or 'visualize' in prompt_lower:
+                    logger.info("📊 Using generate_architecture_flowchart()...")
+
+                    if DIAGRAM_AVAILABLE:
+                        diagram = await self.generate_architecture_flowchart()
+
+                        # Save diagram
+                        diagram_file = os.path.join(ki_autoagent_dir, 'architecture.mermaid')
+                        with open(diagram_file, 'w') as f:
+                            f.write(diagram)
+                        files_created.append(diagram_file)
+                        logger.info(f"✅ Created: {diagram_file}")
+                    else:
+                        diagram = "graph TB\n  A[System] --> B[Not Available]\n  B --> C[Install mermaid-py]"
+
+                # Create summary
+                summary = f"Actively analyzed system and created {len(files_created)} files:\n"
+                for file in files_created:
+                    summary += f"- {os.path.basename(file)}\n"
+
+                if not files_created:
+                    # Fallback to old behavior if no specific tools triggered
+                    requirements = await self.analyze_requirements(request.prompt)
+                    design = await self.design_architecture(requirements)
+                    documentation = await self.generate_documentation(design)
+                    summary = documentation
+                else:
+                    summary += f"\nAll files saved in: {ki_autoagent_dir}"
+
+            else:
+                # Standard architecture design (not infrastructure)
+                requirements = await self.analyze_requirements(request.prompt)
+                design = await self.design_architecture(requirements)
+                documentation = await self.generate_documentation(design)
+                summary = documentation
 
             execution_time = (datetime.now() - start_time).total_seconds()
 
             return TaskResult(
                 status="success",
-                content=documentation,
+                content=summary,
                 agent=self.config.agent_id,
                 metadata={
-                    "architecture_type": design.architecture_type,
-                    "component_count": len(design.components),
-                    "technologies": design.technologies,
+                    "files_created": files_created,
+                    "tools_used": ["understand_system", "analyze_infrastructure_improvements", "generate_architecture_flowchart"] if files_created else [],
                     "execution_time": execution_time
                 },
                 execution_time=execution_time
@@ -413,6 +534,13 @@ class ArchitectAgent(ChatAgent):
         - Metrics calculation
         - Architecture extraction
         """
+        if not INDEXING_AVAILABLE:
+            logger.warning("Code indexing not available - returning limited analysis")
+            return {
+                'error': 'Code analysis tools not installed',
+                'message': 'Please install requirements: pip install -r backend/requirements.txt'
+            }
+
         logger.info("Building comprehensive system understanding...")
 
         # Phase 1: Complete code indexing

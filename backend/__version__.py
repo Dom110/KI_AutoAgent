@@ -1,11 +1,11 @@
 """
 KI AutoAgent Backend Version Information
 
-Version 4.0.0 - Cognitive Architecture: Self-Understanding AI System
+Version 4.0.4 - Active Agents with File Creation & Tool Usage
 """
 
-__version__ = "4.0.0"
-__version_info__ = (4, 0, 0)
+__version__ = "4.0.4"
+__version_info__ = (4, 0, 4)
 __release_date__ = "2025-09-22"
 __author__ = "KI AutoAgent Team"
 __description__ = "Cognitive AI Development Platform with Self-Understanding Capabilities"

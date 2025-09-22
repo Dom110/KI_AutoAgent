@@ -214,6 +214,7 @@ class BaseAgent(ABC):
     async def execute_with_memory(self, request: TaskRequest) -> TaskResult:
         """Execute task with memory enhancement and context integration"""
         start_time = datetime.now()
+        execution_time = 0  # Initialize to prevent UnboundLocalError
 
         # Search memory for similar tasks
         if self.memory_manager:
@@ -257,6 +258,10 @@ class BaseAgent(ABC):
 
         # Execute the task
         result = await self.execute(request)
+
+        # Calculate execution time IMMEDIATELY after execution
+        execution_time = (datetime.now() - start_time).total_seconds()
+        result.execution_time = execution_time
 
         # Store in memory
         if self.memory_manager:
@@ -309,10 +314,6 @@ class BaseAgent(ABC):
                 },
                 metadata={"execution_time": execution_time}
             )
-
-        # Calculate execution time
-        execution_time = (datetime.now() - start_time).total_seconds()
-        result.execution_time = execution_time
 
         # Update tracking
         self.execution_count += 1

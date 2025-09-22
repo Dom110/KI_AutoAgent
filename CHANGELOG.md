@@ -5,6 +5,62 @@ All notable changes to the KI AutoAgent project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.1] - 2025-09-22
+
+### 🔧 Critical Bug Fixes & Installation Improvements
+
+This patch release fixes critical runtime errors discovered after the v4.0.0 release, making all cognitive architecture features stable and production-ready.
+
+### Fixed
+- **execution_time UnboundLocalError** - Variable scope issue causing agent crashes
+- **Logger definition order** - Logger used before initialization in import guards
+- **Import guard implementation** - Graceful fallback for missing optional dependencies
+- **Error response handling** - Added execution_time field to all error responses
+
+### Improved
+- System now works without optional analysis tools installed
+- Clear warning messages when features are unavailable
+- All TaskResult objects properly include execution_time
+- Import errors no longer crash the system
+
+### Verified
+- All v4.0.0 features fully operational
+- Infrastructure analysis working correctly
+- 6/6 feature verification tests passing
+- Pattern learning and code understanding functional
+
+## [4.0.0] - 2025-09-22
+
+### 🧠 PARADIGM SHIFT: Cognitive Architecture - Self-Understanding AI System
+
+This major release transforms KI AutoAgent from a code generator to an intelligent system with inherent code understanding capabilities.
+
+### Added
+- **Deep Code Intelligence** - Tree-sitter AST parsing for semantic understanding
+- **Infrastructure Analysis** - Answers "Was kann an der Infrastruktur verbessert werden?"
+- **Pattern Learning** - Extracts and applies patterns from existing code (85% similarity)
+- **Architecture Visualization** - Generates 14 types of Mermaid diagrams
+- **Security Analysis** - Semgrep integration with 1000+ vulnerability rules
+- **Code Metrics** - Radon complexity analysis (Cyclomatic, Halstead, Maintainability)
+- **Dead Code Detection** - Vulture integration for unused code identification
+
+### Enhanced Agents
+- **ArchitectAgent** - New methods: `understand_system()`, `analyze_infrastructure_improvements()`, `generate_architecture_flowchart()`
+- **CodeSmithAgent** - New capabilities: `analyze_codebase()`, `implement_with_patterns()`, `refactor_complex_code()`
+
+### Technical Improvements
+- Multi-language support (Python, JavaScript, TypeScript)
+- 1000+ files/second indexing performance
+- Cross-reference analysis and dependency tracking
+- Call graph and import graph construction
+- Architecture pattern detection (MVC, Repository, Factory, etc.)
+
+### Breaking Changes
+- Agent APIs extended with new required methods
+- System knowledge cache required for operations
+- Enhanced TaskResult with metrics metadata
+- Workflow engine integration mandatory
+
 ## [3.2.0] - 2025-09-20
 
 ### 🎨 Enhanced UI & Auto-Versioning

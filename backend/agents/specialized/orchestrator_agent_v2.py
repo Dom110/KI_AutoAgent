@@ -239,12 +239,19 @@ I'm here to make your development process faster, smarter, and more efficient. H
         """
         Use AI to decompose task into subtasks
         """
+        # Check if this is an infrastructure improvement task
+        if any(word in prompt.lower() for word in ['infrastructure', 'caching', 'optimize', 'improve', 'architecture', 'performance']):
+            return await self._create_infrastructure_workflow(prompt)
+
         system_prompt = """You are an expert task decomposer. Analyze the given task and break it down into subtasks.
 
 Available agents and their specialties:
 - architect: System design, architecture patterns, UI/UX design, component architecture, VSCode extension design
+  TOOLS: understand_system(), analyze_infrastructure_improvements(), generate_architecture_flowchart()
 - codesmith: Code implementation, CSS/HTML/TypeScript, UI components, button styling, VSCode API integration
+  TOOLS: Creates actual files, config, docker-compose, implementation code
 - research: Web research, finding best practices, UI/UX trends, design patterns, VSCode extension examples
+  TOOLS: Web search for state-of-the-art solutions
 - reviewer: Code review, security analysis, quality checks, accessibility testing
 - docubot: Documentation, explanations, tutorials, API documentation
 - fixer: Bug fixing, optimization, performance improvements, CSS fixes
@@ -333,6 +340,72 @@ Guidelines:
             logger.error(error_msg)
             raise Exception(error_msg)
 
+    async def _create_infrastructure_workflow(self, prompt: str) -> TaskDecomposition:
+        """
+        Create active workflow for infrastructure improvements
+        """
+        # Get workspace path from context if available
+        import os
+        workspace_path = os.getenv('VSCODE_WORKSPACE', os.getcwd())
+
+        return TaskDecomposition(
+            main_goal=f"Actively improve system infrastructure: {prompt}",
+            complexity="complex",
+            execution_mode="parallel",
+            subtasks=[
+                SubTask(
+                    id="analyze_system",
+                    description="Use understand_system() to analyze the workspace and create system_analysis.json in .ki_autoagent/ folder",
+                    agent="architect",
+                    priority=1,
+                    dependencies=[],
+                    expected_output="Complete system analysis saved to .ki_autoagent/system_analysis.json"
+                ),
+                SubTask(
+                    id="research_best_practices",
+                    description="Search web for latest caching strategies, performance optimization libraries, and best practices for the detected technology stack",
+                    agent="research",
+                    priority=2,
+                    dependencies=[],
+                    expected_output="State-of-the-art research findings saved to .ki_autoagent/research_results.md"
+                ),
+                SubTask(
+                    id="analyze_improvements",
+                    description="Use analyze_infrastructure_improvements() to identify specific issues and create detailed improvement recommendations",
+                    agent="architect",
+                    priority=3,
+                    dependencies=["analyze_system"],
+                    expected_output="Detailed improvements document saved to .ki_autoagent/improvements.md"
+                ),
+                SubTask(
+                    id="create_diagrams",
+                    description="Use generate_architecture_flowchart() to visualize current architecture and proposed improvements",
+                    agent="architect",
+                    priority=4,
+                    dependencies=["analyze_improvements"],
+                    expected_output="Architecture diagrams saved to .ki_autoagent/architecture_current.mermaid and architecture_improved.mermaid"
+                ),
+                SubTask(
+                    id="implement_caching",
+                    description="Create redis.config, docker-compose.yml, and cache_manager.py implementation based on the analysis",
+                    agent="codesmith",
+                    priority=5,
+                    dependencies=["analyze_improvements", "research_best_practices"],
+                    expected_output="Created redis.config, docker-compose.yml, and backend/core/cache_manager.py"
+                ),
+                SubTask(
+                    id="create_tests",
+                    description="Create comprehensive test files for the new caching infrastructure",
+                    agent="codesmith",
+                    priority=6,
+                    dependencies=["implement_caching"],
+                    expected_output="Test files created in backend/tests/test_cache_manager.py"
+                )
+            ],
+            estimated_duration=300.0,
+            summary="Active infrastructure improvement with file creation and implementation"
+        )
+
     async def _execute_workflow(self, decomposition: TaskDecomposition) -> Dict[str, Any]:
         """
         Execute the workflow with real agent dispatching
@@ -380,17 +453,27 @@ Guidelines:
                     context={"expected_output": subtask.expected_output}
                 )
 
-                # Timeout after 5 seconds
+                # Dynamic timeout based on task complexity
+                # Infrastructure analysis and complex tasks need more time
+                timeout = 120.0  # Default 2 minutes for complex tasks
+
+                # For simple queries, use shorter timeout
+                if any(word in request.prompt.lower() for word in ['list', 'what', 'which', 'show']):
+                    timeout = 30.0
+                # For infrastructure analysis or complex tasks, use longer timeout
+                elif any(word in request.prompt.lower() for word in ['infrastructure', 'analyze', 'improve', 'architecture', 'optimize', 'refactor']):
+                    timeout = 180.0  # 3 minutes for infrastructure analysis
+
                 result = await asyncio.wait_for(
                     self.agent_registry.dispatch_task(subtask.agent, request),
-                    timeout=5.0
+                    timeout=timeout
                 )
 
                 if result.content and "Error" not in result.content:
                     return result.content
 
             except asyncio.TimeoutError:
-                error_msg = f"Agent {subtask.agent} timed out after 5 seconds. Check if the agent is properly configured and has valid API keys."
+                error_msg = f"Agent {subtask.agent} timed out after {timeout} seconds. This might be a complex task - please try again or break it into smaller tasks."
                 logger.error(error_msg)
                 raise Exception(error_msg)
             except Exception as e:
