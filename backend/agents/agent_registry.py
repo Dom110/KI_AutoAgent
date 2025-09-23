@@ -24,6 +24,7 @@ class AgentType(Enum):
     DOCUBOT = "docubot"
     TRADESTRAT = "tradestrat"
     FIXER = "fixer"
+    PERFORMANCE = "performance_bot"
 
 @dataclass
 class RegisteredAgent:

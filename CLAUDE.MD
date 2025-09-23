@@ -541,6 +541,34 @@ PATCH Version (X.Y.Z):
 │   │   ├── Fixed context merging in subtask creation
 │   │   └── Maintained backward compatibility
 │   └── 🎯 IMPACT: Progress messages from all agents now visible in chat UI
+├── v4.0.18 (23.9.2025) - PERFORMANCEBOT AGENT & PORT AUTO-DETECTION
+│   ├── ⚡ NEW PERFORMANCEBOT AGENT
+│   │   ├── Complete performance profiling and optimization specialist
+│   │   ├── Code profiling (CPU, Memory, I/O) with cProfile integration
+│   │   ├── Bottleneck detection with severity classification
+│   │   ├── Big-O complexity analysis and estimation
+│   │   ├── Benchmark comparisons between implementations
+│   │   ├── External package structure analysis
+│   │   ├── AI-powered optimization suggestions
+│   │   └── Uses GPT-4o model with specialized performance focus
+│   ├── 🔧 PORT AUTO-DETECTION
+│   │   ├── Server automatically finds available port (8000-8010)
+│   │   ├── No more "Address already in use" errors
+│   │   ├── Smart port scanning with SO_REUSEADDR
+│   │   ├── Graceful fallback to next available port
+│   │   └── Clear logging of selected port
+│   ├── 🐛 BUG FIXES
+│   │   ├── Fixed PerformanceBot missing _process_agent_request method
+│   │   ├── Fixed AgentCapability.DEBUGGING to use BUG_FIXING
+│   │   ├── Fixed TaskResult signature mismatch (removed agent_id)
+│   │   ├── Added PerformanceBot to AgentType enum
+│   │   └── Disabled reload mode to prevent port conflicts
+│   ├── 📊 SYSTEM STATUS
+│   │   ├── Total agents: 10 (added PerformanceBot)
+│   │   ├── Backend runs reliably on port 8001
+│   │   ├── All agents properly registered
+│   │   └── WebSocket communication fully functional
+│   └── 🎯 IMPACT: Complete performance analysis capability added to system
 ├── v4.0.17 (23.9.2025) - TYPESCRIPT FIX & SYSTEM COMPLETION
 │   ├── 🔧 TYPESCRIPT ERROR FIX
 │   │   ├── Fixed 'data is of type unknown' errors in MultiAgentChatPanel.ts

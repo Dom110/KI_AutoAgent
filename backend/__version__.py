@@ -1,11 +1,11 @@
 """
 KI AutoAgent Backend Version Information
 
-Version 4.0.17 - Mandatory Research Integration & Performance Enhancements
+Version 4.0.18 - PerformanceBot Agent & Port Auto-Detection
 """
 
-__version__ = "4.0.17"
-__version_info__ = (4, 0, 17)
+__version__ = "4.0.18"
+__version_info__ = (4, 0, 18)
 __release_date__ = "2025-09-23"
 __author__ = "KI AutoAgent Team"
 __description__ = "Cognitive AI Development Platform with Self-Understanding Capabilities"

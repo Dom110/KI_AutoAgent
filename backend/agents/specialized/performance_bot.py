@@ -86,7 +86,6 @@ class PerformanceBot(ChatAgent):
             execution_time = (datetime.now() - start_time).total_seconds()
 
             return TaskResult(
-                agent_id=self.config.agent_id,
                 agent=self.name,
                 content=result,
                 status="success",
@@ -97,7 +96,6 @@ class PerformanceBot(ChatAgent):
             logger.error(f"Performance analysis failed: {e}")
             execution_time = (datetime.now() - start_time).total_seconds()
             return TaskResult(
-                agent_id=self.config.agent_id,
                 agent=self.name,
                 content=f"Performance analysis failed: {str(e)}",
                 status="error",
