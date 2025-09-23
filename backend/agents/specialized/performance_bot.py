@@ -54,7 +54,7 @@ class PerformanceBot(ChatAgent):
             model="gpt-4o-2024-11-20",
             capabilities=[
                 AgentCapability.CODE_REVIEW,
-                AgentCapability.DEBUGGING
+                AgentCapability.BUG_FIXING
             ],
             temperature=0.3,
             max_tokens=4000,
@@ -478,6 +478,23 @@ class PerformanceBot(ChatAgent):
         results.append(f" with {analysis['file_count']} files and {analysis['total_lines']:,} lines of code.")
 
         return "\n".join(results)
+
+    async def _process_agent_request(self, prompt: str, context: Dict[str, Any]) -> str:
+        """
+        Process agent request - implementation of abstract method from ChatAgent
+        Routes performance-related requests to appropriate handler
+        """
+        # Create a TaskRequest object for internal routing
+        request = TaskRequest(
+            task_id=f"perf_{datetime.now().timestamp()}",
+            agent_id=self.config.agent_id,
+            prompt=prompt,
+            context=context or {}
+        )
+
+        # Use the execute method to handle the request
+        result = await self.execute(request)
+        return result.content if isinstance(result.content, str) else str(result.content)
 
     async def provide_performance_advice(self, request: TaskRequest) -> str:
         """Provide general performance optimization advice"""

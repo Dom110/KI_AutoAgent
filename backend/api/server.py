@@ -619,11 +619,34 @@ async def general_exception_handler(request, exc):
     return {"error": "Internal server error", "detail": str(exc)}
 
 if __name__ == "__main__":
+    # Try to find an available port
+    import socket
+
+    port = 8000
+    max_port = 8010
+
+    while port <= max_port:
+        try:
+            # Test if port is available
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) if hasattr(socket, 'SO_REUSEPORT') else None
+            sock.bind(('', port))
+            sock.close()
+            logger.info(f"🚀 Starting server on port {port}")
+            break
+        except OSError:
+            logger.warning(f"Port {port} is in use, trying next port...")
+            port += 1
+    else:
+        logger.error(f"No available ports found between 8000 and {max_port}")
+        exit(1)
+
     # Run the server
     uvicorn.run(
         "server:app",
         host="0.0.0.0",
-        port=8000,
-        reload=True,
+        port=port,
+        reload=False,  # Disable reload to avoid port conflicts
         log_level="info"
     )
