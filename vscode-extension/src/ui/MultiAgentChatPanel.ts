@@ -20,6 +20,7 @@ export class MultiAgentChatPanel {
     private _thinkingIntensity: 'quick' | 'normal' | 'deep' | 'layered' = 'normal';
     private _isProcessing: boolean = false;
     private _conversationHistory: any[] = [];
+    private _streamBuffer: Map<string, string> = new Map();
 
     public static createOrShow(
         extensionUri: vscode.Uri,
@@ -94,6 +95,9 @@ export class MultiAgentChatPanel {
                     case 'showHistory':
                         await this.handleShowHistory();
                         break;
+                    case 'loadHistory':
+                        await this.handleLoadHistory(message);
+                        break;
                 }
             },
             null,
@@ -113,9 +117,13 @@ export class MultiAgentChatPanel {
             // Reset processing flag when we get a response
             this._isProcessing = false;
 
+            // Clear stream buffer for this agent
+            const agent = message.agent || 'orchestrator';
+            this._streamBuffer.delete(agent);
+
             this.sendMessage({
                 type: 'agentResponse',
-                agent: message.agent,
+                agent: agent,
                 content: message.content,
                 timestamp: message.timestamp
             });
@@ -125,7 +133,7 @@ export class MultiAgentChatPanel {
                 this._conversationHistory.push({
                     role: 'assistant',
                     content: message.content,
-                    agent: message.agent || 'orchestrator',
+                    agent: agent,
                     timestamp: new Date().toISOString()
                 });
             }
@@ -136,6 +144,29 @@ export class MultiAgentChatPanel {
                 type: 'agentThinking',
                 agent: message.agent,
                 content: message.content
+            });
+        });
+
+        this.backendClient.on('progress', (message: BackendMessage) => {
+            // Handle streaming chunks
+            const agent = message.agent || 'orchestrator';
+
+            // Accumulate chunks in buffer
+            if (!this._streamBuffer.has(agent)) {
+                this._streamBuffer.set(agent, '');
+            }
+
+            if (message.content) {
+                const current = this._streamBuffer.get(agent) || '';
+                this._streamBuffer.set(agent, current + message.content);
+            }
+
+            // Send progress update to UI
+            this.sendMessage({
+                type: 'progress',
+                agent: agent,
+                content: this._streamBuffer.get(agent),
+                isStreaming: true
             });
         });
 
@@ -227,6 +258,59 @@ export class MultiAgentChatPanel {
 
         // For now, just show count - full history implementation can be added later
         vscode.window.showInformationMessage(`Conversation has ${this._conversationHistory.length} messages`);
+    }
+
+    private async handleLoadHistory(message: any) {
+        // Get project path
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const projectPath = workspaceFolders ? workspaceFolders[0].uri.fsPath : undefined;
+
+        if (!projectPath) {
+            console.log('No workspace folder found, skipping history load');
+            return;
+        }
+
+        try {
+            // Request history from backend
+            const response = await fetch(`http://localhost:8000/api/conversation/history?limit=${message.limit || 20}&project_path=${encodeURIComponent(projectPath)}`);
+
+            if (response.ok) {
+                // Type the response data properly
+                interface HistoryResponse {
+                    history: Array<{
+                        role: string;
+                        content: string;
+                        agent?: string;
+                        timestamp?: string;
+                    }>;
+                    source: string;
+                    project?: string;
+                }
+
+                const data = await response.json() as HistoryResponse;
+
+                if (data.history && data.history.length > 0) {
+                    console.log(`Loaded ${data.history.length} messages from ${data.source} storage`);
+
+                    // Display history in chat
+                    for (const msg of data.history) {
+                        const isUser = msg.role === 'user';
+                        this.sendMessage({
+                            type: 'historyMessage',
+                            content: msg.content,
+                            agent: msg.agent || 'unknown',
+                            isUser: isUser,
+                            timestamp: msg.timestamp
+                        });
+                    }
+
+                    // Store in memory
+                    this._conversationHistory = data.history;
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load conversation history:', error);
+        }
     }
 
     private sendMessage(message: any) {
@@ -418,6 +502,81 @@ export class MultiAgentChatPanel {
                     opacity: 0.5;
                     cursor: not-allowed;
                 }
+
+                /* Markdown Styles */
+                .message h1, .message h2, .message h3 {
+                    margin-top: 10px;
+                    margin-bottom: 5px;
+                    font-weight: bold;
+                }
+
+                .message h1 {
+                    font-size: 1.5em;
+                    color: var(--vscode-textLink-foreground);
+                }
+
+                .message h2 {
+                    font-size: 1.3em;
+                    color: var(--vscode-textLink-activeForeground);
+                }
+
+                .message h3 {
+                    font-size: 1.1em;
+                }
+
+                .message code {
+                    background: var(--vscode-textCodeBlock-background);
+                    color: var(--vscode-textPreformat-foreground);
+                    padding: 2px 4px;
+                    border-radius: 3px;
+                    font-family: var(--vscode-editor-font-family);
+                    font-size: 0.9em;
+                }
+
+                .message pre {
+                    background: var(--vscode-textCodeBlock-background);
+                    color: var(--vscode-textPreformat-foreground);
+                    padding: 10px;
+                    border-radius: 5px;
+                    overflow-x: auto;
+                    margin: 10px 0;
+                }
+
+                .message pre code {
+                    background: transparent;
+                    padding: 0;
+                }
+
+                .message ul, .message ol {
+                    margin: 5px 0;
+                    padding-left: 20px;
+                }
+
+                .message li {
+                    margin: 3px 0;
+                }
+
+                .message strong {
+                    font-weight: bold;
+                    color: var(--vscode-textLink-foreground);
+                }
+
+                .message em {
+                    font-style: italic;
+                    color: var(--vscode-descriptionForeground);
+                }
+
+                .message p {
+                    margin: 8px 0;
+                    line-height: 1.5;
+                }
+
+                .message blockquote {
+                    border-left: 3px solid var(--vscode-textBlockQuote-border);
+                    padding-left: 10px;
+                    margin: 10px 0;
+                    color: var(--vscode-textBlockQuote-color);
+                }
             </style>
         </head>
         <body>
@@ -495,6 +654,15 @@ export class MultiAgentChatPanel {
                 let selectedAgent = 'orchestrator';
                 let thinkingMode = false;
                 let isProcessing = false;
+
+                // Load conversation history on startup
+                setTimeout(() => {
+                    console.log('Loading conversation history...');
+                    vscode.postMessage({
+                        type: 'loadHistory',
+                        limit: 20
+                    });
+                }, 500); // Small delay to ensure webview is ready
 
                 // Agent selection
                 agentOptions.forEach(option => {
@@ -593,6 +761,15 @@ export class MultiAgentChatPanel {
                             addMessage(message.content, 'user');
                             break;
 
+                        case 'historyMessage':
+                            // Display history message from persistent storage
+                            if (message.isUser) {
+                                addMessage(message.content, 'user');
+                            } else {
+                                addMessage(message.content, 'assistant', message.agent);
+                            }
+                            break;
+
                         case 'agentThinking':
                             isProcessing = true;
                             addThinkingMessage(message.agent, message.content);
@@ -669,7 +846,7 @@ export class MultiAgentChatPanel {
                     messageDiv.appendChild(badge);
 
                     const contentDiv = document.createElement('div');
-                    contentDiv.textContent = content || 'Thinking...';
+                    contentDiv.innerHTML = formatContent(content || 'Thinking...');
                     messageDiv.appendChild(contentDiv);
 
                     messagesDiv.appendChild(messageDiv);
@@ -684,10 +861,10 @@ export class MultiAgentChatPanel {
                 }
 
                 function formatContent(content) {
-                    // Escape HTML to prevent XSS
+                    // Enhanced markdown and formatting support
                     if (!content) return '';
 
-                    // Simple HTML escaping without regex issues
+                    // First escape HTML for security
                     const escapeMap = {
                         '&': '&amp;',
                         '<': '&lt;',
@@ -702,8 +879,49 @@ export class MultiAgentChatPanel {
                         escaped += escapeMap[char] || char;
                     }
 
-                    // Simple line break handling
+                    // Convert markdown-style formatting
+                    // Headers
+                    escaped = escaped.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+                    escaped = escaped.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+                    escaped = escaped.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+                    // Bold and Italic
+                    escaped = escaped.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
+                    escaped = escaped.replace(/\\*(.+?)\\*/g, '<em>$1</em>');
+
+                    // Code blocks - match triple backticks
+                    const codeBlockStart = escaped.indexOf('&lt;code&gt;&lt;code&gt;&lt;code&gt;');
+                    if (codeBlockStart !== -1) {
+                        const codeBlockEnd = escaped.indexOf('&lt;code&gt;&lt;code&gt;&lt;code&gt;', codeBlockStart + 1);
+                        if (codeBlockEnd !== -1) {
+                            const before = escaped.substring(0, codeBlockStart);
+                            const code = escaped.substring(codeBlockStart + 39, codeBlockEnd);
+                            const after = escaped.substring(codeBlockEnd + 39);
+                            escaped = before + '&lt;pre&gt;&lt;code&gt;' + code + '&lt;/code&gt;&lt;/pre&gt;' + after;
+                        }
+                    }
+
+                    // Inline code - match single backticks
+                    escaped = escaped.replace(/&lt;code&gt;([^&]+)&lt;code&gt;/g, '&lt;code&gt;$1&lt;/code&gt;');
+
+                    // Lists
+                    escaped = escaped.replace(/^\\* (.+)$/gm, '<li>$1</li>');
+                    escaped = escaped.replace(/^- (.+)$/gm, '<li>$1</li>');
+                    escaped = escaped.replace(/^\\d+\\. (.+)$/gm, '<li>$1</li>');
+
+                    // Wrap consecutive li elements in ul
+                    escaped = escaped.replace(/(<li>.+<\\/li>\\s*)+/g, function(match) {
+                        return '<ul>' + match + '</ul>';
+                    });
+
+                    // Line breaks
+                    escaped = escaped.split('\\n\\n').join('</p><p>');
                     escaped = escaped.split('\\n').join('<br>');
+
+                    // Wrap in paragraph if not already wrapped
+                    if (!escaped.startsWith('<')) {
+                        escaped = '<p>' + escaped + '</p>';
+                    }
 
                     return escaped;
                 }

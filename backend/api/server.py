@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 import asyncio
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Set
 from datetime import datetime
 import uvicorn
 import sys
@@ -21,6 +21,16 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import agents and services
 from agents.agent_registry import get_agent_registry
 from agents.base.base_agent import TaskRequest
+from core.cancellation import CancelToken, TaskCancelledException
+
+# Import persistence services
+try:
+    from services.conversation_persistence import ConversationPersistence
+    PERSISTENCE_AVAILABLE = True
+except ImportError:
+    logger.warning("Conversation persistence not available")
+    PERSISTENCE_AVAILABLE = False
+    ConversationPersistence = None
 
 # Import core systems
 from core.memory_manager import get_memory_manager, MemoryType
@@ -38,6 +48,7 @@ from agents.specialized.fixerbot_agent import FixerBotAgent
 from agents.specialized.research_agent import ResearchAgent
 from agents.specialized.tradestrat_agent import TradeStratAgent
 from agents.specialized.opus_arbitrator_agent import OpusArbitratorAgent
+from agents.specialized.performance_bot import PerformanceBot
 
 # Configure logging
 logging.basicConfig(
@@ -78,6 +89,7 @@ async def lifespan(app: FastAPI):
     await registry.register_agent(ResearchAgent())
     await registry.register_agent(TradeStratAgent())
     await registry.register_agent(OpusArbitratorAgent())
+    await registry.register_agent(PerformanceBot())
 
     logger.info(f"✅ Registered {len(registry.agents)} agents")
 
@@ -141,6 +153,16 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# Initialize conversation persistence
+conversation_persistence = None
+if PERSISTENCE_AVAILABLE:
+    conversation_persistence = ConversationPersistence()
+    logger.info("✅ Conversation persistence initialized")
+
+# Task tracking for cancellation
+active_agent_tasks: Dict[str, Set[asyncio.Task]] = {}
+client_cancel_tokens: Dict[str, CancelToken] = {}
+
 # Health check endpoint
 @app.get("/")
 async def health_check():
@@ -182,8 +204,22 @@ async def get_shared_context_data():
     return context.get_context()
 
 @app.get("/api/conversation/history")
-async def get_conversation_history(limit: int = 20):
-    """Get recent conversation history"""
+async def get_conversation_history(limit: int = 20, project_path: str = None):
+    """Get recent conversation history - from persistent storage if available"""
+
+    # Try to get from persistent storage first
+    if conversation_persistence and project_path:
+        try:
+            history = await conversation_persistence.load_history(project_path, limit)
+            return {
+                "history": history,
+                "source": "persistent",
+                "project": project_path
+            }
+        except Exception as e:
+            logger.error(f"Failed to load persistent history: {e}")
+
+    # Fallback to in-memory history
     conversation = get_conversation_context()
     history = conversation.get_recent_history(limit)
     return {
@@ -196,7 +232,8 @@ async def get_conversation_history(limit: int = 20):
             }
             for h in history
         ],
-        "summary": conversation.get_conversation_summary()
+        "summary": conversation.get_conversation_summary(),
+        "source": "memory"
     }
 
 @app.get("/api/workflow/stats")
@@ -350,6 +387,23 @@ async def websocket_chat(websocket: WebSocket):
                 await handle_command(client_id, data)
             elif message_type == "workflow":
                 await handle_workflow(client_id, data)
+            elif message_type == "stop":
+                # Cancel all running tasks for this client
+                if client_id in active_agent_tasks:
+                    for task in active_agent_tasks[client_id]:
+                        if not task.done():
+                            task.cancel()
+                    active_agent_tasks.pop(client_id, None)
+
+                # Clear cancel token
+                if client_id in client_cancel_tokens:
+                    await client_cancel_tokens[client_id].cancel()
+
+                await manager.send_json(client_id, {
+                    "type": "stopped",
+                    "message": "All tasks cancelled successfully"
+                })
+                logger.info(f"⏹️ Stopped all tasks for client {client_id}")
             elif message_type == "ping":
                 await manager.send_json(client_id, {"type": "pong"})
             else:
@@ -370,6 +424,18 @@ async def handle_chat_message(client_id: str, data: dict):
     agent_id = data.get("agent", "orchestrator")
     metadata = data.get("metadata", {})
     stream = data.get("stream", False)
+
+    # Get project path for persistence
+    project_path = metadata.get('project_path', os.getcwd())
+
+    # Save user message to persistent history
+    if conversation_persistence:
+        await conversation_persistence.save_message(project_path, {
+            'role': 'user',
+            'content': content,
+            'agent': agent_id,
+            'metadata': metadata
+        })
 
     # Get context managers
     conversation = get_conversation_context()
@@ -410,8 +476,26 @@ async def handle_chat_message(client_id: str, data: dict):
             # Stream response in chunks
             await handle_streaming_response(client_id, agent_id, request, registry)
         else:
-            # Normal response
-            result = await registry.dispatch_task(agent_id, request)
+            # Normal response with cancellation support
+            cancel_token = CancelToken()
+            client_cancel_tokens[client_id] = cancel_token
+
+            # Create task with tracking
+            task = asyncio.create_task(
+                registry.dispatch_task(agent_id, request, cancel_token)
+            )
+
+            # Track task
+            if client_id not in active_agent_tasks:
+                active_agent_tasks[client_id] = set()
+            active_agent_tasks[client_id].add(task)
+
+            try:
+                result = await task
+            finally:
+                # Clean up task tracking
+                if client_id in active_agent_tasks:
+                    active_agent_tasks[client_id].discard(task)
 
             # Store in memory and conversation
             await memory.store(
@@ -440,6 +524,15 @@ async def handle_chat_message(client_id: str, data: dict):
 
             # Debug log the result
             logger.info(f"📊 Agent result - Status: {result.status}, Content length: {len(result.content) if result.content else 0}")
+
+            # Save agent response to persistent history
+            if conversation_persistence and result.content:
+                await conversation_persistence.save_message(project_path, {
+                    'role': 'assistant',
+                    'content': result.content,
+                    'agent': agent_id,
+                    'metadata': result.metadata
+                })
 
             # Send response
             await manager.send_json(client_id, {

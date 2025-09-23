@@ -24,6 +24,19 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+# Import new caching and search services
+try:
+    from services.project_cache import ProjectCache
+    from services.smart_file_watcher import SmartFileWatcher
+    from services.code_search import LightweightCodeSearch
+    CACHE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Cache services not available: {e}")
+    CACHE_AVAILABLE = False
+    ProjectCache = None
+    SmartFileWatcher = None
+    LightweightCodeSearch = None
+
 # Try to import new analysis tools with graceful fallback
 try:
     from core.indexing.tree_sitter_indexer import TreeSitterIndexer
@@ -97,6 +110,29 @@ class ArchitectAgent(ChatAgent):
         # Initialize OpenAI service
         self.openai = OpenAIService()
 
+        # Initialize cache and search services
+        self.project_cache = None
+        self.file_watcher = None
+        self.code_search = None
+
+        if CACHE_AVAILABLE:
+            # Get project path from environment or use current directory
+            project_path = os.getenv('PROJECT_PATH', os.getcwd())
+
+            # Initialize permanent Redis cache
+            self.project_cache = ProjectCache(project_path)
+
+            # Initialize SQLite search
+            self.code_search = LightweightCodeSearch(project_path)
+
+            # Initialize SMART file watcher with debouncing
+            self.file_watcher = SmartFileWatcher(project_path, self.project_cache, debounce_seconds=30)
+            self.file_watcher.start()
+
+            logger.info("✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce")
+        else:
+            logger.warning("Cache services not available - using in-memory fallback")
+
         # Initialize code analysis tools if available
         if INDEXING_AVAILABLE:
             self.tree_sitter = TreeSitterIndexer()
@@ -122,7 +158,7 @@ class ArchitectAgent(ChatAgent):
             self.diagram_service = None
             logger.warning("Diagram service not available - visualization features disabled")
 
-        # System knowledge cache
+        # System knowledge cache (fallback for when Redis not available)
         self.system_knowledge = None
         self.last_index_time = None
 
@@ -140,7 +176,25 @@ class ArchitectAgent(ChatAgent):
         files_created = []
 
         # Get client_id for progress updates
-        client_id = request.context.get('client_id')
+        # Ensure context is a dictionary - ROBUST handling
+        if not hasattr(request, 'context'):
+            request.context = {}
+        elif request.context is None:
+            request.context = {}
+        elif isinstance(request.context, str):
+            try:
+                # Try to parse as JSON if it's a string
+                request.context = json.loads(request.context)
+                logger.info(f"Successfully parsed context string as JSON")
+            except (json.JSONDecodeError, TypeError):
+                logger.warning(f"Could not parse context string, using empty dict")
+                request.context = {}
+        elif not isinstance(request.context, dict):
+            logger.warning(f"Context was {type(request.context)}, converting to dict")
+            request.context = {}
+
+        # Safe client_id extraction
+        client_id = request.context.get('client_id') if isinstance(request.context, dict) else None
 
         try:
             # Get workspace path
@@ -507,6 +561,56 @@ class ArchitectAgent(ChatAgent):
             }
         ]
 
+    async def invalidate_cache(self, cache_type: str = None):
+        """
+        Invalidate cache - either specific type or all
+
+        Args:
+            cache_type: Specific cache to invalidate ('code_index', 'security_analysis', etc.)
+                       If None, invalidates all caches
+        """
+        if not self.project_cache:
+            logger.info("No cache to invalidate (Redis not available)")
+            return
+
+        if cache_type:
+            await self.project_cache.invalidate(cache_type)
+            logger.info(f"♻️ Invalidated {cache_type} cache")
+        else:
+            # Invalidate all cache types
+            await self.project_cache.clear_all()
+            logger.info("♻️ Invalidated all caches")
+
+        # Clear in-memory cache as well
+        self.system_knowledge = None
+        self.last_index_time = None
+
+    async def refresh_analysis(self, client_id: str = None):
+        """
+        Force a complete refresh of system analysis
+        Invalidates cache and rebuilds from scratch
+        """
+        logger.info("🔄 Forcing complete system analysis refresh...")
+        await self._send_progress(client_id, "🔄 Refreshing system analysis...")
+
+        # Clear all caches
+        await self.invalidate_cache()
+
+        # Rebuild analysis
+        return await self.understand_system('.', client_id, 'full refresh')
+
+    def __del__(self):
+        """
+        Cleanup when agent is destroyed
+        """
+        try:
+            # Stop file watcher if running
+            if self.file_watcher:
+                self.file_watcher.stop()
+                logger.info("✅ File watcher stopped")
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+
     def _load_tech_stacks(self) -> Dict[str, List[str]]:
         """
         Load technology stack recommendations
@@ -540,6 +644,8 @@ class ArchitectAgent(ChatAgent):
         - Semantic code analysis
         - Metrics calculation
         - Architecture extraction
+
+        Now with PERMANENT Redis caching - no TTL!
         """
         if not INDEXING_AVAILABLE:
             logger.warning("Code indexing not available - returning limited analysis")
@@ -547,6 +653,15 @@ class ArchitectAgent(ChatAgent):
                 'error': 'Code analysis tools not installed',
                 'message': 'Please install requirements: pip install -r backend/requirements.txt'
             }
+
+        # Try to get from permanent cache first
+        if self.project_cache:
+            cached_knowledge = await self.project_cache.get('system_knowledge')
+            if cached_knowledge:
+                logger.info("✅ Using cached system knowledge from Redis (permanent cache)")
+                await self._send_progress(client_id, "📦 Using cached system analysis (permanent cache)")
+                self.system_knowledge = cached_knowledge
+                return cached_knowledge
 
         logger.info("Building comprehensive system understanding...")
         await self._send_progress(client_id, "🏗️ Building comprehensive system understanding...")
@@ -563,28 +678,67 @@ class ArchitectAgent(ChatAgent):
         async def progress_callback(msg: str):
             await self._send_progress(client_id, msg)
 
-        code_index = await self.code_indexer.build_full_index(root_path, progress_callback, request_type)
+        # Check if we have cached code index
+        code_index = None
+        if self.project_cache:
+            code_index = await self.project_cache.get('code_index')
+
+        if not code_index:
+            code_index = await self.code_indexer.build_full_index(root_path, progress_callback, request_type)
+            # Store in permanent cache
+            if self.project_cache:
+                await self.project_cache.set('code_index', code_index)
 
         # Phase 2: Security and quality analysis
         logger.info("Phase 2: Running security and quality analysis")
         await self._send_progress(client_id, "🔒 Phase 2: Running security and quality analysis...")
-        security_analysis = await self.semgrep.run_analysis(root_path)
-        dead_code = await self.vulture.find_dead_code(root_path)
-        metrics = await self.metrics.calculate_all_metrics(root_path)
+
+        # Check cache for each analysis
+        security_analysis = None
+        dead_code = None
+        metrics = None
+
+        if self.project_cache:
+            security_analysis = await self.project_cache.get('security_analysis')
+            dead_code = await self.project_cache.get('dead_code')
+            metrics = await self.project_cache.get('metrics')
+
+        if not security_analysis:
+            security_analysis = await self.semgrep.run_analysis(root_path)
+            if self.project_cache:
+                await self.project_cache.set('security_analysis', security_analysis)
+
+        if not dead_code:
+            dead_code = await self.vulture.find_dead_code(root_path)
+            if self.project_cache:
+                await self.project_cache.set('dead_code', dead_code)
+
+        if not metrics:
+            metrics = await self.metrics.calculate_all_metrics(root_path)
+            if self.project_cache:
+                await self.project_cache.set('metrics', metrics)
 
         # Phase 3: Generate visualizations
         logger.info("Phase 3: Generating architecture diagrams")
         await self._send_progress(client_id, "📊 Phase 3: Generating architecture diagrams...")
-        diagrams = {
-            'system_context': await self.diagram_service.generate_architecture_diagram(code_index, 'context'),
-            'container': await self.diagram_service.generate_architecture_diagram(code_index, 'container'),
-            'component': await self.diagram_service.generate_architecture_diagram(code_index, 'component'),
-            'dependency_graph': await self.diagram_service.generate_dependency_graph(
-                code_index.get('import_graph', {})
-            ),
-            'sequence': await self.diagram_service.generate_sequence_diagram({}),
-            'state': await self.diagram_service.generate_state_diagram({})
-        }
+
+        diagrams = None
+        if self.project_cache:
+            diagrams = await self.project_cache.get('diagrams')
+
+        if not diagrams:
+            diagrams = {
+                'system_context': await self.diagram_service.generate_architecture_diagram(code_index, 'context'),
+                'container': await self.diagram_service.generate_architecture_diagram(code_index, 'container'),
+                'component': await self.diagram_service.generate_architecture_diagram(code_index, 'component'),
+                'dependency_graph': await self.diagram_service.generate_dependency_graph(
+                    code_index.get('import_graph', {})
+                ),
+                'sequence': await self.diagram_service.generate_sequence_diagram({}),
+                'state': await self.diagram_service.generate_state_diagram({})
+            }
+            if self.project_cache:
+                await self.project_cache.set('diagrams', diagrams)
 
         # Store system knowledge
         self.system_knowledge = {
@@ -596,8 +750,48 @@ class ArchitectAgent(ChatAgent):
             'timestamp': datetime.now().isoformat()
         }
 
+        # Store complete knowledge in permanent cache
+        if self.project_cache:
+            await self.project_cache.set('system_knowledge', self.system_knowledge)
+            logger.info("✅ System knowledge stored in permanent Redis cache")
+
+        # Index functions for search
+        if self.code_search and code_index:
+            await self._index_functions_for_search(code_index)
+
         logger.info(f"System understanding complete: {len(code_index.get('ast', {}).get('files', {}))} files analyzed")
         return self.system_knowledge
+
+    async def _index_functions_for_search(self, code_index: Dict):
+        """
+        Index functions in SQLite search database for fast retrieval
+        """
+        if not self.code_search:
+            return
+
+        try:
+            # Extract functions from AST
+            ast_data = code_index.get('ast', {})
+            files_data = ast_data.get('files', {})
+
+            for file_path, file_info in files_data.items():
+                functions = file_info.get('functions', [])
+                for func in functions:
+                    func_data = {
+                        'file_path': file_path,
+                        'name': func.get('name'),
+                        'signature': func.get('signature', ''),
+                        'docstring': func.get('docstring', ''),
+                        'body': func.get('body', '')[:1000],  # Limit body size
+                        'return_type': func.get('return_type', ''),
+                        'parameters': func.get('parameters', []),
+                        'line_number': func.get('line_number', 0)
+                    }
+                    await self.code_search.index_function(func_data)
+
+            logger.info(f"✅ Indexed functions in SQLite search database")
+        except Exception as e:
+            logger.error(f"Failed to index functions for search: {e}")
 
     async def analyze_infrastructure_improvements(self) -> str:
         """

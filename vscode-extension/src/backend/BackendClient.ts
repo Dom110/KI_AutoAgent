@@ -8,11 +8,12 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 
 export interface BackendMessage {
-    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress';
+    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk';
     content?: string;
     agent?: string;
     metadata?: any;
     timestamp?: string;
+    done?: boolean;  // For stream_chunk messages
 }
 
 export interface ChatRequest {
@@ -201,6 +202,20 @@ export class BackendClient extends EventEmitter {
 
             case 'agent_response':
                 this.emit('response', message);
+                break;
+
+            case 'stream_chunk':
+                // Handle streaming responses
+                if (message.done) {
+                    // Final chunk - emit as complete response
+                    this.emit('response', {
+                        ...message,
+                        type: 'agent_response'
+                    });
+                } else {
+                    // Intermediate chunk - emit as progress
+                    this.emit('progress', message);
+                }
                 break;
 
             case 'error':

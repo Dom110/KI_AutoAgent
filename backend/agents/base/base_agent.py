@@ -22,6 +22,14 @@ except ImportError:
     CORE_SYSTEMS_AVAILABLE = False
     logging.warning("Core systems (Memory, Context) not available")
 
+# Import Prime Directives
+try:
+    from .prime_directives import PrimeDirectives
+    PRIME_DIRECTIVES_AVAILABLE = True
+except ImportError:
+    PRIME_DIRECTIVES_AVAILABLE = False
+    logging.warning("Prime Directives not available")
+
 # Setup logging
 logger = logging.getLogger(__name__)
 
@@ -110,6 +118,9 @@ class BaseAgent(ABC):
         self.execution_count = 0
         self.total_tokens_used = 0
         self.last_execution_time = None
+
+        # Cancellation support
+        self.cancel_token = None
 
         # Initialize core systems if available
         if CORE_SYSTEMS_AVAILABLE:
@@ -212,9 +223,59 @@ class BaseAgent(ABC):
         pass
 
     async def execute_with_memory(self, request: TaskRequest) -> TaskResult:
-        """Execute task with memory enhancement and context integration"""
+        """Execute task with memory enhancement, context integration, and PRIME DIRECTIVES"""
         start_time = datetime.now()
         execution_time = 0  # Initialize to prevent UnboundLocalError
+
+        # APPLY PRIME DIRECTIVES FIRST - These override everything
+        if PRIME_DIRECTIVES_AVAILABLE:
+            validation = PrimeDirectives.validate_request({
+                'prompt': request.prompt,
+                'context': request.context
+            })
+
+            # Handle research requirement (Directive 4)
+            if validation['status'] == 'needs_research':
+                logger.info(f"📚 Directive 4: Research required for topics: {validation.get('research_topics', [])}")
+
+                # Perform mandatory research
+                research_results = await self._perform_mandatory_research(
+                    request.prompt,
+                    validation.get('research_topics', []),
+                    validation.get('technologies_to_verify', [])
+                )
+
+                # Add research to context
+                if not request.context:
+                    request.context = {}
+                request.context['research_completed'] = True
+                request.context['research_results'] = research_results
+
+                # Log research completion
+                logger.info(f"✅ Research completed. Found {len(research_results.get('findings', []))} relevant findings")
+
+            elif validation['status'] == 'challenge':
+                # Return respectful challenge to user
+                challenge_response = PrimeDirectives.format_challenge_response(validation)
+                execution_time = (datetime.now() - start_time).total_seconds()
+                return TaskResult(
+                    agent_id=self.config.agent_id,
+                    agent=self.name,
+                    content=challenge_response,
+                    status='challenge',
+                    metadata={'directive_challenge': True, 'violations': validation.get('violations', [])},
+                    execution_time=execution_time
+                )
+
+        # Check for cancellation at start
+        if self.cancel_token and self.cancel_token.is_cancelled:
+            logger.info(f"Task cancelled for {self.name}")
+            return TaskResult(
+                agent=self.name,
+                content="Task was cancelled by user",
+                status="cancelled",
+                execution_time=0
+            )
 
         # Search memory for similar tasks
         if self.memory_manager:
@@ -256,8 +317,27 @@ class BaseAgent(ABC):
                 metadata={"timestamp": datetime.now().isoformat()}
             )
 
+        # Check cancellation before execution
+        if self.cancel_token and self.cancel_token.is_cancelled:
+            logger.info(f"Task cancelled for {self.name} before execution")
+            return TaskResult(
+                agent=self.name,
+                content="Task was cancelled by user",
+                status="cancelled",
+                execution_time=(datetime.now() - start_time).total_seconds()
+            )
+
         # Execute the task
-        result = await self.execute(request)
+        try:
+            result = await self.execute(request)
+        except asyncio.CancelledError:
+            logger.info(f"Task cancelled during execution for {self.name}")
+            return TaskResult(
+                agent=self.name,
+                content="Task was cancelled during execution",
+                status="cancelled",
+                execution_time=(datetime.now() - start_time).total_seconds()
+            )
 
         # Calculate execution time IMMEDIATELY after execution
         execution_time = (datetime.now() - start_time).total_seconds()
@@ -321,6 +401,140 @@ class BaseAgent(ABC):
         self.last_execution_time = datetime.now()
 
         return result
+
+    async def _perform_mandatory_research(self, prompt: str, topics: list, technologies: list) -> Dict[str, Any]:
+        """
+        Perform mandatory research as required by Prime Directive 4
+        This method calls the ResearchAgent to gather information
+        """
+        try:
+            # Import research agent
+            from agents.specialized.research_agent import ResearchAgent
+            research_agent = ResearchAgent()
+
+            findings = []
+
+            # Research each topic
+            for topic in topics:
+                logger.info(f"🔍 Researching topic: {topic}")
+
+                if topic == 'latest_practices':
+                    # Get latest best practices
+                    result = await research_agent.get_latest_best_practices(prompt)
+                    findings.append({
+                        'type': 'best_practices',
+                        'data': result
+                    })
+
+                elif topic == 'verify_technologies':
+                    # Verify each technology
+                    for tech in technologies:
+                        verification = await research_agent.verify_technology_exists(tech)
+                        findings.append({
+                            'type': 'technology_verification',
+                            'technology': tech,
+                            'data': verification
+                        })
+
+                elif topic in ['comparison', 'technology_choice']:
+                    # Research comparison
+                    research = await research_agent.research_for_agent(
+                        self.config.agent_id,
+                        f"Compare options for: {prompt}"
+                    )
+                    findings.append({
+                        'type': 'comparison',
+                        'data': research
+                    })
+
+                elif topic in ['security', 'security_practices']:
+                    # Security research
+                    research = await research_agent.research_for_agent(
+                        self.config.agent_id,
+                        f"Security best practices for: {prompt}"
+                    )
+                    findings.append({
+                        'type': 'security',
+                        'data': research
+                    })
+
+                elif topic == 'performance':
+                    # Performance research
+                    research = await research_agent.research_for_agent(
+                        self.config.agent_id,
+                        f"Performance optimization for: {prompt}"
+                    )
+                    findings.append({
+                        'type': 'performance',
+                        'data': research
+                    })
+
+                else:
+                    # General research
+                    research = await research_agent.research_for_agent(
+                        self.config.agent_id,
+                        prompt
+                    )
+                    findings.append({
+                        'type': 'general',
+                        'topic': topic,
+                        'data': research
+                    })
+
+            # Compile research results
+            research_summary = self._compile_research_summary(findings)
+
+            return {
+                'findings': findings,
+                'summary': research_summary,
+                'topics_researched': topics,
+                'technologies_verified': technologies,
+                'timestamp': datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to perform mandatory research: {e}")
+            return {
+                'error': str(e),
+                'findings': [],
+                'summary': "Research could not be completed",
+                'timestamp': datetime.now().isoformat()
+            }
+
+    def _compile_research_summary(self, findings: list) -> str:
+        """Compile research findings into a summary"""
+        summary_parts = []
+
+        # Check for technology verifications
+        unverified_techs = []
+        for finding in findings:
+            if finding['type'] == 'technology_verification':
+                if finding['data'].get('exists') == 'uncertain':
+                    unverified_techs.append(finding['technology'])
+
+        if unverified_techs:
+            summary_parts.append(f"⚠️ Could not verify existence of: {', '.join(unverified_techs)}")
+
+        # Check for security warnings
+        security_warnings = []
+        for finding in findings:
+            if finding['type'] == 'security':
+                warnings = finding['data'].get('warnings', [])
+                security_warnings.extend(warnings)
+
+        if security_warnings:
+            summary_parts.append(f"🔒 Security considerations: {'; '.join(security_warnings[:3])}")
+
+        # Check for best practices
+        practices = []
+        for finding in findings:
+            if finding['type'] == 'best_practices':
+                practices.extend(finding['data'].get('practices', [])[:3])
+
+        if practices:
+            summary_parts.append(f"✅ Best practices: {'; '.join(practices)}")
+
+        return " | ".join(summary_parts) if summary_parts else "Research completed successfully"
 
     async def collaborate_with(self, agent_id: str, task: str) -> Any:
         """Request collaboration from another agent"""

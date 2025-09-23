@@ -16,6 +16,8 @@ anthropic==0.7.0
 chromadb==0.4.15
 redis==5.0.0
 sqlalchemy==2.0.23
+msgpack==1.0.7
+watchdog==3.0.0
 
 # Communication
 asyncio-mqtt==0.16.1

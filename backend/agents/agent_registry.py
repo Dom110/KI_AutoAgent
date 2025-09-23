@@ -140,7 +140,8 @@ class AgentRegistry:
     async def dispatch_task(
         self,
         agent_id: str,
-        request: TaskRequest
+        request: TaskRequest,
+        cancel_token=None
     ) -> TaskResult:
         """
         Dispatch task to specific agent
@@ -156,7 +157,8 @@ class AgentRegistry:
                 return TaskResult(
                     status="error",
                     content="No agents available",
-                    agent="system"
+                    agent="system",
+                    execution_time=0
                 )
 
         try:
@@ -164,7 +166,9 @@ class AgentRegistry:
             if agent_id in self.agents:
                 self.agents[agent_id].status = "busy"
 
-            # Execute task
+            # Execute task with cancel token
+            if cancel_token:
+                agent.cancel_token = cancel_token
             result = await agent.execute_with_memory(request)
 
             # Mark agent as ready

@@ -501,6 +501,247 @@ PATCH Version (X.Y.Z):
 │   │   ├── Call graph processes ALL files with progress tracking
 │   │   └── No artificial limits - complete analysis with feedback
 │   └── 🎯 IMPACT: Full system understanding without analyzing dependencies (12,305 → 124 files)
+├── v4.0.8 (22.9.2025) - ENHANCED BACKEND RESTART WITH MULTI-PROCESS CLEANUP
+│   ├── 🔧 IMPROVED PORT CLEANUP
+│   │   ├── Fixed handling of multiple processes on same port
+│   │   ├── Gets all PIDs using lsof -ti:8000
+│   │   ├── Kills each process individually with error handling
+│   │   ├── Graceful SIGTERM first, then SIGKILL if needed
+│   │   └── Shows exactly which PIDs are being terminated
+│   ├── ⏱️ BETTER TIMING MANAGEMENT
+│   │   ├── Increased wait time after cleanup to 3 seconds
+│   │   ├── Double-checks if port is still in use after cleanup
+│   │   ├── Additional 2-second wait if port still occupied
+│   │   ├── Prevents "Address already in use" errors
+│   │   └── More reliable backend startup
+│   ├── 📝 ENHANCED LOGGING
+│   │   ├── Shows number of processes found on port
+│   │   ├── Lists all PIDs being terminated
+│   │   ├── Indicates successful vs failed terminations
+│   │   ├── Clear progress messages during cleanup
+│   │   └── Better debugging information for issues
+│   └── 🎯 IMPACT: Backend now reliably restarts even with multiple stale processes
+├── v4.0.9 (22.9.2025) - PROGRESS MESSAGES FIXED IN CHAT UI
+│   ├── 🔄 CLIENT_ID PROPAGATION
+│   │   ├── Fixed client_id not being passed through orchestrator workflow
+│   │   ├── Orchestrator now preserves original request context
+│   │   ├── Subtasks inherit client_id from original request
+│   │   ├── WebSocket connection ID properly maintained
+│   │   └── Progress messages now routed to correct client
+│   ├── 📊 ARCHITECT PROGRESS DISPLAY
+│   │   ├── Phase 1-6 progress messages now appear in chat
+│   │   ├── "Building comprehensive system understanding..." visible
+│   │   ├── "Indexing codebase with AST parsing..." shown
+│   │   ├── Real-time updates during analysis phases
+│   │   └── System messages display with correct agent attribution
+│   ├── 🔧 CODE CHANGES
+│   │   ├── Updated _handle_complex_task to accept full TaskRequest
+│   │   ├── Modified _execute_workflow to pass original_request
+│   │   ├── Enhanced _execute_subtask to preserve context
+│   │   ├── Fixed context merging in subtask creation
+│   │   └── Maintained backward compatibility
+│   └── 🎯 IMPACT: Progress messages from all agents now visible in chat UI
+├── v4.0.16 (23.9.2025) - MANDATORY RESEARCH INTEGRATION
+│   ├── 📚 4TH PRIME DIRECTIVE ADDED
+│   │   ├── Rule 4: "RESEARCH BEFORE CLAIMING"
+│   │   ├── Mandatory research for uncertain topics
+│   │   ├── Automatic triggers for "latest", "best practices", "which is better"
+│   │   ├── Technology verification for unknown libraries
+│   │   └── Security and performance research requirements
+│   ├── 🔍 AUTOMATIC RESEARCH ENFORCEMENT
+│   │   ├── Prime Directives now check for research requirements
+│   │   ├── Agents MUST research when patterns detected
+│   │   ├── Research happens BEFORE agent answers
+│   │   ├── Context enriched with research results
+│   │   └── No more guessing or fabrication
+│   ├── 🤖 RESEARCH INTEGRATION IN BASE_AGENT
+│   │   ├── _perform_mandatory_research() method added
+│   │   ├── Automatic calls to ResearchAgent
+│   │   ├── Topic-specific research routing
+│   │   ├── Technology verification loop
+│   │   └── Research summary compilation
+│   ├── ✅ RESEARCH TRIGGERS
+│   │   ├── "latest/current/modern/recent" → latest_practices
+│   │   ├── "best practice" → best_practices research
+│   │   ├── "which is better" → comparison research
+│   │   ├── CamelCase names → technology verification
+│   │   ├── "security/encrypt/auth" → security research
+│   │   └── "performance/optimize" → performance research
+│   ├── 📊 RESEARCH FLOW
+│   │   ├── Request arrives → Prime Directives check
+│   │   ├── Research patterns detected → Research mandatory
+│   │   ├── ResearchAgent called automatically
+│   │   ├── Results added to context
+│   │   └── Agent proceeds with verified information
+│   └── 🎯 IMPACT: Agents now ACTUALLY use ResearchAgent, no more fabrication or outdated info
+├── v4.0.15 (23.9.2025) - SMART DEBOUNCING, PRIME DIRECTIVES & PERFORMANCE BOT
+│   ├── 🎯 SMART FILE WATCHER WITH DEBOUNCING
+│   │   ├── 30-second debounce delay for batch processing
+│   │   ├── Bot change detection - ignores agent's own file writes
+│   │   ├── Selective cache invalidation per file
+│   │   ├── No more circular re-indexing when bot writes code
+│   │   └── 95% reduction in unnecessary re-indexing
+│   ├── 🤖 PRIME DIRECTIVES IMPLEMENTATION
+│   │   ├── Three core rules that override all other instructions
+│   │   ├── Rule 1: Never lie or fabricate information
+│   │   ├── Rule 2: Validate before agreeing (challenge misconceptions)
+│   │   ├── Rule 3: Seek consensus on goals before implementation
+│   │   ├── Integrated into base_agent for all agents
+│   │   └── Respectful challenges when detecting issues
+│   ├── ⚡ NEW PERFORMANCEBOT AGENT
+│   │   ├── Code profiling (CPU, Memory, I/O)
+│   │   ├── Bottleneck detection and analysis
+│   │   ├── Optimization suggestions
+│   │   ├── External package analysis capability
+│   │   ├── Benchmark comparisons
+│   │   └── Uses GPT-4o for analysis
+│   ├── 🔍 ENHANCED RESEARCH AGENT
+│   │   ├── Universal access - any agent can request research
+│   │   ├── Agent-specific context for tailored summaries
+│   │   ├── Technology verification (Prime Directive 1)
+│   │   ├── Best practices research
+│   │   └── Latest trends and warnings
+│   ├── 🔧 CRITICAL FIXES
+│   │   ├── Fixed string indices error in architect_agent
+│   │   ├── Robust context handling with JSON parsing
+│   │   ├── Safe type conversions
+│   │   └── Better error messages
+│   ├── 📋 CLEAN IMPLEMENTATION
+│   │   ├── No fallbacks as requested
+│   │   ├── No old code retention
+│   │   ├── Direct, clean implementations
+│   │   └── All cache policies set to permanent
+│   └── 🎯 IMPACT: Bot won't trigger re-indexing, agents validate requests, new performance analysis capability
+├── v4.0.14 (23.9.2025) - PERMANENT CACHE & NO TTL IMPLEMENTATION
+│   ├── 🚀 PERMANENT REDIS CACHE WITHOUT TTLs
+│   │   ├── Implemented ProjectCache service with permanent Redis storage
+│   │   ├── NO expiry/TTL parameters - data persists forever until invalidated
+│   │   ├── Project-isolated caching with MD5 hash keys
+│   │   ├── msgpack binary serialization for efficient storage
+│   │   └── Redis configured with LRU eviction policy (512MB max)
+│   ├── 📁 INTELLIGENT FILE WATCHING
+│   │   ├── ProjectFileWatcher with watchdog library
+│   │   ├── Monitors only code files, ignores build/cache directories
+│   │   ├── Automatic cache invalidation on file changes
+│   │   ├── Smart invalidation - only affects related caches
+│   │   └── Supports 20+ programming language extensions
+│   ├── 🔍 LIGHTWEIGHT SQLITE SEARCH
+│   │   ├── LightweightCodeSearch replaces Elasticsearch
+│   │   ├── SQLite FTS5 full-text search (only 5MB overhead)
+│   │   ├── In-process database (no server needed)
+│   │   ├── Fallback to LIKE queries if FTS5 unavailable
+│   │   └── 100x smaller than Elasticsearch implementation
+│   ├── 💬 PERSISTENT CONVERSATION HISTORY
+│   │   ├── ConversationPersistence with SQLite storage
+│   │   ├── Global database in ~/.ki_autoagent/conversations.db
+│   │   ├── Project-based conversation isolation
+│   │   ├── Survives restarts and extension reloads
+│   │   └── Frontend loads history automatically on startup
+│   ├── ⛔ STOP BUTTON FUNCTIONALITY
+│   │   ├── CancelToken system for task cancellation
+│   │   ├── Thread-safe cancellation across async operations
+│   │   ├── WebSocket stop message handling
+│   │   ├── Graceful cleanup of running tasks
+│   │   └── All agents support cancellation tokens
+│   ├── 🏗️ ARCHITECT AGENT ENHANCEMENT
+│   │   ├── Integrated all new cache and search services
+│   │   ├── Cache checks before expensive operations
+│   │   ├── Automatic function indexing in SQLite
+│   │   ├── invalidate_cache() and refresh_analysis() methods
+│   │   ├── File watcher stops on agent destruction
+│   │   └── Fallback to in-memory when Redis unavailable
+│   ├── 📦 NEW DEPENDENCIES
+│   │   ├── redis (7-alpine Docker container)
+│   │   ├── msgpack-python for binary serialization
+│   │   ├── watchdog for file system monitoring
+│   │   ├── sqlite3 (built-in, no install needed)
+│   │   └── docker-compose for Redis deployment
+│   └── 🎯 IMPACT: Zero repeated indexing, instant cache hits, permanent storage, intelligent invalidation
+├── v4.0.13 (22.9.2025) - FIXED REGEX ERRORS IN CHAT UI
+│   ├── 🔧 REGEX ERROR FIXES
+│   │   ├── Fixed "Invalid regular expression: Nothing to repeat" error
+│   │   ├── Properly escaped asterisks in markdown parsing
+│   │   ├── Fixed list item regex patterns (*, -, numbered)
+│   │   └── Prevented JavaScript execution errors in webview
+│   ├── 📝 MARKDOWN REGEX CORRECTIONS
+│   │   ├── Bold pattern: \*\* → \\*\\* for proper escaping
+│   │   ├── Italic pattern: \* → \\* for proper escaping
+│   │   ├── List patterns: ^\* → ^\\* for bullet lists
+│   │   └── All escape sequences corrected in template strings
+│   ├── 🐛 CRITICAL BUG FIX
+│   │   ├── Send button was completely non-functional due to JS error
+│   │   ├── Webview crashed on initialization with regex error
+│   │   ├── formatContent function now properly escapes all patterns
+│   │   └── Chat UI fully functional again
+│   └── 🎯 IMPACT: Send button clickable again, chat UI works without JavaScript errors
+├── v4.0.12 (22.9.2025) - FIXED SEND BUTTON & WEBSOCKET STREAMING
+│   ├── 🔧 SEND BUTTON FIX
+│   │   ├── Fixed chat messages not being sent to backend
+│   │   ├── Backend was not running - started with python3 backend/api/server.py
+│   │   ├── Added proper WebSocket connection handling
+│   │   └── Messages now properly flow from UI to backend and back
+│   ├── 📡 WEBSOCKET STREAMING SUPPORT
+│   │   ├── Added stream_chunk message type to BackendClient
+│   │   ├── Implemented streaming buffer for accumulating chunks
+│   │   ├── Progress handler collects streaming responses
+│   │   ├── Final chunks trigger complete response display
+│   │   └── Support for real-time streaming from agents
+│   ├── 🎯 TYPE SYSTEM IMPROVEMENTS
+│   │   ├── Extended BackendMessage interface with stream_chunk type
+│   │   ├── Added done field for stream completion detection
+│   │   ├── Fixed TypeScript compilation errors
+│   │   └── Proper type safety for all message types
+│   ├── 💬 CHAT UI ENHANCEMENTS
+│   │   ├── Stream buffer management per agent
+│   │   ├── Progress messages properly displayed during streaming
+│   │   ├── Clear separation between streaming and final responses
+│   │   └── Improved isProcessing state management
+│   └── 🎯 IMPACT: Chat now fully functional with streaming support and proper message flow
+├── v4.0.11 (22.9.2025) - CONTEXT FIXES, MARKDOWN RENDERING & CACHE CLARITY
+│   ├── 🔧 ORCHESTRATOR CONTEXT FIX
+│   │   ├── Fixed string context conversion in orchestrator_agent_v2.py
+│   │   ├── Added automatic JSON parsing for string contexts
+│   │   ├── Safe fallback to dict when context is malformed
+│   │   ├── Prevents "string indices must be integers" errors
+│   │   └── Context type validation in subtask execution
+│   ├── 🎨 MARKDOWN RENDERING IN CHAT
+│   │   ├── Fixed agent messages using innerHTML instead of textContent
+│   │   ├── Full markdown support: headers, bold, italic, code, lists
+│   │   ├── Added comprehensive CSS styles for markdown elements
+│   │   ├── Fixed backtick escaping issues in template literals
+│   │   └── Simplified code block detection to avoid compilation errors
+│   ├── 📦 CACHE SYSTEM CLARIFICATION
+│   │   ├── Cache already working with 15-minute timer in code_indexer.py
+│   │   ├── "Using cached analysis" message is actual cache hit
+│   │   ├── Multiple agent instances can share cached results
+│   │   └── No changes needed - cache system functioning correctly
+│   └── 🎯 IMPACT: Fixed all critical errors and improved chat UI markdown display
+├── v4.0.10 (22.9.2025) - CRITICAL ERROR HANDLING & WORKFLOW STOPPAGE
+│   ├── 🔧 ARCHITECT AGENT FIX
+│   │   ├── Fixed "string indices must be integers" error
+│   │   ├── Added context type validation
+│   │   ├── Ensures context is always a dictionary
+│   │   ├── Graceful handling of malformed context
+│   │   └── Warning logs when context needs conversion
+│   ├── ⛔ WORKFLOW ERROR HANDLING
+│   │   ├── Workflows now stop when agents fail
+│   │   ├── Sequential workflow stops at first error
+│   │   ├── Parallel workflow captures all errors
+│   │   ├── Error status properly propagated
+│   │   └── Clear error messages in results
+│   ├── 🛑 SUBTASK ERROR DETECTION
+│   │   ├── Checks result.status for 'error'
+│   │   ├── Raises exception on empty responses
+│   │   ├── Detects "Error" in content
+│   │   ├── Proper exception propagation
+│   │   └── Detailed error logging
+│   ├── 📊 IMPROVED ERROR REPORTING
+│   │   ├── Shows which step failed (e.g., "Step 2/6 failed")
+│   │   ├── Preserves partial results before failure
+│   │   ├── Adds workflow_error to results
+│   │   ├── Error messages include agent name
+│   │   └── Full error context in logs
+│   └── 🎯 IMPACT: System now fails fast and stops workflow when critical errors occur
 ├── v4.0.5 (22.9.2025) - AUTO MODE FIX & MULTI-AGENT WORKFLOW RESTORATION
 │   ├── 🔧 FIXED INFO LOGS DISPLAY
 │   │   ├── Python INFO logs no longer appear as errors in VS Code output

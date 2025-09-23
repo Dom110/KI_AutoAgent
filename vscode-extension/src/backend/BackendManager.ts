@@ -93,8 +93,15 @@ export class BackendManager {
                 const killed = await this.killProcessOnPort(port);
                 if (killed) {
                     this.outputChannel.appendLine(`✅ Freed port ${port}`);
-                    // Wait for port to be fully released
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    // Wait longer for port to be fully released
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+
+                    // Double-check the port is free
+                    const stillInUse = await this.isPortInUse(port);
+                    if (stillInUse) {
+                        this.outputChannel.appendLine(`⚠️ Port ${port} still in use after cleanup. Waiting longer...`);
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }
                 } else {
                     this.outputChannel.appendLine(`❌ Could not free port ${port}. Please manually stop the process.`);
                     throw new Error(`Port ${port} is already in use`);
@@ -337,29 +344,75 @@ export class BackendManager {
     private async killProcessOnPort(port: number): Promise<boolean> {
         return new Promise((resolve) => {
             const platform = process.platform;
-            let command: string;
 
             if (platform === 'darwin' || platform === 'linux') {
-                // On macOS/Linux, find and kill the process
-                command = `lsof -i :${port} -t | xargs kill -9 2>/dev/null || true`;
+                // First, get all PIDs using the port
+                exec(`lsof -ti:${port}`, (error, stdout, stderr) => {
+                    if (error || !stdout.trim()) {
+                        this.outputChannel.appendLine(`⚠️ No process found on port ${port}`);
+                        resolve(true); // Port is already free
+                        return;
+                    }
+
+                    const pids = stdout.trim().split('\n').filter(pid => pid);
+                    this.outputChannel.appendLine(`Found ${pids.length} process(es) on port ${port}: ${pids.join(', ')}`);
+
+                    // Kill each process
+                    let killedCount = 0;
+                    let attemptedCount = 0;
+
+                    pids.forEach((pid) => {
+                        // Try SIGTERM first
+                        exec(`kill -TERM ${pid} 2>/dev/null`, (termError) => {
+                            if (termError) {
+                                // If SIGTERM fails, try SIGKILL
+                                exec(`kill -9 ${pid} 2>/dev/null`, (killError) => {
+                                    attemptedCount++;
+                                    if (!killError) {
+                                        killedCount++;
+                                        this.outputChannel.appendLine(`✅ Force killed PID ${pid}`);
+                                    }
+
+                                    if (attemptedCount === pids.length) {
+                                        if (killedCount > 0) {
+                                            this.outputChannel.appendLine(`✅ Killed ${killedCount}/${pids.length} process(es) on port ${port}`);
+                                            resolve(true);
+                                        } else {
+                                            this.outputChannel.appendLine(`❌ Could not kill processes on port ${port}`);
+                                            resolve(false);
+                                        }
+                                    }
+                                });
+                            } else {
+                                attemptedCount++;
+                                killedCount++;
+                                this.outputChannel.appendLine(`✅ Gracefully terminated PID ${pid}`);
+
+                                if (attemptedCount === pids.length) {
+                                    this.outputChannel.appendLine(`✅ Killed ${killedCount}/${pids.length} process(es) on port ${port}`);
+                                    resolve(true);
+                                }
+                            }
+                        });
+                    });
+                });
             } else if (platform === 'win32') {
                 // On Windows, use netstat and taskkill
-                command = `for /f "tokens=5" %a in ('netstat -aon ^| findstr :${port}') do taskkill /PID %a /F`;
+                const command = `for /f "tokens=5" %a in ('netstat -aon ^| findstr :${port}') do taskkill /PID %a /F`;
+                exec(command, (error, stdout, stderr) => {
+                    if (error) {
+                        this.outputChannel.appendLine(`⚠️ Could not kill process on port ${port}: ${error.message}`);
+                        resolve(false);
+                    } else {
+                        this.outputChannel.appendLine(`✅ Killed process on port ${port}`);
+                        resolve(true);
+                    }
+                });
             } else {
                 this.outputChannel.appendLine(`⚠️ Unsupported platform: ${platform}`);
                 resolve(false);
                 return;
             }
-
-            exec(command, (error, stdout, stderr) => {
-                if (error) {
-                    this.outputChannel.appendLine(`⚠️ Could not kill process on port ${port}: ${error.message}`);
-                    resolve(false);
-                } else {
-                    this.outputChannel.appendLine(`✅ Killed process on port ${port}`);
-                    resolve(true);
-                }
-            });
         });
     }
 

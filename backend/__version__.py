@@ -1,11 +1,11 @@
 """
 KI AutoAgent Backend Version Information
 
-Version 4.0.7 - Full Analysis with Intelligent Exclusions
+Version 4.0.13 - Fixed Regex Errors in Chat UI
 """
 
-__version__ = "4.0.7"
-__version_info__ = (4, 0, 7)
+__version__ = "4.0.13"
+__version_info__ = (4, 0, 13)
 __release_date__ = "2025-09-22"
 __author__ = "KI AutoAgent Team"
 __description__ = "Cognitive AI Development Platform with Self-Understanding Capabilities"

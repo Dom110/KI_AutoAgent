@@ -86,7 +86,7 @@ class OrchestratorAgentV2(ChatAgent):
                 if any(word in prompt.lower() for word in ['infrastructure', 'caching', 'optimize', 'improve', 'architecture',
                                                              'performance', 'system', 'verstehen', 'analyse', 'verbessern']):
                     logger.info(f"Auto mode: Triggering multi-agent workflow for infrastructure analysis")
-                    return await self._handle_complex_task(prompt)
+                    return await self._handle_complex_task(request)
 
             # First, understand what the user is asking
             intent = await self._analyze_intent(prompt)
@@ -102,7 +102,7 @@ class OrchestratorAgentV2(ChatAgent):
 
             else:
                 # Complex task requiring decomposition
-                return await self._handle_complex_task(prompt)
+                return await self._handle_complex_task(request)
 
         except Exception as e:
             logger.error(f"Orchestrator error: {e}")
@@ -220,15 +220,17 @@ I'm here to make your development process faster, smarter, and more efficient. H
             }
         )
 
-    async def _handle_complex_task(self, prompt: str) -> TaskResult:
+    async def _handle_complex_task(self, request: TaskRequest) -> TaskResult:
         """
         Handle complex tasks with decomposition
         """
+        prompt = request.prompt
+
         # Decompose the task using AI
         decomposition = await self._decompose_task_with_ai(prompt)
 
-        # Execute the workflow
-        results = await self._execute_workflow(decomposition)
+        # Execute the workflow with request context
+        results = await self._execute_workflow(decomposition, request)
 
         # Format the final response
         final_response = await self._synthesize_results(decomposition, results, prompt)
@@ -415,7 +417,7 @@ Guidelines:
             summary="Active infrastructure improvement with file creation and implementation"
         )
 
-    async def _execute_workflow(self, decomposition: TaskDecomposition) -> Dict[str, Any]:
+    async def _execute_workflow(self, decomposition: TaskDecomposition, original_request: TaskRequest = None) -> Dict[str, Any]:
         """
         Execute the workflow with real agent dispatching
         """
@@ -436,27 +438,42 @@ Guidelines:
             for subtask in decomposition.subtasks:
                 if not subtask.dependencies:  # Only start tasks with no dependencies
                     logger.info(f"▶️ Starting parallel task: {subtask.id} with agent {subtask.agent}")
-                    tasks.append(self._execute_subtask(subtask))
+                    tasks.append(self._execute_subtask(subtask, original_request))
 
             if tasks:
-                task_results = await asyncio.gather(*tasks)
+                # Use gather with return_exceptions=True to handle failures gracefully
+                task_results = await asyncio.gather(*tasks, return_exceptions=True)
                 for subtask, result in zip(decomposition.subtasks, task_results):
-                    results[subtask.id] = result
-                    logger.info(f"✅ Completed parallel task: {subtask.id}")
+                    if isinstance(result, Exception):
+                        error_msg = f"ERROR: {str(result)}"
+                        results[subtask.id] = error_msg
+                        logger.error(f"❌ Parallel task failed: {subtask.id} - {error_msg}")
+                    else:
+                        results[subtask.id] = result
+                        logger.info(f"✅ Completed parallel task: {subtask.id}")
 
         else:
             # Execute sequentially
             for i, subtask in enumerate(decomposition.subtasks, 1):
                 logger.info(f"▶️ Step {i}/{len(decomposition.subtasks)}: Executing {subtask.id} with agent {subtask.agent}")
-                result = await self._execute_subtask(subtask)
-                results[subtask.id] = result
-                subtask.result = result
-                logger.info(f"✅ Step {i}/{len(decomposition.subtasks)} completed: {subtask.id}")
+                try:
+                    result = await self._execute_subtask(subtask, original_request)
+                    results[subtask.id] = result
+                    subtask.result = result
+                    logger.info(f"✅ Step {i}/{len(decomposition.subtasks)} completed: {subtask.id}")
+                except Exception as e:
+                    # If a subtask fails, stop the workflow
+                    error_msg = f"❌ Workflow stopped at step {i}/{len(decomposition.subtasks)}: {str(e)}"
+                    logger.error(error_msg)
+                    results[subtask.id] = f"ERROR: {str(e)}"
+                    # Return results so far with error
+                    results['workflow_error'] = error_msg
+                    break  # Stop executing further tasks
 
         logger.info(f"🎯 Workflow complete with {len(results)} results")
         return results
 
-    async def _execute_subtask(self, subtask: SubTask) -> str:
+    async def _execute_subtask(self, subtask: SubTask, original_request: TaskRequest = None) -> str:
         """
         Execute a single subtask with the appropriate agent
         """
@@ -465,9 +482,27 @@ Guidelines:
             try:
                 # Add timeout to prevent hanging
                 import asyncio
+
+                # Preserve original context including client_id
+                context = {"expected_output": subtask.expected_output}
+                if original_request and hasattr(original_request, 'context'):
+                    # Merge original context - ensure it's a dict
+                    if isinstance(original_request.context, dict):
+                        context.update(original_request.context)
+                    elif isinstance(original_request.context, str):
+                        logger.warning(f"Original request context was string: {original_request.context}, converting to dict")
+                        # Try to parse as JSON or just add as a value
+                        try:
+                            import json
+                            context.update(json.loads(original_request.context))
+                        except:
+                            context['original_context'] = original_request.context
+                    else:
+                        logger.warning(f"Unexpected context type: {type(original_request.context)}")
+
                 request = TaskRequest(
                     prompt=subtask.description,
-                    context={"expected_output": subtask.expected_output}
+                    context=context
                 )
 
                 # Dynamic timeout based on task complexity
@@ -486,8 +521,19 @@ Guidelines:
                     timeout=timeout
                 )
 
+                # Check if the result is an error
+                if hasattr(result, 'status') and result.status == 'error':
+                    error_msg = f"Agent {subtask.agent} returned error: {result.content}"
+                    logger.error(error_msg)
+                    raise Exception(error_msg)
+
                 if result.content and "Error" not in result.content:
                     return result.content
+                else:
+                    # If content contains error or is empty, raise exception
+                    error_msg = f"Agent {subtask.agent} failed with: {result.content if result.content else 'Empty response'}"
+                    logger.error(error_msg)
+                    raise Exception(error_msg)
 
             except asyncio.TimeoutError:
                 error_msg = f"Agent {subtask.agent} timed out after {timeout} seconds. This might be a complex task - please try again or break it into smaller tasks."
