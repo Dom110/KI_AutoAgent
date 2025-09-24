@@ -733,6 +733,26 @@ async def general_exception_handler(request, exc):
 if __name__ == "__main__":
     # Try to find an available port
     import socket
+    import time
+    import subprocess
+
+    # First, try to kill any existing processes on our ports
+    for p in range(8000, 8011):
+        try:
+            result = subprocess.run(['lsof', '-ti', f':{p}'], capture_output=True, text=True)
+            if result.stdout.strip():
+                pids = result.stdout.strip().split('\n')
+                for pid in pids:
+                    try:
+                        subprocess.run(['kill', '-9', pid], check=False)
+                        logger.info(f"Killed process {pid} on port {p}")
+                    except:
+                        pass
+        except:
+            pass
+
+    # Small delay to ensure ports are released
+    time.sleep(0.5)
 
     port = 8000
     max_port = 8010
@@ -742,13 +762,18 @@ if __name__ == "__main__":
             # Test if port is available
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) if hasattr(socket, 'SO_REUSEPORT') else None
-            sock.bind(('', port))
+            if hasattr(socket, 'SO_REUSEPORT'):
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+            sock.bind(('127.0.0.1', port))
             sock.close()
+
+            # Wait a bit to ensure socket is fully closed
+            time.sleep(0.1)
+
             logger.info(f"🚀 Starting server on port {port}")
             break
-        except OSError:
-            logger.warning(f"Port {port} is in use, trying next port...")
+        except OSError as e:
+            logger.warning(f"Port {port} is in use ({e}), trying next port...")
             port += 1
     else:
         logger.error(f"No available ports found between 8000 and {max_port}")
