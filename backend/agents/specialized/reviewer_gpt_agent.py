@@ -4,13 +4,14 @@ Performs thorough code reviews and security audits
 """
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Callable
 from datetime import datetime
 
 from ..base.chat_agent import ChatAgent
 from ..base.base_agent import (
     AgentConfig, TaskRequest, TaskResult, AgentCapability
 )
+from ..base.prime_directives import PrimeDirectives
 from utils.openai_service import OpenAIService
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,7 @@ class ReviewerGPTAgent(ChatAgent):
             🔴 ASIMOV RULES (ABSOLUTE - BLOCK ANY VIOLATIONS):
             1. NO FALLBACKS without documented user reason - Check for any fallback patterns
             2. COMPLETE IMPLEMENTATION - No TODOs, no partial work, no 'later'
+            3. GLOBAL ERROR SEARCH - When finding an error, search ENTIRE project for same pattern
 
             Analyze code for:
             1. ⚡ ASIMOV RULE VIOLATIONS (HIGHEST PRIORITY)
@@ -154,7 +156,7 @@ class ReviewerGPTAgent(ChatAgent):
 
         return violations
 
-    async def find_bugs(self, code: str) -> List[Dict[str, Any]]:
+    async def find_bugs(self, code: str, file_path: str = None) -> List[Dict[str, Any]]:
         """
         Actively hunt for bugs in code
         """
@@ -174,6 +176,23 @@ class ReviewerGPTAgent(ChatAgent):
                     "fix": violation['fix']
                 })
 
+                # ASIMOV RULE 3: If error found, search globally
+                if 'RULE 3' not in violation['rule']:  # Don't search for Rule 3 violations
+                    global_search = await self.enforce_global_error_search(
+                        violation['description'],
+                        file_path or 'unknown'
+                    )
+                    if global_search.get('additional_occurrences', 0) > 0:
+                        bugs.append({
+                            "type": "ASIMOV_RULE_3_ENFORCEMENT",
+                            "severity": "CRITICAL",
+                            "rule": "ASIMOV RULE 3",
+                            "description": f"Found {global_search['additional_occurrences']} MORE files with same error",
+                            "files": global_search['files_found'],
+                            "action": "MUST FIX ALL INSTANCES",
+                            "fix": "Fix all occurrences across the entire project"
+                        })
+
         # Then check for regular bugs
         if "onclick=" in code.lower():
             bugs.append({
@@ -182,8 +201,60 @@ class ReviewerGPTAgent(ChatAgent):
                 "description": "onclick handlers might not work in VS Code webviews",
                 "suggestion": "Use addEventListener instead"
             })
-            
+
         return bugs
+
+    async def enforce_global_error_search(self, error_pattern: str, initial_file: str) -> Dict[str, Any]:
+        """
+        ASIMOV RULE 3: Search entire project for error pattern
+        """
+        # Use PrimeDirectives global search
+        search_result = await PrimeDirectives.perform_global_error_search(
+            error_pattern,
+            file_type='py'  # Can be extended to other types
+        )
+
+        # Add enforcement metadata
+        search_result['asimov_rule'] = 'RULE 3 - Global Error Search'
+        search_result['initial_file'] = initial_file
+
+        if search_result.get('files_found'):
+            # Remove the initial file from the list
+            search_result['files_found'] = [
+                f for f in search_result['files_found']
+                if f != initial_file
+            ]
+            search_result['additional_occurrences'] = len(search_result['files_found'])
+
+        return search_result
+
+    async def execute_global_fix(self, error_pattern: str, fix_function: Callable) -> Dict[str, Any]:
+        """
+        ASIMOV RULE 3: Apply fix to all instances of an error
+        """
+        search_result = await self.enforce_global_error_search(error_pattern, 'batch_fix')
+
+        fixed_files = []
+        failed_files = []
+
+        for file_path in search_result.get('files_found', []):
+            try:
+                # Apply fix to each file
+                await fix_function(file_path)
+                fixed_files.append(file_path)
+            except Exception as e:
+                failed_files.append({'file': file_path, 'error': str(e)})
+
+        return {
+            'asimov_rule_3': True,
+            'pattern': error_pattern,
+            'total_files': len(search_result.get('files_found', [])),
+            'fixed': len(fixed_files),
+            'failed': len(failed_files),
+            'fixed_files': fixed_files,
+            'failed_files': failed_files,
+            'enforcement': 'NO PARTIAL FIXES - all instances must be addressed'
+        }
 
     async def _process_agent_request(self, message: Any) -> Any:
         """Process request from another agent"""

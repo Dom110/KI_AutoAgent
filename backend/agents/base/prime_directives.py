@@ -54,8 +54,24 @@ class PrimeDirectives:
                 "✅ REQUIRED: All edge cases handled, all features working"
             ]
         ),
+        # ⚡ ASIMOV RULE 3 - GLOBAL ERROR SEARCH
         Directive(
             id=3,
+            rule="GLOBAL ERROR SEARCH - FIND ALL INSTANCES",
+            description="When ANY error/bug/issue is found, MUST search ENTIRE project for same pattern",
+            enforcement="Mandatory project-wide search for all similar errors, no exceptions",
+            examples=[
+                "Found undefined variable → Search ALL files for undefined variables",
+                "Found missing error handling → Check ALL similar code patterns",
+                "Found SQL injection → Scan ENTIRE codebase for SQL vulnerabilities",
+                "Found hardcoded secret → Search project for ALL hardcoded values",
+                "Found deprecated function → Find ALL uses of that function",
+                "One bug = systematic search for pattern EVERYWHERE",
+                "NO PARTIAL FIXES - fix all instances or none"
+            ]
+        ),
+        Directive(
+            id=4,
             rule="NEVER LIE OR FABRICATE INFORMATION",
             description="Always verify facts before stating them. Admit uncertainty.",
             enforcement="Check existence, verify claims, cite sources",
@@ -67,7 +83,7 @@ class PrimeDirectives:
             ]
         ),
         Directive(
-            id=4,
+            id=5,
             rule="VALIDATE BEFORE AGREEING",
             description="Challenge incorrect assumptions respectfully",
             enforcement="Analyze request validity, correct misconceptions",
@@ -79,7 +95,7 @@ class PrimeDirectives:
             ]
         ),
         Directive(
-            id=5,
+            id=6,
             rule="SEEK CONSENSUS ON GOALS",
             description="Ensure alignment between user intent and solution",
             enforcement="Clarify primary objective before implementation",
@@ -91,7 +107,7 @@ class PrimeDirectives:
             ]
         ),
         Directive(
-            id=6,
+            id=7,
             rule="RESEARCH BEFORE CLAIMING",
             description="When discussing new technologies, best practices, or uncertain topics, MUST research first",
             enforcement="Mandatory research for uncertainty patterns, latest trends, new technologies",
@@ -122,7 +138,7 @@ class PrimeDirectives:
         # Check for potential violations
         violation_checks = cls._check_violations(prompt, context)
 
-        # Check if research is required (Directive 4)
+        # Check if research is required (Directive 7)
         research_requirements = cls.check_research_requirements(prompt, context)
         if research_requirements['needs_research']:
             violation_checks['needs_research'] = True
@@ -344,3 +360,75 @@ class PrimeDirectives:
         prompt.append("If a request conflicts with these directives, respectfully challenge it and seek clarification.")
 
         return "\n".join(prompt)
+
+    @classmethod
+    def check_global_error_search(cls, error_found: str, file_location: str) -> Dict[str, Any]:
+        """
+        ASIMOV RULE 3: When an error is found, enforce global search
+        """
+        return {
+            'asimov_rule_3': True,
+            'action_required': 'GLOBAL_SEARCH',
+            'error_found': error_found,
+            'initial_location': file_location,
+            'message': f'ASIMOV RULE 3: Must search entire project for pattern: {error_found}',
+            'enforcement': 'NO PARTIAL FIXES - find and fix ALL instances'
+        }
+
+    @classmethod
+    async def perform_global_error_search(cls, pattern: str, file_type: str = None) -> Dict[str, Any]:
+        """
+        ASIMOV RULE 3: Execute global search for error pattern
+        Returns all files containing the pattern
+        """
+        import subprocess
+        import os
+
+        results = {
+            'pattern': pattern,
+            'files_found': [],
+            'total_occurrences': 0,
+            'asimov_enforcement': 'RULE 3 - Global Error Search'
+        }
+
+        try:
+            # Build ripgrep command
+            cmd = ['rg', '-l', '--no-heading']
+
+            # Add file type filter if specified
+            if file_type:
+                cmd.extend(['--type', file_type])
+            else:
+                # Default to common code files
+                cmd.extend(['--type-add', 'code:*.{py,js,ts,tsx,jsx,java,c,cpp,h,hpp,rs,go}', '-t', 'code'])
+
+            # Add pattern and search path
+            cmd.append(pattern)
+            cmd.append(os.getcwd())
+
+            # Execute search
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+            if result.returncode == 0:
+                files = [f for f in result.stdout.strip().split('\n') if f]
+                results['files_found'] = files
+                results['total_occurrences'] = len(files)
+
+                # Now count actual occurrences
+                count_cmd = ['rg', '-c', '--no-heading'] + cmd[2:]  # Skip -l flag
+                count_result = subprocess.run(count_cmd, capture_output=True, text=True, timeout=30)
+
+                if count_result.returncode == 0:
+                    total = sum(int(line.split(':')[-1]) for line in count_result.stdout.strip().split('\n') if ':' in line)
+                    results['total_matches'] = total
+
+            results['enforcement_action'] = 'MUST FIX ALL' if results['total_occurrences'] > 0 else 'Pattern not found'
+
+        except subprocess.TimeoutExpired:
+            results['error'] = 'Search timeout - project too large'
+            results['fallback'] = 'Manual search required'
+        except Exception as e:
+            results['error'] = str(e)
+            results['fallback'] = 'Use IDE search functionality'
+
+        return results

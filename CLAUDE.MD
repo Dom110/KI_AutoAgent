@@ -61,6 +61,40 @@ def process_data(data):
     return result
 ```
 
+## ⚡ ASIMOV-REGEL 3: GLOBALE FEHLERSUCHE
+
+### Das Gesetz:
+1. **Bei JEDEM gefundenen Fehler → Gesamtes Projekt durchsuchen**
+2. **Keine Einzelkorrekturen** - wenn ein Fehler gefunden wird, müssen ALLE Instanzen gefunden werden
+3. **Systematische Suche** mit Tools wie ripgrep/grep
+4. **KEINE PARTIELLEN FIXES** - entweder alle oder keine
+5. **Gilt für Claude UND KI-Agenten** - in ALLEN Projekten
+
+### Enforcement:
+- ReviewerAgent sucht automatisch global bei jedem Fehler
+- PrimeDirectives.perform_global_error_search() wird ausgeführt
+- Blockierung bis ALLE Instanzen behoben sind
+
+### Beispiel:
+```python
+# Fehler gefunden: Undefined variable 'user_id' in file1.py
+# ❌ FALSCH: Nur in file1.py fixen
+
+# ✅ RICHTIG:
+# 1. Suche im gesamten Projekt: rg "user_id" --type py
+# 2. Finde alle 7 Vorkommen in 4 Dateien
+# 3. Fixe ALLE 7 Vorkommen
+# 4. Verifiziere dass keine weiteren existieren
+```
+
+### Typische Patterns für globale Suche:
+- Undefined variables → Alle undefined variables
+- Missing error handling → Alle ähnlichen Code-Stellen
+- SQL injection → ALLE SQL-Queries prüfen
+- Hardcoded secrets → ALLE hardcoded values
+- Deprecated functions → ALLE Verwendungen
+- Memory leaks → ALLE ähnlichen Allokationen
+
 ## ⚠️ DIESE REGELN GELTEN FÜR:
 - **Claude (DU!)** - In ALLEN Projekten mit diesem User
 - **Alle Entwickler** im Team
