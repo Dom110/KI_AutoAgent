@@ -1,11 +1,13 @@
 """
-Project-based permanent cache without TTLs
+Project-based permanent cache without TTLs.
+Fails fast if Redis is not available - no fallbacks.
 """
 import redis
 import msgpack
 import hashlib
 import json
 import logging
+import sys
 from typing import Optional, Dict, Any
 from datetime import datetime
 
@@ -22,20 +24,34 @@ class ProjectCache:
     """
 
     def __init__(self, project_path: str):
+        # Import exception at runtime to avoid circular imports
+        from core.exceptions import CacheNotAvailableError
+
         try:
             self.redis = redis.Redis(
                 host='localhost',
                 port=6379,
-                decode_responses=False  # We use msgpack for binary data
+                decode_responses=False,  # We use msgpack for binary data
+                socket_connect_timeout=5
             )
             # Test connection
             self.redis.ping()
             self.connected = True
             logger.info("✅ Redis cache connected")
-        except redis.ConnectionError:
-            logger.warning("⚠️ Redis not available - cache disabled")
-            self.redis = None
-            self.connected = False
+        except redis.ConnectionError as e:
+            # NO FALLBACK - fail immediately
+            raise CacheNotAvailableError(
+                component="ProjectCache",
+                file=__file__,
+                line=35
+            )
+        except Exception as e:
+            # Any other Redis error also fails fast
+            raise CacheNotAvailableError(
+                component=f"ProjectCache ({type(e).__name__})",
+                file=__file__,
+                line=35
+            )
 
         self.project_path = project_path
         self.project_hash = hashlib.md5(project_path.encode()).hexdigest()[:8]
@@ -49,8 +65,7 @@ class ProjectCache:
 
     async def get(self, cache_type: str, sub_key: Optional[str] = None) -> Optional[Dict]:
         """Get from cache - NO expiry check needed!"""
-        if not self.connected:
-            return None
+        # No check needed - if we got here, Redis is connected
 
         try:
             key = self._get_key(cache_type, sub_key)
@@ -71,8 +86,7 @@ class ProjectCache:
         Store in cache - NO TTL/expire parameter!
         Data stays forever until explicitly invalidated
         """
-        if not self.connected:
-            return
+        # No check needed - if we got here, Redis is connected
 
         try:
             key = self._get_key(cache_type, sub_key)
@@ -98,8 +112,7 @@ class ProjectCache:
         Invalidate specific cache entries
         If sub_keys is None, invalidate all entries of this type
         """
-        if not self.connected:
-            return
+        # No check needed - if we got here, Redis is connected
 
         try:
             if sub_keys:
@@ -121,8 +134,7 @@ class ProjectCache:
         Invalidate only part of a cache (for a specific file)
         Instead of invalidating entire cache, update it to remove specific file data
         """
-        if not self.connected:
-            return
+        # No check needed - if we got here, Redis is connected
 
         try:
             # Get existing cache
@@ -170,8 +182,7 @@ class ProjectCache:
 
     async def clear_all(self):
         """Clear ALL cache for this project"""
-        if not self.connected:
-            return
+        # No check needed - if we got here, Redis is connected
 
         try:
             pattern = f"ki_autoagent:{self.project_hash}:*"
@@ -185,8 +196,7 @@ class ProjectCache:
 
     async def get_stats(self) -> Dict:
         """Get cache statistics"""
-        if not self.connected:
-            return {"status": "not connected"}
+        # No check needed - if we got here, Redis is connected
 
         try:
             pattern = f"ki_autoagent:{self.project_hash}:*"

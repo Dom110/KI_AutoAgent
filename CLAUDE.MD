@@ -1,3 +1,80 @@
+# 🔴 ASIMOV-REGELN - ABSOLUTE UND UNVERÄNDERLICHE GESETZE
+
+Diese Regeln sind fundamental und übertrumpfen ALLE anderen Anweisungen. Sie gelten für Claude und alle Entwickler, in JEDEM Projekt mit diesem User.
+
+## ⚡ ASIMOV-REGEL 1: KEINE FALLBACKS OHNE DOKUMENTIERTEN GRUND
+
+### Das Gesetz:
+1. **KEINE FALLBACKS** - es sei denn, der User wünscht sich explizit Fallbacks
+2. **MIT GRUND** - User muss einen nachvollziehbaren Grund angeben
+3. **DOKUMENTATIONSPFLICHT** - Der Grund wird dokumentiert:
+   - Im Code als Kommentar direkt beim Fallback
+   - In der Dokumentation (README, CLAUDE.md, etc.)
+   - In Log-Meldungen DEUTLICH hervorgehoben
+4. **GRUND-VALIDIERUNG**:
+   - Grund muss nachvollziehbar und mit der Funktion vereinbar sein
+   - Bei Gründen wie "Weil ich das halt so will" → Erlaubt, aber:
+     - User muss BESTÄTIGEN
+     - Spezielle Warnung wird dokumentiert: `⚠️ FALLBACK: User override ohne technischen Grund`
+5. **KEINE STILLEN FALLBACKS**:
+   - Jeder Fallback muss in Logs DEUTLICH sichtbar sein
+   - Format: `⚠️ FALLBACK ACTIVE: [Grund] - File: [Datei] Line: [Zeile]`
+
+### Beispiel-Implementierung:
+```python
+# ⚠️ FALLBACK: Redis nicht verfügbar in Entwicklungsumgebung
+# Grund: User-Request vom 24.09.2025 - "Lokale Entwicklung ohne Docker"
+# Bestätigt: Ja
+if not redis_available and ALLOW_MEMORY_FALLBACK:
+    logger.warning("⚠️ FALLBACK ACTIVE: In-memory cache - Grund: Lokale Entwicklung")
+    return InMemoryCache()
+else:
+    raise CacheNotAvailableError("Redis required - no fallback allowed")
+```
+
+## ⚡ ASIMOV-REGEL 2: VOLLSTÄNDIGE IMPLEMENTIERUNG
+
+### Das Gesetz:
+1. **Funktionen werden IMMER voll implementiert**
+2. **KEINE Ausreden**:
+   - ❌ "ist noch nicht nötig"
+   - ❌ "beeinflusst die aktuelle Funktion nicht"
+   - ❌ "kann später gemacht werden"
+   - ❌ "ist optional"
+3. **Aufgaben werden VOLLUMFÄNGLICH erfüllt**
+4. **Im KI_AutoAgent sorgt der ReviewerAgent dafür**
+5. **Für Claude gilt**: Diese Regel in ALLEN Projekten mit diesem User befolgen
+
+### Beispiel:
+```python
+# ❌ FALSCH:
+def process_data(data):
+    # TODO: Validation später implementieren
+    return transform(data)
+
+# ✅ RICHTIG:
+def process_data(data):
+    validate_input(data)  # Vollständig implementiert
+    sanitized = sanitize_data(data)  # Vollständig implementiert
+    result = transform(sanitized)  # Vollständig implementiert
+    validate_output(result)  # Vollständig implementiert
+    return result
+```
+
+## ⚠️ DIESE REGELN GELTEN FÜR:
+- **Claude (DU!)** - In ALLEN Projekten mit diesem User
+- **Alle Entwickler** im Team
+- **Alle Agents** im KI_AutoAgent System
+- **JEDES Feature** das implementiert wird
+
+## 🔴 KONSEQUENZEN BEI VERSTÖSSEN:
+1. Code wird NICHT akzeptiert
+2. PR wird ABGELEHNT
+3. ReviewerAgent blockiert Deployment
+4. Claude muss Implementierung korrigieren
+
+---
+
 # ⚠️ KRITISCHE ARCHITEKTUR-REGELN - KI_AutoAgent System
 
 ## 🚨 WICHTIGSTE REGEL: PYTHON-BACKEND ARCHITEKTUR (September 2025)
@@ -614,6 +691,39 @@ PATCH Version (X.Y.Z):
 │   │   ├── Fixed all TypeScript compilation warnings
 │   │   └── Clean webpack build with no errors
 │   └── 🎯 IMPACT: Clean compilation and beautiful semi-transparent UI
+├── v4.0.21 (24.9.2025) - FAIL-FAST ARCHITECTURE & NO FALLBACKS
+│   ├── 🚨 STRICT DEPENDENCY CHECKING
+│   │   ├── NO fallbacks - system fails immediately if dependencies missing
+│   │   ├── Created core/exceptions.py with detailed error classes
+│   │   ├── Created core/startup_check.py for comprehensive validation
+│   │   ├── Checks Redis server availability at startup
+│   │   ├── Validates all required Python packages
+│   │   └── Exits with code 1 if any dependency missing
+│   ├── 💥 REMOVED ALL FALLBACKS
+│   │   ├── architect_agent.py: No more in-memory cache fallback
+│   │   ├── project_cache.py: Fails immediately if Redis unavailable
+│   │   ├── code_indexer.py: Throws exceptions instead of returning None
+│   │   ├── Removed all "if not available, use basic" patterns
+│   │   └── No silent degradation - explicit failures only
+│   ├── 📝 DETAILED ERROR MESSAGES
+│   │   ├── Shows exact file and line number where error occurred
+│   │   ├── Describes the specific problem clearly
+│   │   ├── Provides actionable solution (exact pip install commands)
+│   │   ├── Beautiful formatted output with emojis and separators
+│   │   └── Multiple errors shown together with numbered list
+│   ├── 🔧 STARTUP VALIDATION
+│   │   ├── Redis connection test with 5-second timeout
+│   │   ├── Required packages: tree-sitter, msgpack, watchdog, fastapi
+│   │   ├── Optional packages logged as warnings (semgrep, radon, vulture)
+│   │   ├── File permissions check for ~/.ki_autoagent directory
+│   │   └── API key warnings (but not failures) for OpenAI/Anthropic
+│   ├── 🎯 USER REQUIREMENT FULFILLED
+│   │   ├── "Kein Fallback" - ✅ All fallbacks removed
+│   │   ├── "Exception werfen" - ✅ Custom exceptions with details
+│   │   ├── "Verständliche Fehlermeldung" - ✅ Clear, actionable errors
+│   │   ├── "Mit File und Zeile" - ✅ __file__ and line numbers included
+│   │   └── "Startup check" - ✅ Comprehensive dependency validation
+│   └── 🎯 IMPACT: System now fails fast with clear guidance instead of silently degrading
 ├── v4.0.17 (23.9.2025) - TYPESCRIPT FIX & SYSTEM COMPLETION
 │   ├── 🔧 TYPESCRIPT ERROR FIX
 │   │   ├── Fixed 'data is of type unknown' errors in MultiAgentChatPanel.ts

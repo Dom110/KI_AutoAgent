@@ -666,7 +666,14 @@ class CodeIndexer:
     async def get_symbol_info(self, symbol: str) -> Optional[Dict]:
         """Get detailed information about a symbol"""
         if not self.index:
-            return None
+            from core.exceptions import SystemNotReadyError
+            raise SystemNotReadyError(
+                component="CodeIndexer",
+                reason="Code index not built yet",
+                solution="Call index_codebase() first to build the index",
+                file=__file__,
+                line=669
+            )
 
         cross_refs = self.index.get('cross_references', {})
         definitions = cross_refs.get('definitions', {})
@@ -681,7 +688,14 @@ class CodeIndexer:
     async def suggest_improvements(self) -> List[Dict]:
         """Suggest codebase improvements based on analysis"""
         if not self.index:
-            return []
+            from core.exceptions import SystemNotReadyError
+            raise SystemNotReadyError(
+                component="CodeIndexer",
+                reason="Code index not built yet",
+                solution="Call index_codebase() first to build the index",
+                file=__file__,
+                line=684
+            )
 
         improvements = []
         patterns = self.index.get('patterns', {})

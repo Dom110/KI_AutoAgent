@@ -24,29 +24,39 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Import new caching and search services
+# Import cache services - FAIL FAST, NO FALLBACK
+from core.exceptions import DependencyError
 try:
     from services.project_cache import ProjectCache
     from services.smart_file_watcher import SmartFileWatcher
     from services.code_search import LightweightCodeSearch
-    CACHE_AVAILABLE = True
 except ImportError as e:
-    logger.warning(f"Cache services not available: {e}")
-    CACHE_AVAILABLE = False
-    ProjectCache = None
-    SmartFileWatcher = None
-    LightweightCodeSearch = None
+    raise DependencyError([
+        {
+            'component': 'Cache Services',
+            'error': f'Required cache services not installed: {str(e)}',
+            'solution': 'pip install redis msgpack watchdog sqlite3',
+            'file': __file__,
+            'line': 29,
+            'traceback': None
+        }
+    ])
 
-# Try to import new analysis tools with graceful fallback
+# Import indexing tools - FAIL FAST, NO FALLBACK
 try:
     from core.indexing.tree_sitter_indexer import TreeSitterIndexer
     from core.indexing.code_indexer import CodeIndexer
-    INDEXING_AVAILABLE = True
 except ImportError as e:
-    logger.warning(f"Code indexing modules not available: {e}")
-    INDEXING_AVAILABLE = False
-    TreeSitterIndexer = None
-    CodeIndexer = None
+    raise DependencyError([
+        {
+            'component': 'Code Indexing Tools',
+            'error': f'Required indexing tools not installed: {str(e)}',
+            'solution': 'pip install tree-sitter tree-sitter-python tree-sitter-javascript tree-sitter-typescript',
+            'file': __file__,
+            'line': 42,
+            'traceback': None
+        }
+    ])
 
 try:
     from core.analysis.semgrep_analyzer import SemgrepAnalyzer
@@ -54,7 +64,9 @@ try:
     from core.analysis.radon_metrics import RadonMetrics
     ANALYSIS_AVAILABLE = True
 except ImportError as e:
-    logger.warning(f"Analysis modules not available: {e}")
+    # Analysis tools are optional - warn but don't fail
+    logger.warning(f"⚠️ Analysis modules not available: {e}")
+    logger.warning("   Install with: pip install semgrep radon vulture")
     ANALYSIS_AVAILABLE = False
     SemgrepAnalyzer = None
     VultureAnalyzer = None
@@ -64,7 +76,9 @@ try:
     from services.diagram_service import DiagramService
     DIAGRAM_AVAILABLE = True
 except ImportError as e:
-    logger.warning(f"Diagram service not available: {e}")
+    # Diagram service is optional - warn but don't fail
+    logger.warning(f"⚠️ Diagram service not available: {e}")
+    logger.warning("   Install with: pip install mermaid-py graphviz")
     DIAGRAM_AVAILABLE = False
     DiagramService = None
 
@@ -110,37 +124,32 @@ class ArchitectAgent(ChatAgent):
         # Initialize OpenAI service
         self.openai = OpenAIService()
 
-        # Initialize cache and search services
-        self.project_cache = None
-        self.file_watcher = None
-        self.code_search = None
+        # Get project path from environment or use current directory
+        project_path = os.getenv('PROJECT_PATH', os.getcwd())
 
-        if CACHE_AVAILABLE:
-            # Get project path from environment or use current directory
-            project_path = os.getenv('PROJECT_PATH', os.getcwd())
+        # Initialize permanent Redis cache - REQUIRED, NO FALLBACK
+        self.project_cache = ProjectCache(project_path)
+        if not self.project_cache.connected:
+            from core.exceptions import CacheNotAvailableError
+            raise CacheNotAvailableError(
+                component="ArchitectAgent",
+                file=__file__,
+                line=123
+            )
 
-            # Initialize permanent Redis cache
-            self.project_cache = ProjectCache(project_path)
+        # Initialize SQLite search
+        self.code_search = LightweightCodeSearch(project_path)
 
-            # Initialize SQLite search
-            self.code_search = LightweightCodeSearch(project_path)
+        # Initialize SMART file watcher with debouncing
+        self.file_watcher = SmartFileWatcher(project_path, self.project_cache, debounce_seconds=30)
+        self.file_watcher.start()
 
-            # Initialize SMART file watcher with debouncing
-            self.file_watcher = SmartFileWatcher(project_path, self.project_cache, debounce_seconds=30)
-            self.file_watcher.start()
+        logger.info("✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce")
 
-            logger.info("✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce")
-        else:
-            logger.warning("Cache services not available - using in-memory fallback")
-
-        # Initialize code analysis tools if available
-        if INDEXING_AVAILABLE:
-            self.tree_sitter = TreeSitterIndexer()
-            self.code_indexer = CodeIndexer()
-        else:
-            self.tree_sitter = None
-            self.code_indexer = None
-            logger.warning("Code indexing tools not available - some features will be limited")
+        # Initialize code indexing tools - REQUIRED
+        self.tree_sitter = TreeSitterIndexer()
+        self.code_indexer = CodeIndexer()
+        logger.info("✅ Code indexing tools initialized")
 
         if ANALYSIS_AVAILABLE:
             self.semgrep = SemgrepAnalyzer()
@@ -158,7 +167,7 @@ class ArchitectAgent(ChatAgent):
             self.diagram_service = None
             logger.warning("Diagram service not available - visualization features disabled")
 
-        # System knowledge cache (fallback for when Redis not available)
+        # System knowledge cache - no in-memory fallback, Redis only
         self.system_knowledge = None
         self.last_index_time = None
 
@@ -357,17 +366,16 @@ class ArchitectAgent(ChatAgent):
 
         try:
             return json.loads(response)
-        except:
-            # Fallback to basic analysis
-            return {
-                "project_type": "web application",
-                "scale": {"users": "medium", "requests_per_second": "1000"},
-                "performance": {"latency": "< 200ms", "throughput": "high"},
-                "security": ["authentication", "authorization"],
-                "integrations": [],
-                "constraints": [],
-                "key_features": self._extract_features(prompt)
-            }
+        except json.JSONDecodeError as e:
+            # No fallback - fail with clear error
+            from core.exceptions import SystemNotReadyError
+            raise SystemNotReadyError(
+                component="ArchitectAgent",
+                reason=f"Failed to parse OpenAI response as JSON: {str(e)}",
+                solution="Check OpenAI API response format or retry the request",
+                file=__file__,
+                line=368
+            )
 
     async def design_architecture(
         self,

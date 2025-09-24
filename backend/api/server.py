@@ -39,6 +39,8 @@ from core.conversation_context_manager import get_conversation_context
 from core.workflow_engine import get_workflow_engine, WorkflowNode, NodeType
 from core.agent_communication_bus import get_communication_bus, MessageType
 from core.validation_workflow import get_validation_workflow, ValidationConfig
+from core.startup_check import StartupChecker
+from core.exceptions import DependencyError
 from agents.specialized.orchestrator_agent_v2 import OrchestratorAgentV2
 from agents.specialized.architect_agent import ArchitectAgent
 from agents.specialized.codesmith_agent import CodeSmithAgent
@@ -61,6 +63,19 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Handle startup and shutdown events"""
     logger.info("🚀 KI AutoAgent Backend starting...")
+
+    # Run dependency checks first - fail fast if anything is missing
+    try:
+        logger.info("🔍 Checking system dependencies...")
+        await StartupChecker.check_all_dependencies()
+    except DependencyError as e:
+        logger.error(str(e))
+        logger.error("❌ Cannot start system due to missing dependencies")
+        sys.exit(1)  # Exit with error code
+    except Exception as e:
+        logger.error(f"❌ Unexpected error during startup check: {e}")
+        logger.error(traceback.format_exc())
+        sys.exit(1)
 
     # Initialize core systems
     memory_manager = get_memory_manager()
