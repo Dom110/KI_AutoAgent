@@ -796,6 +796,24 @@ PATCH Version (X.Y.Z):
 │   │   ├── Enhanced server.py with pause WebSocket handlers
 │   │   └── Extended BackendClient.ts with pause message types
 │   └── 🎯 IMPACT: Tasks can now be paused, modified, and safely rolled back with Git integration
+├── v4.0.27 (25.9.2025) - FIX WORKSPACE PATH & INDEXING START LOCATION
+│   ├── 🔧 WORKSPACE PATH FIX
+│   │   ├── Fixed workspace_path not being sent to backend
+│   │   ├── Backend now correctly receives VS Code workspace root
+│   │   ├── No more "No .gitignore found" error
+│   │   ├── Indexing now starts from project root, not backend folder
+│   │   └── Added workspace_path to chat request context
+│   ├── 🐛 FIXED ISSUES
+│   │   ├── Code indexer now finds .gitignore in project root
+│   │   ├── "Starting codebase indexing from /backend" → Now from workspace root
+│   │   ├── architect_agent.py now gets correct workspace path
+│   │   └── All file discovery starts from correct directory
+│   ├── ⚠️ STOP & ROLLBACK LIMITATION
+│   │   ├── Button only works while agent is actively running
+│   │   ├── After task completion, agent removed from active_agents
+│   │   ├── This is by design - can't rollback completed tasks
+│   │   └── Works correctly during task execution
+│   └── 🎯 IMPACT: Code indexing now correctly analyzes entire workspace from root
 ├── v4.0.26 (25.9.2025) - PROJECT STRUCTURE CLEANUP & UNIFIED DEPENDENCIES
 │   ├── 🧹 VIRTUAL ENVIRONMENT CONSOLIDATION
 │   │   ├── Removed old backend/venv directory (created Sep 21)

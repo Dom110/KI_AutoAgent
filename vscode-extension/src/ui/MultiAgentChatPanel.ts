@@ -208,12 +208,19 @@ export class MultiAgentChatPanel {
             timestamp: new Date().toISOString()
         });
 
-        // Send to backend with thinking mode
+        // Get workspace path for backend
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const workspacePath = workspaceFolders ? workspaceFolders[0].uri.fsPath : undefined;
+
+        // Send to backend with thinking mode and workspace path
         await this.backendClient.sendChatMessage({
             prompt: message.content,
             agent: message.agent || 'orchestrator',
             mode: message.mode || 'auto',
-            thinkingMode: this._thinkingMode
+            thinkingMode: this._thinkingMode,
+            context: {
+                workspace_path: workspacePath || process.cwd()
+            }
         });
     }
 
