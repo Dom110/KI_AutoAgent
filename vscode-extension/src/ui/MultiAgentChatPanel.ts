@@ -1100,20 +1100,18 @@ export class MultiAgentChatPanel {
                 function showPauseUI() {
                     const pauseOverlay = document.createElement('div');
                     pauseOverlay.className = 'pause-overlay';
-                    pauseOverlay.innerHTML = `
-                        <div class="pause-dialog">
-                            <h3>⏸️ Task Paused</h3>
-                            <p>Add additional instructions or stop the task:</p>
-                            <textarea id="pause-instructions"
-                                      placeholder="Enter additional instructions (optional)..."
-                                      rows="4"></textarea>
-                            <div class="pause-actions">
-                                <button id="resume-btn" class="btn primary">▶️ Resume</button>
-                                <button id="resume-with-instructions-btn" class="btn info">📝 Resume with Instructions</button>
-                                <button id="stop-rollback-btn" class="btn danger">🔄 Stop & Rollback</button>
-                            </div>
-                        </div>
-                    `;
+                    pauseOverlay.innerHTML = [
+                        '<div class="pause-dialog">',
+                        '<h3>⏸️ Task Paused</h3>',
+                        '<p>Add additional instructions or stop the task:</p>',
+                        '<textarea id="pause-instructions" placeholder="Enter additional instructions (optional)..." rows="4"></textarea>',
+                        '<div class="pause-actions">',
+                        '<button id="resume-btn" class="btn primary">▶️ Resume</button>',
+                        '<button id="resume-with-instructions-btn" class="btn info">📝 Resume with Instructions</button>',
+                        '<button id="stop-rollback-btn" class="btn danger">🔄 Stop & Rollback</button>',
+                        '</div>',
+                        '</div>'
+                    ].join('');
                     document.body.appendChild(pauseOverlay);
 
                     // Handle pause dialog buttons
