@@ -45,20 +45,31 @@ class ReviewerGPTAgent(ChatAgent):
 
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
-        Execute code review task
+        Execute code review task - ENFORCER OF ASIMOV RULES
         """
         try:
             system_prompt = """
-            You are ReviewerGPT, a meticulous code review and security expert.
+            You are ReviewerGPT, the ENFORCER OF ASIMOV RULES and code quality.
+
+            🔴 ASIMOV RULES (ABSOLUTE - BLOCK ANY VIOLATIONS):
+            1. NO FALLBACKS without documented user reason - Check for any fallback patterns
+            2. COMPLETE IMPLEMENTATION - No TODOs, no partial work, no 'later'
+
             Analyze code for:
-            1. 🐛 Bugs and logical errors
-            2. 🔒 Security vulnerabilities (XSS, SQL injection, etc.)
-            3. ⚡ Performance issues
-            4. 📝 Code quality and readability
-            5. 🎯 Best practices violations
-            
-            Provide actionable feedback with specific line references when possible.
-            Rate severity: Critical 🔴, High 🟠, Medium 🟡, Low 🔵
+            1. ⚡ ASIMOV RULE VIOLATIONS (HIGHEST PRIORITY)
+            2. 🐛 Bugs and logical errors
+            3. 🔒 Security vulnerabilities (XSS, SQL injection, etc.)
+            4. ⚡ Performance issues
+            5. 📝 Code quality and readability
+            6. 🎯 Best practices violations
+
+            ENFORCEMENT ACTIONS:
+            - 🔴 BLOCK: Any code with Asimov violations
+            - 🔴 REJECT: Fallbacks without documented reason
+            - 🔴 FAIL: Incomplete implementations or TODOs
+
+            Provide actionable feedback with specific line references.
+            Rate severity: ASIMOV VIOLATION 🔴🔴🔴, Critical 🔴, High 🟠, Medium 🟡, Low 🔵
             """
 
             response = await self.ai_service.get_completion(
@@ -67,9 +78,10 @@ class ReviewerGPTAgent(ChatAgent):
                 temperature=0.3
             )
 
-            # Fallback for API errors
+            # NO FALLBACK - ASIMOV RULE 1
+            # If API fails, we fail fast
             if "error" in response.lower() and "api" in response.lower():
-                response = self._generate_fallback_review(request.prompt)
+                raise Exception("API error - no fallback allowed per Asimov Rule 1")
 
             return TaskResult(
                 status="success",
@@ -83,58 +95,64 @@ class ReviewerGPTAgent(ChatAgent):
             )
 
         except Exception as e:
+            # NO FALLBACK - FAIL FAST (ASIMOV RULE 1)
             logger.error(f"ReviewerGPT execution error: {e}")
             return TaskResult(
                 status="error",
-                content=self._generate_fallback_review(request.prompt),
-                agent=self.config.agent_id
+                content=f"REVIEW FAILED: {str(e)}\n\nNo fallback review allowed per Asimov Rule 1.\nFix the error and retry.",
+                agent=self.config.agent_id,
+                metadata={"asimov_enforcement": "No fallbacks allowed"}
             )
 
-    def _generate_fallback_review(self, prompt: str) -> str:
+    def check_asimov_violations(self, code: str) -> List[Dict[str, Any]]:
         """
-        Generate fallback review when API is unavailable
+        Check for Asimov Rule violations in code
+        This is the PRIMARY enforcement mechanism
         """
-        return f"""
-# 🔍 Code Review Report
+        violations = []
 
-## Summary
-Reviewing: "{prompt[:100]}..."
+        # Check for fallback patterns (Asimov Rule 1)
+        fallback_patterns = [
+            (r'if.*not.*available.*:', 'Potential fallback without documented reason'),
+            (r'except.*pass', 'Silent error handling - violates fail-fast principle'),
+            (r'fallback|default.*=|or\s+\w+\(\)', 'Fallback pattern detected'),
+            (r'try:.*except:.*return.*None', 'Silent fallback to None'),
+        ]
 
-## 🐛 Potential Issues Found
+        # Check for incomplete implementation (Asimov Rule 2)
+        incomplete_patterns = [
+            (r'#\s*TODO', 'TODO found - incomplete implementation'),
+            (r'#\s*FIXME', 'FIXME found - incomplete implementation'),
+            (r'#\s*HACK', 'HACK found - improper implementation'),
+            (r'pass\s*$', 'Empty implementation with pass'),
+            (r'raise\s+NotImplementedError', 'Not implemented'),
+            (r'return\s+None\s*#.*later', 'Deferred implementation'),
+        ]
 
-### 🔴 Critical Issues
-• No critical security vulnerabilities detected in initial scan
+        import re
+        code_lower = code.lower()
 
-### 🟠 High Priority
-• Consider adding input validation
-• Error handling could be improved
+        for pattern, description in fallback_patterns:
+            if re.search(pattern, code_lower):
+                violations.append({
+                    'rule': 'ASIMOV RULE 1',
+                    'severity': 'ASIMOV_VIOLATION',
+                    'description': description,
+                    'action': 'BLOCK',
+                    'fix': 'Remove fallback or add documented reason with user confirmation'
+                })
 
-### 🟡 Medium Priority  
-• Code could benefit from more comments
-• Some functions are too long (>50 lines)
+        for pattern, description in incomplete_patterns:
+            if re.search(pattern, code, re.IGNORECASE):
+                violations.append({
+                    'rule': 'ASIMOV RULE 2',
+                    'severity': 'ASIMOV_VIOLATION',
+                    'description': description,
+                    'action': 'BLOCK',
+                    'fix': 'Complete the implementation before submission'
+                })
 
-### 🔵 Low Priority
-• Variable naming could be more descriptive
-• Consider extracting magic numbers to constants
-
-## ✅ Good Practices Observed
-• Code structure appears logical
-• Functions have clear purposes
-
-## 💡 Recommendations
-1. **Add Input Validation**: Always validate user inputs
-2. **Improve Error Handling**: Use try-catch blocks appropriately
-3. **Add Tests**: Ensure code coverage > 80%
-4. **Documentation**: Add JSDoc/docstrings
-5. **Security**: Review OWASP guidelines
-
-## 🎯 Overall Score: 7/10
-
-The code is functional but could benefit from security hardening and better error handling.
-
----
-*Reviewed by ReviewerGPT - Code Review & Security Expert*
-        """
+        return violations
 
     async def find_bugs(self, code: str) -> List[Dict[str, Any]]:
         """
@@ -143,7 +161,20 @@ The code is functional but could benefit from security hardening and better erro
         # This would use AI to find bugs
         bugs = []
         
-        # Simple heuristic checks as fallback
+        # First check for Asimov violations
+        asimov_violations = self.check_asimov_violations(code)
+        if asimov_violations:
+            for violation in asimov_violations:
+                bugs.append({
+                    "type": "ASIMOV_VIOLATION",
+                    "severity": "BLOCKER",
+                    "rule": violation['rule'],
+                    "description": violation['description'],
+                    "action": violation['action'],
+                    "fix": violation['fix']
+                })
+
+        # Then check for regular bugs
         if "onclick=" in code.lower():
             bugs.append({
                 "type": "event_handler",

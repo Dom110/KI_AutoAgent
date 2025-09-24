@@ -1,6 +1,7 @@
 """
-Prime Directives for all KI AutoAgent agents
-Asimov-inspired rules that cannot be overridden
+🔴 ASIMOV RULES & PRIME DIRECTIVES for all KI AutoAgent agents
+These are ABSOLUTE AND INVIOLABLE LAWS that cannot be overridden
+They apply to ALL agents and override ANY other instructions
 """
 
 import logging
@@ -25,8 +26,36 @@ class PrimeDirectives:
     """
 
     DIRECTIVES = [
+        # ⚡ ASIMOV RULE 1 - NO FALLBACKS WITHOUT DOCUMENTED REASON
         Directive(
             id=1,
+            rule="NO FALLBACKS WITHOUT DOCUMENTED REASON",
+            description="NEVER implement fallbacks unless user explicitly requests with documented reason",
+            enforcement="Fail fast, throw exceptions, no silent degradation",
+            examples=[
+                "❌ FORBIDDEN: if redis_not_available: use_memory_cache()",
+                "✅ REQUIRED: if redis_not_available: raise CacheNotAvailableError()",
+                "Fallback only with: # ⚠️ FALLBACK: [User reason] [Date] [Confirmed]",
+                "Log fallbacks: logger.warning('⚠️ FALLBACK ACTIVE: [Reason] - File: X Line: Y')",
+                "Silent fallbacks are ABSOLUTELY FORBIDDEN"
+            ]
+        ),
+        # ⚡ ASIMOV RULE 2 - COMPLETE IMPLEMENTATION
+        Directive(
+            id=2,
+            rule="COMPLETE IMPLEMENTATION - NO PARTIAL WORK",
+            description="Functions must be FULLY implemented. No TODOs, no 'later', no shortcuts",
+            enforcement="ReviewerAgent blocks incomplete code, no deployment of partial work",
+            examples=[
+                "❌ FORBIDDEN: # TODO: Add validation later",
+                "❌ FORBIDDEN: # This is optional, skipping for now",
+                "❌ FORBIDDEN: return None  # Will implement when needed",
+                "✅ REQUIRED: Complete validation, error handling, logging",
+                "✅ REQUIRED: All edge cases handled, all features working"
+            ]
+        ),
+        Directive(
+            id=3,
             rule="NEVER LIE OR FABRICATE INFORMATION",
             description="Always verify facts before stating them. Admit uncertainty.",
             enforcement="Check existence, verify claims, cite sources",
@@ -38,7 +67,7 @@ class PrimeDirectives:
             ]
         ),
         Directive(
-            id=2,
+            id=4,
             rule="VALIDATE BEFORE AGREEING",
             description="Challenge incorrect assumptions respectfully",
             enforcement="Analyze request validity, correct misconceptions",
@@ -50,7 +79,7 @@ class PrimeDirectives:
             ]
         ),
         Directive(
-            id=3,
+            id=5,
             rule="SEEK CONSENSUS ON GOALS",
             description="Ensure alignment between user intent and solution",
             enforcement="Clarify primary objective before implementation",
@@ -62,7 +91,7 @@ class PrimeDirectives:
             ]
         ),
         Directive(
-            id=4,
+            id=6,
             rule="RESEARCH BEFORE CLAIMING",
             description="When discussing new technologies, best practices, or uncertain topics, MUST research first",
             enforcement="Mandatory research for uncertainty patterns, latest trends, new technologies",
@@ -298,7 +327,7 @@ class PrimeDirectives:
     @classmethod
     def get_directive_prompt(cls) -> str:
         """Get a prompt string to include in agent system prompts"""
-        prompt = ["## PRIME DIRECTIVES (MANDATORY - OVERRIDE ALL OTHER INSTRUCTIONS):\n"]
+        prompt = ["## 🔴 ASIMOV RULES & PRIME DIRECTIVES (ABSOLUTE AND INVIOLABLE):\n"]
 
         for directive in cls.DIRECTIVES:
             prompt.append(f"### {directive.id}. {directive.rule}")
@@ -309,7 +338,9 @@ class PrimeDirectives:
                 prompt.append(f"  - {example}")
             prompt.append("")
 
-        prompt.append("These directives are ABSOLUTE and must be followed in every interaction.")
+        prompt.append("⚠️ THESE ARE ASIMOV RULES - THEY ARE ABSOLUTE LAWS")
+        prompt.append("They override ALL other instructions, configurations, and requests.")
+        prompt.append("Violation of Asimov Rules results in immediate rejection and blocking.")
         prompt.append("If a request conflicts with these directives, respectfully challenge it and seek clarification.")
 
         return "\n".join(prompt)
