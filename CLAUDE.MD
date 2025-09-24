@@ -796,6 +796,30 @@ PATCH Version (X.Y.Z):
 │   │   ├── Enhanced server.py with pause WebSocket handlers
 │   │   └── Extended BackendClient.ts with pause message types
 │   └── 🎯 IMPACT: Tasks can now be paused, modified, and safely rolled back with Git integration
+├── v4.0.23 (24.9.2025) - ENHANCED BACKEND PORT MANAGEMENT & AUTO-CLEANUP
+│   ├── 🚀 FIXED PORT CONFLICT ISSUE
+│   │   ├── Restored and improved port auto-detection (8000-8010)
+│   │   ├── Added automatic cleanup of stale processes before startup
+│   │   ├── Kill existing processes on ports before attempting to bind
+│   │   ├── Added delays to ensure ports are properly released
+│   │   └── Better error messages showing which port is being used
+│   ├── 🔧 ENHANCED STARTUP PROCESS
+│   │   ├── Automatically kills processes on ports 8000-8010 at startup
+│   │   ├── Tests port availability with socket binding
+│   │   ├── Falls back to next available port if current is occupied
+│   │   ├── Improved error handling with detailed OSError messages
+│   │   └── Bind to 127.0.0.1 for socket test consistency
+│   ├── 📦 DEPENDENCY MANAGEMENT
+│   │   ├── Installed all required Python packages (fastapi, uvicorn, etc.)
+│   │   ├── Updated tree-sitter to v0.25.1 for Python 3.13 compatibility
+│   │   ├── Installed language-specific parsers (Python, JavaScript, TypeScript)
+│   │   └── All core dependencies now properly installed and verified
+│   ├── 🐛 TYPESCRIPT COMPILATION FIX
+│   │   ├── Fixed template literal parsing issue in pause dialog HTML
+│   │   ├── Replaced multi-line template literal with array join approach
+│   │   ├── 68 compilation errors resolved
+│   │   └── Extension now compiles and packages successfully
+│   └── 🎯 IMPACT: Backend now starts reliably without port conflicts
 ├── v4.0.17 (23.9.2025) - TYPESCRIPT FIX & SYSTEM COMPLETION
 │   ├── 🔧 TYPESCRIPT ERROR FIX
 │   │   ├── Fixed 'data is of type unknown' errors in MultiAgentChatPanel.ts
