@@ -14,6 +14,10 @@ export interface BackendMessage {
     metadata?: any;
     timestamp?: string;
     done?: boolean;  // For stream_chunk messages
+    message?: string;  // For error and progress messages
+    status?: string;  // For response status
+    error?: string;  // For error messages
+    details?: any;  // For additional error details
 }
 
 export interface ChatRequest {

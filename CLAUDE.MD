@@ -595,6 +595,25 @@ PATCH Version (X.Y.Z):
 │   │   ├── Agent-specific bubble styling
 │   │   └── Better visual feedback during processing
 │   └── 🎯 IMPACT: Significantly improved user experience and debuggability
+├── v4.0.20 (23.9.2025) - COMPILATION FIXES & SEMI-TRANSPARENT BUBBLES
+│   ├── 🔧 TYPESCRIPT COMPILATION FIXES
+│   │   ├── Fixed HTML template string parsing errors
+│   │   ├── Replaced template literals with DOM methods for activity indicator
+│   │   ├── Fixed opacity string type mismatch
+│   │   ├── Extended BackendMessage interface with missing properties
+│   │   └── All TypeScript errors resolved, clean compilation
+│   ├── 🎨 ENHANCED BUBBLE TRANSPARENCY
+│   │   ├── Semi-transparent backgrounds for all agent bubbles
+│   │   ├── Added backdrop-filter blur effects
+│   │   ├── Dark mode: 30% opacity with colored tints
+│   │   ├── Light mode: 50% opacity with pastel tints
+│   │   └── All 10 agents have unique color schemes
+│   ├── 📦 TYPE IMPROVEMENTS
+│   │   ├── BackendMessage interface extended with message, status, error, details
+│   │   ├── Proper type safety for all message properties
+│   │   ├── Fixed all TypeScript compilation warnings
+│   │   └── Clean webpack build with no errors
+│   └── 🎯 IMPACT: Clean compilation and beautiful semi-transparent UI
 ├── v4.0.17 (23.9.2025) - TYPESCRIPT FIX & SYSTEM COMPLETION
 │   ├── 🔧 TYPESCRIPT ERROR FIX
 │   │   ├── Fixed 'data is of type unknown' errors in MultiAgentChatPanel.ts

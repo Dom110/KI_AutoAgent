@@ -530,78 +530,148 @@ export class MultiAgentChatPanel {
                     margin: 5px 0;
                 }
 
-                /* Agent-specific bubble colors for dark mode */
+                /* Agent-specific bubble colors for dark mode - semi-transparent */
                 body.vscode-dark .message.architect,
                 body.vscode-dark .message.architect-bubble {
-                    background: #1e3a5f !important;
-                    border: 1px solid #2a4a7f;
+                    background: rgba(30, 58, 95, 0.3) !important;
+                    border: 1px solid rgba(42, 74, 127, 0.5);
+                    backdrop-filter: blur(8px);
                 }
 
                 body.vscode-dark .message.codesmith,
                 body.vscode-dark .message.codesmith-bubble {
-                    background: #3a2e5f !important;
-                    border: 1px solid #4a3e7f;
+                    background: rgba(58, 46, 95, 0.3) !important;
+                    border: 1px solid rgba(74, 62, 127, 0.5);
+                    backdrop-filter: blur(8px);
                 }
 
                 body.vscode-dark .message.orchestrator,
                 body.vscode-dark .message.orchestrator-bubble {
-                    background: #4a2e4a !important;
-                    border: 1px solid #6a4e6a;
+                    background: rgba(74, 46, 74, 0.3) !important;
+                    border: 1px solid rgba(106, 78, 106, 0.5);
+                    backdrop-filter: blur(8px);
                 }
 
                 body.vscode-dark .message.research,
                 body.vscode-dark .message.research-bubble {
-                    background: #2e4a3a !important;
-                    border: 1px solid #3e6a4a;
+                    background: rgba(46, 74, 58, 0.3) !important;
+                    border: 1px solid rgba(62, 106, 74, 0.5);
+                    backdrop-filter: blur(8px);
                 }
 
                 body.vscode-dark .message.reviewer,
                 body.vscode-dark .message.reviewer-bubble {
-                    background: #4a3a2e !important;
-                    border: 1px solid #6a5a3e;
+                    background: rgba(74, 58, 46, 0.3) !important;
+                    border: 1px solid rgba(106, 90, 62, 0.5);
+                    backdrop-filter: blur(8px);
                 }
 
                 body.vscode-dark .message.performance_bot,
-                body.vscode-dark .message.performance-bubble {
-                    background: #5a3a2e !important;
-                    border: 1px solid #7a5a3e;
+                body.vscode-dark .message.performance-bubble,
+                body.vscode-dark .message.performance-bot-bubble {
+                    background: rgba(90, 58, 46, 0.3) !important;
+                    border: 1px solid rgba(122, 90, 62, 0.5);
+                    backdrop-filter: blur(8px);
                 }
 
-                /* Light mode colors */
+                body.vscode-dark .message.fixer,
+                body.vscode-dark .message.fixer-bubble {
+                    background: rgba(46, 90, 74, 0.3) !important;
+                    border: 1px solid rgba(62, 122, 106, 0.5);
+                    backdrop-filter: blur(8px);
+                }
+
+                body.vscode-dark .message.docubot,
+                body.vscode-dark .message.docubot-bubble {
+                    background: rgba(90, 74, 46, 0.3) !important;
+                    border: 1px solid rgba(122, 106, 62, 0.5);
+                    backdrop-filter: blur(8px);
+                }
+
+                body.vscode-dark .message.tradestrat,
+                body.vscode-dark .message.tradestrat-bubble {
+                    background: rgba(74, 46, 90, 0.3) !important;
+                    border: 1px solid rgba(106, 62, 122, 0.5);
+                    backdrop-filter: blur(8px);
+                }
+
+                body.vscode-dark .message.opus-arbitrator,
+                body.vscode-dark .message.opus-arbitrator-bubble {
+                    background: rgba(90, 46, 46, 0.3) !important;
+                    border: 1px solid rgba(122, 62, 62, 0.5);
+                    backdrop-filter: blur(8px);
+                }
+
+                /* Light mode colors - semi-transparent */
                 body.vscode-light .message.architect,
                 body.vscode-light .message.architect-bubble {
-                    background: #e6f2ff !important;
-                    border: 1px solid #b3d9ff;
+                    background: rgba(230, 242, 255, 0.5) !important;
+                    border: 1px solid rgba(179, 217, 255, 0.7);
+                    backdrop-filter: blur(8px);
                 }
 
                 body.vscode-light .message.codesmith,
                 body.vscode-light .message.codesmith-bubble {
-                    background: #f0e6ff !important;
-                    border: 1px solid #d9b3ff;
+                    background: rgba(240, 230, 255, 0.5) !important;
+                    border: 1px solid rgba(217, 179, 255, 0.7);
+                    backdrop-filter: blur(8px);
                 }
 
                 body.vscode-light .message.orchestrator,
                 body.vscode-light .message.orchestrator-bubble {
-                    background: #ffe6f0 !important;
-                    border: 1px solid #ffb3d9;
+                    background: rgba(255, 230, 240, 0.5) !important;
+                    border: 1px solid rgba(255, 179, 217, 0.7);
+                    backdrop-filter: blur(8px);
                 }
 
                 body.vscode-light .message.research,
                 body.vscode-light .message.research-bubble {
-                    background: #e6fff0 !important;
-                    border: 1px solid #b3ffd9;
+                    background: rgba(230, 255, 240, 0.5) !important;
+                    border: 1px solid rgba(179, 255, 217, 0.7);
+                    backdrop-filter: blur(8px);
                 }
 
                 body.vscode-light .message.reviewer,
                 body.vscode-light .message.reviewer-bubble {
-                    background: #fff5e6 !important;
-                    border: 1px solid #ffdfb3;
+                    background: rgba(255, 245, 230, 0.5) !important;
+                    border: 1px solid rgba(255, 223, 179, 0.7);
+                    backdrop-filter: blur(8px);
                 }
 
                 body.vscode-light .message.performance_bot,
-                body.vscode-light .message.performance-bubble {
-                    background: #ffe6e6 !important;
-                    border: 1px solid #ffb3b3;
+                body.vscode-light .message.performance-bubble,
+                body.vscode-light .message.performance-bot-bubble {
+                    background: rgba(255, 230, 230, 0.5) !important;
+                    border: 1px solid rgba(255, 179, 179, 0.7);
+                    backdrop-filter: blur(8px);
+                }
+
+                body.vscode-light .message.fixer,
+                body.vscode-light .message.fixer-bubble {
+                    background: rgba(230, 255, 245, 0.5) !important;
+                    border: 1px solid rgba(179, 255, 233, 0.7);
+                    backdrop-filter: blur(8px);
+                }
+
+                body.vscode-light .message.docubot,
+                body.vscode-light .message.docubot-bubble {
+                    background: rgba(255, 250, 230, 0.5) !important;
+                    border: 1px solid rgba(255, 240, 179, 0.7);
+                    backdrop-filter: blur(8px);
+                }
+
+                body.vscode-light .message.tradestrat,
+                body.vscode-light .message.tradestrat-bubble {
+                    background: rgba(250, 230, 255, 0.5) !important;
+                    border: 1px solid rgba(240, 179, 255, 0.7);
+                    backdrop-filter: blur(8px);
+                }
+
+                body.vscode-light .message.opus-arbitrator,
+                body.vscode-light .message.opus-arbitrator-bubble {
+                    background: rgba(255, 230, 235, 0.5) !important;
+                    border: 1px solid rgba(255, 179, 190, 0.7);
+                    backdrop-filter: blur(8px);
                 }
 
                 #send-button {
@@ -870,7 +940,7 @@ export class MultiAgentChatPanel {
                 function updateStopButtonState() {
                     if (stopBtn) {
                         stopBtn.disabled = !isProcessing;
-                        stopBtn.style.opacity = isProcessing ? '1' : '0.5';
+                        stopBtn.style.opacity = isProcessing ? '1.0' : '0.5';
                         stopBtn.style.cursor = isProcessing ? 'pointer' : 'not-allowed';
                     }
                 }
@@ -888,10 +958,16 @@ export class MultiAgentChatPanel {
                 // Create activity indicator
                 const activityIndicator = document.createElement('div');
                 activityIndicator.className = 'activity-indicator';
-                activityIndicator.innerHTML = `
-                    <div class="spinner"></div>
-                    <div class="text">Processing...</div>
-                `;
+
+                const spinner = document.createElement('div');
+                spinner.className = 'spinner';
+
+                const text = document.createElement('div');
+                text.className = 'text';
+                text.textContent = 'Processing...';
+
+                activityIndicator.appendChild(spinner);
+                activityIndicator.appendChild(text);
                 document.body.appendChild(activityIndicator);
 
                 function updateActivityIndicator(active, text = 'Processing...') {

@@ -1,11 +1,11 @@
 """
 KI AutoAgent Backend Version Information
 
-Version 4.0.19 - Enhanced Chat UI & Debug Improvements
+Version 4.0.20 - Compilation Fixes & Semi-Transparent Bubbles
 """
 
-__version__ = "4.0.19"
-__version_info__ = (4, 0, 19)
+__version__ = "4.0.20"
+__version_info__ = (4, 0, 20)
 __release_date__ = "2025-09-23"
 __author__ = "KI AutoAgent Team"
 __description__ = "Cognitive AI Development Platform with Self-Understanding Capabilities"
