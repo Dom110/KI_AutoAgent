@@ -305,9 +305,18 @@ class ArchitectAgent(ChatAgent):
 
         except Exception as e:
             logger.error(f"Architecture design failed: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+
+            # Add more context to error for debugging
+            error_details = f"Failed to design architecture: {str(e)}\n"
+            error_details += f"Request type: {type(request)}\n"
+            error_details += f"Context type: {type(request.context) if hasattr(request, 'context') else 'No context'}\n"
+            error_details += f"Context value: {repr(request.context) if hasattr(request, 'context') else 'N/A'}\n"
+
             return TaskResult(
                 status="error",
-                content=f"Failed to design architecture: {str(e)}",
+                content=error_details,
                 agent=self.config.agent_id
             )
 

@@ -447,6 +447,10 @@ async def handle_chat_message(client_id: str, data: dict):
     shared_data = shared_ctx.get_context()
 
     # Send thinking message
+    # Log the request for debugging
+    logger.info(f"📨 Processing request from {client_id} for agent {agent_id}")
+    logger.debug(f"Request content: {content[:100]}..." if len(content) > 100 else f"Request content: {content}")
+
     await manager.send_json(client_id, {
         "type": "agent_thinking",
         "agent": agent_id,
@@ -524,6 +528,8 @@ async def handle_chat_message(client_id: str, data: dict):
 
             # Debug log the result
             logger.info(f"📊 Agent result - Status: {result.status}, Content length: {len(result.content) if result.content else 0}")
+            if result.status == "error":
+                logger.error(f"❌ Agent error: {result.content[:500]}" if len(result.content) > 500 else f"❌ Agent error: {result.content}")
 
             # Save agent response to persistent history
             if conversation_persistence and result.content:
@@ -549,11 +555,14 @@ async def handle_chat_message(client_id: str, data: dict):
         # This code is now handled in the if/else block above
 
     except Exception as e:
+        import traceback
         logger.error(f"Error processing chat message: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         await manager.send_json(client_id, {
             "type": "error",
             "message": f"Error: {str(e)}",
-            "agent": agent_id
+            "agent": agent_id,
+            "details": traceback.format_exc()
         })
 
 async def handle_command(client_id: str, data: dict):

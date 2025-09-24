@@ -197,10 +197,15 @@ export class BackendClient extends EventEmitter {
                 break;
 
             case 'agent_progress':
+                this.outputChannel.appendLine(`📊 Agent Progress: ${message.agent} - ${message.message || message.content}`);
                 this.emit('progress', message);
                 break;
 
             case 'agent_response':
+                this.outputChannel.appendLine(`✅ Agent Response: ${message.agent} - Status: ${message.status}`);
+                if (message.status === 'error') {
+                    this.outputChannel.appendLine(`❌ Error Details: ${message.content}`);
+                }
                 this.emit('response', message);
                 break;
 
@@ -219,6 +224,13 @@ export class BackendClient extends EventEmitter {
                 break;
 
             case 'error':
+                this.outputChannel.appendLine(`❌ ERROR: ${message.message || message.error || JSON.stringify(message)}`);
+                if (message.agent) {
+                    this.outputChannel.appendLine(`   Agent: ${message.agent}`);
+                }
+                if (message.details) {
+                    this.outputChannel.appendLine(`   Details: ${JSON.stringify(message.details)}`);
+                }
                 this.emit('error', message);
                 break;
 

@@ -478,6 +478,132 @@ export class MultiAgentChatPanel {
                     background: #cb2431;
                 }
 
+                .header-btn.danger:disabled {
+                    background: #6a6a6a;
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                /* Activity indicator */
+                .activity-indicator {
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    padding: 10px 15px;
+                    background: var(--vscode-notifications-background);
+                    border: 1px solid var(--vscode-notifications-border);
+                    border-radius: 8px;
+                    display: none;
+                    align-items: center;
+                    gap: 10px;
+                    z-index: 1000;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                }
+
+                .activity-indicator.active {
+                    display: flex;
+                }
+
+                .activity-indicator .spinner {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid var(--vscode-progressBar-background);
+                    border-top-color: transparent;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                }
+
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+
+                .activity-indicator .text {
+                    color: var(--vscode-foreground);
+                    font-size: 13px;
+                }
+
+                /* Progress bubble for updates */
+                .message.progress-update {
+                    background: var(--vscode-editor-inactiveSelectionBackground) !important;
+                    border: 1px solid var(--vscode-panel-border);
+                    padding: 8px 12px;
+                    margin: 5px 0;
+                }
+
+                /* Agent-specific bubble colors for dark mode */
+                body.vscode-dark .message.architect,
+                body.vscode-dark .message.architect-bubble {
+                    background: #1e3a5f !important;
+                    border: 1px solid #2a4a7f;
+                }
+
+                body.vscode-dark .message.codesmith,
+                body.vscode-dark .message.codesmith-bubble {
+                    background: #3a2e5f !important;
+                    border: 1px solid #4a3e7f;
+                }
+
+                body.vscode-dark .message.orchestrator,
+                body.vscode-dark .message.orchestrator-bubble {
+                    background: #4a2e4a !important;
+                    border: 1px solid #6a4e6a;
+                }
+
+                body.vscode-dark .message.research,
+                body.vscode-dark .message.research-bubble {
+                    background: #2e4a3a !important;
+                    border: 1px solid #3e6a4a;
+                }
+
+                body.vscode-dark .message.reviewer,
+                body.vscode-dark .message.reviewer-bubble {
+                    background: #4a3a2e !important;
+                    border: 1px solid #6a5a3e;
+                }
+
+                body.vscode-dark .message.performance_bot,
+                body.vscode-dark .message.performance-bubble {
+                    background: #5a3a2e !important;
+                    border: 1px solid #7a5a3e;
+                }
+
+                /* Light mode colors */
+                body.vscode-light .message.architect,
+                body.vscode-light .message.architect-bubble {
+                    background: #e6f2ff !important;
+                    border: 1px solid #b3d9ff;
+                }
+
+                body.vscode-light .message.codesmith,
+                body.vscode-light .message.codesmith-bubble {
+                    background: #f0e6ff !important;
+                    border: 1px solid #d9b3ff;
+                }
+
+                body.vscode-light .message.orchestrator,
+                body.vscode-light .message.orchestrator-bubble {
+                    background: #ffe6f0 !important;
+                    border: 1px solid #ffb3d9;
+                }
+
+                body.vscode-light .message.research,
+                body.vscode-light .message.research-bubble {
+                    background: #e6fff0 !important;
+                    border: 1px solid #b3ffd9;
+                }
+
+                body.vscode-light .message.reviewer,
+                body.vscode-light .message.reviewer-bubble {
+                    background: #fff5e6 !important;
+                    border: 1px solid #ffdfb3;
+                }
+
+                body.vscode-light .message.performance_bot,
+                body.vscode-light .message.performance-bubble {
+                    background: #ffe6e6 !important;
+                    border: 1px solid #ffb3b3;
+                }
+
                 #send-button {
                     padding: 8px 16px;
                     background: var(--vscode-button-background);
@@ -690,6 +816,8 @@ export class MultiAgentChatPanel {
 
                     // Set processing state
                     isProcessing = true;
+                    updateStopButtonState();
+                    updateActivityIndicator(true, 'Sending message...');
 
                     // Disable inputs while processing
                     if (sendButton) sendButton.disabled = true;
@@ -738,13 +866,42 @@ export class MultiAgentChatPanel {
                     });
                 });
 
+                // Function to update stop button state
+                function updateStopButtonState() {
+                    if (stopBtn) {
+                        stopBtn.disabled = !isProcessing;
+                        stopBtn.style.opacity = isProcessing ? '1' : '0.5';
+                        stopBtn.style.cursor = isProcessing ? 'pointer' : 'not-allowed';
+                    }
+                }
+
                 stopBtn.addEventListener('click', () => {
                     if (isProcessing) {
                         vscode.postMessage({ type: 'stop' });
                         isProcessing = false;
                         removeThinkingMessage();
+                        updateStopButtonState();
+                        updateActivityIndicator(false);
                     }
                 });
+
+                // Create activity indicator
+                const activityIndicator = document.createElement('div');
+                activityIndicator.className = 'activity-indicator';
+                activityIndicator.innerHTML = `
+                    <div class="spinner"></div>
+                    <div class="text">Processing...</div>
+                `;
+                document.body.appendChild(activityIndicator);
+
+                function updateActivityIndicator(active, text = 'Processing...') {
+                    if (active) {
+                        activityIndicator.classList.add('active');
+                        activityIndicator.querySelector('.text').textContent = text;
+                    } else {
+                        activityIndicator.classList.remove('active');
+                    }
+                }
                 messageInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
@@ -772,18 +929,24 @@ export class MultiAgentChatPanel {
 
                         case 'agentThinking':
                             isProcessing = true;
+                            updateStopButtonState();
+                            updateActivityIndicator(true, message.content || 'Processing...');
                             addThinkingMessage(message.agent, message.content);
                             break;
 
                         case 'progress':
-                            // Show progress as a system message
-                            addMessage(message.content, 'system', message.agent + ' Progress');
+                            // Update existing progress message or create new one
+                            updateProgressMessage(message.agent, message.content);
+                            updateActivityIndicator(true, message.content || 'Processing...');
                             break;
 
                         case 'agentResponse':
                             // Always reset processing state on response
                             isProcessing = false;
+                            updateStopButtonState();
+                            updateActivityIndicator(false);
                             removeThinkingMessage();
+                            removeProgressMessages();
                             addMessage(message.content, 'agent', message.agent);
                             // Re-enable input and button
                             if (sendButton) sendButton.disabled = false;
@@ -793,7 +956,10 @@ export class MultiAgentChatPanel {
                         case 'complete':
                             // Double-check processing state is reset
                             isProcessing = false;
+                            updateStopButtonState();
+                            updateActivityIndicator(false);
                             removeThinkingMessage();
+                            removeProgressMessages();
                             if (sendButton) sendButton.disabled = false;
                             if (messageInput) messageInput.disabled = false;
                             break;
@@ -801,13 +967,18 @@ export class MultiAgentChatPanel {
                         case 'clearChat':
                             messagesDiv.innerHTML = '';
                             isProcessing = false;
+                            updateStopButtonState();
+                            updateActivityIndicator(false);
                             if (sendButton) sendButton.disabled = false;
                             if (messageInput) messageInput.disabled = false;
                             break;
 
                         case 'stopProcessing':
                             isProcessing = false;
+                            updateStopButtonState();
+                            updateActivityIndicator(false);
                             removeThinkingMessage();
+                            removeProgressMessages();
                             if (sendButton) sendButton.disabled = false;
                             if (messageInput) messageInput.disabled = false;
                             break;
@@ -818,7 +989,10 @@ export class MultiAgentChatPanel {
                     const messageDiv = document.createElement('div');
                     messageDiv.className = 'message ' + type + '-message';
 
+                    // Add agent-specific class for styling
                     if (agent) {
+                        const agentClass = agent.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                        messageDiv.classList.add(agentClass + '-bubble');
                         const badge = document.createElement('span');
                         badge.className = 'agent-badge';
                         badge.textContent = agent;
@@ -858,6 +1032,49 @@ export class MultiAgentChatPanel {
                     if (thinkingMsg) {
                         thinkingMsg.remove();
                     }
+                }
+
+                // Map to track progress messages by agent
+                const progressMessages = new Map();
+
+                function updateProgressMessage(agent, content) {
+                    let progressDiv = progressMessages.get(agent);
+
+                    if (!progressDiv) {
+                        // Create new progress message
+                        progressDiv = document.createElement('div');
+                        progressDiv.className = 'message system-message progress-update';
+                        progressDiv.id = 'progress-' + agent.replace(/[^a-z0-9]/gi, '-');
+
+                        const badge = document.createElement('span');
+                        badge.className = 'agent-badge';
+                        badge.textContent = agent + ' Progress';
+                        progressDiv.appendChild(badge);
+
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'progress-content';
+                        progressDiv.appendChild(contentDiv);
+
+                        messagesDiv.appendChild(progressDiv);
+                        progressMessages.set(agent, progressDiv);
+                    }
+
+                    // Update content
+                    const contentDiv = progressDiv.querySelector('.progress-content');
+                    if (contentDiv) {
+                        contentDiv.innerHTML = formatContent(content);
+                    }
+
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
+
+                function removeProgressMessages() {
+                    progressMessages.forEach((div, agent) => {
+                        if (div.parentNode) {
+                            div.parentNode.removeChild(div);
+                        }
+                    });
+                    progressMessages.clear();
                 }
 
                 function formatContent(content) {
