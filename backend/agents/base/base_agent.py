@@ -30,6 +30,15 @@ except ImportError:
     PRIME_DIRECTIVES_AVAILABLE = False
     logging.warning("Prime Directives not available")
 
+# Import Pause and Git managers
+try:
+    from core.pause_handler import PauseHandler, PauseAction
+    from core.git_checkpoint_manager import GitCheckpointManager
+    PAUSE_AVAILABLE = True
+except ImportError:
+    PAUSE_AVAILABLE = False
+    logging.warning("Pause and Git checkpoint systems not available")
+
 # Setup logging
 logger = logging.getLogger(__name__)
 
@@ -139,9 +148,30 @@ class BaseAgent(ABC):
         self.collaboration_sessions: set[str] = set()
         self.active_help_requests: Dict[str, AgentMessage] = {}
 
+        # Initialize pause and git checkpoint systems if available
+        if PAUSE_AVAILABLE:
+            from pathlib import Path
+            project_path = str(Path.cwd())
+            self.pause_handler = PauseHandler(project_path)
+            self.git_manager = GitCheckpointManager(project_path)
+        else:
+            self.pause_handler = None
+            self.git_manager = None
+
+        # WebSocket callback for pause notifications (will be set by server)
+        self.websocket_callback = None
+
         # Pattern library
         self.code_patterns: List[Dict[str, Any]] = []
         self.architecture_patterns: List[Dict[str, Any]] = []
+
+        # Initialize pause and git managers if available
+        if PAUSE_AVAILABLE:
+            self.pause_handler = PauseHandler()
+            self.git_manager = GitCheckpointManager()
+        else:
+            self.pause_handler = None
+            self.git_manager = None
 
         logger.info(f"🤖 {self.config.icon} {self.name} initialized (Model: {self.model})")
 
@@ -330,6 +360,29 @@ class BaseAgent(ABC):
         # Execute the task
         try:
             result = await self.execute(request)
+
+            # Check if pause was requested during execution
+            if self.pause_handler and self.pause_handler.is_paused():
+                # Wait for user action (resume/stop/add instructions)
+                user_action = await self.pause_handler.wait_for_user_action()
+
+                if user_action == PauseAction.STOP_AND_ROLLBACK:
+                    # Stop and rollback
+                    rollback_result = await self.pause_handler.stop_and_rollback()
+                    return TaskResult(
+                        agent=self.name,
+                        content=f"Task stopped and rolled back: {rollback_result['message']}",
+                        status="stopped",
+                        execution_time=(datetime.now() - start_time).total_seconds()
+                    )
+                elif user_action == PauseAction.RESUME_WITH_INSTRUCTIONS:
+                    # Get updated task with additional instructions
+                    pause_state = self.pause_handler.pause_state
+                    if pause_state.additional_instructions:
+                        # Update the task with new instructions
+                        request.prompt = pause_state.task_description  # Updated task
+                        # Continue execution with updated task
+                        result = await self.execute(request)
         except asyncio.CancelledError:
             logger.info(f"Task cancelled during execution for {self.name}")
             return TaskResult(
@@ -399,6 +452,21 @@ class BaseAgent(ABC):
         self.execution_count += 1
         self.total_tokens_used += result.tokens_used
         self.last_execution_time = datetime.now()
+
+        # Create Git checkpoint if task completed successfully
+        if self.git_manager and result.status == "success":
+            try:
+                checkpoint_result = await self.git_manager.create_checkpoint(
+                    task_description=request.prompt[:200],  # Limit description length
+                    task_id=f"{self.config.agent_id}_{self.execution_count}"
+                )
+                if checkpoint_result['status'] == 'success':
+                    logger.info(f"✅ Git checkpoint created: {checkpoint_result['commit_hash'][:8]}")
+                    result.metadata['git_checkpoint'] = checkpoint_result['commit_hash']
+            except Exception as e:
+                logger.warning(f"Could not create Git checkpoint: {e}")
+                # ASIMOV RULE 1: No silent failure - log but continue
+                # Task completed successfully, checkpoint is optional safety
 
         return result
 
@@ -639,9 +707,55 @@ class BaseAgent(ABC):
         # TODO: Implement help provision
         return {"help": "Generic help from " + self.name}
 
+    # ============ PAUSE/RESUME/STOP METHODS ============
+    async def pause_current_task(self, task_id: str = None, task_description: str = None) -> Dict[str, Any]:
+        """
+        Pause the current task
+        ASIMOV RULE 1: Must work, no silent failures
+        """
+        if not self.pause_handler:
+            raise Exception("Pause functionality not available - PauseHandler not initialized")
+
+        if not task_id:
+            task_id = f"{self.config.agent_id}_{self.execution_count}"
+        if not task_description:
+            task_description = f"Task {task_id}"
+
+        return await self.pause_handler.pause_task(task_id, task_description)
+
+    async def resume_task(self, additional_instructions: str = None) -> Dict[str, Any]:
+        """Resume the paused task with optional additional instructions"""
+        if not self.pause_handler:
+            raise Exception("Pause functionality not available - PauseHandler not initialized")
+
+        return await self.pause_handler.resume_task(additional_instructions)
+
+    async def stop_and_rollback(self) -> Dict[str, Any]:
+        """
+        Stop task and rollback to checkpoint
+        ASIMOV RULE 2: Complete rollback, no partial
+        """
+        if not self.pause_handler:
+            raise Exception("Pause functionality not available - PauseHandler not initialized")
+
+        return await self.pause_handler.stop_and_rollback()
+
+    async def handle_clarification(self, response: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle user's response to clarification request"""
+        if not self.pause_handler:
+            raise Exception("Pause functionality not available - PauseHandler not initialized")
+
+        return await self.pause_handler.handle_clarification_response(response)
+
+    def set_websocket_callback(self, callback: Callable):
+        """Set WebSocket callback for sending pause notifications to UI"""
+        self.websocket_callback = callback
+        if self.pause_handler:
+            self.pause_handler.set_websocket_callback(callback)
+
     def get_status(self) -> Dict[str, Any]:
         """Get agent status"""
-        return {
+        status = {
             "agent_id": self.config.agent_id,
             "name": self.name,
             "model": self.model,
@@ -652,6 +766,12 @@ class BaseAgent(ABC):
             "active_collaborations": len(self.collaboration_sessions),
             "capabilities": [cap.value for cap in self.config.capabilities]
         }
+
+        # Add pause state if available
+        if self.pause_handler:
+            status["pause_state"] = self.pause_handler.get_pause_state()
+
+        return status
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self.name} ({self.model})>"

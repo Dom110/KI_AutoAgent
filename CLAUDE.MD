@@ -758,6 +758,44 @@ PATCH Version (X.Y.Z):
 │   │   ├── "Mit File und Zeile" - ✅ __file__ and line numbers included
 │   │   └── "Startup check" - ✅ Comprehensive dependency validation
 │   └── 🎯 IMPACT: System now fails fast with clear guidance instead of silently degrading
+├── v4.0.22 (24.9.2025) - PAUSE BUTTON WITH GIT ROLLBACK & ASIMOV RULES ENFORCEMENT
+│   ├── ⏸️ PAUSE BUTTON IMPLEMENTATION
+│   │   ├── Replaced non-functional Stop button with Pause button
+│   │   ├── Pause dialog with instruction input field
+│   │   ├── Three options: Resume, Resume with Instructions, Stop & Rollback
+│   │   ├── WebSocket integration for pause/resume/stop messages
+│   │   └── Visual feedback with warning-colored pause button
+│   ├── 🔄 GIT-BASED ROLLBACK SYSTEM
+│   │   ├── GitCheckpointManager creates commits after task completion
+│   │   ├── Safety checkpoint before starting new tasks
+│   │   ├── Automatic Git commit with task description
+│   │   ├── Rollback to previous checkpoint on stop
+│   │   └── ASIMOV RULE 2: Complete tasks only, no partial commits
+│   ├── 📝 INSTRUCTION MERGER & CONFLICT DETECTION
+│   │   ├── InstructionMerger detects conflicts between instructions
+│   │   ├── Conflict types: contradiction, scope change, safety concerns
+│   │   ├── Smart merging with append/prepend/replace strategies
+│   │   ├── Clarification dialog for conflicting instructions
+│   │   └── ASIMOV RULE 3: Find ALL conflicts, not just first
+│   ├── 🤖 PAUSE HANDLER INTEGRATION
+│   │   ├── PauseHandler manages pause state across system
+│   │   ├── BaseAgent integration with pause/resume/stop methods
+│   │   ├── WebSocket callbacks for real-time UI updates
+│   │   ├── Pause state tracking and user action handling
+│   │   └── ASIMOV RULE 1: Must work, no silent failures
+│   ├── 🎯 ASIMOV RULES ENFORCEMENT
+│   │   ├── RULE 1: No fallbacks without documented user reason
+│   │   ├── RULE 2: Complete implementation - no partial work
+│   │   ├── RULE 3: Global error search - find ALL instances
+│   │   ├── Prime Directives integration in BaseAgent
+│   │   └── ReviewerAgent enforces rules through validation
+│   ├── 🔧 TECHNICAL CHANGES
+│   │   ├── Created pause_handler.py, instruction_merger.py, git_checkpoint_manager.py
+│   │   ├── Modified BaseAgent with pause functionality
+│   │   ├── Updated MultiAgentChatPanel.ts with pause UI
+│   │   ├── Enhanced server.py with pause WebSocket handlers
+│   │   └── Extended BackendClient.ts with pause message types
+│   └── 🎯 IMPACT: Tasks can now be paused, modified, and safely rolled back with Git integration
 ├── v4.0.17 (23.9.2025) - TYPESCRIPT FIX & SYSTEM COMPLETION
 │   ├── 🔧 TYPESCRIPT ERROR FIX
 │   │   ├── Fixed 'data is of type unknown' errors in MultiAgentChatPanel.ts

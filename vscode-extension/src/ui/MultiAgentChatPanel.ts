@@ -86,8 +86,14 @@ export class MultiAgentChatPanel {
                     case 'newChat':
                         await this.handleNewChat();
                         break;
-                    case 'stop':
-                        await this.handleStop();
+                    case 'pause':
+                        await this.handlePause();
+                        break;
+                    case 'resumeWithInstructions':
+                        await this.handleResumeWithInstructions(message.instructions);
+                        break;
+                    case 'stopAndRollback':
+                        await this.handleStopAndRollback();
                         break;
                     case 'toggleThinking':
                         this.handleToggleThinking(message);
@@ -230,12 +236,40 @@ export class MultiAgentChatPanel {
         vscode.window.showInformationMessage('New chat session started');
     }
 
-    private async handleStop() {
+    private async handlePause() {
+        // Send pause signal to backend
+        if (this.backendClient) {
+            await this.backendClient.sendMessage({
+                type: 'pause'
+            });
+        }
+        this.sendMessage({ type: 'pauseActivated' });
+        vscode.window.showInformationMessage('Task paused. You can add instructions or stop.');
+    }
+
+    private async handleResumeWithInstructions(instructions?: string) {
+        // Send resume signal with optional instructions
+        if (this.backendClient) {
+            await this.backendClient.sendMessage({
+                type: 'resume',
+                additionalInstructions: instructions
+            });
+        }
+        this.sendMessage({ type: 'resumed' });
+        vscode.window.showInformationMessage(instructions ?
+            'Resuming with additional instructions' : 'Resuming task');
+    }
+
+    private async handleStopAndRollback() {
+        // Send stop and rollback signal
+        if (this.backendClient) {
+            await this.backendClient.sendMessage({
+                type: 'stopAndRollback'
+            });
+        }
         this._isProcessing = false;
-        // Send stop signal to backend if needed
-        // this.backendClient.stopCurrent();
-        this.sendMessage({ type: 'stopProcessing' });
-        vscode.window.showInformationMessage('Operation stopped');
+        this.sendMessage({ type: 'stoppedAndRolledBack' });
+        vscode.window.showInformationMessage('Task stopped and rolled back to last checkpoint');
     }
 
     private handleToggleThinking(message: any) {
@@ -773,6 +807,112 @@ export class MultiAgentChatPanel {
                     margin: 10px 0;
                     color: var(--vscode-textBlockQuote-color);
                 }
+
+                /* Warning button style for pause */
+                .header-btn.warning {
+                    background: #f0ad4e;
+                    color: white;
+                }
+
+                .header-btn.warning:hover {
+                    background: #ec971f;
+                }
+
+                .header-btn.warning:disabled {
+                    background: #6a6a6a;
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                /* Pause overlay and dialog */
+                .pause-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 2000;
+                }
+
+                .pause-dialog {
+                    background: var(--vscode-editor-background);
+                    border: 1px solid var(--vscode-widget-border);
+                    border-radius: 8px;
+                    padding: 20px;
+                    max-width: 500px;
+                    width: 90%;
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+                }
+
+                .pause-dialog h3 {
+                    margin: 0 0 15px 0;
+                    color: var(--vscode-foreground);
+                    font-size: 1.2em;
+                }
+
+                .pause-dialog p {
+                    margin: 10px 0;
+                    color: var(--vscode-foreground);
+                }
+
+                .pause-dialog textarea {
+                    width: 100%;
+                    background: var(--vscode-input-background);
+                    color: var(--vscode-input-foreground);
+                    border: 1px solid var(--vscode-input-border);
+                    border-radius: 4px;
+                    padding: 8px;
+                    font-family: var(--vscode-font-family);
+                    font-size: 14px;
+                    resize: vertical;
+                    margin-bottom: 15px;
+                }
+
+                .pause-dialog .pause-actions {
+                    display: flex;
+                    gap: 10px;
+                    justify-content: flex-end;
+                }
+
+                .pause-dialog .btn {
+                    padding: 8px 16px;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    transition: background 0.2s;
+                }
+
+                .pause-dialog .btn.primary {
+                    background: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                }
+
+                .pause-dialog .btn.primary:hover {
+                    background: var(--vscode-button-hoverBackground);
+                }
+
+                .pause-dialog .btn.info {
+                    background: #17a2b8;
+                    color: white;
+                }
+
+                .pause-dialog .btn.info:hover {
+                    background: #138496;
+                }
+
+                .pause-dialog .btn.danger {
+                    background: #d73a49;
+                    color: white;
+                }
+
+                .pause-dialog .btn.danger:hover {
+                    background: #cb2431;
+                }
             </style>
         </head>
         <body>
@@ -783,7 +923,7 @@ export class MultiAgentChatPanel {
                     <button id="new-chat-btn" class="header-btn" title="New Chat">➕ New</button>
                     <button id="history-btn" class="header-btn" title="History">📜 History</button>
                     <button id="thinking-btn" class="header-btn" title="Toggle Thinking Mode">💭 Thinking</button>
-                    <button id="stop-btn" class="header-btn danger" title="Stop Processing">⏹ Stop</button>
+                    <button id="pause-btn" class="header-btn warning" title="Pause Task">⏸️ Pause</button>
                     <span style="opacity: 0.7; font-size: 0.9em;">Backend ✅</span>
                 </div>
             </div>
@@ -837,7 +977,7 @@ export class MultiAgentChatPanel {
                 const newChatBtn = document.getElementById('new-chat-btn');
                 const historyBtn = document.getElementById('history-btn');
                 const thinkingBtn = document.getElementById('thinking-btn');
-                const stopBtn = document.getElementById('stop-btn');
+                const pauseBtn = document.getElementById('pause-btn');
 
                 // Debug check
                 console.log('Elements found:', {
@@ -886,7 +1026,7 @@ export class MultiAgentChatPanel {
 
                     // Set processing state
                     isProcessing = true;
-                    updateStopButtonState();
+                    updatePauseButtonState();
                     updateActivityIndicator(true, 'Sending message...');
 
                     // Disable inputs while processing
@@ -936,24 +1076,79 @@ export class MultiAgentChatPanel {
                     });
                 });
 
-                // Function to update stop button state
-                function updateStopButtonState() {
-                    if (stopBtn) {
-                        stopBtn.disabled = !isProcessing;
-                        stopBtn.style.opacity = isProcessing ? '1.0' : '0.5';
-                        stopBtn.style.cursor = isProcessing ? 'pointer' : 'not-allowed';
+                // Function to update pause button state
+                function updatePauseButtonState() {
+                    if (pauseBtn) {
+                        pauseBtn.disabled = !isProcessing || isPaused;
+                        pauseBtn.style.opacity = (isProcessing && !isPaused) ? '1.0' : '0.5';
+                        pauseBtn.style.cursor = (isProcessing && !isPaused) ? 'pointer' : 'not-allowed';
                     }
                 }
 
-                stopBtn.addEventListener('click', () => {
-                    if (isProcessing) {
-                        vscode.postMessage({ type: 'stop' });
-                        isProcessing = false;
-                        removeThinkingMessage();
-                        updateStopButtonState();
-                        updateActivityIndicator(false);
+                let isPaused = false;
+
+                pauseBtn.addEventListener('click', () => {
+                    if (isProcessing && !isPaused) {
+                        vscode.postMessage({ type: 'pause' });
+                        isPaused = true;
+                        showPauseUI();
+                        updatePauseButtonState();
                     }
                 });
+
+                // Function to show pause UI with instruction input
+                function showPauseUI() {
+                    const pauseOverlay = document.createElement('div');
+                    pauseOverlay.className = 'pause-overlay';
+                    pauseOverlay.innerHTML = `
+                        <div class="pause-dialog">
+                            <h3>⏸️ Task Paused</h3>
+                            <p>Add additional instructions or stop the task:</p>
+                            <textarea id="pause-instructions"
+                                      placeholder="Enter additional instructions (optional)..."
+                                      rows="4"></textarea>
+                            <div class="pause-actions">
+                                <button id="resume-btn" class="btn primary">▶️ Resume</button>
+                                <button id="resume-with-instructions-btn" class="btn info">📝 Resume with Instructions</button>
+                                <button id="stop-rollback-btn" class="btn danger">🔄 Stop & Rollback</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(pauseOverlay);
+
+                    // Handle pause dialog buttons
+                    document.getElementById('resume-btn').addEventListener('click', () => {
+                        vscode.postMessage({ type: 'resumeWithInstructions' });
+                        document.body.removeChild(pauseOverlay);
+                        isPaused = false;
+                        updatePauseButtonState();
+                    });
+
+                    document.getElementById('resume-with-instructions-btn').addEventListener('click', () => {
+                        const instructions = document.getElementById('pause-instructions').value;
+                        if (instructions.trim()) {
+                            vscode.postMessage({
+                                type: 'resumeWithInstructions',
+                                instructions: instructions
+                            });
+                            document.body.removeChild(pauseOverlay);
+                            isPaused = false;
+                            updatePauseButtonState();
+                        } else {
+                            alert('Please enter instructions or click Resume to continue without changes');
+                        }
+                    });
+
+                    document.getElementById('stop-rollback-btn').addEventListener('click', () => {
+                        if (confirm('Are you sure you want to stop and rollback to the last checkpoint?')) {
+                            vscode.postMessage({ type: 'stopAndRollback' });
+                            document.body.removeChild(pauseOverlay);
+                            isPaused = false;
+                            isProcessing = false;
+                            updatePauseButtonState();
+                        }
+                    });
+                }
 
                 // Create activity indicator
                 const activityIndicator = document.createElement('div');
@@ -1005,7 +1200,7 @@ export class MultiAgentChatPanel {
 
                         case 'agentThinking':
                             isProcessing = true;
-                            updateStopButtonState();
+                            updatePauseButtonState();
                             updateActivityIndicator(true, message.content || 'Processing...');
                             addThinkingMessage(message.agent, message.content);
                             break;
@@ -1019,7 +1214,7 @@ export class MultiAgentChatPanel {
                         case 'agentResponse':
                             // Always reset processing state on response
                             isProcessing = false;
-                            updateStopButtonState();
+                            updatePauseButtonState();
                             updateActivityIndicator(false);
                             removeThinkingMessage();
                             removeProgressMessages();
@@ -1032,7 +1227,7 @@ export class MultiAgentChatPanel {
                         case 'complete':
                             // Double-check processing state is reset
                             isProcessing = false;
-                            updateStopButtonState();
+                            updatePauseButtonState();
                             updateActivityIndicator(false);
                             removeThinkingMessage();
                             removeProgressMessages();
@@ -1043,15 +1238,26 @@ export class MultiAgentChatPanel {
                         case 'clearChat':
                             messagesDiv.innerHTML = '';
                             isProcessing = false;
-                            updateStopButtonState();
+                            updatePauseButtonState();
                             updateActivityIndicator(false);
                             if (sendButton) sendButton.disabled = false;
                             if (messageInput) messageInput.disabled = false;
                             break;
 
-                        case 'stopProcessing':
+                        case 'pauseActivated':
+                            isPaused = true;
+                            updatePauseButtonState();
+                            break;
+
+                        case 'resumed':
+                            isPaused = false;
+                            updatePauseButtonState();
+                            break;
+
+                        case 'stoppedAndRolledBack':
                             isProcessing = false;
-                            updateStopButtonState();
+                            isPaused = false;
+                            updatePauseButtonState();
                             updateActivityIndicator(false);
                             removeThinkingMessage();
                             removeProgressMessages();

@@ -178,6 +178,9 @@ if PERSISTENCE_AVAILABLE:
 active_agent_tasks: Dict[str, Set[asyncio.Task]] = {}
 client_cancel_tokens: Dict[str, CancelToken] = {}
 
+# Track active agent instances for pause/resume functionality
+active_agents: Dict[str, Any] = {}
+
 # Health check endpoint
 @app.get("/")
 async def health_check():
@@ -419,6 +422,82 @@ async def websocket_chat(websocket: WebSocket):
                     "message": "All tasks cancelled successfully"
                 })
                 logger.info(f"⏹️ Stopped all tasks for client {client_id}")
+
+            elif message_type == "pause":
+                # Handle pause request
+                current_agent = active_agents.get(client_id)
+                if current_agent:
+                    # Set WebSocket callback for pause notifications
+                    current_agent.set_websocket_callback(
+                        lambda msg: asyncio.create_task(manager.send_json(client_id, msg))
+                    )
+
+                    result = await current_agent.pause_current_task()
+                    await manager.send_json(client_id, {
+                        "type": "pauseActivated",
+                        "data": result
+                    })
+                    logger.info(f"⏸️ Paused task for client {client_id}")
+                else:
+                    await manager.send_json(client_id, {
+                        "type": "error",
+                        "message": "No active agent to pause"
+                    })
+
+            elif message_type == "resume":
+                # Handle resume request
+                current_agent = active_agents.get(client_id)
+                if current_agent:
+                    additional_instructions = data.get("additionalInstructions")
+                    result = await current_agent.resume_task(additional_instructions)
+
+                    if result.get("status") == "clarification_needed":
+                        await manager.send_json(client_id, {
+                            "type": "clarificationNeeded",
+                            "data": result
+                        })
+                    else:
+                        await manager.send_json(client_id, {
+                            "type": "resumed",
+                            "data": result
+                        })
+                    logger.info(f"▶️ Resumed task for client {client_id}")
+                else:
+                    await manager.send_json(client_id, {
+                        "type": "error",
+                        "message": "No active agent to resume"
+                    })
+
+            elif message_type == "stopAndRollback":
+                # Handle stop and rollback request
+                current_agent = active_agents.get(client_id)
+                if current_agent:
+                    result = await current_agent.stop_and_rollback()
+                    await manager.send_json(client_id, {
+                        "type": "stoppedAndRolledBack",
+                        "data": result
+                    })
+                    logger.info(f"🔄 Stopped and rolled back task for client {client_id}")
+
+                    # Clear active agent
+                    active_agents.pop(client_id, None)
+                else:
+                    await manager.send_json(client_id, {
+                        "type": "error",
+                        "message": "No active agent to stop and rollback"
+                    })
+
+            elif message_type == "clarificationResponse":
+                # Handle user's response to clarification request
+                current_agent = active_agents.get(client_id)
+                if current_agent:
+                    response = data.get("response", {})
+                    result = await current_agent.handle_clarification(response)
+                    await manager.send_json(client_id, {
+                        "type": "clarificationResolved",
+                        "data": result
+                    })
+
             elif message_type == "ping":
                 await manager.send_json(client_id, {"type": "pong"})
             else:
@@ -475,6 +554,15 @@ async def handle_chat_message(client_id: str, data: dict):
     try:
         # Get agent from registry
         registry = get_agent_registry()
+
+        # Store agent instance for pause/resume
+        agent_instance = registry.get_agent(agent_id)
+        if agent_instance:
+            active_agents[client_id] = agent_instance
+            # Set WebSocket callback for pause notifications
+            agent_instance.set_websocket_callback(
+                lambda msg: asyncio.create_task(manager.send_json(client_id, msg))
+            )
 
         # Create enhanced task request with context
         request = TaskRequest(

@@ -8,7 +8,7 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 
 export interface BackendMessage {
-    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk';
+    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse';
     content?: string;
     agent?: string;
     metadata?: any;
@@ -18,6 +18,9 @@ export interface BackendMessage {
     status?: string;  // For response status
     error?: string;  // For error messages
     details?: any;  // For additional error details
+    additionalInstructions?: string;  // For resume with instructions
+    data?: any;  // For pause/resume/rollback data
+    response?: any;  // For clarification response
 }
 
 export interface ChatRequest {
@@ -163,7 +166,7 @@ export class BackendClient extends EventEmitter {
     /**
      * Send a message to the backend
      */
-    private async sendMessage(message: BackendMessage): Promise<void> {
+    public async sendMessage(message: BackendMessage): Promise<void> {
         if (!this.isConnected || !this.ws) {
             this.outputChannel.appendLine('⚠️ Not connected, queuing message');
             this.messageQueue.push(message);
