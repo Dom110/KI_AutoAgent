@@ -24,34 +24,62 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Try to import new analysis tools with graceful fallback
+# Import indexing tools - FAIL FAST per ASIMOV RULE 1
+from core.exceptions import DependencyError
 try:
     from core.indexing.tree_sitter_indexer import TreeSitterIndexer
     from core.indexing.code_indexer import CodeIndexer
     INDEXING_AVAILABLE = True
 except ImportError as e:
-    logger.warning(f"Code indexing modules not available: {e}")
     INDEXING_AVAILABLE = False
-    TreeSitterIndexer = None
-    CodeIndexer = None
+    # ASIMOV RULE 1: NO FALLBACK WITHOUT DOCUMENTED REASON
+    raise DependencyError([
+        {
+            'component': 'Code Indexing Tools',
+            'error': f'Required indexing tools not installed: {str(e)}',
+            'solution': 'pip install tree-sitter tree-sitter-python tree-sitter-javascript tree-sitter-typescript',
+            'file': __file__,
+            'line': 29,
+            'traceback': None
+        }
+    ])
 
+# Import analysis tools - FAIL FAST per ASIMOV RULE 1
 try:
     from core.analysis.vulture_analyzer import VultureAnalyzer
     from core.analysis.radon_metrics import RadonMetrics
     ANALYSIS_AVAILABLE = True
 except ImportError as e:
-    logger.warning(f"Analysis modules not available: {e}")
     ANALYSIS_AVAILABLE = False
-    VultureAnalyzer = None
-    RadonMetrics = None
+    # ASIMOV RULE 1: NO FALLBACK WITHOUT DOCUMENTED REASON
+    raise DependencyError([
+        {
+            'component': 'Code Analysis Tools',
+            'error': f'Required analysis tools not installed: {str(e)}',
+            'solution': 'pip install radon vulture',
+            'file': __file__,
+            'line': 38,
+            'traceback': None
+        }
+    ])
 
+# Import diagram service - FAIL FAST per ASIMOV RULE 1
 try:
     from services.diagram_service import DiagramService
     DIAGRAM_AVAILABLE = True
 except ImportError as e:
-    logger.warning(f"Diagram service not available: {e}")
     DIAGRAM_AVAILABLE = False
-    DiagramService = None
+    # ASIMOV RULE 1: NO FALLBACK WITHOUT DOCUMENTED REASON
+    raise DependencyError([
+        {
+            'component': 'Diagram Service',
+            'error': f'Required diagram service not installed: {str(e)}',
+            'solution': 'pip install mermaid-py graphviz',
+            'file': __file__,
+            'line': 48,
+            'traceback': None
+        }
+    ])
 
 @dataclass
 class CodeImplementation:
@@ -995,7 +1023,7 @@ if __name__ == "__main__":
             logger.warning("Code indexing not available - returning empty analysis")
             return {
                 'error': 'Code analysis tools not installed',
-                'message': 'Please install requirements: pip install -r backend/requirements.txt'
+                'message': 'Please install requirements: pip install -r requirements.txt'
             }
 
         logger.info("Analyzing codebase for pattern extraction...")

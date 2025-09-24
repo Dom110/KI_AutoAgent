@@ -105,7 +105,7 @@ Install the missing packages:
 pip install tree-sitter tree-sitter-python tree-sitter-javascript tree-sitter-typescript
 
 Or install all analysis tools:
-pip install -r backend/requirements.txt
+pip install -r requirements.txt
 
 {'='*80}
 ⚠️  Code analysis features will NOT work without these packages.

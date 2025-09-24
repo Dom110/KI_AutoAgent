@@ -46,7 +46,9 @@ except ImportError as e:
 try:
     from core.indexing.tree_sitter_indexer import TreeSitterIndexer
     from core.indexing.code_indexer import CodeIndexer
+    INDEXING_AVAILABLE = True  # ✅ FIXED: Variable was missing
 except ImportError as e:
+    INDEXING_AVAILABLE = False  # ✅ FIXED: Set to False on import error
     raise DependencyError([
         {
             'component': 'Code Indexing Tools',
@@ -58,29 +60,43 @@ except ImportError as e:
         }
     ])
 
+# Import analysis tools - FAIL FAST per ASIMOV RULE 1
 try:
     from core.analysis.semgrep_analyzer import SemgrepAnalyzer
     from core.analysis.vulture_analyzer import VultureAnalyzer
     from core.analysis.radon_metrics import RadonMetrics
     ANALYSIS_AVAILABLE = True
 except ImportError as e:
-    # Analysis tools are optional - warn but don't fail
-    logger.warning(f"⚠️ Analysis modules not available: {e}")
-    logger.warning("   Install with: pip install semgrep radon vulture")
     ANALYSIS_AVAILABLE = False
-    SemgrepAnalyzer = None
-    VultureAnalyzer = None
-    RadonMetrics = None
+    # ASIMOV RULE 1: NO FALLBACK WITHOUT DOCUMENTED REASON
+    raise DependencyError([
+        {
+            'component': 'Code Analysis Tools',
+            'error': f'Required analysis tools not installed: {str(e)}',
+            'solution': 'pip install semgrep radon vulture',
+            'file': __file__,
+            'line': 63,
+            'traceback': None
+        }
+    ])
 
+# Import diagram service - FAIL FAST per ASIMOV RULE 1
 try:
     from services.diagram_service import DiagramService
     DIAGRAM_AVAILABLE = True
 except ImportError as e:
-    # Diagram service is optional - warn but don't fail
-    logger.warning(f"⚠️ Diagram service not available: {e}")
-    logger.warning("   Install with: pip install mermaid-py graphviz")
     DIAGRAM_AVAILABLE = False
-    DiagramService = None
+    # ASIMOV RULE 1: NO FALLBACK WITHOUT DOCUMENTED REASON
+    raise DependencyError([
+        {
+            'component': 'Diagram Service',
+            'error': f'Required diagram service not installed: {str(e)}',
+            'solution': 'pip install mermaid-py graphviz',
+            'file': __file__,
+            'line': 83,
+            'traceback': None
+        }
+    ])
 
 @dataclass
 class ArchitectureDesign:
@@ -232,7 +248,7 @@ class ArchitectAgent(ChatAgent):
                     files_created.append(analysis_file)
                     logger.info(f"✅ Created: {analysis_file}")
                 else:
-                    # Fallback analysis
+                    # Standard analysis when indexing not triggered
                     system_analysis = await self.analyze_requirements(request.prompt)
 
                 # Tool 2: analyze_infrastructure_improvements()
@@ -283,7 +299,7 @@ class ArchitectAgent(ChatAgent):
                     summary += f"- {os.path.basename(file)}\n"
 
                 if not files_created:
-                    # Fallback to old behavior if no specific tools triggered
+                    # Standard behavior when no specific tools triggered
                     requirements = await self.analyze_requirements(request.prompt)
                     design = await self.design_architecture(requirements)
                     documentation = await self.generate_documentation(design)
@@ -668,7 +684,7 @@ class ArchitectAgent(ChatAgent):
             logger.warning("Code indexing not available - returning limited analysis")
             return {
                 'error': 'Code analysis tools not installed',
-                'message': 'Please install requirements: pip install -r backend/requirements.txt'
+                'message': 'Please install requirements: pip install -r requirements.txt'
             }
 
         # Try to get from permanent cache first

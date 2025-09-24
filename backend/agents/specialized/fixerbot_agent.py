@@ -78,9 +78,9 @@ class FixerBotAgent(ChatAgent):
                 temperature=0.5
             )
 
-            # Fallback for API errors
+            # ASIMOV RULE 1: NO FALLBACK WITHOUT DOCUMENTED REASON
             if "error" in response.lower() and "api" in response.lower():
-                response = self._generate_fallback_fix(request.prompt)
+                raise Exception(f"API error - no fallback allowed per Asimov Rule 1: {response}")
 
             return TaskResult(
                 status="success",
@@ -95,100 +95,16 @@ class FixerBotAgent(ChatAgent):
 
         except Exception as e:
             logger.error(f"FixerBot execution error: {e}")
+            # ASIMOV RULE 1: NO FALLBACK - FAIL FAST
             return TaskResult(
                 status="error",
-                content=self._generate_fallback_fix(request.prompt),
+                content=f"FIX FAILED: {str(e)}\n\nNo fallback allowed per Asimov Rule 1.\nFix the error and retry.",
                 agent=self.config.agent_id
             )
 
-    def _generate_fallback_fix(self, prompt: str) -> str:
-        """
-        Generate fallback fix when API is unavailable
-        """
-        # Check for common issues and provide fixes
-        fixes = []
-        
-        prompt_lower = prompt.lower()
-        
-        if "fibonacci" in prompt_lower:
-            fixes.append("""
-```python
-def fibonacci(n):
-    '''Optimized Fibonacci with memoization'''
-    if n <= 0:
-        return []
-    elif n == 1:
-        return [0]
-    elif n == 2:
-        return [0, 1]
-    
-    # Use dynamic programming for efficiency
-    fib = [0, 1]
-    for i in range(2, n):
-        fib.append(fib[i-1] + fib[i-2])
-    
-    return fib
-
-# Alternative: Generator for memory efficiency
-def fibonacci_generator(n):
-    a, b = 0, 1
-    count = 0
-    while count < n:
-        yield a
-        a, b = b, a + b
-        count += 1
-```
-            """)
-
-        if "error" in prompt_lower or "bug" in prompt_lower:
-            fixes.append("""
-## 🔧 Common Fixes Applied:
-
-1. **Added Error Handling**:
-   ```python
-   try:
-       # Your code here
-       result = process_data()
-   except Exception as e:
-       logger.error(f"Processing failed: {e}")
-       return None
-   ```
-
-2. **Input Validation**:
-   ```python
-   if not input_data:
-       raise ValueError("Input cannot be empty")
-   ```
-
-3. **Type Checking**:
-   ```python
-   if not isinstance(value, (int, float)):
-       raise TypeError(f"Expected number, got {type(value)}")
-   ```
-            """)
-
-        if not fixes:
-            fixes.append(f"""
-# 🔧 FixerBot Analysis
-
-Analyzing: "{prompt[:100]}..."
-
-## Optimizations Applied:
-
-1. **Performance**: Reduced time complexity where possible
-2. **Memory**: Optimized memory usage patterns
-3. **Readability**: Improved code structure and naming
-4. **Error Handling**: Added comprehensive error handling
-5. **Modern Practices**: Updated to current best practices
-
-## Recommendations:
-- Add unit tests for all functions
-- Use type hints for better code clarity
-- Consider async/await for I/O operations
-- Implement proper logging
-            """)
-
-        return "\n".join(fixes) + "\n\n---\n*Fixed by FixerBot - Bug Fixing & Optimization Expert*"
+    # REMOVED: _generate_fallback_fix method
+    # ASIMOV RULE 1: No fallbacks without documented user reason
+    # All errors must fail fast with clear error messages
 
     async def _process_agent_request(self, message: Any) -> Any:
         """Process request from another agent"""

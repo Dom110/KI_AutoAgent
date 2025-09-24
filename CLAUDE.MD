@@ -796,6 +796,62 @@ PATCH Version (X.Y.Z):
 │   │   ├── Enhanced server.py with pause WebSocket handlers
 │   │   └── Extended BackendClient.ts with pause message types
 │   └── 🎯 IMPACT: Tasks can now be paused, modified, and safely rolled back with Git integration
+├── v4.0.26 (25.9.2025) - PROJECT STRUCTURE CLEANUP & UNIFIED DEPENDENCIES
+│   ├── 🧹 VIRTUAL ENVIRONMENT CONSOLIDATION
+│   │   ├── Removed old backend/venv directory (created Sep 21)
+│   │   ├── Now using single venv in project root (./venv)
+│   │   ├── All 194 packages consolidated in one environment
+│   │   ├── Extension correctly uses root venv since v4.0.24
+│   │   └── No more confusion with multiple virtual environments
+│   ├── 📦 REQUIREMENTS.TXT UNIFICATION
+│   │   ├── Removed backend/requirements.txt (was 79 lines)
+│   │   ├── Removed backend/requirements-core.txt
+│   │   ├── Removed backend/requirements-profiling.txt
+│   │   ├── Removed claude_web_proxy/requirements.txt
+│   │   ├── Replaced incomplete main requirements.txt (50 lines)
+│   │   └── Now single requirements.txt with all 79 dependencies
+│   ├── 🔧 CODE UPDATES
+│   │   ├── Updated all "backend/requirements.txt" references to "requirements.txt"
+│   │   ├── Fixed paths in backend/core/exceptions.py
+│   │   ├── Fixed paths in backend/agents/specialized/architect_agent.py
+│   │   ├── Fixed paths in backend/agents/specialized/codesmith_agent.py
+│   │   └── All error messages now point to correct requirements file
+│   ├── ✅ NEW PROJECT STRUCTURE
+│   │   ├── ./venv - Single virtual environment (194 packages)
+│   │   ├── ./requirements.txt - Single requirements file (79 dependencies)
+│   │   ├── Clear, unified dependency management
+│   │   ├── No duplicate or conflicting environments
+│   │   └── Simplified setup for new developers
+│   └── 🎯 IMPACT: Clean, unified project structure with single venv and requirements.txt
+├── v4.0.25 (25.9.2025) - ASIMOV RULES ENFORCEMENT & CRITICAL ERROR FIXES
+│   ├── 🔧 FIXED CRITICAL UNDEFINED VARIABLE ERROR
+│   │   ├── Fixed "name 'INDEXING_AVAILABLE' is not defined" in architect_agent.py
+│   │   ├── Added missing variable definition after successful imports (line 49)
+│   │   ├── Fixed error that caused "Was kann am System verbessert werden" to fail
+│   │   ├── Agent architect now properly initializes all required variables
+│   │   └── System analysis features fully functional again
+│   ├── 🚨 ASIMOV RULE 1 ENFORCEMENT - NO FALLBACKS
+│   │   ├── Removed ALL undocumented fallbacks from 8 agent files
+│   │   ├── architect_agent.py: Removed fallbacks for analysis & diagram tools
+│   │   ├── codesmith_agent.py: Fail-fast imports for all optional dependencies
+│   │   ├── docubot_agent.py: Removed _generate_fallback_documentation method
+│   │   ├── fixerbot_agent.py: Removed _generate_fallback_fix method
+│   │   ├── opus_arbitrator_agent.py: Removed _generate_fallback_decision method
+│   │   ├── tradestrat_agent.py: Removed _generate_fallback_strategy method
+│   │   └── research_agent.py: Removed entire fallback mode implementation
+│   ├── 🛑 FAIL-FAST ARCHITECTURE COMPLETE
+│   │   ├── System now fails immediately with clear error messages
+│   │   ├── No silent degradation or fallback responses
+│   │   ├── All errors include file path and line number
+│   │   ├── DependencyError raised for missing dependencies
+│   │   └── No more "graceful fallback" patterns anywhere
+│   ├── ✅ ASIMOV RULES COMPLIANCE
+│   │   ├── RULE 1: No fallbacks without documented user reason ✅
+│   │   ├── RULE 2: Complete implementation enforced ✅
+│   │   ├── RULE 3: Global error search performed ✅
+│   │   ├── All undefined variables found and fixed
+│   │   └── System strictly follows prime directives
+│   └── 🎯 IMPACT: System reliability improved - fails fast with clear errors instead of silently degrading
 ├── v4.0.24 (24.9.2025) - VENV PATH FIX & COMPLETE DEPENDENCY INSTALLATION
 │   ├── 🔧 FIXED VENV PATH IN EXTENSION
 │   │   ├── BackendManager.ts now correctly looks for venv in project root

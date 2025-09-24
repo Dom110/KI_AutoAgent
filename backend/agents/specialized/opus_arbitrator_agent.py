@@ -72,9 +72,12 @@ class OpusArbitratorAgent(ChatAgent):
 
         except Exception as e:
             logger.error(f"OpusArbitrator execution error: {e}")
+            # ASIMOV RULE 1: NO FALLBACK - FAIL FAST
+            error_msg = f"OpusArbitrator execution failed: {str(e)}. File: {__file__}, Line: 73"
+            logger.error(error_msg)
             return TaskResult(
                 status="error",
-                content=self._generate_fallback_decision(request.prompt),
+                content=error_msg,
                 agent=self.config.agent_id
             )
 
@@ -131,162 +134,15 @@ class OpusArbitratorAgent(ChatAgent):
         )
 
         if "error" in response.lower() and "api" in response.lower():
-            return self._generate_fallback_decision(request.prompt)
+            # ASIMOV RULE 1: NO FALLBACK - FAIL FAST
+            error_msg = f"Claude API error in OpusArbitrator judgment. File: {__file__}, Line: 133"
+            raise Exception(error_msg)
 
         return response
 
-    def _generate_fallback_decision(self, prompt: str) -> str:
-        """
-        Generate fallback arbitration when API is unavailable
-        """
-        # Analyze the prompt for common conflict patterns
-        prompt_lower = prompt.lower()
-        
-        if "monolith" in prompt_lower and "microservices" in prompt_lower:
-            return """
-## ⚖️ ARBITRATION DECISION: Hybrid Modular Architecture
-
-**Winner**: Hybrid Approach
-**Confidence**: 92%
-**Reasoning**: 
-
-After analyzing both positions:
-
-1. **Monolithic Argument** (Valid Points):
-   - Simpler deployment and debugging
-   - Lower operational complexity
-   - Better for small teams
-   - Faster initial development
-
-2. **Microservices Argument** (Valid Points):
-   - Better scalability for specific components
-   - Independent deployment capability
-   - Technology diversity possible
-   - Team autonomy
-
-3. **Decision Rationale**:
-   The optimal solution is a **Modular Monolith** that can evolve:
-   - Start with a well-architected monolith
-   - Use domain-driven design principles
-   - Prepare for future extraction of services
-   - Extract only when clear boundaries and need emerge
-
-**Implementation Guidance**:
-
-### Phase 1: Modular Monolith (Months 1-6)
-```
-/app
-  /modules
-    /auth        # Future microservice candidate
-    /payments    # Future microservice candidate  
-    /core        # Remains in monolith
-  /shared
-  /api
-```
-
-### Phase 2: Selective Extraction (Months 6-12)
-- Extract auth module if user base > 10k
-- Extract payments if processing > $1M/month
-- Keep core business logic monolithic
-
-### Success Metrics:
-- Deployment time < 30 minutes
-- Test coverage > 80%
-- Response time < 200ms p95
-
-**This decision is final and binding for all agents.**
-
----
-*Arbitrated by OpusArbitrator - Supreme Authority*
-            """
-            
-        elif "conflict" in prompt_lower or "disagree" in prompt_lower:
-            return f"""
-## ⚖️ ARBITRATION DECISION
-
-**Conflict Analysis**: "{prompt[:150]}..."
-
-**Winner**: Balanced Approach
-**Confidence**: 88%
-
-**Reasoning**:
-After careful analysis of all positions, the optimal solution incorporates the strongest elements from each approach while mitigating weaknesses.
-
-**Key Findings**:
-1. ✅ Technical Merit: All proposed solutions are technically viable
-2. ⚠️ Risk Assessment: Combined approach minimizes overall risk
-3. 🎯 Practicality: Phased implementation ensures success
-4. 📈 Scalability: Solution grows with requirements
-
-**Implementation Directive**:
-
-### Immediate Actions:
-1. Implement core functionality using proven patterns
-2. Add comprehensive testing at each step
-3. Document decisions and rationale
-4. Set up monitoring and metrics
-
-### Validation Criteria:
-- All unit tests passing
-- Integration tests coverage > 75%
-- Performance benchmarks met
-- Security audit passed
-
-### Conflict Resolution Protocol:
-1. Technical merit weighs 40%
-2. Practical feasibility weighs 30%
-3. Maintenance burden weighs 20%
-4. Future flexibility weighs 10%
-
-**This decision is final and binding for all agents.**
-
----
-*Arbitrated by OpusArbitrator - Supreme Authority*
-            """
-        
-        else:
-            return f"""
-## ⚖️ AUTHORITATIVE JUDGMENT
-
-**Matter Under Consideration**: "{prompt[:150]}..."
-
-**Judgment**: Approved with Modifications
-
-**Confidence Level**: 90%
-
-### Analysis:
-
-Based on my superior reasoning capabilities and comprehensive analysis:
-
-1. **Technical Assessment**: ✅ Technically sound
-2. **Risk Evaluation**: ⚠️ Moderate risk, manageable with proper controls
-3. **Best Practices**: ✅ Aligns with industry standards
-4. **Long-term Viability**: ✅ Sustainable and maintainable
-
-### Binding Directives:
-
-1. **Primary Approach**: Proceed with implementation
-2. **Required Safeguards**:
-   - Comprehensive testing required
-   - Code review mandatory
-   - Documentation must be complete
-   - Security audit before production
-
-3. **Quality Gates**:
-   - Test coverage minimum: 80%
-   - Performance benchmarks must pass
-   - Zero critical security issues
-   - Documentation review passed
-
-### Final Determination:
-
-This approach represents the optimal balance of innovation and stability. All agents must align with this decision.
-
-**This judgment is final and supersedes all other opinions.**
-
----
-*Adjudicated by OpusArbitrator - Supreme Authority*
-            """
+    # ASIMOV RULE 1: NO FALLBACK - FALLBACK METHOD REMOVED
+    # All fallback functionality has been eliminated to enforce fail-fast architecture
+    # If OpusArbitrator cannot provide a decision, the system must fail explicitly
 
     async def _process_agent_request(self, message: Any) -> Any:
         """Process request from another agent"""
