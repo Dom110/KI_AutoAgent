@@ -1,0 +1,21 @@
+# Profiling Packages (Optional)
+# These packages may have issues with Python 3.13 due to C extensions
+# Try installing individually if needed
+
+# Performance Profiling
+py-spy==0.3.14
+austin-python==1.7.0
+memory-profiler==0.61.0
+
+# Scalene - comprehensive Python profiler
+# Note: If scalene fails with Python 3.13, you can:
+# 1. Try the latest version: pip install scalene==1.5.55
+# 2. Build from source: pip install git+https://github.com/plasma-umass/scalene.git
+# 3. Use alternative profilers like py-spy or cProfile
+scalene==1.5.55
+
+# Alternative profiling options if above fail:
+# - Built-in cProfile (no installation needed)
+# - line_profiler==4.1.1
+# - pyinstrument==4.6.2
+# - yappi==1.6.0

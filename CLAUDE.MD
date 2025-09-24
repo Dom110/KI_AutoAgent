@@ -796,6 +796,31 @@ PATCH Version (X.Y.Z):
 │   │   ├── Enhanced server.py with pause WebSocket handlers
 │   │   └── Extended BackendClient.ts with pause message types
 │   └── 🎯 IMPACT: Tasks can now be paused, modified, and safely rolled back with Git integration
+├── v4.0.24 (24.9.2025) - VENV PATH FIX & COMPLETE DEPENDENCY INSTALLATION
+│   ├── 🔧 FIXED VENV PATH IN EXTENSION
+│   │   ├── BackendManager.ts now correctly looks for venv in project root
+│   │   ├── Was incorrectly looking in backend/venv instead of ./venv
+│   │   ├── Extension now properly uses virtual environment Python
+│   │   ├── Added logging to show which Python executable is being used
+│   │   └── Backend will now start with all correct dependencies
+│   ├── 📦 DEPENDENCY UPDATES FOR PYTHON 3.13
+│   │   ├── Updated mypy from 1.7.0 to 1.11.2 (no typed-ast dependency)
+│   │   ├── Updated diagrams from 0.23.4 to 0.24.4 (no typed-ast dependency)
+│   │   ├── Updated scalene from 1.5.38 to 1.5.55 (Python 3.13 compatible)
+│   │   ├── Updated tree-sitter from 0.21.0 to 0.25.1 (Python 3.13 compatible)
+│   │   └── All packages now compatible with Python 3.13.5
+│   ├── ✅ COMPLETE REQUIREMENTS INSTALLATION
+│   │   ├── All packages from requirements.txt successfully installed in venv
+│   │   ├── Including optional packages: semgrep, radon, vulture
+│   │   ├── Tree-sitter language parsers installed and working
+│   │   ├── Backend starts without missing dependency errors
+│   │   └── Fail-fast architecture properly detecting all dependencies
+│   ├── 🐛 BUG FIXES
+│   │   ├── Fixed typed-ast compilation error with Python 3.13
+│   │   ├── Fixed venv path detection in VS Code extension
+│   │   ├── Backend now uses correct virtual environment
+│   │   └── Port cleanup still working as expected
+│   └── 🎯 IMPACT: Backend now starts reliably with venv and all dependencies
 ├── v4.0.23 (24.9.2025) - ENHANCED BACKEND PORT MANAGEMENT & AUTO-CLEANUP
 │   ├── 🚀 FIXED PORT CONFLICT ISSUE
 │   │   ├── Restored and improved port auto-detection (8000-8010)

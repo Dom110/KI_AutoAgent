@@ -115,7 +115,7 @@ export class BackendManager {
             }
 
             const backendDir = path.join(workspaceRoot, 'backend');
-            const venvPython = path.join(backendDir, 'venv', 'bin', 'python');
+            const venvPython = path.join(workspaceRoot, 'venv', 'bin', 'python');  // venv is in project root, not backend
             const serverPath = path.join(backendDir, 'api', 'server.py');
 
             // Check if backend directory exists
@@ -125,19 +125,19 @@ export class BackendManager {
 
             // Check if virtual environment exists
             if (!fs.existsSync(venvPython)) {
-                this.outputChannel.appendLine('⚠️ Virtual environment not found, using system Python');
+                this.outputChannel.appendLine(`⚠️ Virtual environment not found at ${venvPython}, using system Python`);
+                this.outputChannel.appendLine(`Looking for venv in project root: ${workspaceRoot}/venv`);
                 // Use system Python as fallback
+            } else {
+                this.outputChannel.appendLine(`✅ Using virtual environment: ${venvPython}`);
             }
 
             // Start the backend process
             const pythonExecutable = fs.existsSync(venvPython) ? venvPython : this.pythonPath;
 
+            // Use server.py directly so our port cleanup logic runs
             this.backendProcess = spawn(pythonExecutable, [
-                '-m', 'uvicorn',
-                'api.server:app',
-                '--host', '0.0.0.0',
-                '--port', port.toString(),
-                '--reload'
+                path.join(backendDir, 'api', 'server.py')
             ], {
                 cwd: backendDir,
                 env: {
