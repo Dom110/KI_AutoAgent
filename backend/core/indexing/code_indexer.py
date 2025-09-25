@@ -183,10 +183,14 @@ class CodeIndexer:
         """
         # Check cache first
         if self._is_cache_valid(root_path):
-            logger.info("Using cached analysis results")
+            logger.info("🎯 Using cached analysis results (in-memory cache, valid for 15 minutes)")
             if progress_callback:
-                await progress_callback("📦 Using cached analysis (still fresh)")
+                await progress_callback("📦 Using cached analysis (still fresh, expires after 15 min)")
             return self.cached_results
+        else:
+            logger.info("🔄 Starting fresh analysis (cache miss or expired)")
+            if progress_callback:
+                await progress_callback("🔄 Starting fresh analysis (no valid cache found)")
 
         # Count files to analyze
         file_count = self._count_project_files(root_path)
@@ -261,20 +265,30 @@ class CodeIndexer:
     def _is_cache_valid(self, root_path: str) -> bool:
         """Check if cached results are still valid"""
         if not self.cached_results or self.last_analysis_path != root_path:
+            logger.info(f"❌ Cache invalid: {'no cached results' if not self.cached_results else 'different path'}")
             return False
 
         if not self.last_analysis_time:
+            logger.info("❌ Cache invalid: no timestamp")
             return False
 
         age = datetime.now() - self.last_analysis_time
-        return age < self.cache_validity
+        is_valid = age < self.cache_validity
+
+        if is_valid:
+            minutes_old = int(age.total_seconds() / 60)
+            logger.info(f"✅ Cache valid: {minutes_old} minutes old (expires after 15 minutes)")
+        else:
+            logger.info(f"❌ Cache expired: {int(age.total_seconds() / 60)} minutes old (>15 minutes)")
+
+        return is_valid
 
     def _cache_results(self, root_path: str, results: Dict):
         """Cache analysis results"""
         self.last_analysis_path = root_path
         self.last_analysis_time = datetime.now()
         self.cached_results = results
-        logger.info(f"Cached analysis results for {root_path}")
+        logger.info(f"💾 Cached analysis results for {root_path} (in-memory cache, valid for 15 minutes)")
 
 
     async def _build_cross_references(self, ast_index: Dict, progress_callback=None) -> Dict:
@@ -311,15 +325,47 @@ class CodeIndexer:
                     'methods': cls.get('methods', [])
                 }
 
-        # Limit reference search to avoid timeout - only process first 100 symbols
+        # Limit reference search to avoid timeout - only process first 50 symbols
         # For large codebases, full reference search can take too long
-        symbol_names = list(cross_refs['definitions'].keys())[:100]
+        symbol_names = list(cross_refs['definitions'].keys())[:50]
         logger.info(f"Building references for {len(symbol_names)} symbols (limited from {len(cross_refs['definitions'])} total)")
 
-        # Find references for limited set
+        # Send progress update before symbol search
+        if progress_callback:
+            await progress_callback(f"🔗 Phase 2/6: Searching references for {len(symbol_names)} symbols...")
+
+        # Find references for limited set with progress tracking
+        symbol_count = 0
+        total_symbols = len(symbol_names)
+
         for symbol_name in symbol_names:
-            usages = await self.tree_sitter.get_function_usages(symbol_name)
-            cross_refs['references'][symbol_name] = usages
+            symbol_count += 1
+
+            # Yield to event loop frequently
+            if symbol_count % 5 == 0:
+                await asyncio.sleep(0)
+
+            # Send progress updates
+            if progress_callback and (symbol_count % 10 == 0 or symbol_count == total_symbols):
+                await progress_callback(f"🔗 Phase 2/6: Symbol references ({symbol_count}/{total_symbols})...")
+
+            try:
+                # Add timeout for each symbol search
+                usages = await asyncio.wait_for(
+                    self.tree_sitter.get_function_usages(symbol_name),
+                    timeout=2.0  # 2 second timeout per symbol
+                )
+                cross_refs['references'][symbol_name] = usages
+            except asyncio.TimeoutError:
+                logger.warning(f"Timeout searching references for symbol: {symbol_name}")
+                cross_refs['references'][symbol_name] = []
+            except Exception as e:
+                logger.warning(f"Error searching references for {symbol_name}: {e}")
+                cross_refs['references'][symbol_name] = []
+
+        # Final progress update
+        if progress_callback:
+            await progress_callback(f"✅ Phase 2/6: Cross-references complete ({len(cross_refs['definitions'])} definitions, {len(cross_refs['references'])} references)")
 
         return cross_refs
 

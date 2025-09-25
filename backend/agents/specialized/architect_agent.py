@@ -127,7 +127,7 @@ class ArchitectAgent(ChatAgent):
             name="ArchitectAgent",
             full_name="System Architecture Specialist",
             description="Expert in system design, architecture patterns, and technology selection",
-            model="gpt-5-2025-09-12",
+            model="gpt-4o-2024-11-20",
             capabilities=[
                 AgentCapability.ARCHITECTURE_DESIGN
             ],
@@ -245,13 +245,17 @@ class ArchitectAgent(ChatAgent):
 
             # Determine which tools to use based on the request
             prompt_lower = request.prompt.lower()
+            logger.info(f"🔍 Received prompt: '{request.prompt}'")
+            logger.info(f"🔍 Prompt lower: '{prompt_lower}'")
 
             # Tool 1: understand_system() - Always use for infrastructure tasks
-            if any(word in prompt_lower for word in ['understand', 'analyze', 'infrastructure', 'improve', 'optimize']):
+            if any(word in prompt_lower for word in ['understand', 'analyze', 'infrastructure', 'infrastruktur', 'improve', 'verbessert', 'optimize']):
                 logger.info("🔍 Using understand_system() to analyze workspace...")
                 await self._send_progress(client_id, "🔍 Using understand_system() to analyze workspace...", manager)
 
+                logger.info(f"🔍 INDEXING_AVAILABLE = {INDEXING_AVAILABLE}, self.code_indexer = {self.code_indexer is not None}")
                 if INDEXING_AVAILABLE and self.code_indexer:
+                    logger.info("✅ Taking indexing path with understand_system()")
                     system_analysis = await self.understand_system(workspace_path, client_id, request.prompt, manager)
 
                     # Save to file
@@ -262,6 +266,7 @@ class ArchitectAgent(ChatAgent):
                     logger.info(f"✅ Created: {analysis_file}")
                 else:
                     # Standard analysis when indexing not triggered
+                    logger.warning(f"⚠️ Indexing not available, falling back to analyze_requirements")
                     system_analysis = await self.analyze_requirements(request.prompt)
 
                 # Tool 2: analyze_infrastructure_improvements()

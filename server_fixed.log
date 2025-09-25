@@ -1,0 +1,491 @@
+2025-09-25 15:28:17,005 - __main__ - INFO - 🚀 Starting server on port 8000
+INFO:     Started server process [37606]
+INFO:     Waiting for application startup.
+2025-09-25 15:28:17,035 - __main__ - INFO - 🚀 KI AutoAgent Backend starting...
+2025-09-25 15:28:17,035 - __main__ - INFO - 🔍 Checking system dependencies...
+2025-09-25 15:28:17,040 - core.startup_check - INFO - ✅ Redis server is running and accessible
+2025-09-25 15:28:17,046 - core.startup_check - WARNING - ⚠️ Optional package semgrep (Security analysis) not installed. Install with: pip install semgrep
+2025-09-25 15:28:17,046 - core.startup_check - WARNING - ⚠️ Optional package radon (Code metrics) not installed. Install with: pip install radon
+2025-09-25 15:28:17,046 - core.startup_check - WARNING - ⚠️ Optional package vulture (Dead code detection) not installed. Install with: pip install vulture
+2025-09-25 15:28:17,047 - core.startup_check - INFO - ✅ Cache directory /Users/dominikfoert/.ki_autoagent is writable
+2025-09-25 15:28:17,047 - core.startup_check - WARNING - ⚠️ ANTHROPIC_API_KEY not set. Claude API access will not work.
+2025-09-25 15:28:17,047 - core.startup_check - WARNING -    Set with: export ANTHROPIC_API_KEY='your-api-key'
+2025-09-25 15:28:17,047 - core.startup_check - INFO - ✅ All system dependencies verified successfully
+2025-09-25 15:28:17,047 - core.memory_manager - INFO - MemoryManager initialized with capacity: 10000
+2025-09-25 15:28:17,047 - core.shared_context_manager - INFO - SharedContextManager initialized
+2025-09-25 15:28:17,047 - core.conversation_context_manager - INFO - ConversationContextManager initialized with max history: 50
+2025-09-25 15:28:17,047 - core.workflow_engine - INFO - WorkflowEngine initialized
+2025-09-25 15:28:17,047 - core.agent_communication_bus - INFO - AgentCommunicationBus initialized
+2025-09-25 15:28:17,047 - core.validation_workflow - INFO - ValidationWorkflow initialized (auto_fix=True)
+2025-09-25 15:28:17,048 - core.agent_communication_bus - INFO - Communication bus started
+2025-09-25 15:28:17,048 - __main__ - INFO - 🧠 Core systems initialized: Memory, SharedContext, ConversationContext, Workflow, CommunicationBus, Validation
+2025-09-25 15:28:17,048 - services.conversation_persistence - INFO - ✅ Conversation database initialized at /Users/dominikfoert/.ki_autoagent/conversations.db
+2025-09-25 15:28:17,048 - __main__ - INFO - ✅ Conversation persistence initialized
+2025-09-25 15:28:17,048 - agents.agent_registry - INFO - 🎯 Agent Registry initialized
+2025-09-25 15:28:17,048 - __main__ - INFO - 📦 Registering agents...
+2025-09-25 15:28:17,048 - agents.base.base_agent - INFO - 🤖 🎯 OrchestratorAgent initialized (Model: gpt-4o-2024-11-20)
+2025-09-25 15:28:17,065 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+2025-09-25 15:28:17,065 - agents.agent_registry - INFO - ✅ Registered agent: orchestrator (Advanced KI AutoAgent Orchestrator) with model gpt-4o-2024-11-20
+2025-09-25 15:28:17,065 - agents.base.base_agent - INFO - 🤖 🏗️ ArchitectAgent initialized (Model: gpt-5-2025-09-12)
+2025-09-25 15:28:17,070 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-5-2025-09-12
+2025-09-25 15:28:17,072 - services.project_cache - INFO - ✅ Redis cache connected
+2025-09-25 15:28:17,072 - services.code_search - INFO - ✅ Code search database initialized at /Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/search.db
+2025-09-25 15:28:17,074 - services.smart_file_watcher - INFO - 👁️ Smart file watcher started for /Users/dominikfoert/git/KI_AutoAgent/backend
+2025-09-25 15:28:17,074 - services.smart_file_watcher - INFO - ⏱️ Debounce period: 30 seconds
+2025-09-25 15:28:17,074 - services.smart_file_watcher - INFO - 🤖 Bot change detection: ENABLED
+2025-09-25 15:28:17,074 - agents.specialized.architect_agent - INFO - ✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce
+2025-09-25 15:28:17,074 - agents.specialized.architect_agent - INFO - ✅ Code indexing tools initialized
+2025-09-25 15:28:17,074 - agents.agent_registry - INFO - ✅ Registered agent: architect (System Architecture Specialist) with model gpt-5-2025-09-12
+2025-09-25 15:28:17,074 - agents.base.base_agent - INFO - 🤖 💻 CodeSmithAgent initialized (Model: claude-4.1-sonnet-20250920)
+2025-09-25 15:28:17,622 - utils.claude_code_service - INFO - ✅ Claude Code CLI found: 1.0.115 (Claude Code)
+2025-09-25 15:28:17,622 - agents.agent_registry - INFO - ✅ Registered agent: codesmith (Code Implementation Specialist) with model claude-4.1-sonnet-20250920
+2025-09-25 15:28:17,623 - agents.base.base_agent - INFO - 🤖 📝 DocuBot initialized (Model: gpt-4o-2024-11-20)
+2025-09-25 15:28:17,628 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+2025-09-25 15:28:17,628 - agents.agent_registry - INFO - ✅ Registered agent: docubot (Technical Documentation Expert) with model gpt-4o-2024-11-20
+2025-09-25 15:28:17,628 - agents.base.base_agent - INFO - 🤖 🔍 ReviewerGPT initialized (Model: gpt-5-mini-2025-09-20)
+2025-09-25 15:28:17,634 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-5-mini-2025-09-20
+2025-09-25 15:28:17,634 - agents.agent_registry - INFO - ✅ Registered agent: reviewer (Code Review & Security Expert) with model gpt-5-mini-2025-09-20
+2025-09-25 15:28:17,634 - agents.base.base_agent - INFO - 🤖 🔧 FixerBot initialized (Model: claude-4.1-sonnet-20250920)
+2025-09-25 15:28:18,174 - utils.claude_code_service - INFO - ✅ Claude Code CLI found: 1.0.115 (Claude Code)
+2025-09-25 15:28:18,174 - agents.agent_registry - INFO - ✅ Registered agent: fixer (Bug Fixing & Optimization Expert) with model claude-4.1-sonnet-20250920
+2025-09-25 15:28:18,175 - agents.base.base_agent - INFO - 🤖 🔍 ResearchBot initialized (Model: perplexity-llama-3.1-sonar-huge-128k)
+2025-09-25 15:28:18,175 - agents.agent_registry - INFO - ✅ Registered agent: research (Web Research Specialist) with model perplexity-llama-3.1-sonar-huge-128k
+2025-09-25 15:28:18,175 - agents.base.base_agent - INFO - 🤖 📈 TradeStrat initialized (Model: claude-4.1-sonnet-20250920)
+2025-09-25 15:28:18,714 - utils.claude_code_service - INFO - ✅ Claude Code CLI found: 1.0.115 (Claude Code)
+2025-09-25 15:28:18,714 - agents.agent_registry - INFO - ✅ Registered agent: tradestrat (Trading Strategy Expert) with model claude-4.1-sonnet-20250920
+2025-09-25 15:28:18,715 - agents.base.base_agent - INFO - 🤖 ⚖️ OpusArbitrator initialized (Model: claude-opus-4-1-20250805)
+2025-09-25 15:28:19,256 - utils.claude_code_service - INFO - ✅ Claude Code CLI found: 1.0.115 (Claude Code)
+2025-09-25 15:28:19,256 - agents.agent_registry - INFO - ✅ Registered agent: opus-arbitrator (Supreme Agent Arbitrator) with model claude-opus-4-1-20250805
+2025-09-25 15:28:19,257 - agents.base.base_agent - INFO - 🤖 ⚡ PerformanceBot initialized (Model: gpt-4o-2024-11-20)
+2025-09-25 15:28:19,263 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+2025-09-25 15:28:19,263 - agents.agent_registry - INFO - ✅ Registered agent: performance_bot (Performance Analysis Specialist) with model gpt-4o-2024-11-20
+2025-09-25 15:28:19,263 - __main__ - INFO - ✅ Registered 10 agents
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49867 - "WebSocket /ws/chat" [accepted]
+2025-09-25 15:28:22,150 - __main__ - INFO - ✅ Client client_0 connected. Total: 1
+INFO:     connection open
+INFO:     127.0.0.1:49901 - "WebSocket /ws/chat" [accepted]
+2025-09-25 15:29:15,597 - __main__ - INFO - ✅ Client client_1 connected. Total: 2
+INFO:     connection open
+2025-09-25 15:29:15,598 - __main__ - INFO - 📨 Received from client_1: chat
+2025-09-25 15:29:15,599 - __main__ - INFO - 📨 Processing request from client_1 for agent architect
+2025-09-25 15:29:15,601 - agents.specialized.architect_agent - INFO - 🔄 Updating file watcher from /Users/dominikfoert/git/KI_AutoAgent/backend to /Users/dominikfoert/git/KI_AutoAgent/backend
+2025-09-25 15:29:15,601 - services.smart_file_watcher - INFO - 👁️ Smart file watcher stopped
+2025-09-25 15:29:15,602 - services.smart_file_watcher - INFO - 👁️ Smart file watcher started for /Users/dominikfoert/git/KI_AutoAgent/backend
+2025-09-25 15:29:15,602 - services.smart_file_watcher - INFO - ⏱️ Debounce period: 30 seconds
+2025-09-25 15:29:15,602 - services.smart_file_watcher - INFO - 🤖 Bot change detection: ENABLED
+2025-09-25 15:29:15,602 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_1
+2025-09-25 15:29:15,602 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_1: 🏗️ Architect starting system analysis...
+2025-09-25 15:29:15,982 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 404 Not Found"
+2025-09-25 15:29:15,985 - utils.openai_service - ERROR - OpenAI API error: Error code: 404 - {'error': {'message': 'The model `gpt-5-2025-09-12` does not exist or you do not have access to it.', 'type': 'invalid_request_error', 'param': None, 'code': 'model_not_found'}}
+2025-09-25 15:29:15,985 - agents.specialized.architect_agent - ERROR - Architecture design failed: 
+================================================================================
+🚨 SYSTEM NOT READY
+================================================================================
+
+❌ Component:  ArchitectAgent
+📁 Location:   /Users/dominikfoert/git/KI_AutoAgent/backend/agents/specialized/architect_agent.py:368
+❗ Reason:     Failed to parse OpenAI response as JSON: Expecting value: line 1 column 1 (char 0)
+💡 Solution:   Check OpenAI API response format or retry the request
+
+================================================================================
+
+2025-09-25 15:29:15,989 - agents.specialized.architect_agent - ERROR - Traceback: Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/agents/specialized/architect_agent.py", line 397, in analyze_requirements
+    return json.loads(response)
+           ~~~~~~~~~~^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/agents/specialized/architect_agent.py", line 325, in execute
+    requirements = await self.analyze_requirements(request.prompt)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/agents/specialized/architect_agent.py", line 401, in analyze_requirements
+    raise SystemNotReadyError(
+    ...<5 lines>...
+    )
+core.exceptions.SystemNotReadyError: 
+================================================================================
+🚨 SYSTEM NOT READY
+================================================================================
+
+❌ Component:  ArchitectAgent
+📁 Location:   /Users/dominikfoert/git/KI_AutoAgent/backend/agents/specialized/architect_agent.py:368
+❗ Reason:     Failed to parse OpenAI response as JSON: Expecting value: line 1 column 1 (char 0)
+💡 Solution:   Check OpenAI API response format or retry the request
+
+================================================================================
+
+
+2025-09-25 15:29:15,990 - __main__ - INFO - 📊 Agent result - Status: error, Content length: 1122
+2025-09-25 15:29:15,990 - __main__ - ERROR - ❌ Agent error: Failed to design architecture: 
+================================================================================
+🚨 SYSTEM NOT READY
+================================================================================
+
+❌ Component:  ArchitectAgent
+📁 Location:   /Users/dominikfoert/git/KI_AutoAgent/backend/agents/specialized/architect_agent.py:368
+❗ Reason:     Failed to parse OpenAI response as JSON: Expecting value: line 1 column 1 (char 0)
+💡 Solution:   Check OpenAI API response format or retry the
+2025-09-25 15:29:55,613 - __main__ - INFO - ❌ Client client_1 disconnected. Total: 1
+INFO:     connection closed
+2025-09-25 15:32:24,743 - __main__ - INFO - ❌ Client client_0 disconnected. Total: 0
+INFO:     connection closed
+INFO:     127.0.0.1:49933 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49934 - "WebSocket /ws/chat" [accepted]
+2025-09-25 15:32:26,047 - __main__ - INFO - ✅ Client client_2 connected. Total: 1
+INFO:     connection open
+INFO:     127.0.0.1:49956 - "GET /api/conversation/history?limit=20&project_path=%2FUsers%2Fdominikfoert%2Fgit%2FKI_AutoAgent HTTP/1.1" 200 OK
+2025-09-25 15:32:47,314 - __main__ - INFO - 📨 Received from client_2: chat
+2025-09-25 15:32:47,316 - __main__ - INFO - 📨 Processing request from client_2 for agent orchestrator
+2025-09-25 15:32:47,316 - agents.base.base_agent - INFO - 📚 Directive 4: Research required for topics: ['verify_technologies']
+2025-09-25 15:32:47,316 - agents.base.base_agent - INFO - 🤖 🔍 ResearchBot initialized (Model: perplexity-llama-3.1-sonar-huge-128k)
+2025-09-25 15:32:47,316 - agents.base.base_agent - INFO - 🔍 Researching topic: verify_technologies
+2025-09-25 15:32:47,316 - agents.base.base_agent - INFO - ✅ Research completed. Found 0 relevant findings
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 🚀 Orchestrator execute started with prompt: Wie kann das System verbessert werden?...
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 📋 Mode: auto
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 📡 Client ID: client_2
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 📡 About to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 📤 Successfully sent progress to client client_2: 🤔 Analyzing your request...
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - Auto mode: Detected keywords: ['system']
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 📡 About to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 📤 Successfully sent progress to client client_2: 🎯 Detected complex task: system
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - Auto mode: Triggering multi-agent workflow for infrastructure analysis
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 🔧 Starting task decomposition...
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 📡 About to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 📤 Successfully sent progress to client client_2: 🔧 Breaking down your request into subtasks...
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 🏗️ Infrastructure keywords detected: ['system']
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 📡 About to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 📤 Successfully sent progress to client client_2: 🏗️ Infrastructure task detected: system
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 🏗️ Infrastructure workflow created with 6 tasks
+2025-09-25 15:32:47,317 - agents.specialized.orchestrator_agent_v2 - INFO - 📡 About to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,318 - agents.specialized.orchestrator_agent_v2 - INFO - 📤 Successfully sent progress to client client_2: 🏗️ Created workflow with 6 analysis tasks
+2025-09-25 15:32:47,318 - agents.specialized.orchestrator_agent_v2 - INFO - 🎯 Executing workflow with 6 subtasks
+2025-09-25 15:32:47,318 - agents.specialized.orchestrator_agent_v2 - INFO - 📡 About to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,318 - agents.specialized.orchestrator_agent_v2 - INFO - 📤 Successfully sent progress to client client_2: 🎯 Executing 6 subtasks...
+2025-09-25 15:32:47,318 - agents.specialized.orchestrator_agent_v2 - INFO - 🚀 Starting workflow with 6 tasks in sequential mode
+2025-09-25 15:32:47,318 - agents.specialized.orchestrator_agent_v2 - INFO - ▶️ Step 1/6: Executing analyze_system with agent architect
+2025-09-25 15:32:47,318 - agents.base.base_agent - INFO - 📚 Directive 4: Research required for topics: ['verify_technologies', 'verify_package']
+2025-09-25 15:32:47,318 - agents.base.base_agent - INFO - 🤖 🔍 ResearchBot initialized (Model: perplexity-llama-3.1-sonar-huge-128k)
+2025-09-25 15:32:47,318 - agents.base.base_agent - INFO - 🔍 Researching topic: verify_technologies
+2025-09-25 15:32:47,318 - agents.base.base_agent - INFO - 🔍 Researching topic: verify_package
+2025-09-25 15:32:47,318 - agents.specialized.research_agent - INFO - 📚 Research requested by architect: Use understand_system() to analyze the workspace and create system_analysis.json in .ki_autoagent/ folder
+2025-09-25 15:32:47,318 - agents.base.base_agent - INFO - ✅ Research completed. Found 1 relevant findings
+2025-09-25 15:32:47,318 - agents.specialized.architect_agent - INFO - 🔄 Updating file watcher from /Users/dominikfoert/git/KI_AutoAgent/backend to /Users/dominikfoert/git/KI_AutoAgent
+2025-09-25 15:32:47,319 - services.smart_file_watcher - INFO - 👁️ Smart file watcher stopped
+2025-09-25 15:32:47,320 - services.smart_file_watcher - INFO - 👁️ Smart file watcher started for /Users/dominikfoert/git/KI_AutoAgent
+2025-09-25 15:32:47,320 - services.smart_file_watcher - INFO - ⏱️ Debounce period: 30 seconds
+2025-09-25 15:32:47,320 - services.smart_file_watcher - INFO - 🤖 Bot change detection: ENABLED
+2025-09-25 15:32:47,320 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,320 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 🏗️ Architect starting system analysis...
+2025-09-25 15:32:47,320 - agents.specialized.architect_agent - INFO - 🔍 Using understand_system() to analyze workspace...
+2025-09-25 15:32:47,320 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,320 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 🔍 Using understand_system() to analyze workspace...
+2025-09-25 15:32:47,320 - agents.specialized.architect_agent - INFO - Building comprehensive system understanding...
+2025-09-25 15:32:47,321 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,321 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 🏗️ Building comprehensive system understanding...
+2025-09-25 15:32:47,321 - agents.specialized.architect_agent - INFO - Request type detected: general
+2025-09-25 15:32:47,321 - agents.specialized.architect_agent - INFO - Phase 1: Indexing codebase with AST parsing
+2025-09-25 15:32:47,321 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,321 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Phase 1: Indexing codebase with AST parsing...
+2025-09-25 15:32:47,321 - core.indexing.code_indexer - INFO - Loading .gitignore from /Users/dominikfoert/git/KI_AutoAgent/.gitignore
+2025-09-25 15:32:47,321 - core.indexing.code_indexer - INFO - Loaded 9 patterns from .gitignore
+2025-09-25 15:32:47,334 - core.indexing.code_indexer - INFO - Project files: 123 to analyze, 20 excluded
+2025-09-25 15:32:47,334 - core.indexing.code_indexer - INFO - Starting FULL analysis of 123 project files
+2025-09-25 15:32:47,334 - core.indexing.code_indexer - INFO - Request type: general
+2025-09-25 15:32:47,334 - core.indexing.code_indexer - INFO - Phase 1: AST Indexing with Tree-sitter
+2025-09-25 15:32:47,334 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,334 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Phase 1/6: Indexing 123 files (using .gitignore + defaults)...
+2025-09-25 15:32:47,334 - core.indexing.tree_sitter_indexer - INFO - Starting codebase indexing from /Users/dominikfoert/git/KI_AutoAgent
+2025-09-25 15:32:47,699 - core.indexing.tree_sitter_indexer - INFO - Found 137 files to index (excluded common directories)
+2025-09-25 15:32:47,699 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,699 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 1/137: ki_agent_history.json
+2025-09-25 15:32:47,700 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,700 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 2/137: test_architect_progress.py
+2025-09-25 15:32:47,704 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,704 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 3/137: claude_web_integration_complete.py
+2025-09-25 15:32:47,707 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,707 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 4/137: config.yaml
+2025-09-25 15:32:47,707 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,708 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 5/137: test_progress_enhanced.py
+2025-09-25 15:32:47,710 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,710 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 6/137: cli.py
+2025-09-25 15:32:47,737 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,738 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 7/137: package-lock.json
+2025-09-25 15:32:47,739 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,739 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 8/137: test_system.py
+2025-09-25 15:32:47,760 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,760 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 9/137: test_websocket_messages.py
+2025-09-25 15:32:47,767 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,767 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 10/137: docker-compose.yml
+2025-09-25 15:32:47,768 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,768 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 11/137: test_websocket_messages.json
+2025-09-25 15:32:47,768 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,768 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 12/137: debug_login_flow.py
+2025-09-25 15:32:47,775 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,776 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 13/137: test_infrastructure_analysis.py
+2025-09-25 15:32:47,780 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,780 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 14/137: claude_browser.py
+2025-09-25 15:32:47,786 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,787 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 15/137: quick_test.py
+2025-09-25 15:32:47,789 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,789 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 16/137: fastapi_server.py
+2025-09-25 15:32:47,792 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,792 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 17/137: crewai_integration.py
+2025-09-25 15:32:47,799 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,800 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 18/137: setup_and_test.py
+2025-09-25 15:32:47,807 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,807 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 19/137: __init__.py
+2025-09-25 15:32:47,808 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,808 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 20/137: debug_browser_api.py
+2025-09-25 15:32:47,812 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,812 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 21/137: setup_results.json
+2025-09-25 15:32:47,812 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,813 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 22/137: execution_history.json
+2025-09-25 15:32:47,813 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,813 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 23/137: performance_metrics.json
+2025-09-25 15:32:47,813 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,814 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 24/137: success_patterns.json
+2025-09-25 15:32:47,814 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,814 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 25/137: opus_arbitrator.py
+2025-09-25 15:32:47,816 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,816 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 26/137: docu_bot.py
+2025-09-25 15:32:47,818 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,818 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 27/137: base_agent.py
+2025-09-25 15:32:47,821 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,821 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 28/137: research_bot.py
+2025-09-25 15:32:47,824 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,824 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 29/137: __init__.py
+2025-09-25 15:32:47,825 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,825 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 30/137: reviewer_gpt.py
+2025-09-25 15:32:47,829 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,829 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 31/137: architect_gpt.py
+2025-09-25 15:32:47,831 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,831 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 32/137: trade_strat.py
+2025-09-25 15:32:47,835 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,835 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 33/137: fixer_bot.py
+2025-09-25 15:32:47,838 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,838 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 34/137: codesmith_claude.py
+2025-09-25 15:32:47,842 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,842 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 35/137: test_system_understanding.py
+2025-09-25 15:32:47,845 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,845 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 36/137: __version__.py
+2025-09-25 15:32:47,846 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,846 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 37/137: test_infrastructure_comprehensive.py
+2025-09-25 15:32:47,848 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,849 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 38/137: test_api_keys.py
+2025-09-25 15:32:47,850 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,851 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 39/137: test_websocket_debug.py
+2025-09-25 15:32:47,853 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,854 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 40/137: test_quick_infra.py
+2025-09-25 15:32:47,855 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,855 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 41/137: quick_test_key.py
+2025-09-25 15:32:47,857 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,857 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 42/137: test_v4_features.py
+2025-09-25 15:32:47,859 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,859 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 43/137: test_execution_time_fix.py
+2025-09-25 15:32:47,861 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,861 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 44/137: claude_web_integration_example.py
+2025-09-25 15:32:47,864 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,865 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 45/137: multi_agent_claude_web_demo.py
+2025-09-25 15:32:47,868 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,868 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 46/137: execution_engine.py
+2025-09-25 15:32:47,872 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,872 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 47/137: iteration_controller.py
+2025-09-25 15:32:47,879 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,879 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 48/137: __init__.py
+2025-09-25 15:32:47,880 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,880 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 49/137: intent_classifier.py
+2025-09-25 15:32:47,884 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,884 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 50/137: master_dispatcher.py
+2025-09-25 15:32:47,888 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,888 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 51/137: shared_context.py
+2025-09-25 15:32:47,891 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,891 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 52/137: learning_system.py
+2025-09-25 15:32:47,896 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,896 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 53/137: workflow_generator.py
+2025-09-25 15:32:47,900 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,901 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 54/137: webpack.config.js
+2025-09-25 15:32:47,901 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,902 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 55/137: package.json
+2025-09-25 15:32:47,902 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,903 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 56/137: tsconfig.json
+2025-09-25 15:32:47,903 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,903 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 57/137: version-bump.js
+2025-09-25 15:32:47,903 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,904 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 58/137: extension_backup.ts
+2025-09-25 15:32:47,905 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,905 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 59/137: extension_new.ts
+2025-09-25 15:32:47,905 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,905 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 60/137: ChatWidget.ts
+2025-09-25 15:32:47,906 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,906 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 61/137: extension.ts
+2025-09-25 15:32:47,906 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,907 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 62/137: MultiAgentChatPanel.ts
+2025-09-25 15:32:47,908 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,909 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 63/137: AgentConfiguration.ts
+2025-09-25 15:32:47,909 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,909 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 64/137: SystemKnowledge.ts
+2025-09-25 15:32:47,909 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,910 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 65/137: IntentTypes.ts
+2025-09-25 15:32:47,910 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,910 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 66/137: Memory.ts
+2025-09-25 15:32:47,910 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,910 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 67/137: index.ts
+2025-09-25 15:32:47,911 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,911 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 68/137: UnifiedChatMixin.ts
+2025-09-25 15:32:47,911 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,911 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 69/137: BackendManager.ts
+2025-09-25 15:32:47,912 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,912 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 70/137: BackendClient.ts
+2025-09-25 15:32:47,912 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,912 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 71/137: chat.js
+2025-09-25 15:32:47,914 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,914 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 72/137: learning-settings.json
+2025-09-25 15:32:47,915 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,915 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 73/137: agent-models.json
+2025-09-25 15:32:47,915 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,915 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 74/137: engine_parity_quality_gate.py
+2025-09-25 15:32:47,920 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,920 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 75/137: security_quality_gate.py
+2025-09-25 15:32:47,928 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,928 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 76/137: base_quality_gate.py
+2025-09-25 15:32:47,931 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,932 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 77/137: ron_strategy_quality_gate.py
+2025-09-25 15:32:47,937 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,937 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 78/137: trading_quality_gate.py
+2025-09-25 15:32:47,944 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,944 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 79/137: __init__.py
+2025-09-25 15:32:47,944 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,944 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 80/137: generic_software_workflow.py
+2025-09-25 15:32:47,946 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,946 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 81/137: trading_system_workflow.py
+2025-09-25 15:32:47,948 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,949 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 82/137: __init__.py
+2025-09-25 15:32:47,949 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,949 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 83/137: base_workflow.py
+2025-09-25 15:32:47,952 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,952 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 84/137: trading_project_context.py
+2025-09-25 15:32:47,954 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,954 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 85/137: __init__.py
+2025-09-25 15:32:47,954 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,955 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 86/137: web_app_context.py
+2025-09-25 15:32:47,956 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,957 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 87/137: base_project_context.py
+2025-09-25 15:32:47,958 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,958 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 88/137: instruction_merger.py
+2025-09-25 15:32:47,962 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,962 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 89/137: memory_manager.py
+2025-09-25 15:32:47,969 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,970 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 90/137: pause_handler.py
+2025-09-25 15:32:47,973 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:47,973 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 91/137: workflow_engine.py
+2025-09-25 15:32:48,004 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,004 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 92/137: cancellation.py
+2025-09-25 15:32:48,005 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,005 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 93/137: validation_workflow.py
+2025-09-25 15:32:48,011 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,011 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 94/137: shared_context_manager.py
+2025-09-25 15:32:48,016 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,016 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 95/137: startup_check.py
+2025-09-25 15:32:48,019 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,019 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 96/137: conversation_context_manager.py
+2025-09-25 15:32:48,023 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,023 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 97/137: git_checkpoint_manager.py
+2025-09-25 15:32:48,026 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,026 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 98/137: exceptions.py
+2025-09-25 15:32:48,028 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,028 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 99/137: agent_communication_bus.py
+2025-09-25 15:32:48,034 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,034 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 100/137: system_analysis.json
+2025-09-25 15:32:48,938 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,939 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 101/137: test_server_auto.py
+2025-09-25 15:32:48,940 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,941 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 102/137: test_real_agent.py
+2025-09-25 15:32:48,942 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,942 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 103/137: test_server.py
+2025-09-25 15:32:48,944 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,944 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 104/137: test_integration.py
+2025-09-25 15:32:48,950 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,950 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 105/137: agent_registry.py
+2025-09-25 15:32:48,953 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,953 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 106/137: claude_code_service.py
+2025-09-25 15:32:48,956 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,956 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 107/137: openai_service.py
+2025-09-25 15:32:48,958 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,958 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 108/137: anthropic_service.py
+2025-09-25 15:32:48,961 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,961 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 109/137: server.py
+2025-09-25 15:32:48,969 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,970 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 110/137: __init__.py
+2025-09-25 15:32:48,970 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,970 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 111/137: diagram_service.py
+2025-09-25 15:32:48,973 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,973 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 112/137: conversation_persistence.py
+2025-09-25 15:32:48,976 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,976 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 113/137: project_cache.py
+2025-09-25 15:32:48,979 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,979 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 114/137: smart_file_watcher.py
+2025-09-25 15:32:48,982 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,982 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 115/137: file_watcher.py
+2025-09-25 15:32:48,984 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,985 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 116/137: code_search.py
+2025-09-25 15:32:48,987 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,987 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 117/137: fixerbot_agent.py
+2025-09-25 15:32:48,988 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,989 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 118/137: reviewer_gpt_agent.py
+2025-09-25 15:32:48,991 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,991 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 119/137: tradestrat_agent.py
+2025-09-25 15:32:48,993 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,993 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 120/137: docubot_agent.py
+2025-09-25 15:32:48,994 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:48,994 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 121/137: architect_agent.py
+2025-09-25 15:32:49,006 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,006 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 122/137: codesmith_agent.py
+2025-09-25 15:32:49,014 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,014 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 123/137: performance_bot.py
+2025-09-25 15:32:49,021 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,022 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 124/137: research_agent.py
+2025-09-25 15:32:49,024 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,024 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 125/137: orchestrator_agent_v2.py
+2025-09-25 15:32:49,032 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,032 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 126/137: opus_arbitrator_agent.py
+2025-09-25 15:32:49,033 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,034 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 127/137: orchestrator_agent.py
+2025-09-25 15:32:49,039 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,039 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 128/137: base_agent.py
+2025-09-25 15:32:49,047 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,047 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 129/137: prime_directives.py
+2025-09-25 15:32:49,051 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,051 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 130/137: chat_agent.py
+2025-09-25 15:32:49,054 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,054 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 131/137: semgrep_analyzer.py
+2025-09-25 15:32:49,058 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,059 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 132/137: vulture_analyzer.py
+2025-09-25 15:32:49,062 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,063 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 133/137: __init__.py
+2025-09-25 15:32:49,063 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,063 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 134/137: radon_metrics.py
+2025-09-25 15:32:49,069 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,069 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 135/137: tree_sitter_indexer.py
+2025-09-25 15:32:49,075 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,076 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 136/137: __init__.py
+2025-09-25 15:32:49,076 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,076 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📂 Indexing file 137/137: code_indexer.py
+2025-09-25 15:32:49,085 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,085 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 📊 Building dependency graph for 137 files...
+2025-09-25 15:32:49,085 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,085 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 🔌 Extracting API endpoints...
+2025-09-25 15:32:49,087 - agents.specialized.architect_agent - INFO - 📡 Architect about to send progress via manager.send_json to client_2
+2025-09-25 15:32:49,088 - agents.specialized.architect_agent - INFO - 📤 Architect successfully sent progress to client client_2: 💾 Identifying database operations...

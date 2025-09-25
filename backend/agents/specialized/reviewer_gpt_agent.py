@@ -32,7 +32,7 @@ class ReviewerGPTAgent(ChatAgent):
             name="ReviewerGPT",
             full_name="Code Review & Security Expert",
             description="Specialized in code review, security analysis, and bug detection",
-            model="gpt-5-mini-2025-09-20",  # GPT-5 mini for validation
+            model="gpt-4o-mini-2024-07-18",  # GPT-4 mini for validation
             capabilities=[
                 AgentCapability.CODE_REVIEW,
                 AgentCapability.SECURITY_ANALYSIS

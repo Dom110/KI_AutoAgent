@@ -88,7 +88,11 @@ class OpenAIService:
                         ),
                         timeout=30.0
                     )
-                    return response.choices[0].message.content or ""
+                    content = response.choices[0].message.content
+                    if not content:
+                        logger.warning(f"OpenAI returned empty response for model {self.config.model}")
+                        logger.debug(f"Full response: {response}")
+                    return content or ""
                 except asyncio.TimeoutError:
                     logger.error(f"OpenAI API call timed out after 30 seconds")
                     return "Error: OpenAI API call timed out. Please try again."

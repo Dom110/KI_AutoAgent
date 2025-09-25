@@ -26,6 +26,7 @@ from core.cancellation import CancelToken, TaskCancelledException
 
 # Import persistence services (will check availability after logger is initialized)
 from services.conversation_persistence import ConversationPersistence
+from services.model_discovery_service import get_model_discovery_service, discover_models_on_startup
 
 # Import core systems
 from core.memory_manager import get_memory_manager, MemoryType
@@ -111,6 +112,14 @@ async def lifespan(app: FastAPI):
     await registry.register_agent(PerformanceBot())
 
     logger.info(f"✅ Registered {len(registry.agents)} agents")
+
+    # Discover available AI models
+    logger.info("🔍 Discovering available AI models...")
+    try:
+        discovered_models = await discover_models_on_startup()
+        logger.info(f"✅ Model discovery complete: {sum(len(m) for m in discovered_models.values())} models found")
+    except Exception as e:
+        logger.warning(f"⚠️ Model discovery failed: {e}. Using default models.")
 
     yield
 
@@ -370,6 +379,56 @@ async def get_agents():
     registry = get_agent_registry()
     return {
         "agents": registry.get_available_agents()
+    }
+
+# Model discovery endpoints
+@app.get("/api/models")
+async def get_available_models():
+    """Return all discovered AI models from all providers"""
+    service = get_model_discovery_service()
+    return service.discovered_models
+
+@app.get("/api/models/{provider}")
+async def get_provider_models(provider: str):
+    """Return available models for a specific provider with detailed descriptions"""
+    service = get_model_discovery_service()
+    models = service.discovered_models.get(provider, [])
+
+    # Add descriptions for each model
+    models_with_descriptions = []
+    for model_id in models:
+        model_info = service.get_model_description(model_id)
+        models_with_descriptions.append({
+            "id": model_id,
+            "name": model_info.get("name", model_id),
+            "description": model_info.get("description", ""),
+            "capabilities": model_info.get("capabilities", ""),
+            "context": model_info.get("context", ""),
+            "speed": model_info.get("speed", "")
+        })
+
+    return {
+        "provider": provider,
+        "models": models,
+        "models_detailed": models_with_descriptions,
+        "latest": service.get_latest_models(provider, 3),
+        "recommended": {
+            "general": service.get_recommended_model(provider, "general"),
+            "code": service.get_recommended_model(provider, "code"),
+            "fast": service.get_recommended_model(provider, "fast"),
+            "reasoning": service.get_recommended_model(provider, "reasoning")
+        }
+    }
+
+@app.post("/api/models/refresh")
+async def refresh_models():
+    """Force refresh model discovery"""
+    service = get_model_discovery_service()
+    models = await service.discover_all_models(force_refresh=True)
+    return {
+        "status": "success",
+        "models_discovered": sum(len(m) for m in models.values()),
+        "providers": list(models.keys())
     }
 
 # WebSocket Chat Endpoint

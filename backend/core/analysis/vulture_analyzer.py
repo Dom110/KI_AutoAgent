@@ -61,7 +61,7 @@ class VultureAnalyzer:
             # Fallback to manual detection
             if progress_callback:
                 await progress_callback("🧹 Analyzing code for unused elements...")
-            results = await self._manual_dead_code_detection(target_path)
+            results = await self._manual_dead_code_detection(target_path, progress_callback)
 
         # Calculate statistics
         results['summary'] = self._calculate_summary(results)
@@ -127,7 +127,7 @@ class VultureAnalyzer:
 
         return results
 
-    async def _manual_dead_code_detection(self, target_path: str) -> Dict:
+    async def _manual_dead_code_detection(self, target_path: str, progress_callback=None) -> Dict:
         """Manual dead code detection without Vulture"""
         results = {
             'unused_functions': [],
@@ -141,8 +141,24 @@ class VultureAnalyzer:
         all_definitions = {}
         all_usages = {}
 
+        # Count total files first
+        py_files = list(path.rglob('*.py'))
+        total_files = len(py_files)
+
+        # Limit analysis for performance (analyze max 100 files)
+        MAX_FILES = 100
+        if total_files > MAX_FILES:
+            logger.warning(f"Large project: analyzing first {MAX_FILES} of {total_files} Python files")
+            py_files = py_files[:MAX_FILES]
+
+        if progress_callback:
+            await progress_callback(f"🧹 Analyzing {len(py_files)} Python files for unused code...")
+
         # First pass: collect all definitions
-        for py_file in path.rglob('*.py'):
+        for i, py_file in enumerate(py_files, 1):
+            # Progress update every 10 files
+            if progress_callback and i % 10 == 0:
+                await progress_callback(f"🧹 Scanning definitions: {i}/{len(py_files)} files...")
             try:
                 content = py_file.read_text(encoding='utf-8')
 
@@ -190,8 +206,19 @@ class VultureAnalyzer:
             except Exception as e:
                 logger.warning(f"Failed to analyze {py_file}: {e}")
 
-        # Second pass: find usages
-        for py_file in path.rglob('*.py'):
+            # Yield control periodically
+            if i % 5 == 0:
+                import asyncio
+                await asyncio.sleep(0)
+
+        if progress_callback:
+            await progress_callback(f"🧹 Checking usages in {len(py_files)} files...")
+
+        # Second pass: find usages (use same limited file list)
+        for i, py_file in enumerate(py_files, 1):
+            # Progress update every 10 files
+            if progress_callback and i % 10 == 0:
+                await progress_callback(f"🧹 Checking usages: {i}/{len(py_files)} files...")
             try:
                 content = py_file.read_text(encoding='utf-8')
 
@@ -203,6 +230,14 @@ class VultureAnalyzer:
 
             except Exception:
                 pass
+
+            # Yield control periodically
+            if i % 5 == 0:
+                import asyncio
+                await asyncio.sleep(0)
+
+        if progress_callback:
+            await progress_callback(f"🧹 Analyzing unused items...")
 
         # Find unused items
         for name, definition in all_definitions.items():
@@ -224,8 +259,14 @@ class VultureAnalyzer:
                             'confidence': 80
                         })
 
-        # Check for unreachable code
-        for py_file in path.rglob('*.py'):
+        if progress_callback:
+            await progress_callback(f"🧹 Checking for unreachable code...")
+
+        # Check for unreachable code (use same limited file list)
+        for i, py_file in enumerate(py_files, 1):
+            # Progress update every 20 files
+            if progress_callback and i % 20 == 0:
+                await progress_callback(f"🧹 Checking unreachable code: {i}/{len(py_files)} files...")
             try:
                 content = py_file.read_text(encoding='utf-8')
 
@@ -241,6 +282,14 @@ class VultureAnalyzer:
 
             except Exception:
                 pass
+
+            # Yield control periodically
+            if i % 10 == 0:
+                import asyncio
+                await asyncio.sleep(0)
+
+        if progress_callback:
+            await progress_callback(f"🧹 Dead code analysis complete")
 
         return results
 

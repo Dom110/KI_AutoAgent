@@ -425,6 +425,30 @@
         "icon": "$(settings-gear)"
       },
       {
+        "command": "ki-autoagent.refreshModels",
+        "title": "KI AutoAgent: Refresh Available AI Models",
+        "category": "KI AutoAgent",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "ki-autoagent.selectOpenAIModel",
+        "title": "KI AutoAgent: Select OpenAI/GPT Model",
+        "category": "KI AutoAgent",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "ki-autoagent.selectAnthropicModel",
+        "title": "KI AutoAgent: Select Anthropic/Claude Model",
+        "category": "KI AutoAgent",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "ki-autoagent.selectPerplexityModel",
+        "title": "KI AutoAgent: Select Perplexity Model",
+        "category": "KI AutoAgent",
+        "icon": "$(gear)"
+      },
+      {
         "command": "ki-autoagent.stopBackend",
         "title": "KI AutoAgent: Stop Backend",
         "category": "KI AutoAgent",
@@ -532,6 +556,72 @@
           "minimum": 30,
           "maximum": 600,
           "markdownDescription": "⏱️ **Backend Request Timeout (seconds)**\n- How long to wait for backend responses\n- Default: 180s (3 minutes) for complex tasks\n- Increase for infrastructure analysis or large codebases",
+          "scope": "application"
+        },
+        "kiAutoAgent.models.openai.architect": {
+          "type": "string",
+          "default": "gpt-4o-2024-11-20",
+          "markdownDescription": "🏗️ **Model for ArchitectAgent**\n- System design and architecture\n- Infrastructure analysis\n- Will be auto-discovered from OpenAI API",
+          "scope": "application"
+        },
+        "kiAutoAgent.models.openai.orchestrator": {
+          "type": "string",
+          "default": "gpt-4o-2024-11-20",
+          "markdownDescription": "🎯 **Model for OrchestratorAgent**\n- Task decomposition and routing\n- Multi-agent coordination\n- Will be auto-discovered from OpenAI API",
+          "scope": "application"
+        },
+        "kiAutoAgent.models.openai.docubot": {
+          "type": "string",
+          "default": "gpt-4o-2024-11-20",
+          "markdownDescription": "📝 **Model for DocuBot**\n- Documentation generation\n- API documentation\n- Will be auto-discovered from OpenAI API",
+          "scope": "application"
+        },
+        "kiAutoAgent.models.openai.reviewer": {
+          "type": "string",
+          "default": "gpt-4o-mini-2024-07-18",
+          "markdownDescription": "🔍 **Model for ReviewerGPT**\n- Code review and validation\n- Security analysis\n- Will be auto-discovered from OpenAI API",
+          "scope": "application"
+        },
+        "kiAutoAgent.models.openai.performancebot": {
+          "type": "string",
+          "default": "gpt-4o-2024-11-20",
+          "markdownDescription": "⚡ **Model for PerformanceBot**\n- Performance analysis\n- Optimization suggestions\n- Will be auto-discovered from OpenAI API",
+          "scope": "application"
+        },
+        "kiAutoAgent.models.anthropic.codesmith": {
+          "type": "string",
+          "default": "claude-3.5-sonnet-20241022",
+          "markdownDescription": "💻 **Model for CodeSmithAgent**\n- Code generation and synthesis\n- Pattern implementation\n- Will be auto-discovered from Anthropic API",
+          "scope": "application"
+        },
+        "kiAutoAgent.models.anthropic.fixer": {
+          "type": "string",
+          "default": "claude-3.5-sonnet-20241022",
+          "markdownDescription": "🔧 **Model for FixerBot**\n- Bug fixing\n- Code optimization\n- Will be auto-discovered from Anthropic API",
+          "scope": "application"
+        },
+        "kiAutoAgent.models.anthropic.tradestrat": {
+          "type": "string",
+          "default": "claude-3.5-sonnet-20241022",
+          "markdownDescription": "📈 **Model for TradeStrat**\n- Trading strategy development\n- Financial analysis\n- Will be auto-discovered from Anthropic API",
+          "scope": "application"
+        },
+        "kiAutoAgent.models.anthropic.opus": {
+          "type": "string",
+          "default": "claude-3-opus-20240229",
+          "markdownDescription": "⚖️ **Model for OpusArbitrator**\n- Agent conflict resolution\n- Superior reasoning\n- Will be auto-discovered from Anthropic API",
+          "scope": "application"
+        },
+        "kiAutoAgent.models.perplexity.research": {
+          "type": "string",
+          "default": "llama-3.1-sonar-huge-128k-online",
+          "markdownDescription": "🔍 **Model for ResearchAgent**\n- Web research\n- Real-time information\n- Will be auto-discovered from Perplexity API",
+          "scope": "application"
+        },
+        "kiAutoAgent.models.autoDiscover": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🔍 **Auto-discover available models on startup**\n- Queries APIs for latest available models\n- Updates settings with discovered models\n- Shows latest 3 models per provider",
           "scope": "application"
         },
         "kiAutoAgent.claude.serviceMode": {

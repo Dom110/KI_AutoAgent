@@ -6,11 +6,13 @@ import * as vscode from 'vscode';
 import { BackendManager } from './backend/BackendManager';
 import { BackendClient } from './backend/BackendClient';
 import { MultiAgentChatPanel } from './ui/MultiAgentChatPanel';
+import { ModelSettingsManager } from './config/modelSettings';
 
 // Global instances
 let outputChannel: vscode.OutputChannel;
 let backendManager: BackendManager;
 let backendClient: BackendClient;
+let modelSettingsManager: ModelSettingsManager;
 
 export async function activate(context: vscode.ExtensionContext) {
     // VERSION 4.0.0 - PYTHON BACKEND ARCHITECTURE
@@ -84,6 +86,25 @@ export async function activate(context: vscode.ExtensionContext) {
         outputChannel.appendLine('🔗 Connecting to backend WebSocket...');
         await backendClient.connect();
         outputChannel.appendLine('✅ Connected to backend!');
+
+        // Initialize Model Settings Manager
+        outputChannel.appendLine('🤖 Initializing Model Settings Manager...');
+        modelSettingsManager = ModelSettingsManager.getInstance(backendClient);
+
+        // Auto-discover models if enabled
+        const config = vscode.workspace.getConfiguration('kiAutoAgent.models');
+        if (config.get('autoDiscover', true)) {
+            outputChannel.appendLine('🔍 Auto-discovering available AI models...');
+            try {
+                await modelSettingsManager.refreshAvailableModels();
+                outputChannel.appendLine('✅ Model discovery complete!');
+            } catch (error) {
+                outputChannel.appendLine(`⚠️ Model discovery failed: ${error}`);
+            }
+        }
+
+        // Register model management commands
+        modelSettingsManager.registerCommands(context);
 
         // Set up event handlers
         setupBackendEventHandlers();

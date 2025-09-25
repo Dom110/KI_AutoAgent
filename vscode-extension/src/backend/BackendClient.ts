@@ -49,6 +49,19 @@ export class BackendClient extends EventEmitter {
     }
 
     /**
+     * Get the backend URL (without ws:// prefix)
+     */
+    public getBackendUrl(): string {
+        // Extract host:port from ws://host:port/ws/chat
+        const match = this.wsUrl.match(/ws:\/\/([^\/]+)/);
+        if (match) {
+            return match[1];
+        }
+        // Fallback to default
+        return 'localhost:8000';
+    }
+
+    /**
      * Set a debug channel to forward logs to
      */
     public setDebugChannel(channel: vscode.OutputChannel): void {

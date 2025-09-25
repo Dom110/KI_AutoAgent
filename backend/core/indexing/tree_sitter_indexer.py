@@ -110,11 +110,21 @@ class TreeSitterIndexer:
 
         # Build relationships (only if we have indexed files)
         if self.index['files']:
-            await self._build_dependency_graph()
-            await self._extract_api_endpoints()
-            await self._identify_db_operations()
+            if progress_callback:
+                await progress_callback(f"📊 Building dependency graph for {len(self.index['files'])} files...")
+            await self._build_dependency_graph(progress_callback)
+
+            if progress_callback:
+                await progress_callback(f"🔌 Extracting API endpoints...")
+            await self._extract_api_endpoints(progress_callback)
+
+            if progress_callback:
+                await progress_callback(f"💾 Identifying database operations...")
+            await self._identify_db_operations(progress_callback)
 
         logger.info(f"Indexing complete: {len(self.index['files'])} files indexed")
+        if progress_callback:
+            await progress_callback(f"✅ Phase 1 complete: {len(self.index['files'])} files indexed")
         return self.index
 
     async def _index_file(self, file_path: Path):
@@ -315,20 +325,62 @@ class TreeSitterIndexer:
             'content': content
         }
 
-    async def _build_dependency_graph(self):
+    async def _build_dependency_graph(self, progress_callback=None):
         """Build import dependency graph"""
         self.index['dependency_graph'] = {}
+        count = 0
+        total_files = len(self.index['files'])
+        deps_found = 0
+
+        logger.info(f"Building dependency graph for {total_files} files")
 
         for file_path, file_info in self.index['files'].items():
+            count += 1
+            file_name = os.path.basename(file_path)
+
+            # Send progress updates more frequently
+            if progress_callback:
+                if total_files < 50 or count % 10 == 0 or count == 1 or count == total_files:
+                    await progress_callback(f"📊 Dependency graph {count}/{total_files}: {file_name}")
+
             if 'imports' in file_info:
-                self.index['dependency_graph'][file_path] = [
-                    imp['module'] for imp in file_info['imports']
-                ]
+                imports = [imp['module'] for imp in file_info['imports']]
+                if imports:
+                    self.index['dependency_graph'][file_path] = imports
+                    deps_found += len(imports)
+                    if progress_callback and len(imports) > 5:
+                        await progress_callback(f"📊 Found {len(imports)} dependencies in {file_name}")
 
-    async def _extract_api_endpoints(self):
+            # Yield to event loop more frequently
+            if count % 10 == 0:
+                await asyncio.sleep(0)
+
+        # Final summary
+        if progress_callback:
+            await progress_callback(f"✅ Dependency graph complete: {deps_found} imports in {total_files} files")
+
+        logger.info(f"Dependency graph built: {deps_found} total dependencies")
+
+    async def _extract_api_endpoints(self, progress_callback=None):
         """Extract API endpoints from FastAPI/Flask code"""
+        import re
+        count = 0
+        total_files = len(self.index['files'])
+        endpoints_found = 0
+        python_files = 0
+
+        logger.info(f"Extracting API endpoints from {total_files} files")
+
         for file_path, file_info in self.index['files'].items():
+            count += 1
+            file_name = os.path.basename(file_path)
+
+            # Send progress for every Python file or periodically
             if file_info.get('language') == 'python':
+                python_files += 1
+                if progress_callback:
+                    await progress_callback(f"🔌 API scan {python_files}/{count}: {file_name} ({endpoints_found} endpoints)")
+
                 content = file_info['content']
 
                 # FastAPI patterns
@@ -337,8 +389,8 @@ class TreeSitterIndexer:
                     r'@router\.(get|post|put|delete|patch)\(["\']([^"\']+)["\']\)'
                 ]
 
+                file_endpoints = 0
                 for pattern in api_patterns:
-                    import re
                     for match in re.finditer(pattern, content):
                         method = match.group(1).upper()
                         path = match.group(2)
@@ -350,33 +402,108 @@ class TreeSitterIndexer:
                             'file': file_path,
                             'line': content[:match.start()].count('\n') + 1
                         }
+                        file_endpoints += 1
+                        endpoints_found += 1
 
-    async def _identify_db_operations(self):
+                # Report if we found endpoints in this file
+                if file_endpoints > 0 and progress_callback:
+                    await progress_callback(f"🔌 Found {file_endpoints} API endpoints in {file_name}")
+
+            # Yield to event loop more frequently
+            if count % 10 == 0:
+                await asyncio.sleep(0)
+
+        # Final summary
+        if progress_callback:
+            await progress_callback(f"✅ API extraction complete: {endpoints_found} endpoints in {python_files} Python files")
+
+        logger.info(f"Found {endpoints_found} API endpoints in {python_files} Python files")
+
+    async def _identify_db_operations(self, progress_callback=None):
         """Identify database operations in code"""
+        import re
+        count = 0
+        db_ops_found = 0
+
+        # Use non-greedy patterns and limit scope
         db_patterns = [
-            r'SELECT\s+.*\s+FROM',
-            r'INSERT\s+INTO',
+            r'SELECT\s+.{1,200}?\s+FROM',  # Non-greedy, limited length
+            r'INSERT\s+INTO\s+\w+',
             r'UPDATE\s+\w+\s+SET',
-            r'DELETE\s+FROM',
+            r'DELETE\s+FROM\s+\w+',
             r'\.find\(',
             r'\.create\(',
             r'\.save\(',
             r'\.delete\('
         ]
 
+        total_files = len(self.index['files'])
+        logger.info(f"Scanning {total_files} files for DB operations")
+
         for file_path, file_info in self.index['files'].items():
+            count += 1
+            file_name = os.path.basename(file_path)
+
+            # Send progress for every file when total is small, otherwise every 5 files
+            if progress_callback:
+                if total_files < 50 or count % 5 == 0 or count == 1 or count == total_files:
+                    await progress_callback(f"💾 DB scan {count}/{total_files}: {file_name} ({db_ops_found} operations found)")
+
+            # Yield to event loop frequently
+            if count % 5 == 0:
+                await asyncio.sleep(0)
+
+            logger.debug(f"DB scan: {count}/{total_files} - {file_name}")
+
             content = file_info.get('content', '')
 
-            for pattern in db_patterns:
-                import re
-                for match in re.finditer(pattern, content, re.IGNORECASE):
-                    op_key = f"{file_path}:{match.start()}"
-                    self.index['db_operations'][op_key] = {
-                        'type': pattern.split('\\')[0],
-                        'file': file_path,
-                        'line': content[:match.start()].count('\n') + 1,
-                        'snippet': content[match.start():match.start()+50]
-                    }
+            # Skip very large files to prevent regex hangs
+            if len(content) > 100000:  # 100KB limit
+                logger.debug(f"Skipping large file for DB scan: {file_path}")
+                if progress_callback:
+                    await progress_callback(f"💾 DB scan {count}/{total_files}: Skipped large file {file_name}")
+                continue
+
+            # Process patterns with timeout protection
+            file_db_ops = 0
+            try:
+                for pattern in db_patterns:
+                    # Limit matches per file to prevent excessive processing
+                    matches_found = 0
+                    for match in re.finditer(pattern, content, re.IGNORECASE):
+                        if matches_found >= 10:  # Max 10 matches per pattern per file
+                            break
+                        matches_found += 1
+                        file_db_ops += 1
+                        db_ops_found += 1
+
+                        op_key = f"{file_path}:{match.start()}"
+                        self.index['db_operations'][op_key] = {
+                            'type': pattern.split('\\')[0].split('.')[0],
+                            'file': file_path,
+                            'line': content[:match.start()].count('\n') + 1,
+                            'snippet': content[match.start():match.start()+50]
+                        }
+
+                        # Yield periodically even within pattern matching
+                        if db_ops_found % 20 == 0:
+                            await asyncio.sleep(0)
+
+                # Report if we found operations in this file
+                if file_db_ops > 0 and progress_callback:
+                    await progress_callback(f"💾 Found {file_db_ops} DB operations in {file_name}")
+
+            except Exception as e:
+                logger.warning(f"Error scanning {file_path} for DB operations: {e}")
+                if progress_callback:
+                    await progress_callback(f"⚠️ Error scanning {file_name}: {str(e)[:50]}")
+                continue
+
+        # Final summary
+        if progress_callback:
+            await progress_callback(f"✅ DB scan complete: {db_ops_found} operations in {total_files} files")
+
+        logger.info(f"Found {len(self.index['db_operations'])} DB operations in {count} files")
 
     def _get_decorator_name(self, decorator) -> str:
         """Extract decorator name from AST node"""
@@ -414,23 +541,49 @@ class TreeSitterIndexer:
 
         return results
 
-    async def get_function_usages(self, function_name: str) -> List[Dict]:
-        """Find all usages of a function"""
+    async def get_function_usages(self, function_name: str, max_files: int = 20) -> List[Dict]:
+        """Find all usages of a function (limited for performance)"""
         usages = []
+        files_checked = 0
+        max_usages_per_file = 3  # Limit matches per file
+
+        # Escape special regex characters in function name
+        import re
+        escaped_name = re.escape(function_name)
+        pattern = rf'\b{escaped_name}\s*\('
 
         for file_path, file_info in self.index['files'].items():
+            # Limit number of files to check
+            if files_checked >= max_files:
+                break
+
             content = file_info.get('content', '')
 
-            # Search for function calls
-            import re
-            pattern = rf'\b{function_name}\s*\('
+            # Skip very large files
+            if len(content) > 50000:  # 50KB limit
+                continue
 
-            for match in re.finditer(pattern, content):
-                usages.append({
-                    'file': file_path,
-                    'line': content[:match.start()].count('\n') + 1,
-                    'context': content[max(0, match.start()-30):match.end()+30]
-                })
+            files_checked += 1
+
+            # Search for function calls with limit
+            matches_found = 0
+            try:
+                for match in re.finditer(pattern, content):
+                    if matches_found >= max_usages_per_file:
+                        break
+                    matches_found += 1
+                    usages.append({
+                        'file': file_path,
+                        'line': content[:match.start()].count('\n') + 1,
+                        'context': content[max(0, match.start()-30):match.end()+30]
+                    })
+            except Exception as e:
+                logger.debug(f"Error searching for {function_name} in {file_path}: {e}")
+                continue
+
+            # Yield to event loop periodically
+            if files_checked % 10 == 0:
+                await asyncio.sleep(0)
 
         return usages
 

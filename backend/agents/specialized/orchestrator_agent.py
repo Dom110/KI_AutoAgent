@@ -78,7 +78,7 @@ class OrchestratorAgent(ChatAgent):
             name="OrchestratorAgent",
             full_name="Advanced KI AutoAgent Orchestrator",
             description="Intelligent task orchestration with decomposition and parallel execution",
-            model="gpt-5-2025-09-12",
+            model="gpt-4o-2024-11-20",
             capabilities=[
                 AgentCapability.TASK_DECOMPOSITION,
                 AgentCapability.PARALLEL_EXECUTION

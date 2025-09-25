@@ -107,6 +107,8 @@ class SemgrepAnalyzer:
             'bugs': []
         }
 
+        import asyncio
+
         # Define common vulnerability patterns
         security_patterns = {
             'sql_injection': [
@@ -163,9 +165,25 @@ class SemgrepAnalyzer:
             ]
         }
 
-        # Scan files for patterns
+        # Count total files first
         path = Path(target_path)
-        for py_file in path.rglob('*.py'):
+        py_files = list(path.rglob('*.py'))
+        total_files = len(py_files)
+
+        # Limit analysis for performance (analyze max 100 files)
+        MAX_FILES = 100
+        if total_files > MAX_FILES:
+            logger.warning(f"Large project: analyzing first {MAX_FILES} of {total_files} Python files for security")
+            py_files = py_files[:MAX_FILES]
+
+        if progress_callback:
+            await progress_callback(f"🔒 Analyzing {len(py_files)} Python files for security patterns...")
+
+        # Scan files for patterns
+        for i, py_file in enumerate(py_files, 1):
+            # Progress update every 10 files
+            if progress_callback and i % 10 == 0:
+                await progress_callback(f"🔒 Security scan: {i}/{len(py_files)} files...")
             try:
                 content = py_file.read_text(encoding='utf-8')
 
@@ -217,6 +235,13 @@ class SemgrepAnalyzer:
 
             except Exception as e:
                 logger.warning(f"Failed to analyze {py_file}: {e}")
+
+            # Yield control periodically to prevent blocking
+            if i % 5 == 0:
+                await asyncio.sleep(0)
+
+        if progress_callback:
+            await progress_callback(f"🔒 Security analysis complete: {len(results['security'])} issues found")
 
         return results
 
