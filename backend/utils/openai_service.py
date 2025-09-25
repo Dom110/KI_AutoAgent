@@ -76,14 +76,22 @@ class OpenAIService:
                     max_tokens or self.config.max_tokens
                 )
             else:
-                response = await self.client.chat.completions.create(
-                    model=self.config.model,
-                    messages=messages,
-                    temperature=temperature or self.config.temperature,
-                    max_tokens=max_tokens or self.config.max_tokens
-                )
-
-                return response.choices[0].message.content or ""
+                import asyncio
+                # Add a timeout of 30 seconds for API calls
+                try:
+                    response = await asyncio.wait_for(
+                        self.client.chat.completions.create(
+                            model=self.config.model,
+                            messages=messages,
+                            temperature=temperature or self.config.temperature,
+                            max_tokens=max_tokens or self.config.max_tokens
+                        ),
+                        timeout=30.0
+                    )
+                    return response.choices[0].message.content or ""
+                except asyncio.TimeoutError:
+                    logger.error(f"OpenAI API call timed out after 30 seconds")
+                    return "Error: OpenAI API call timed out. Please try again."
 
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")

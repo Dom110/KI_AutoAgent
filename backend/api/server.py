@@ -14,6 +14,7 @@ from datetime import datetime
 import uvicorn
 import sys
 import os
+import traceback
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,14 +24,8 @@ from agents.agent_registry import get_agent_registry
 from agents.base.base_agent import TaskRequest
 from core.cancellation import CancelToken, TaskCancelledException
 
-# Import persistence services
-try:
-    from services.conversation_persistence import ConversationPersistence
-    PERSISTENCE_AVAILABLE = True
-except ImportError:
-    logger.warning("Conversation persistence not available")
-    PERSISTENCE_AVAILABLE = False
-    ConversationPersistence = None
+# Import persistence services (will check availability after logger is initialized)
+from services.conversation_persistence import ConversationPersistence
 
 # Import core systems
 from core.memory_manager import get_memory_manager, MemoryType
@@ -89,6 +84,15 @@ async def lifespan(app: FastAPI):
     await communication_bus.start()
 
     logger.info("🧠 Core systems initialized: Memory, SharedContext, ConversationContext, Workflow, CommunicationBus, Validation")
+
+    # Initialize conversation persistence
+    global conversation_persistence
+    try:
+        conversation_persistence = ConversationPersistence()
+        logger.info("✅ Conversation persistence initialized")
+    except Exception as e:
+        logger.warning(f"⚠️ Conversation persistence not available: {e}")
+        conversation_persistence = None
 
     # Initialize agent registry
     registry = get_agent_registry()
@@ -168,11 +172,8 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# Initialize conversation persistence
+# Global variable for conversation persistence (will be initialized in lifespan)
 conversation_persistence = None
-if PERSISTENCE_AVAILABLE:
-    conversation_persistence = ConversationPersistence()
-    logger.info("✅ Conversation persistence initialized")
 
 # Task tracking for cancellation
 active_agent_tasks: Dict[str, Set[asyncio.Task]] = {}
@@ -781,7 +782,7 @@ if __name__ == "__main__":
 
     # Run the server
     uvicorn.run(
-        "server:app",
+        app,  # Use the app object directly instead of "server:app" to avoid double import
         host="0.0.0.0",
         port=port,
         reload=False,  # Disable reload to avoid port conflicts

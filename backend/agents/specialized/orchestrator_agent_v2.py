@@ -77,8 +77,10 @@ class OrchestratorAgentV2(ChatAgent):
         Execute orchestration with real AI
         """
         try:
+            logger.info(f"🚀 Orchestrator execute started with prompt: {request.prompt[:100]}...")
             prompt = request.prompt
             mode = request.mode if hasattr(request, 'mode') else 'auto'
+            logger.info(f"📋 Mode: {mode}")
 
             # In Auto mode, always use multi-agent workflow for complex tasks
             if mode == 'auto':
@@ -89,7 +91,9 @@ class OrchestratorAgentV2(ChatAgent):
                     return await self._handle_complex_task(request)
 
             # First, understand what the user is asking
+            logger.info(f"🔍 Analyzing intent...")
             intent = await self._analyze_intent(prompt)
+            logger.info(f"✅ Intent identified: {intent}")
 
             # Handle different intents
             if intent == "self_description":
@@ -116,6 +120,8 @@ class OrchestratorAgentV2(ChatAgent):
         """
         Analyze user intent using AI
         """
+        logger.info(f"🧠 Starting intent analysis for prompt: {prompt[:50]}...")
+
         system_prompt = """Analyze the user's request and categorize it into one of these intents:
         - 'self_description': User asking about what this system is, what you are, your capabilities
         - 'simple_question': A simple question that can be answered directly
@@ -126,11 +132,17 @@ class OrchestratorAgentV2(ChatAgent):
 
         Respond with ONLY the intent category name."""
 
-        response = await self.ai_service.get_completion(
-            system_prompt=system_prompt,
-            user_prompt=prompt,
-            temperature=0.3
-        )
+        logger.info(f"📡 Calling AI service for intent analysis...")
+        try:
+            response = await self.ai_service.get_completion(
+                system_prompt=system_prompt,
+                user_prompt=prompt,
+                temperature=0.3
+            )
+            logger.info(f"📥 AI service response: {response}")
+        except Exception as e:
+            logger.error(f"❌ AI service error during intent analysis: {e}")
+            raise
 
         # Check if we got an error response
         if "error" in response.lower():
