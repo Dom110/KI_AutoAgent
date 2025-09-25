@@ -814,6 +814,46 @@ PATCH Version (X.Y.Z):
 │   │   ├── This is by design - can't rollback completed tasks
 │   │   └── Works correctly during task execution
 │   └── 🎯 IMPACT: Code indexing now correctly analyzes entire workspace from root
+├── v4.0.28 (25.9.2025) - DEBUG CONSOLE IMPLEMENTATION
+│   ├── 🐛 DEBUG CONSOLE FIX
+│   │   ├── Created VS Code OutputChannel "KI AutoAgent Debug"
+│   │   ├── Overrode console methods in webview to route to debug output
+│   │   ├── Added handleDebugMessage method for processing debug messages
+│   │   ├── All console.log, console.error, console.warn now visible in VS Code
+│   │   └── Debug messages include timestamp and proper formatting
+│   ├── 📊 ENHANCED DEBUG LOGGING
+│   │   ├── User messages logged with full request details
+│   │   ├── Agent progress messages shown with agent name and status
+│   │   ├── Error messages include full stack traces and context
+│   │   ├── Stream chunks logged for debugging streaming issues
+│   │   └── WebSocket message flow tracked in debug output
+│   ├── 🔧 TECHNICAL IMPLEMENTATION
+│   │   ├── Created debugChannel in MultiAgentChatPanel.ts
+│   │   ├── Overrode console.log, console.error, console.warn, console.info
+│   │   ├── Added sendDebugMessage helper with proper formatting
+│   │   ├── Debug channel shows in Output panel under "KI AutoAgent Debug"
+│   │   └── Debug messages persist across extension reloads
+│   └── 🎯 IMPACT: Full debug visibility for troubleshooting chat and agent issues
+├── v4.0.29 (25.9.2025) - MODEL VERSION ALIGNMENT & FILE WATCHER FIX
+│   ├── 🤖 MODEL VERSION FIXES
+│   │   ├── FixerBot: Updated to claude-4.1-sonnet-20250920 (was claude-3-5-sonnet)
+│   │   ├── TradeStrat: Updated to claude-4.1-sonnet-20250920 (was claude-3-5-sonnet)
+│   │   ├── OpusArbitrator: Updated to claude-opus-4-1-20250805 (was claude-3-opus)
+│   │   ├── ReviewerGPT: Updated to gpt-5-mini-2025-09-20 (was gpt-4o-mini)
+│   │   └── All agents now use documented model versions from CLAUDE.md
+│   ├── 🔧 OPENAI SERVICE FIX
+│   │   ├── Added model parameter to OpenAIService constructor
+│   │   ├── All OpenAI agents now pass their specific model
+│   │   ├── No more hardcoded gpt-4o-2024-11-20 fallback
+│   │   ├── Each agent uses its configured model correctly
+│   │   └── PerformanceBot, DocuBot, Architect all fixed
+│   ├── 📁 FILE WATCHER WORKSPACE FIX
+│   │   ├── File watcher now starts in workspace root (not backend/)
+│   │   ├── Uses parent of backend directory as default path
+│   │   ├── Dynamically updates to correct workspace on first request
+│   │   ├── No more "Starting indexing from /backend" issue
+│   │   └── Correctly watches entire project for changes
+│   └── 🎯 IMPACT: All agents use correct AI models & file watching monitors entire project
 ├── v4.0.26 (25.9.2025) - PROJECT STRUCTURE CLEANUP & UNIFIED DEPENDENCIES
 │   ├── 🧹 VIRTUAL ENVIRONMENT CONSOLIDATION
 │   │   ├── Removed old backend/venv directory (created Sep 21)

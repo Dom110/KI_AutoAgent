@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class OpenAIConfig:
     """OpenAI configuration"""
     api_key: str
-    model: str = "gpt-4o-2024-11-20"  # Updated to actual available model
+    model: str = "gpt-4o-2024-11-20"  # Default model, agents should override
     temperature: float = 0.7
     max_tokens: int = 4000
     streaming: bool = True
@@ -31,11 +31,14 @@ class OpenAIService:
     Used by: OrchestratorAgent, ArchitectAgent, DocuBot
     """
 
-    def __init__(self, config: Optional[OpenAIConfig] = None):
+    def __init__(self, config: Optional[OpenAIConfig] = None, model: Optional[str] = None):
         if config is None:
             config = OpenAIConfig(
-                api_key=os.getenv("OPENAI_API_KEY", "")
+                api_key=os.getenv("OPENAI_API_KEY", ""),
+                model=model if model else "gpt-4o-2024-11-20"
             )
+        elif model:
+            config.model = model
 
         self.config = config
 

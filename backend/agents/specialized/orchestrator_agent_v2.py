@@ -63,8 +63,8 @@ class OrchestratorAgentV2(ChatAgent):
         )
         super().__init__(config)
 
-        # Initialize OpenAI service
-        self.ai_service = OpenAIService()
+        # Initialize OpenAI service with specific model
+        self.ai_service = OpenAIService(model=self.config.model)
 
         # Agent registry reference (will be set by registry)
         self.agent_registry = None

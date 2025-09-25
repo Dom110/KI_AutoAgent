@@ -40,7 +40,7 @@ class DocuBotAgent(ChatAgent):
             icon="📝"
         )
         super().__init__(config)
-        self.ai_service = OpenAIService()
+        self.ai_service = OpenAIService(model=self.config.model)
 
     async def execute(self, request: TaskRequest) -> TaskResult:
         """

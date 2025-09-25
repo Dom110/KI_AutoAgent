@@ -31,7 +31,7 @@ class OpusArbitratorAgent(ChatAgent):
             name="OpusArbitrator",
             full_name="Supreme Agent Arbitrator",
             description="Final authority for resolving agent conflicts with superior reasoning",
-            model="claude-3-opus-20240229",  # Would use Opus 4.1 in production
+            model="claude-opus-4-1-20250805",  # Claude Opus 4.1
             capabilities=[
                 AgentCapability.CONFLICT_RESOLUTION
             ],

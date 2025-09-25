@@ -32,7 +32,7 @@ class ReviewerGPTAgent(ChatAgent):
             name="ReviewerGPT",
             full_name="Code Review & Security Expert",
             description="Specialized in code review, security analysis, and bug detection",
-            model="gpt-4o-mini-2024-07-18",  # Using mini for cost efficiency
+            model="gpt-5-mini-2025-09-20",  # GPT-5 mini for validation
             capabilities=[
                 AgentCapability.CODE_REVIEW,
                 AgentCapability.SECURITY_ANALYSIS
@@ -42,7 +42,7 @@ class ReviewerGPTAgent(ChatAgent):
             icon="🔍"
         )
         super().__init__(config)
-        self.ai_service = OpenAIService()
+        self.ai_service = OpenAIService(model=self.config.model)
 
     async def execute(self, request: TaskRequest) -> TaskResult:
         """

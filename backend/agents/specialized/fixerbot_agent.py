@@ -31,7 +31,7 @@ class FixerBotAgent(ChatAgent):
             name="FixerBot",
             full_name="Bug Fixing & Optimization Expert",
             description="Specialized in fixing bugs, optimizing performance, and refactoring",
-            model="claude-3-5-sonnet-20241022",
+            model="claude-4.1-sonnet-20250920",
             capabilities=[
                 AgentCapability.BUG_FIXING,
                 AgentCapability.CODE_GENERATION

@@ -31,7 +31,7 @@ class TradeStratAgent(ChatAgent):
             name="TradeStrat",
             full_name="Trading Strategy Expert",
             description="Specialized in algorithmic trading and financial analysis",
-            model="claude-3-5-sonnet-20241022",
+            model="claude-4.1-sonnet-20250920",
             capabilities=[
                 AgentCapability.CODE_GENERATION,
                 AgentCapability.ARCHITECTURE_DESIGN

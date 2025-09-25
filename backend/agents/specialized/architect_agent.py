@@ -137,11 +137,13 @@ class ArchitectAgent(ChatAgent):
         )
         super().__init__(config)
 
-        # Initialize OpenAI service
-        self.openai = OpenAIService()
+        # Initialize OpenAI service with specific model
+        self.openai = OpenAIService(model=self.config.model)
 
-        # Get project path from environment or use current directory
-        project_path = os.getenv('PROJECT_PATH', os.getcwd())
+        # Get project path from environment or use workspace root
+        # Default to parent of backend directory (the actual project root)
+        default_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        project_path = os.getenv('PROJECT_PATH', default_path)
 
         # Initialize permanent Redis cache - REQUIRED, NO FALLBACK
         self.project_cache = ProjectCache(project_path)
@@ -224,6 +226,16 @@ class ArchitectAgent(ChatAgent):
         try:
             # Get workspace path
             workspace_path = request.context.get('workspace_path', os.getcwd())
+
+            # Update file watcher to use correct workspace path if needed
+            if hasattr(self, 'file_watcher') and self.file_watcher:
+                current_watch_path = getattr(self.file_watcher, 'project_path', None)
+                if current_watch_path != workspace_path:
+                    logger.info(f"🔄 Updating file watcher from {current_watch_path} to {workspace_path}")
+                    self.file_watcher.stop()
+                    self.file_watcher = SmartFileWatcher(workspace_path, self.project_cache, debounce_seconds=30)
+                    self.file_watcher.start()
+
             ki_autoagent_dir = os.path.join(workspace_path, '.ki_autoagent')
             os.makedirs(ki_autoagent_dir, exist_ok=True)
 

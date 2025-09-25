@@ -61,7 +61,7 @@ class PerformanceBot(ChatAgent):
             icon="⚡"
         )
         super().__init__(config)
-        self.openai = OpenAIService()
+        self.openai = OpenAIService(model=self.config.model)
 
     async def execute(self, request: TaskRequest) -> TaskResult:
         """Execute performance analysis task"""
