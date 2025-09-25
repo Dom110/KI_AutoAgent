@@ -45,12 +45,13 @@ class RadonMetrics:
             }
         }
 
-    async def calculate_all_metrics(self, target_path: str = '.') -> Dict:
+    async def calculate_all_metrics(self, target_path: str = '.', progress_callback=None) -> Dict:
         """
         Calculate comprehensive code metrics
 
         Args:
             target_path: Path to analyze
+            progress_callback: Optional callback for progress updates
 
         Returns:
             Complete metrics report
@@ -68,8 +69,17 @@ class RadonMetrics:
 
         path = Path(target_path)
 
+        # Count Python files
+        py_files = list(path.rglob('*.py'))
+        total_files = len(py_files)
+        processed = 0
+
         # Analyze each Python file
-        for py_file in path.rglob('*.py'):
+        for py_file in py_files:
+            processed += 1
+            if progress_callback and (processed % 10 == 0 or total_files < 50):
+                await progress_callback(f"📊 Calculating metrics ({processed}/{total_files} files)...")
+
             try:
                 content = py_file.read_text(encoding='utf-8')
                 file_metrics = await self._analyze_file(str(py_file), content)

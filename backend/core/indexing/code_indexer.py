@@ -203,8 +203,8 @@ class CodeIndexer:
         all_exclude_patterns = set(self.default_exclude_patterns)
         all_exclude_patterns.update(self.gitignore_patterns)
 
-        # Call tree-sitter with exclusion patterns
-        ast_index = await self.tree_sitter.index_codebase(root_path, exclude_patterns=all_exclude_patterns)
+        # Call tree-sitter with exclusion patterns and progress callback
+        ast_index = await self.tree_sitter.index_codebase(root_path, exclude_patterns=all_exclude_patterns, progress_callback=progress_callback)
 
         actual_files = len(ast_index.get('files', {}))
         if progress_callback:
@@ -214,7 +214,7 @@ class CodeIndexer:
         logger.info(f"Phase 2: Building cross-references for ALL {actual_files} files")
         if progress_callback:
             await progress_callback(f"🔗 Phase 2/6: Building cross-references for {actual_files} files...")
-        cross_refs = await self._build_cross_references(ast_index)
+        cross_refs = await self._build_cross_references(ast_index, progress_callback)
 
         # Phase 3: Architecture extraction
         logger.info("Phase 3: Extracting architecture patterns")
@@ -232,13 +232,13 @@ class CodeIndexer:
         logger.info("Phase 5: Building import graph")
         if progress_callback:
             await progress_callback("📦 Phase 5/6: Building import graph...")
-        import_graph = await self._build_import_graph(ast_index)
+        import_graph = await self._build_import_graph(ast_index, progress_callback)
 
         # Phase 6: Pattern detection
         logger.info("Phase 6: Detecting code patterns")
         if progress_callback:
             await progress_callback("🔍 Phase 6/6: Detecting code patterns...")
-        patterns = await self._detect_code_patterns(ast_index)
+        patterns = await self._detect_code_patterns(ast_index, progress_callback)
 
         # Combine all indexes
         self.index = {
@@ -277,7 +277,7 @@ class CodeIndexer:
         logger.info(f"Cached analysis results for {root_path}")
 
 
-    async def _build_cross_references(self, ast_index: Dict) -> Dict:
+    async def _build_cross_references(self, ast_index: Dict, progress_callback=None) -> Dict:
         """Build cross-reference index for symbols"""
         cross_refs = {
             'definitions': {},
@@ -285,8 +285,14 @@ class CodeIndexer:
             'call_sites': {}
         }
 
+        total_files = len(ast_index['files'])
+        processed = 0
+
         # Index all definitions
         for file_path, file_info in ast_index['files'].items():
+            processed += 1
+            if progress_callback and (processed % 10 == 0 or total_files < 50):
+                await progress_callback(f"🔗 Phase 2/6: Building cross-references ({processed}/{total_files} files)...")
             for func in file_info.get('functions', []):
                 symbol = f"{file_path}:{func['name']}"
                 cross_refs['definitions'][func['name']] = {
@@ -433,11 +439,16 @@ class CodeIndexer:
         logger.info(f"Call graph complete with {len(call_graph)} entries from {total_files} files")
         return call_graph
 
-    async def _build_import_graph(self, ast_index: Dict) -> Dict:
+    async def _build_import_graph(self, ast_index: Dict, progress_callback=None) -> Dict:
         """Build module import graph"""
         import_graph = {}
+        total_files = len(ast_index['files'])
+        processed = 0
 
         for file_path, file_info in ast_index['files'].items():
+            processed += 1
+            if progress_callback and (processed % 10 == 0 or total_files < 50):
+                await progress_callback(f"📦 Phase 5/6: Building import graph ({processed}/{total_files} files)...")
             imports = []
 
             for imp in file_info.get('imports', []):
@@ -454,7 +465,7 @@ class CodeIndexer:
 
         return import_graph
 
-    async def _detect_code_patterns(self, ast_index: Dict) -> Dict:
+    async def _detect_code_patterns(self, ast_index: Dict, progress_callback=None) -> Dict:
         """Detect common code patterns and anti-patterns"""
         patterns = {
             'design_patterns': [],
@@ -464,7 +475,13 @@ class CodeIndexer:
             'performance_issues': []
         }
 
+        total_files = len(ast_index['files'])
+        processed = 0
+
         for file_path, file_info in ast_index['files'].items():
+            processed += 1
+            if progress_callback and (processed % 10 == 0 or total_files < 50):
+                await progress_callback(f"🔍 Phase 6/6: Detecting patterns ({processed}/{total_files} files)...")
             content = file_info.get('content', '')
 
             # Detect anti-patterns

@@ -30,12 +30,13 @@ class VultureAnalyzer:
         self.whitelist = []
         self.min_confidence = 60
 
-    async def find_dead_code(self, target_path: str = '.') -> Dict:
+    async def find_dead_code(self, target_path: str = '.', progress_callback=None) -> Dict:
         """
         Find all dead/unused code in project
 
         Args:
             target_path: Path to analyze
+            progress_callback: Optional callback for progress updates
 
         Returns:
             Dead code findings
@@ -53,9 +54,13 @@ class VultureAnalyzer:
 
         # Try to use vulture CLI if available
         if await self._is_vulture_available():
+            if progress_callback:
+                await progress_callback("🧹 Running Vulture dead code analysis...")
             results = await self._run_vulture_cli(target_path)
         else:
             # Fallback to manual detection
+            if progress_callback:
+                await progress_callback("🧹 Analyzing code for unused elements...")
             results = await self._manual_dead_code_detection(target_path)
 
         # Calculate statistics

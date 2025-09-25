@@ -51,7 +51,7 @@ class TreeSitterIndexer:
             '.yml': 'yaml'
         }
 
-    async def index_codebase(self, root_path: str = '.', exclude_patterns=None) -> Dict:
+    async def index_codebase(self, root_path: str = '.', exclude_patterns=None, progress_callback=None) -> Dict:
         """
         Index entire codebase using AST parsing
 
@@ -92,10 +92,18 @@ class TreeSitterIndexer:
                     files_to_index.append(path)
 
         logger.info(f"Found {len(files_to_index)} files to index (excluded common directories)")
+        total_files = len(files_to_index)
 
         # Process files with yielding to event loop
         for i, path in enumerate(files_to_index):
+            # Send progress update for each file
+            if progress_callback:
+                file_name = path.name
+                progress_num = i + 1
+                await progress_callback(f"📂 Indexing file {progress_num}/{total_files}: {file_name}")
+
             await self._index_file(path)
+
             # Yield to event loop periodically to prevent blocking
             if i % 10 == 0:
                 await asyncio.sleep(0)  # Yield control to event loop

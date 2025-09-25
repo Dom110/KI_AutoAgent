@@ -32,7 +32,7 @@ class SemgrepAnalyzer:
         self.results_cache = {}
         self.custom_rules = []
 
-    async def run_analysis(self, target_path: str = '.', rules: Optional[List[str]] = None) -> Dict:
+    async def run_analysis(self, target_path: str = '.', rules: Optional[List[str]] = None, progress_callback=None) -> Dict:
         """
         Run Semgrep analysis on codebase
 
@@ -55,10 +55,14 @@ class SemgrepAnalyzer:
 
         # Try to run actual semgrep if available
         if await self._is_semgrep_available():
-            results = await self._run_semgrep_cli(target_path, rules)
+            if progress_callback:
+                await progress_callback("🔒 Running Semgrep security analysis...")
+            results = await self._run_semgrep_cli(target_path, rules, progress_callback)
         else:
             # Fallback to pattern-based analysis
-            results = await self._run_pattern_analysis(target_path)
+            if progress_callback:
+                await progress_callback("🔒 Running pattern-based security analysis...")
+            results = await self._run_pattern_analysis(target_path, progress_callback)
 
         # Categorize and prioritize findings
         results = await self._categorize_findings(results)
@@ -73,7 +77,7 @@ class SemgrepAnalyzer:
         except FileNotFoundError:
             return False
 
-    async def _run_semgrep_cli(self, target_path: str, rules: Optional[List[str]]) -> Dict:
+    async def _run_semgrep_cli(self, target_path: str, rules: Optional[List[str]], progress_callback=None) -> Dict:
         """Run actual Semgrep CLI"""
         cmd = ['semgrep', '--json', '--config=auto']
 
@@ -94,7 +98,7 @@ class SemgrepAnalyzer:
             logger.error(f"Error running Semgrep: {e}")
             return {}
 
-    async def _run_pattern_analysis(self, target_path: str) -> Dict:
+    async def _run_pattern_analysis(self, target_path: str, progress_callback=None) -> Dict:
         """Fallback pattern-based analysis without Semgrep CLI"""
         results = {
             'security': [],

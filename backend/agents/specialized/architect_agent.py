@@ -750,17 +750,20 @@ class ArchitectAgent(ChatAgent):
             metrics = await self.project_cache.get('metrics')
 
         if not security_analysis:
-            security_analysis = await self.semgrep.run_analysis(root_path)
+            await self._send_progress(client_id, "🔒 Phase 2a: Scanning for security vulnerabilities...", manager)
+            security_analysis = await self.semgrep.run_analysis(root_path, progress_callback=progress_callback)
             if self.project_cache:
                 await self.project_cache.set('security_analysis', security_analysis)
 
         if not dead_code:
-            dead_code = await self.vulture.find_dead_code(root_path)
+            await self._send_progress(client_id, "🧹 Phase 2b: Finding dead code...", manager)
+            dead_code = await self.vulture.find_dead_code(root_path, progress_callback=progress_callback)
             if self.project_cache:
                 await self.project_cache.set('dead_code', dead_code)
 
         if not metrics:
-            metrics = await self.metrics.calculate_all_metrics(root_path)
+            await self._send_progress(client_id, "📊 Phase 2c: Calculating code metrics...", manager)
+            metrics = await self.metrics.calculate_all_metrics(root_path, progress_callback=progress_callback)
             if self.project_cache:
                 await self.project_cache.set('metrics', metrics)
 
