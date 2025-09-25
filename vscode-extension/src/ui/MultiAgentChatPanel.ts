@@ -21,6 +21,7 @@ export class MultiAgentChatPanel {
     private _isProcessing: boolean = false;
     private _conversationHistory: any[] = [];
     private _streamBuffer: Map<string, string> = new Map();
+    private static debugChannel: vscode.OutputChannel;
 
     public static createOrShow(
         extensionUri: vscode.Uri,
@@ -67,6 +68,18 @@ export class MultiAgentChatPanel {
         this._extensionUri = extensionUri;
         this.backendClient = backendClient;
 
+        // Create debug output channel if not exists
+        if (!MultiAgentChatPanel.debugChannel) {
+            MultiAgentChatPanel.debugChannel = vscode.window.createOutputChannel('KI AutoAgent Debug');
+            MultiAgentChatPanel.debugChannel.appendLine('🔍 Debug Console initialized');
+            MultiAgentChatPanel.debugChannel.show();
+        }
+
+        // Connect BackendClient to debug channel
+        if (this.backendClient && (this.backendClient as any).setDebugChannel) {
+            (this.backendClient as any).setDebugChannel(MultiAgentChatPanel.debugChannel);
+        }
+
         // Set HTML content
         this._update();
 
@@ -104,6 +117,9 @@ export class MultiAgentChatPanel {
                     case 'loadHistory':
                         await this.handleLoadHistory(message);
                         break;
+                    case 'debug':
+                        this.handleDebugMessage(message);
+                        break;
                 }
             },
             null,
@@ -118,8 +134,11 @@ export class MultiAgentChatPanel {
     }
 
     private setupBackendHandlers() {
+        MultiAgentChatPanel.debugChannel.appendLine('🔗 Setting up backend handlers...');
+
         // Handle responses from backend
         this.backendClient.on('response', (message: BackendMessage) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`📥 Received response from ${message.agent || 'orchestrator'}: ${message.content?.substring(0, 100)}...`);
             // Reset processing flag when we get a response
             this._isProcessing = false;
 
@@ -146,6 +165,7 @@ export class MultiAgentChatPanel {
         });
 
         this.backendClient.on('thinking', (message: BackendMessage) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`💭 Agent thinking: ${message.agent}`);
             this.sendMessage({
                 type: 'agentThinking',
                 agent: message.agent,
@@ -156,6 +176,12 @@ export class MultiAgentChatPanel {
         this.backendClient.on('progress', (message: BackendMessage) => {
             // Handle streaming chunks
             const agent = message.agent || 'orchestrator';
+            MultiAgentChatPanel.debugChannel.appendLine(`⏳ Progress from ${agent}: ${message.type}`);
+
+            // Log progress to debug console
+            if (message.content || message.message) {
+                MultiAgentChatPanel.debugChannel.appendLine(`   Content: ${message.message || message.content || ''}`.substring(0, 200));
+            }
 
             // Accumulate chunks in buffer
             if (!this._streamBuffer.has(agent)) {
@@ -177,6 +203,7 @@ export class MultiAgentChatPanel {
         });
 
         this.backendClient.on('complete', (message: BackendMessage) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`✅ Complete from ${message.agent}`);
             // Also reset here for safety
             this._isProcessing = false;
             this.sendMessage({
@@ -185,6 +212,20 @@ export class MultiAgentChatPanel {
                 metadata: message.metadata
             });
         });
+
+        // Handle errors
+        this.backendClient.on('error', (error: any) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`❌ Backend error: ${error.message || error.error || JSON.stringify(error)}`);
+            this._isProcessing = false;
+            vscode.window.showErrorMessage(`Backend error: ${error.message || 'Unknown error'}`);
+        });
+
+        // Handle welcome/connection
+        this.backendClient.on('welcome', (message: any) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`🎉 Connected to backend: ${message.message || 'Connection established'}`);
+        });
+
+        MultiAgentChatPanel.debugChannel.appendLine('✅ Backend handlers setup complete');
     }
 
     private async handleChatMessage(message: any) {
@@ -194,6 +235,11 @@ export class MultiAgentChatPanel {
         }
 
         this._isProcessing = true;
+
+        // Log to debug console
+        MultiAgentChatPanel.debugChannel.appendLine(`\n📨 User Message: ${message.content}`);
+        MultiAgentChatPanel.debugChannel.appendLine(`   Agent: ${message.agent || 'orchestrator'}`);
+        MultiAgentChatPanel.debugChannel.appendLine(`   Mode: ${message.mode || 'auto'}`);
 
         // Send user message to webview
         this.sendMessage({
@@ -213,7 +259,12 @@ export class MultiAgentChatPanel {
         const workspacePath = workspaceFolders ? workspaceFolders[0].uri.fsPath : undefined;
 
         // Send to backend with thinking mode and workspace path
-        await this.backendClient.sendChatMessage({
+        MultiAgentChatPanel.debugChannel.appendLine(`📤 Sending message to backend...`);
+        MultiAgentChatPanel.debugChannel.appendLine(`   Workspace: ${workspacePath}`);
+        MultiAgentChatPanel.debugChannel.appendLine(`   Connected: ${this.backendClient.isConnectedToBackend()}`);
+
+        try {
+            await this.backendClient.sendChatMessage({
             prompt: message.content,
             agent: message.agent || 'orchestrator',
             mode: message.mode || 'auto',
@@ -221,7 +272,12 @@ export class MultiAgentChatPanel {
             context: {
                 workspace_path: workspacePath || process.cwd()
             }
-        });
+            });
+            MultiAgentChatPanel.debugChannel.appendLine(`✅ Message sent successfully`);
+        } catch (error: any) {
+            MultiAgentChatPanel.debugChannel.appendLine(`❌ Failed to send message: ${error.message}`);
+            console.error('Send error:', error);
+        }
     }
 
     private async handleAgentSelection(message: any) {
@@ -356,6 +412,20 @@ export class MultiAgentChatPanel {
 
     private sendMessage(message: any) {
         this._panel.webview.postMessage(message);
+    }
+
+    private handleDebugMessage(message: any) {
+        // Log debug messages from webview to VS Code debug console
+        const timestamp = new Date().toLocaleTimeString();
+        const level = message.level || 'LOG';
+        const content = message.content || message.message || '';
+
+        MultiAgentChatPanel.debugChannel.appendLine(`[${timestamp}] [${level}] ${content}`);
+
+        // Also log details if provided
+        if (message.details) {
+            MultiAgentChatPanel.debugChannel.appendLine(`  Details: ${JSON.stringify(message.details, null, 2)}`);
+        }
     }
 
     private _update() {
@@ -974,9 +1044,42 @@ export class MultiAgentChatPanel {
             </div>
 
             <script>
-                console.log('Chat UI Script initializing...');
-
                 const vscode = acquireVsCodeApi();
+
+                // Override console methods to send to VS Code debug console
+                const originalConsole = {
+                    log: console.log,
+                    error: console.error,
+                    warn: console.warn,
+                    debug: console.debug,
+                    info: console.info
+                };
+
+                function sendDebugMessage(level, args) {
+                    const message = Array.from(args).map(arg => {
+                        if (typeof arg === 'object') {
+                            return JSON.stringify(arg);
+                        }
+                        return String(arg);
+                    }).join(' ');
+
+                    vscode.postMessage({
+                        type: 'debug',
+                        level: level,
+                        content: message
+                    });
+
+                    // Also call original console method for webview developer tools
+                    originalConsole[level.toLowerCase()].apply(console, args);
+                }
+
+                console.log = function() { sendDebugMessage('LOG', arguments); };
+                console.error = function() { sendDebugMessage('ERROR', arguments); };
+                console.warn = function() { sendDebugMessage('WARN', arguments); };
+                console.debug = function() { sendDebugMessage('DEBUG', arguments); };
+                console.info = function() { sendDebugMessage('INFO', arguments); };
+
+                console.log('Chat UI Script initializing...');
                 const messagesDiv = document.getElementById('messages');
                 const messageInput = document.getElementById('message-input');
                 const sendButton = document.getElementById('send-button');

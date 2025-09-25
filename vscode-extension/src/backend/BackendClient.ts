@@ -41,10 +41,29 @@ export class BackendClient extends EventEmitter {
     private isConnected: boolean = false;
     private messageQueue: BackendMessage[] = [];
     private outputChannel: vscode.OutputChannel;
+    private debugChannel: vscode.OutputChannel | null = null;
 
     private constructor(private wsUrl: string) {
         super();
         this.outputChannel = vscode.window.createOutputChannel('Backend Client');
+    }
+
+    /**
+     * Set a debug channel to forward logs to
+     */
+    public setDebugChannel(channel: vscode.OutputChannel): void {
+        this.debugChannel = channel;
+        this.log('🔗 Debug channel connected to BackendClient');
+    }
+
+    /**
+     * Log to both output channel and optional debug channel
+     */
+    private log(message: string): void {
+        this.outputChannel.appendLine(message);
+        if (this.debugChannel) {
+            this.debugChannel.appendLine(`[BackendClient] ${message}`);
+        }
     }
 
     public static getInstance(wsUrl?: string): BackendClient {
@@ -69,14 +88,14 @@ export class BackendClient extends EventEmitter {
     public async connect(): Promise<void> {
         return new Promise((resolve, reject) => {
             try {
-                this.outputChannel.appendLine(`🔌 Connecting to backend at ${this.wsUrl}...`);
+                this.log(`🔌 Connecting to backend at ${this.wsUrl}...`);
 
                 this.ws = new WebSocket(this.wsUrl);
 
                 this.ws.on('open', () => {
                     this.isConnected = true;
                     this.reconnectAttempts = 0;
-                    this.outputChannel.appendLine('✅ Connected to backend!');
+                    this.log('✅ Connected to backend!');
                     this.emit('connected');
 
                     // Process queued messages
@@ -90,12 +109,12 @@ export class BackendClient extends EventEmitter {
                         const message = JSON.parse(data.toString()) as BackendMessage;
                         this.handleMessage(message);
                     } catch (error) {
-                        this.outputChannel.appendLine(`❌ Failed to parse message: ${error}`);
+                        this.log(`❌ Failed to parse message: ${error}`);
                     }
                 });
 
                 this.ws.on('error', (error) => {
-                    this.outputChannel.appendLine(`❌ WebSocket error: ${error.message}`);
+                    this.log(`❌ WebSocket error: ${error.message}`);
                     this.emit('error', error);
 
                     if (!this.isConnected) {
@@ -105,7 +124,7 @@ export class BackendClient extends EventEmitter {
 
                 this.ws.on('close', () => {
                     this.isConnected = false;
-                    this.outputChannel.appendLine('❌ Disconnected from backend');
+                    this.log('❌ Disconnected from backend');
                     this.emit('disconnected');
 
                     // Attempt reconnection
@@ -113,7 +132,7 @@ export class BackendClient extends EventEmitter {
                 });
 
             } catch (error) {
-                this.outputChannel.appendLine(`❌ Connection failed: ${error}`);
+                this.log(`❌ Connection failed: ${error}`);
                 reject(error);
             }
         });
@@ -168,7 +187,7 @@ export class BackendClient extends EventEmitter {
      */
     public async sendMessage(message: BackendMessage): Promise<void> {
         if (!this.isConnected || !this.ws) {
-            this.outputChannel.appendLine('⚠️ Not connected, queuing message');
+            this.log('⚠️ Not connected, queuing message');
             this.messageQueue.push(message);
 
             // Try to reconnect
@@ -180,9 +199,9 @@ export class BackendClient extends EventEmitter {
 
         try {
             this.ws.send(JSON.stringify(message));
-            this.outputChannel.appendLine(`📤 Sent: ${message.type}`);
+            this.log(`📤 Sent: ${message.type}`);
         } catch (error) {
-            this.outputChannel.appendLine(`❌ Failed to send message: ${error}`);
+            this.log(`❌ Failed to send message: ${error}`);
             this.messageQueue.push(message);
             throw error;
         }
@@ -192,7 +211,7 @@ export class BackendClient extends EventEmitter {
      * Handle incoming messages from the backend
      */
     private handleMessage(message: BackendMessage): void {
-        this.outputChannel.appendLine(`📨 Received: ${message.type}`);
+        this.log(`📨 Received: ${message.type}`);
 
         switch (message.type) {
             case 'connection':
@@ -204,14 +223,14 @@ export class BackendClient extends EventEmitter {
                 break;
 
             case 'agent_progress':
-                this.outputChannel.appendLine(`📊 Agent Progress: ${message.agent} - ${message.message || message.content}`);
+                this.log(`📊 Agent Progress: ${message.agent} - ${message.message || message.content}`);
                 this.emit('progress', message);
                 break;
 
             case 'agent_response':
-                this.outputChannel.appendLine(`✅ Agent Response: ${message.agent} - Status: ${message.status}`);
+                this.log(`✅ Agent Response: ${message.agent} - Status: ${message.status}`);
                 if (message.status === 'error') {
-                    this.outputChannel.appendLine(`❌ Error Details: ${message.content}`);
+                    this.log(`❌ Error Details: ${message.content}`);
                 }
                 this.emit('response', message);
                 break;
@@ -231,12 +250,12 @@ export class BackendClient extends EventEmitter {
                 break;
 
             case 'error':
-                this.outputChannel.appendLine(`❌ ERROR: ${message.message || message.error || JSON.stringify(message)}`);
+                this.log(`❌ ERROR: ${message.message || message.error || JSON.stringify(message)}`);
                 if (message.agent) {
-                    this.outputChannel.appendLine(`   Agent: ${message.agent}`);
+                    this.log(`   Agent: ${message.agent}`);
                 }
                 if (message.details) {
-                    this.outputChannel.appendLine(`   Details: ${JSON.stringify(message.details)}`);
+                    this.log(`   Details: ${JSON.stringify(message.details)}`);
                 }
                 this.emit('error', message);
                 break;
@@ -258,7 +277,7 @@ export class BackendClient extends EventEmitter {
             const message = this.messageQueue.shift();
             if (message) {
                 this.sendMessage(message).catch(error => {
-                    this.outputChannel.appendLine(`❌ Failed to send queued message: ${error}`);
+                    this.log(`❌ Failed to send queued message: ${error}`);
                 });
             }
         }
@@ -269,7 +288,7 @@ export class BackendClient extends EventEmitter {
      */
     private scheduleReconnect(): void {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            this.outputChannel.appendLine('❌ Max reconnection attempts reached');
+            this.log('❌ Max reconnection attempts reached');
             vscode.window.showErrorMessage(
                 'Failed to connect to Python backend. Please start it manually.'
             );
@@ -279,14 +298,14 @@ export class BackendClient extends EventEmitter {
         this.reconnectAttempts++;
         const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000);
 
-        this.outputChannel.appendLine(
+        this.log(
             `⏳ Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`
         );
 
         this.reconnectTimer = setTimeout(() => {
             this.reconnectTimer = null;
             this.connect().catch(error => {
-                this.outputChannel.appendLine(`❌ Reconnection failed: ${error}`);
+                this.log(`❌ Reconnection failed: ${error}`);
             });
         }, delay);
     }
