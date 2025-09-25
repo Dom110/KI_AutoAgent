@@ -10,6 +10,7 @@ Provides incremental parsing and fault-tolerant AST analysis for:
 import os
 import ast
 import json
+import asyncio
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import logging
@@ -50,28 +51,60 @@ class TreeSitterIndexer:
             '.yml': 'yaml'
         }
 
-    async def index_codebase(self, root_path: str = '.') -> Dict:
+    async def index_codebase(self, root_path: str = '.', exclude_patterns=None) -> Dict:
         """
         Index entire codebase using AST parsing
 
         Args:
             root_path: Root directory to index
+            exclude_patterns: Set of patterns to exclude (e.g., {'venv', 'node_modules'})
 
         Returns:
             Complete code index with AST information
         """
         logger.info(f"Starting codebase indexing from {root_path}")
 
+        # Default exclusions if not provided
+        if exclude_patterns is None:
+            exclude_patterns = {
+                'venv', '.venv', 'env', '.env',
+                'node_modules', '__pycache__', '.git',
+                'dist', 'build', '.pytest_cache', '.mypy_cache'
+            }
+
+        # Collect files first (blocking operation)
+        files_to_index = []
         for path in Path(root_path).rglob('*'):
+            # Skip if any part of the path matches exclude patterns
+            path_str = str(path)
+            should_skip = False
+            for pattern in exclude_patterns:
+                if pattern in path_str:
+                    should_skip = True
+                    break
+
+            if should_skip:
+                continue
+
             if path.is_file():
                 ext = path.suffix.lower()
                 if ext in self.supported_extensions:
-                    await self._index_file(path)
+                    files_to_index.append(path)
 
-        # Build relationships
-        await self._build_dependency_graph()
-        await self._extract_api_endpoints()
-        await self._identify_db_operations()
+        logger.info(f"Found {len(files_to_index)} files to index (excluded common directories)")
+
+        # Process files with yielding to event loop
+        for i, path in enumerate(files_to_index):
+            await self._index_file(path)
+            # Yield to event loop periodically to prevent blocking
+            if i % 10 == 0:
+                await asyncio.sleep(0)  # Yield control to event loop
+
+        # Build relationships (only if we have indexed files)
+        if self.index['files']:
+            await self._build_dependency_graph()
+            await self._extract_api_endpoints()
+            await self._identify_db_operations()
 
         logger.info(f"Indexing complete: {len(self.index['files'])} files indexed")
         return self.index
@@ -80,7 +113,9 @@ class TreeSitterIndexer:
         """Index a single file based on its type"""
         try:
             ext = file_path.suffix.lower()
-            content = file_path.read_text(encoding='utf-8')
+            # Use async file reading to prevent blocking
+            loop = asyncio.get_event_loop()
+            content = await loop.run_in_executor(None, file_path.read_text, 'utf-8')
 
             if ext == '.py':
                 await self._index_python_file(file_path, content)
@@ -97,7 +132,9 @@ class TreeSitterIndexer:
     async def _index_python_file(self, file_path: Path, content: str):
         """Index Python file using AST"""
         try:
-            tree = ast.parse(content)
+            # Run AST parsing in executor to prevent blocking
+            loop = asyncio.get_event_loop()
+            tree = await loop.run_in_executor(None, ast.parse, content)
 
             file_info = {
                 'path': str(file_path),
@@ -110,7 +147,12 @@ class TreeSitterIndexer:
                 'constants': []
             }
 
-            for node in ast.walk(tree):
+            # Process AST nodes with yielding
+            nodes_to_process = list(ast.walk(tree))
+            for i, node in enumerate(nodes_to_process):
+                # Yield to event loop periodically
+                if i % 50 == 0:
+                    await asyncio.sleep(0)
                 if isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
                     func_info = {
                         'name': node.name,

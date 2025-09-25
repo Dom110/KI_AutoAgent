@@ -220,8 +220,9 @@ class ArchitectAgent(ChatAgent):
             logger.warning(f"Context was {type(request.context)}, converting to dict")
             request.context = {}
 
-        # Safe client_id extraction
+        # Safe client_id and manager extraction
         client_id = request.context.get('client_id') if isinstance(request.context, dict) else None
+        manager = request.context.get('manager') if isinstance(request.context, dict) else None
 
         try:
             # Get workspace path
@@ -240,7 +241,7 @@ class ArchitectAgent(ChatAgent):
             os.makedirs(ki_autoagent_dir, exist_ok=True)
 
             # Send initial progress
-            await self._send_progress(client_id, "🏗️ Architect starting system analysis...")
+            await self._send_progress(client_id, "🏗️ Architect starting system analysis...", manager)
 
             # Determine which tools to use based on the request
             prompt_lower = request.prompt.lower()
@@ -248,10 +249,10 @@ class ArchitectAgent(ChatAgent):
             # Tool 1: understand_system() - Always use for infrastructure tasks
             if any(word in prompt_lower for word in ['understand', 'analyze', 'infrastructure', 'improve', 'optimize']):
                 logger.info("🔍 Using understand_system() to analyze workspace...")
-                await self._send_progress(client_id, "🔍 Using understand_system() to analyze workspace...")
+                await self._send_progress(client_id, "🔍 Using understand_system() to analyze workspace...", manager)
 
                 if INDEXING_AVAILABLE and self.code_indexer:
-                    system_analysis = await self.understand_system(workspace_path, client_id, request.prompt)
+                    system_analysis = await self.understand_system(workspace_path, client_id, request.prompt, manager)
 
                     # Save to file
                     analysis_file = os.path.join(ki_autoagent_dir, 'system_analysis.json')
@@ -636,7 +637,7 @@ class ArchitectAgent(ChatAgent):
         Invalidates cache and rebuilds from scratch
         """
         logger.info("🔄 Forcing complete system analysis refresh...")
-        await self._send_progress(client_id, "🔄 Refreshing system analysis...")
+        await self._send_progress(client_id, "🔄 Refreshing system analysis...", manager)
 
         # Clear all caches
         await self.invalidate_cache()
@@ -680,7 +681,7 @@ class ArchitectAgent(ChatAgent):
 
         return {"message": "Architect received request"}
 
-    async def understand_system(self, root_path: str = '.', client_id: str = None, request_prompt: str = '') -> Dict[str, Any]:
+    async def understand_system(self, root_path: str = '.', client_id: str = None, request_prompt: str = '', manager=None) -> Dict[str, Any]:
         """
         Build comprehensive understanding of the system through code analysis
 
@@ -704,12 +705,12 @@ class ArchitectAgent(ChatAgent):
             cached_knowledge = await self.project_cache.get('system_knowledge')
             if cached_knowledge:
                 logger.info("✅ Using cached system knowledge from Redis (permanent cache)")
-                await self._send_progress(client_id, "📦 Using cached system analysis (permanent cache)")
+                await self._send_progress(client_id, "📦 Using cached system analysis (permanent cache)", manager)
                 self.system_knowledge = cached_knowledge
                 return cached_knowledge
 
         logger.info("Building comprehensive system understanding...")
-        await self._send_progress(client_id, "🏗️ Building comprehensive system understanding...")
+        await self._send_progress(client_id, "🏗️ Building comprehensive system understanding...", manager)
 
         # Detect request type for smart analysis
         request_type = self._detect_request_type(request_prompt)
@@ -717,11 +718,11 @@ class ArchitectAgent(ChatAgent):
 
         # Phase 1: Complete code indexing
         logger.info("Phase 1: Indexing codebase with AST parsing")
-        await self._send_progress(client_id, "📂 Phase 1: Indexing codebase with AST parsing...")
+        await self._send_progress(client_id, "📂 Phase 1: Indexing codebase with AST parsing...", manager)
 
         # Create progress callback
         async def progress_callback(msg: str):
-            await self._send_progress(client_id, msg)
+            await self._send_progress(client_id, msg, manager)
 
         # Check if we have cached code index
         code_index = None
@@ -736,7 +737,7 @@ class ArchitectAgent(ChatAgent):
 
         # Phase 2: Security and quality analysis
         logger.info("Phase 2: Running security and quality analysis")
-        await self._send_progress(client_id, "🔒 Phase 2: Running security and quality analysis...")
+        await self._send_progress(client_id, "🔒 Phase 2: Running security and quality analysis...", manager)
 
         # Check cache for each analysis
         security_analysis = None
@@ -765,7 +766,7 @@ class ArchitectAgent(ChatAgent):
 
         # Phase 3: Generate visualizations
         logger.info("Phase 3: Generating architecture diagrams")
-        await self._send_progress(client_id, "📊 Phase 3: Generating architecture diagrams...")
+        await self._send_progress(client_id, "📊 Phase 3: Generating architecture diagrams...", manager)
 
         diagrams = None
         if self.project_cache:
@@ -1081,21 +1082,44 @@ pool = ConnectionPool()''',
         else:
             return 'general'
 
-    async def _send_progress(self, client_id: str, message: str):
+    async def _send_progress(self, client_id: str, message: str, manager=None):
         """Send progress update to WebSocket client"""
+        logger.debug(f"🔍 Architect _send_progress called with client_id={client_id}, message={message}")
         if not client_id:
+            logger.debug("⚠️ No client_id, skipping progress message")
             return
 
         try:
-            # Import here to avoid circular imports
-            from api.server import manager
+            # First try to use manager from parameter (passed through context)
+            if not manager:
+                # Fall back to importing (though this may not work due to circular imports)
+                logger.debug("📦 Manager not passed, attempting to import from api.server")
+                try:
+                    from api.server import manager
+                except ImportError:
+                    logger.warning("⚠️ Could not import manager from api.server")
+                    return
+
+            from datetime import datetime
+            logger.debug(f"✅ Manager available: {manager}")
+            logger.debug(f"📊 Active connections: {list(manager.active_connections.keys()) if manager else 'No manager'}")
 
             if manager and client_id in manager.active_connections:
-                await manager.send_json(client_id, {
-                    "type": "agent_progress",
-                    "agent": "architect",
-                    "message": message,
-                    "timestamp": datetime.now().isoformat()
-                })
+                try:
+                    logger.info(f"📡 Architect about to send progress via manager.send_json to {client_id}")
+                    await manager.send_json(client_id, {
+                        "type": "agent_progress",
+                        "agent": "architect",
+                        "content": message,  # Changed from "message" to "content" for consistency
+                        "timestamp": datetime.now().isoformat()
+                    })
+                    logger.info(f"📤 Architect successfully sent progress to client {client_id}: {message}")
+                except Exception as send_err:
+                    logger.error(f"❌ Architect failed to send via manager.send_json: {send_err}")
+            else:
+                if not manager:
+                    logger.warning(f"⚠️ Architect: No manager instance available")
+                else:
+                    logger.warning(f"⚠️ Architect: Client {client_id} not in active connections: {list(manager.active_connections.keys())}")
         except Exception as e:
-            logger.debug(f"Could not send progress update: {e}")
+            logger.error(f"❌ Could not send progress update: {e}")

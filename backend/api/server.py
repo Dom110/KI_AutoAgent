@@ -517,6 +517,9 @@ async def handle_chat_message(client_id: str, data: dict):
     """Handle chat messages with real agents, memory, and context"""
     content = data.get("content", "")
     agent_id = data.get("agent", "orchestrator")
+    # Map 'auto' to 'orchestrator' for backward compatibility
+    if agent_id == "auto":
+        agent_id = "orchestrator"
     metadata = data.get("metadata", {})
     stream = data.get("stream", False)
 
@@ -572,7 +575,8 @@ async def handle_chat_message(client_id: str, data: dict):
                 **metadata.get("context", {}),
                 "conversation_history": context_str,
                 "shared_context": shared_data,
-                "client_id": client_id
+                "client_id": client_id,
+                "manager": manager  # Pass the manager instance for progress messages
             },
             thinking_mode=metadata.get("thinkingMode", False),
             mode=metadata.get("mode", "auto"),

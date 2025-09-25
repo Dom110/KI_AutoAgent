@@ -198,24 +198,13 @@ class CodeIndexer:
         if progress_callback:
             await progress_callback(f"📂 Phase 1/6: Indexing {file_count} files (using .gitignore + defaults)...")
 
-        # Let tree-sitter use our exclusion logic
-        original_index_method = self.tree_sitter.index_codebase
+        # Pass our exclusion patterns to tree-sitter
+        # Combine gitignore patterns with default exclusions
+        all_exclude_patterns = set(self.default_exclude_patterns)
+        all_exclude_patterns.update(self.gitignore_patterns)
 
-        async def index_with_exclusions(path):
-            """Wrapper to add exclusion logic to tree-sitter indexing"""
-            result = await original_index_method(path)
-            # Filter out excluded files
-            filtered_files = {}
-            for file_path, file_data in result.get('files', {}).items():
-                if not self._should_exclude_path(file_path, root_path):
-                    filtered_files[file_path] = file_data
-            result['files'] = filtered_files
-            logger.info(f"Indexed {len(filtered_files)} files after exclusions")
-            return result
-
-        self.tree_sitter.index_codebase = index_with_exclusions
-        ast_index = await self.tree_sitter.index_codebase(root_path)
-        self.tree_sitter.index_codebase = original_index_method  # Restore
+        # Call tree-sitter with exclusion patterns
+        ast_index = await self.tree_sitter.index_codebase(root_path, exclude_patterns=all_exclude_patterns)
 
         actual_files = len(ast_index.get('files', {}))
         if progress_callback:

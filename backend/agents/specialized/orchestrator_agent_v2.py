@@ -82,18 +82,36 @@ class OrchestratorAgentV2(ChatAgent):
             mode = request.mode if hasattr(request, 'mode') else 'auto'
             logger.info(f"📋 Mode: {mode}")
 
+            # Extract client_id and manager for progress updates
+            client_id = None
+            manager = None
+            if hasattr(request, 'context') and isinstance(request.context, dict):
+                client_id = request.context.get('client_id')
+                manager = request.context.get('manager')  # Extract manager from context
+                logger.info(f"📡 Client ID: {client_id}")
+                logger.debug(f"📊 Manager passed: {manager is not None}")
+
+            # Send initial progress
+            await self._send_progress(client_id, "🤔 Analyzing your request...", manager)
+
             # In Auto mode, always use multi-agent workflow for complex tasks
             if mode == 'auto':
                 # For infrastructure/complex questions, always use workflow
-                if any(word in prompt.lower() for word in ['infrastructure', 'caching', 'optimize', 'improve', 'architecture',
-                                                             'performance', 'system', 'verstehen', 'analyse', 'verbessern']):
+                keywords = ['infrastructure', 'caching', 'optimize', 'improve', 'architecture',
+                           'performance', 'system', 'verstehen', 'analyse', 'verbessern']
+                if any(word in prompt.lower() for word in keywords):
+                    matched_keywords = [w for w in keywords if w in prompt.lower()]
+                    logger.info(f"Auto mode: Detected keywords: {matched_keywords}")
+                    await self._send_progress(client_id, f"🎯 Detected complex task: {', '.join(matched_keywords)}", manager)
                     logger.info(f"Auto mode: Triggering multi-agent workflow for infrastructure analysis")
                     return await self._handle_complex_task(request)
 
             # First, understand what the user is asking
             logger.info(f"🔍 Analyzing intent...")
-            intent = await self._analyze_intent(prompt)
+            await self._send_progress(client_id, "🔍 Understanding what you're asking...", manager)
+            intent = await self._analyze_intent(prompt, client_id, manager)
             logger.info(f"✅ Intent identified: {intent}")
+            await self._send_progress(client_id, f"📝 Intent: {intent}", manager)
 
             # Handle different intents
             if intent == "self_description":
@@ -116,11 +134,12 @@ class OrchestratorAgentV2(ChatAgent):
                 agent=self.config.agent_id
             )
 
-    async def _analyze_intent(self, prompt: str) -> str:
+    async def _analyze_intent(self, prompt: str, client_id: str = None, manager=None) -> str:
         """
         Analyze user intent using AI
         """
         logger.info(f"🧠 Starting intent analysis for prompt: {prompt[:50]}...")
+        await self._send_progress(client_id, "🧠 Analyzing intent with AI...", manager)
 
         system_prompt = """Analyze the user's request and categorize it into one of these intents:
         - 'self_description': User asking about what this system is, what you are, your capabilities
@@ -133,6 +152,7 @@ class OrchestratorAgentV2(ChatAgent):
         Respond with ONLY the intent category name."""
 
         logger.info(f"📡 Calling AI service for intent analysis...")
+        await self._send_progress(client_id, "📡 Calling OpenAI GPT-4o for analysis...", manager)
         try:
             response = await self.ai_service.get_completion(
                 system_prompt=system_prompt,
@@ -140,8 +160,10 @@ class OrchestratorAgentV2(ChatAgent):
                 temperature=0.3
             )
             logger.info(f"📥 AI service response: {response}")
+            await self._send_progress(client_id, f"✅ AI identified: {response}", manager)
         except Exception as e:
             logger.error(f"❌ AI service error during intent analysis: {e}")
+            await self._send_progress(client_id, f"❌ Error: {str(e)}", manager)
             raise
 
         # Check if we got an error response
@@ -238,13 +260,26 @@ I'm here to make your development process faster, smarter, and more efficient. H
         """
         prompt = request.prompt
 
+        # Extract client_id and manager for progress updates
+        client_id = None
+        manager = None
+        if hasattr(request, 'context') and isinstance(request.context, dict):
+            client_id = request.context.get('client_id')
+            manager = request.context.get('manager')
+
         # Decompose the task using AI
-        decomposition = await self._decompose_task_with_ai(prompt)
+        logger.info("🔧 Starting task decomposition...")
+        await self._send_progress(client_id, "🔧 Breaking down your request into subtasks...", manager)
+        decomposition = await self._decompose_task_with_ai(prompt, client_id, manager)
 
         # Execute the workflow with request context
+        logger.info(f"🎯 Executing workflow with {len(decomposition.subtasks)} subtasks")
+        await self._send_progress(client_id, f"🎯 Executing {len(decomposition.subtasks)} subtasks...", manager)
         results = await self._execute_workflow(decomposition, request)
 
         # Format the final response
+        logger.info("📦 Synthesizing final results...")
+        await self._send_progress(client_id, "📦 Synthesizing results from all agents...", manager)
         final_response = await self._synthesize_results(decomposition, results, prompt)
 
         return TaskResult(
@@ -258,13 +293,17 @@ I'm here to make your development process faster, smarter, and more efficient. H
             }
         )
 
-    async def _decompose_task_with_ai(self, prompt: str) -> TaskDecomposition:
+    async def _decompose_task_with_ai(self, prompt: str, client_id: str = None, manager=None) -> TaskDecomposition:
         """
         Use AI to decompose task into subtasks
         """
         # Check if this is an infrastructure improvement task
-        if any(word in prompt.lower() for word in ['infrastructure', 'caching', 'optimize', 'improve', 'architecture', 'performance']):
-            return await self._create_infrastructure_workflow(prompt)
+        keywords = ['infrastructure', 'caching', 'optimize', 'improve', 'architecture', 'performance', 'verbessern', 'system']
+        if any(word in prompt.lower() for word in keywords):
+            matched = [w for w in keywords if w in prompt.lower()]
+            logger.info(f"🏗️ Infrastructure keywords detected: {matched}")
+            await self._send_progress(client_id, f"🏗️ Infrastructure task detected: {', '.join(matched)}", manager)
+            return await self._create_infrastructure_workflow(prompt, client_id, manager)
 
         system_prompt = """You are an expert task decomposer. Analyze the given task and break it down into subtasks.
 
@@ -363,7 +402,7 @@ Guidelines:
             logger.error(error_msg)
             raise Exception(error_msg)
 
-    async def _create_infrastructure_workflow(self, prompt: str) -> TaskDecomposition:
+    async def _create_infrastructure_workflow(self, prompt: str, client_id: str = None, manager=None) -> TaskDecomposition:
         """
         Create active workflow for infrastructure improvements
         """
@@ -371,10 +410,10 @@ Guidelines:
         import os
         workspace_path = os.getenv('VSCODE_WORKSPACE', os.getcwd())
 
-        return TaskDecomposition(
+        workflow = TaskDecomposition(
             main_goal=f"Actively improve system infrastructure: {prompt}",
             complexity="complex",
-            execution_mode="parallel",
+            execution_mode="sequential",  # Changed to sequential to avoid timeout
             subtasks=[
                 SubTask(
                     id="analyze_system",
@@ -428,6 +467,10 @@ Guidelines:
             estimated_duration=300.0,
             summary="Active infrastructure improvement with file creation and implementation"
         )
+
+        logger.info(f"🏗️ Infrastructure workflow created with {len(workflow.subtasks)} tasks")
+        await self._send_progress(client_id, f"🏗️ Created workflow with {len(workflow.subtasks)} analysis tasks", manager)
+        return workflow
 
     async def _execute_workflow(self, decomposition: TaskDecomposition, original_request: TaskRequest = None) -> Dict[str, Any]:
         """
@@ -665,6 +708,48 @@ Please synthesize these results into a comprehensive response."""
         response += f"\n\n---\n*Executed {len(decomposition.subtasks)} subtasks in {decomposition.execution_mode} mode*"
 
         return response
+
+    async def _send_progress(self, client_id: str, message: str, manager=None):
+        """Send progress update to WebSocket client"""
+        logger.debug(f"🔍 _send_progress called with client_id={client_id}, message={message}")
+        if not client_id:
+            logger.debug("⚠️ No client_id, skipping progress message")
+            return
+
+        try:
+            # First try to use manager from parameter (passed through context)
+            if not manager:
+                # Fall back to importing (though this may not work due to circular imports)
+                logger.debug("📦 Manager not passed, attempting to import from api.server")
+                try:
+                    from api.server import manager
+                except ImportError:
+                    logger.warning("⚠️ Could not import manager from api.server")
+                    return
+
+            from datetime import datetime
+            logger.debug(f"✅ Manager available: {manager}")
+            logger.debug(f"📊 Active connections: {list(manager.active_connections.keys()) if manager else 'No manager'}")
+
+            if manager and client_id in manager.active_connections:
+                try:
+                    logger.info(f"📡 About to send progress via manager.send_json to {client_id}")
+                    await manager.send_json(client_id, {
+                        "type": "agent_progress",
+                        "agent": "orchestrator",
+                        "content": message,
+                        "timestamp": datetime.now().isoformat()
+                    })
+                    logger.info(f"📤 Successfully sent progress to client {client_id}: {message}")
+                except Exception as send_err:
+                    logger.error(f"❌ Failed to send via manager.send_json: {send_err}")
+            else:
+                if not manager:
+                    logger.warning(f"⚠️ No manager instance available")
+                else:
+                    logger.warning(f"⚠️ Client {client_id} not in active connections: {list(manager.active_connections.keys())}")
+        except Exception as e:
+            logger.error(f"❌ Could not send progress update: {e}")
 
     async def _process_agent_request(self, message: Any) -> Any:
         """Process request from another agent"""

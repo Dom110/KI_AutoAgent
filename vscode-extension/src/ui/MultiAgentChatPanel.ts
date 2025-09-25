@@ -174,31 +174,18 @@ export class MultiAgentChatPanel {
         });
 
         this.backendClient.on('progress', (message: BackendMessage) => {
-            // Handle streaming chunks
+            // Handle progress updates from agents
             const agent = message.agent || 'orchestrator';
-            MultiAgentChatPanel.debugChannel.appendLine(`⏳ Progress from ${agent}: ${message.type}`);
+            const content = message.content || message.message || '';
 
-            // Log progress to debug console
-            if (message.content || message.message) {
-                MultiAgentChatPanel.debugChannel.appendLine(`   Content: ${message.message || message.content || ''}`.substring(0, 200));
-            }
+            MultiAgentChatPanel.debugChannel.appendLine(`⏳ Progress from ${agent}: ${content}`);
 
-            // Accumulate chunks in buffer
-            if (!this._streamBuffer.has(agent)) {
-                this._streamBuffer.set(agent, '');
-            }
-
-            if (message.content) {
-                const current = this._streamBuffer.get(agent) || '';
-                this._streamBuffer.set(agent, current + message.content);
-            }
-
-            // Send progress update to UI
+            // Send progress update directly to UI
             this.sendMessage({
                 type: 'progress',
                 agent: agent,
-                content: this._streamBuffer.get(agent),
-                isStreaming: true
+                content: content,
+                isStreaming: false
             });
         });
 
@@ -990,6 +977,107 @@ export class MultiAgentChatPanel {
                 .pause-dialog .btn.danger:hover {
                     background: #cb2431;
                 }
+
+                /* Initialization overlay */
+                .initialization-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.85);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                    backdrop-filter: blur(5px);
+                }
+
+                .initialization-overlay.fade-out {
+                    animation: fadeOut 0.3s ease-out;
+                }
+
+                @keyframes fadeOut {
+                    from { opacity: 1; }
+                    to { opacity: 0; }
+                }
+
+                .initialization-content {
+                    background: var(--vscode-editor-background);
+                    border: 1px solid var(--vscode-panel-border);
+                    border-radius: 8px;
+                    padding: 30px;
+                    text-align: center;
+                    max-width: 400px;
+                }
+
+                .initialization-content .spinner {
+                    width: 50px;
+                    height: 50px;
+                    border: 3px solid var(--vscode-progressBar-background);
+                    border-top-color: transparent;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto 20px;
+                }
+
+                .initialization-content h2 {
+                    margin: 0 0 10px;
+                    color: var(--vscode-editor-foreground);
+                }
+
+                .initialization-content p {
+                    margin: 0 0 20px;
+                    color: var(--vscode-descriptionForeground);
+                    font-size: 14px;
+                }
+
+                .progress-bar {
+                    width: 100%;
+                    height: 4px;
+                    background: var(--vscode-input-background);
+                    border-radius: 2px;
+                    overflow: hidden;
+                }
+
+                .progress-fill {
+                    height: 100%;
+                    background: var(--vscode-progressBar-background);
+                    width: 0;
+                    animation: progressAnimation 30s ease-out;
+                }
+
+                @keyframes progressAnimation {
+                    0% { width: 0%; }
+                    20% { width: 20%; }
+                    40% { width: 35%; }
+                    60% { width: 60%; }
+                    80% { width: 85%; }
+                    100% { width: 95%; }
+                }
+
+                /* Progress message styling */
+                .progress-update {
+                    background: var(--vscode-notebook-cellStatusBarItemHoverBackground);
+                    border-left: 3px solid var(--vscode-progressBar-background);
+                    padding: 10px;
+                    margin: 10px 0;
+                }
+
+                .progress-update .agent-badge {
+                    background: var(--vscode-progressBar-background);
+                    color: var(--vscode-editor-background);
+                    padding: 2px 8px;
+                    border-radius: 3px;
+                    font-size: 12px;
+                    font-weight: bold;
+                    margin-right: 8px;
+                }
+
+                .progress-content {
+                    color: var(--vscode-editor-foreground);
+                    margin-top: 5px;
+                }
             </style>
         </head>
         <body>
@@ -1465,6 +1553,42 @@ export class MultiAgentChatPanel {
                         }
                     });
                     progressMessages.clear();
+                }
+
+                // Initialization overlay functions
+                function showInitializationOverlay() {
+                    if (document.getElementById('initialization-overlay')) return;
+
+                    const overlay = document.createElement('div');
+                    overlay.id = 'initialization-overlay';
+                    overlay.className = 'initialization-overlay';
+                    overlay.innerHTML = [
+                        '<div class="initialization-content">',
+                        '    <div class="spinner"></div>',
+                        '    <h2>🚀 Initializing System</h2>',
+                        '    <p id="init-status">Preparing KI AutoAgent...</p>',
+                        '    <div id="init-progress" class="progress-bar">',
+                        '        <div class="progress-fill"></div>',
+                        '    </div>',
+                        '</div>'
+                    ].join('');
+                    document.body.appendChild(overlay);
+                }
+
+                function hideInitializationOverlay() {
+                    const overlay = document.getElementById('initialization-overlay');
+                    if (overlay) {
+                        overlay.classList.add('fade-out');
+                        setTimeout(() => overlay.remove(), 300);
+                    }
+                    isInitializing = false;
+                }
+
+                function updateInitStatus(status) {
+                    const statusEl = document.getElementById('init-status');
+                    if (statusEl) {
+                        statusEl.textContent = status;
+                    }
                 }
 
                 function formatContent(content) {
