@@ -62,35 +62,32 @@ export class ModelSettingsManager {
     }
 
     /**
-     * Update the package.json settings schema with discovered models
+     * Store discovered models for dropdown options
+     * NOTE: Does NOT automatically update user settings - user must select manually
      */
     private async updateSettingsSchema(): Promise<void> {
-        const config = vscode.workspace.getConfiguration('kiAutoAgent.models');
+        // Just cache the discovered models for dropdown options
+        // DO NOT automatically update user settings
 
-        // Get latest models for each provider
         const openaiModels = this.cachedModels.get('openai');
         const anthropicModels = this.cachedModels.get('anthropic');
         const perplexityModels = this.cachedModels.get('perplexity');
 
-        // Update settings with latest models
+        // Log available models for user information
         if (openaiModels && openaiModels.latest.length > 0) {
-            await config.update('openai.architect', openaiModels.latest[0], vscode.ConfigurationTarget.Global);
-            await config.update('openai.orchestrator', openaiModels.latest[0], vscode.ConfigurationTarget.Global);
-            await config.update('openai.docubot', openaiModels.latest[0], vscode.ConfigurationTarget.Global);
-            await config.update('openai.reviewer', openaiModels.latest[1] || openaiModels.latest[0], vscode.ConfigurationTarget.Global);
-            await config.update('openai.performancebot', openaiModels.latest[0], vscode.ConfigurationTarget.Global);
+            console.log(`OpenAI models available: ${openaiModels.latest.join(', ')}`);
         }
 
         if (anthropicModels && anthropicModels.latest.length > 0) {
-            await config.update('anthropic.codesmith', anthropicModels.latest[0], vscode.ConfigurationTarget.Global);
-            await config.update('anthropic.fixer', anthropicModels.latest[0], vscode.ConfigurationTarget.Global);
-            await config.update('anthropic.tradestrat', anthropicModels.latest[0], vscode.ConfigurationTarget.Global);
-            await config.update('anthropic.opus', anthropicModels.recommended.reasoning || anthropicModels.latest[0], vscode.ConfigurationTarget.Global);
+            console.log(`Anthropic models available: ${anthropicModels.latest.join(', ')}`);
         }
 
         if (perplexityModels && perplexityModels.latest.length > 0) {
-            await config.update('perplexity.research', perplexityModels.latest[0], vscode.ConfigurationTarget.Global);
+            console.log(`Perplexity models available: ${perplexityModels.latest.join(', ')}`);
         }
+
+        // The discovered models are now cached and can be used for dropdown options
+        // User must manually select them in VS Code settings
     }
 
     /**

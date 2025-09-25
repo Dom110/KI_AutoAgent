@@ -28,6 +28,15 @@ from core.cancellation import CancelToken, TaskCancelledException
 from services.conversation_persistence import ConversationPersistence
 from services.model_discovery_service import get_model_discovery_service, discover_models_on_startup
 
+async def _discover_models_async():
+    """Background task to discover models without blocking startup"""
+    try:
+        await asyncio.sleep(2)  # Wait a bit for server to be fully ready
+        discovered_models = await discover_models_on_startup()
+        logger.info(f"✅ Background model discovery complete: {sum(len(m) for m in discovered_models.values())} models found")
+    except Exception as e:
+        logger.warning(f"⚠️ Background model discovery failed: {e}")
+
 # Import core systems
 from core.memory_manager import get_memory_manager, MemoryType
 from core.shared_context_manager import get_shared_context
@@ -113,13 +122,14 @@ async def lifespan(app: FastAPI):
 
     logger.info(f"✅ Registered {len(registry.agents)} agents")
 
-    # Discover available AI models
-    logger.info("🔍 Discovering available AI models...")
+    # Optional: Discover available AI models (non-blocking)
+    logger.info("🔍 Starting optional model discovery (non-blocking)...")
     try:
-        discovered_models = await discover_models_on_startup()
-        logger.info(f"✅ Model discovery complete: {sum(len(m) for m in discovered_models.values())} models found")
+        # Run model discovery in background - don't block startup
+        import asyncio
+        asyncio.create_task(_discover_models_async())
     except Exception as e:
-        logger.warning(f"⚠️ Model discovery failed: {e}. Using default models.")
+        logger.warning(f"⚠️ Model discovery skipped: {e}")
 
     yield
 

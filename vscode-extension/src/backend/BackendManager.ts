@@ -82,8 +82,22 @@ export class BackendManager {
             const isAlreadyRunning = await this.checkBackendHealth();
             if (isAlreadyRunning) {
                 this.outputChannel.appendLine('✅ Backend already running and healthy');
-                this.isRunning = true;
-                return true;
+                this.outputChannel.appendLine('🔄 Restarting backend for fresh extension session...');
+
+                // Kill the existing backend to start fresh
+                await this.killProcessOnPort(port);
+                this.outputChannel.appendLine('⏳ Waiting for port to be released...');
+                await new Promise(resolve => setTimeout(resolve, 3000));
+
+                // Double-check port is free
+                const stillInUse = await this.isPortInUse(port);
+                if (stillInUse) {
+                    this.outputChannel.appendLine('⚠️ Port still in use, waiting more...');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+
+                this.outputChannel.appendLine('🚀 Starting fresh backend instance...');
+                // Continue with normal startup process
             }
 
             // Check if port is occupied by a stale process
@@ -194,6 +208,16 @@ export class BackendManager {
                             this.startupAttempts = 0;
                         }
                         this.lastAttemptTime = Date.now();
+
+                        // Make sure port is free before restarting
+                        const portInUse = await this.isPortInUse(8000);
+                        if (portInUse) {
+                            this.outputChannel.appendLine('⚠️ Port 8000 still in use after exit, cleaning up...');
+                            await this.killProcessOnPort(8000);
+                            // Wait for port to be released
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                        }
+
                         await this.startBackend();
                     }, 3000);
                 } else if (code !== 0) {
@@ -376,7 +400,8 @@ export class BackendManager {
                                     if (attemptedCount === pids.length) {
                                         if (killedCount > 0) {
                                             this.outputChannel.appendLine(`✅ Killed ${killedCount}/${pids.length} process(es) on port ${port}`);
-                                            resolve(true);
+                                            // Wait for OS to release the port
+                                            setTimeout(() => resolve(true), 1000);
                                         } else {
                                             this.outputChannel.appendLine(`❌ Could not kill processes on port ${port}`);
                                             resolve(false);
@@ -390,7 +415,8 @@ export class BackendManager {
 
                                 if (attemptedCount === pids.length) {
                                     this.outputChannel.appendLine(`✅ Killed ${killedCount}/${pids.length} process(es) on port ${port}`);
-                                    resolve(true);
+                                    // Wait for OS to release the port
+                                    setTimeout(() => resolve(true), 1000);
                                 }
                             }
                         });
