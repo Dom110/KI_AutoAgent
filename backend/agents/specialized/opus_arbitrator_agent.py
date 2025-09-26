@@ -37,7 +37,8 @@ class OpusArbitratorAgent(ChatAgent):
             ],
             temperature=0.3,  # Lower for consistent decisions
             max_tokens=4000,
-            icon="⚖️"
+            icon="⚖️",
+            instructions_path=".kiautoagent/instructions/opus-arbitrator-instructions.md"
         )
         super().__init__(config)
         # Use Claude CLI with Opus model - NO FALLBACKS

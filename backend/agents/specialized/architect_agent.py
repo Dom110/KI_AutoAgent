@@ -133,6 +133,7 @@ class ArchitectAgent(ChatAgent):
             ],
             temperature=0.7,
             max_tokens=4000,
+            instructions_path=".kiautoagent/instructions/architect-v2-instructions.md",
             icon="🏗️"
         )
         super().__init__(config)
@@ -141,8 +142,9 @@ class ArchitectAgent(ChatAgent):
         self.openai = OpenAIService(model=self.config.model)
 
         # Get project path from environment or use workspace root
-        # Default to parent of backend directory (the actual project root)
-        default_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        # Since backend now runs from project root, use current directory if not in backend/
+        # Otherwise, use parent directory
+        default_path = os.getcwd() if os.path.basename(os.getcwd()) != 'backend' else os.path.dirname(os.getcwd())
         project_path = os.getenv('PROJECT_PATH', default_path)
 
         # Initialize permanent Redis cache - REQUIRED, NO FALLBACK

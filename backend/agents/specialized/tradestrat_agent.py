@@ -38,7 +38,8 @@ class TradeStratAgent(ChatAgent):
             ],
             temperature=0.4,  # Lower for precise financial calculations
             max_tokens=4000,
-            icon="📈"
+            icon="📈",
+            instructions_path=".kiautoagent/instructions/tradestrat-instructions.md"
         )
         super().__init__(config)
         # Use Claude CLI - NO FALLBACKS

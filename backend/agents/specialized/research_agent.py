@@ -37,7 +37,8 @@ class ResearchAgent(ChatAgent):
             ],
             temperature=0.5,
             max_tokens=4000,
-            icon="🔍"
+            icon="🔍",
+            instructions_path=".kiautoagent/instructions/research-instructions.md"
         )
         super().__init__(config)
         

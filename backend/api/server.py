@@ -30,6 +30,9 @@ from core.cancellation import CancelToken, TaskCancelledException
 from services.conversation_persistence import ConversationPersistence
 from services.model_discovery_service import get_model_discovery_service, discover_models_on_startup
 
+# Import API routers
+from api.models_endpoint import router as models_router
+
 async def _discover_models_async():
     """Background task to discover models without blocking startup"""
     try:
@@ -165,6 +168,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include API routers
+app.include_router(models_router)
 
 # WebSocket Manager
 class ConnectionManager:

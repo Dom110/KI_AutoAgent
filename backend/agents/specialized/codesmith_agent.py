@@ -115,7 +115,8 @@ class CodeSmithAgent(ChatAgent):
             ],
             temperature=0.6,  # Lower for more consistent code
             max_tokens=4000,
-            icon="💻"
+            icon="💻",
+            instructions_path=".kiautoagent/instructions/codesmith-v2-instructions.md"
         )
         super().__init__(config)
 

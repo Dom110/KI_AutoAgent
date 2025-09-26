@@ -1,0 +1,146 @@
+# Agent Model Configuration
+# Migrated from legacy .kiautoagent system
+# Last Updated: September 2025
+
+agents:
+  orchestrator:
+    display_name: "Orchestrator"
+    model: "gpt-4o-2024-11-20"
+    instructions_file: ".kiautoagent/instructions/orchestrator-v2-instructions.md"
+    performance_score: 0
+    capabilities:
+      - task_decomposition
+      - workflow_management
+      - multi_agent_coordination
+
+  architect:
+    display_name: "ArchitectAgent"
+    model: "gpt-4o-2024-11-20"
+    instructions_file: ".kiautoagent/instructions/architect-v2-instructions.md"
+    performance_score: 0
+    capabilities:
+      - architecture_design
+      - system_analysis
+      - infrastructure_optimization
+
+  codesmith:
+    display_name: "CodeSmithAgent"
+    model: "claude-4.1-sonnet-20250920"
+    instructions_file: ".kiautoagent/instructions/codesmith-v2-instructions.md"
+    performance_score: 0
+    capabilities:
+      - code_generation
+      - pattern_learning
+      - refactoring
+
+  tradestrat:
+    display_name: "TradeStrat"
+    model: "claude-4.1-sonnet-20250920"
+    instructions_file: ".kiautoagent/instructions/tradestrat-instructions.md"
+    performance_score: 0
+    capabilities:
+      - trading_strategy
+      - market_analysis
+      - risk_management
+
+  opus_arbitrator:
+    display_name: "OpusArbitrator"
+    model: "claude-opus-4-1-20250805"
+    instructions_file: ".kiautoagent/instructions/opus-arbitrator-instructions.md"
+    performance_score: 0
+    capabilities:
+      - conflict_resolution
+      - decision_making
+      - consensus_building
+
+  research:
+    display_name: "ResearchAgent"
+    model: "llama-3.1-sonar-small-128k-online"
+    instructions_file: ".kiautoagent/instructions/research-instructions.md"
+    performance_score: 0
+    capabilities:
+      - web_research
+      - fact_verification
+      - trend_analysis
+
+  docubot:
+    display_name: "DocuBot"
+    model: "gpt-4o-2024-11-20"
+    instructions_file: ".kiautoagent/instructions/docubot-instructions.md"
+    performance_score: 0
+    capabilities:
+      - documentation_generation
+      - api_documentation
+      - readme_creation
+
+  reviewer_gpt:
+    display_name: "ReviewerGPT"
+    model: "gpt-5-mini-2025-09-20"
+    instructions_file: ".kiautoagent/instructions/reviewergpt-instructions.md"
+    performance_score: 0
+    capabilities:
+      - code_review
+      - security_analysis
+      - best_practices_validation
+
+  fixerbot:
+    display_name: "FixerBot"
+    model: "claude-4.1-sonnet-20250920"
+    instructions_file: ".kiautoagent/instructions/fixerbot-instructions.md"
+    performance_score: 0
+    capabilities:
+      - bug_fixing
+      - error_resolution
+      - optimization
+
+  performance_bot:
+    display_name: "PerformanceBot"
+    model: "gpt-4o-2024-11-20"
+    instructions_file: ".kiautoagent/instructions/performance-instructions.md"
+    performance_score: 0
+    capabilities:
+      - performance_profiling
+      - bottleneck_detection
+      - optimization_suggestions
+
+# Learning System Configuration
+learning:
+  enabled: true
+  adaptation_threshold: 0.8
+  max_adaptations_per_day: 3
+  confidence_level: 0.9
+  learning_modes:
+    success_based_learning: true
+    failure_based_learning: false
+    pattern_recognition: true
+    contextual_adaptation: true
+  storage_path: ".kiautoagent/learning"
+
+# Available Models for Dynamic Selection
+available_models:
+  claude:
+    - model_id: "claude-opus-4-1-20250805"
+      name: "Claude Opus 4.1"
+      capabilities: ["supreme_reasoning", "conflict_resolution"]
+    - model_id: "claude-4.1-sonnet-20250920"
+      name: "Claude Sonnet 4.1"
+      capabilities: ["code_generation", "complex_reasoning"]
+    - model_id: "claude-3-7-sonnet-20250219"
+      name: "Claude 3.7 Sonnet"
+      capabilities: ["balanced_performance"]
+
+  openai:
+    - model_id: "gpt-4o-2024-11-20"
+      name: "GPT-4o"
+      capabilities: ["system_design", "documentation"]
+    - model_id: "gpt-5-mini-2025-09-20"
+      name: "GPT-5 Mini"
+      capabilities: ["code_review", "fast_analysis"]
+    - model_id: "gpt-4o-mini-2024-07-18"
+      name: "GPT-4o Mini"
+      capabilities: ["quick_tasks"]
+
+  perplexity:
+    - model_id: "llama-3.1-sonar-small-128k-online"
+      name: "Llama 3.1 Sonar"
+      capabilities: ["web_research", "real_time_data"]

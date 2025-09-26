@@ -2,7 +2,7 @@
   "name": "ki-autoagent-vscode",
   "displayName": "KI AutoAgent",
   "description": "Universal Multi-Agent AI Development Platform for VS Code",
-  "version": "4.1.0-unstable",
+  "version": "4.0.29",
   "publisher": "ki-autoagent",
   "icon": "media/multi-agent-logo.png",
   "repository": {
@@ -560,162 +560,62 @@
         },
         "kiAutoAgent.models.openai.architect": {
           "type": "string",
-          "enum": [
-            "gpt-4o-2024-11-20",
-            "gpt-5-mini-2025-09-20",
-            "gpt-4o-mini-2024-07-18"
-          ],
-          "enumDescriptions": [
-            "Optimized GPT-4 - Best for architecture and system design",
-            "Fast GPT-5 Mini - Lightweight but capable",
-            "Lightweight GPT-4 - Fast and cost-effective"
-          ],
           "default": "gpt-4o-2024-11-20",
-          "markdownDescription": "🏗️ **Model for ArchitectAgent**\n- System design and architecture\n- Infrastructure analysis",
+          "markdownDescription": "🏗️ **Model for ArchitectAgent**\n- System design and architecture\n- Infrastructure analysis\n- Will be auto-discovered from OpenAI API",
           "scope": "application"
         },
         "kiAutoAgent.models.openai.orchestrator": {
           "type": "string",
-          "enum": [
-            "gpt-4o-2024-11-20",
-            "gpt-5-mini-2025-09-20",
-            "gpt-4o-mini-2024-07-18"
-          ],
-          "enumDescriptions": [
-            "Optimized GPT-4 - Best for task decomposition and routing",
-            "Fast GPT-5 Mini - Lightweight but capable",
-            "Lightweight GPT-4 - Fast and cost-effective"
-          ],
           "default": "gpt-4o-2024-11-20",
-          "markdownDescription": "🎯 **Model for OrchestratorAgent**\n- Task decomposition and routing\n- Multi-agent coordination",
+          "markdownDescription": "🎯 **Model for OrchestratorAgent**\n- Task decomposition and routing\n- Multi-agent coordination\n- Will be auto-discovered from OpenAI API",
           "scope": "application"
         },
         "kiAutoAgent.models.openai.docubot": {
           "type": "string",
-          "enum": [
-            "gpt-4o-2024-11-20",
-            "gpt-5-mini-2025-09-20",
-            "gpt-4o-mini-2024-07-18"
-          ],
-          "enumDescriptions": [
-            "Optimized GPT-4 - Best for comprehensive documentation",
-            "Fast GPT-5 Mini - Lightweight but capable",
-            "Lightweight GPT-4 - Fast and cost-effective"
-          ],
           "default": "gpt-4o-2024-11-20",
-          "markdownDescription": "📝 **Model for DocuBot**\n- Documentation generation\n- API documentation",
+          "markdownDescription": "📝 **Model for DocuBot**\n- Documentation generation\n- API documentation\n- Will be auto-discovered from OpenAI API",
           "scope": "application"
         },
         "kiAutoAgent.models.openai.reviewer": {
           "type": "string",
-          "enum": [
-            "gpt-5-mini-2025-09-20",
-            "gpt-4o-mini-2024-07-18",
-            "gpt-4o-2024-11-20"
-          ],
-          "enumDescriptions": [
-            "Fast GPT-5 Mini - Optimized for code review and validation",
-            "Lightweight GPT-4 - Fast and cost-effective for reviews",
-            "Optimized GPT-4 - More thorough but slower reviews"
-          ],
-          "default": "gpt-5-mini-2025-09-20",
-          "markdownDescription": "🔍 **Model for ReviewerGPT**\n- Code review and validation\n- Security analysis",
+          "default": "gpt-4o-mini-2024-07-18",
+          "markdownDescription": "🔍 **Model for ReviewerGPT**\n- Code review and validation\n- Security analysis\n- Will be auto-discovered from OpenAI API",
           "scope": "application"
         },
         "kiAutoAgent.models.openai.performancebot": {
           "type": "string",
-          "enum": [
-            "gpt-4o-2024-11-20",
-            "gpt-5-mini-2025-09-20",
-            "gpt-4o-mini-2024-07-18"
-          ],
-          "enumDescriptions": [
-            "Optimized GPT-4 - Best for performance analysis and optimization",
-            "Fast GPT-5 Mini - Lightweight but capable",
-            "Lightweight GPT-4 - Fast and cost-effective"
-          ],
           "default": "gpt-4o-2024-11-20",
-          "markdownDescription": "⚡ **Model for PerformanceBot**\n- Performance analysis\n- Optimization suggestions",
+          "markdownDescription": "⚡ **Model for PerformanceBot**\n- Performance analysis\n- Optimization suggestions\n- Will be auto-discovered from OpenAI API",
           "scope": "application"
         },
         "kiAutoAgent.models.anthropic.codesmith": {
           "type": "string",
-          "enum": [
-            "claude-4.1-sonnet-20250920",
-            "claude-opus-4-1-20250805",
-            "claude-3-7-sonnet-20250219"
-          ],
-          "enumDescriptions": [
-            "Claude Sonnet 4.1 - Latest and most capable coding model",
-            "Supreme Claude Opus 4.1 - Ultimate reasoning and code quality",
-            "Claude 3.7 Sonnet - Stable and reliable coding assistant"
-          ],
-          "default": "claude-4.1-sonnet-20250920",
-          "markdownDescription": "💻 **Model for CodeSmithAgent**\n- Code generation and synthesis\n- Pattern implementation",
+          "default": "claude-3.5-sonnet-20241022",
+          "markdownDescription": "💻 **Model for CodeSmithAgent**\n- Code generation and synthesis\n- Pattern implementation\n- Will be auto-discovered from Anthropic API",
           "scope": "application"
         },
         "kiAutoAgent.models.anthropic.fixer": {
           "type": "string",
-          "enum": [
-            "claude-4.1-sonnet-20250920",
-            "claude-opus-4-1-20250805",
-            "claude-3-7-sonnet-20250219"
-          ],
-          "enumDescriptions": [
-            "Claude Sonnet 4.1 - Latest and most capable debugging model",
-            "Supreme Claude Opus 4.1 - Ultimate reasoning for complex bugs",
-            "Claude 3.7 Sonnet - Stable and reliable bug fixing"
-          ],
-          "default": "claude-4.1-sonnet-20250920",
-          "markdownDescription": "🔧 **Model for FixerBot**\n- Bug fixing\n- Code optimization",
+          "default": "claude-3.5-sonnet-20241022",
+          "markdownDescription": "🔧 **Model for FixerBot**\n- Bug fixing\n- Code optimization\n- Will be auto-discovered from Anthropic API",
           "scope": "application"
         },
         "kiAutoAgent.models.anthropic.tradestrat": {
           "type": "string",
-          "enum": [
-            "claude-4.1-sonnet-20250920",
-            "claude-opus-4-1-20250805",
-            "claude-3-7-sonnet-20250219"
-          ],
-          "enumDescriptions": [
-            "Claude Sonnet 4.1 - Latest and most capable trading strategy model",
-            "Supreme Claude Opus 4.1 - Ultimate reasoning for complex trading logic",
-            "Claude 3.7 Sonnet - Stable and reliable trading algorithms"
-          ],
-          "default": "claude-4.1-sonnet-20250920",
-          "markdownDescription": "📈 **Model for TradeStrat**\n- Trading strategy development\n- Financial analysis",
+          "default": "claude-3.5-sonnet-20241022",
+          "markdownDescription": "📈 **Model for TradeStrat**\n- Trading strategy development\n- Financial analysis\n- Will be auto-discovered from Anthropic API",
           "scope": "application"
         },
         "kiAutoAgent.models.anthropic.opus": {
           "type": "string",
-          "enum": [
-            "claude-opus-4-1-20250805",
-            "claude-4.1-sonnet-20250920",
-            "claude-3-7-sonnet-20250219"
-          ],
-          "enumDescriptions": [
-            "Supreme Claude Opus 4.1 - Ultimate reasoning and conflict resolution",
-            "Claude Sonnet 4.1 - Strong reasoning capabilities",
-            "Claude 3.7 Sonnet - Fallback for arbitration"
-          ],
-          "default": "claude-opus-4-1-20250805",
-          "markdownDescription": "⚖️ **Model for OpusArbitrator**\n- Agent conflict resolution\n- Superior reasoning",
+          "default": "claude-3-opus-20240229",
+          "markdownDescription": "⚖️ **Model for OpusArbitrator**\n- Agent conflict resolution\n- Superior reasoning\n- Will be auto-discovered from Anthropic API",
           "scope": "application"
         },
         "kiAutoAgent.models.perplexity.research": {
           "type": "string",
-          "enum": [
-            "llama-3.1-sonar-huge-128k-online",
-            "llama-3.1-sonar-large-32k-online",
-            "llama-3.1-sonar-small-128k-online"
-          ],
-          "enumDescriptions": [
-            "Most capable search model - Best research quality",
-            "Large search model - Good balance of speed and capability",
-            "Fast search model - Quick results"
-          ],
           "default": "llama-3.1-sonar-huge-128k-online",
-          "markdownDescription": "🔍 **Model for ResearchAgent**\n- Web research\n- Real-time information",
+          "markdownDescription": "🔍 **Model for ResearchAgent**\n- Web research\n- Real-time information\n- Will be auto-discovered from Perplexity API",
           "scope": "application"
         },
         "kiAutoAgent.models.autoDiscover": {
@@ -931,29 +831,29 @@
         "kiAutoAgent.learning.enabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "🧠 **Enable Learning System** ⚠️ [ORPHANED - NOT CONNECTED]\nAgents adapt based on successful interactions"
+          "markdownDescription": "🧠 **Enable Learning System**\nAgents adapt based on successful interactions"
         },
         "kiAutoAgent.learning.adaptationThreshold": {
           "type": "number",
           "default": 0.8,
           "minimum": 0.5,
           "maximum": 0.99,
-          "markdownDescription": "📊 **Learning Threshold** ⚠️ [ORPHANED - NOT CONNECTED]\nSuccess rate needed before adapting (0.8 = 80%)"
+          "markdownDescription": "📊 **Learning Threshold**\nSuccess rate needed before adapting (0.8 = 80%)"
         },
         "kiAutoAgent.chat.showEmojis": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "😊 **Show Emojis** ⚠️ [ORPHANED - NOT CONNECTED]\nDisplay emojis in agent responses"
+          "markdownDescription": "😊 **Show Emojis**\nDisplay emojis in agent responses"
         },
         "kiAutoAgent.chat.showTimestamps": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "🕐 **Show Timestamps** ⚠️ [ORPHANED - NOT CONNECTED]\nDisplay timestamps in agent responses"
+          "markdownDescription": "🕐 **Show Timestamps**\nDisplay timestamps in agent responses"
         },
         "kiAutoAgent.chat.showDetailedResponses": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "📊 **Show Detailed Responses** ⚠️ [ORPHANED - NOT CONNECTED]\nShow additional details and metadata in agent responses"
+          "markdownDescription": "📊 **Show Detailed Responses**\nShow additional details and metadata in agent responses"
         },
         "kiAutoAgent.chat.responseFormat": {
           "type": "string",
@@ -962,7 +862,7 @@
             "detailed"
           ],
           "default": "detailed",
-          "markdownDescription": "📝 **Response Format** ⚠️ [ORPHANED - NOT CONNECTED]\nChoose between simple or detailed response format"
+          "markdownDescription": "📝 **Response Format**\nChoose between simple or detailed response format"
         },
         "kiAutoAgent.chat.logLevel": {
           "type": "string",
@@ -973,7 +873,7 @@
             "ERROR"
           ],
           "default": "INFO",
-          "markdownDescription": "🔍 **Log Level** ⚠️ [ORPHANED - NOT CONNECTED]\nMinimum log level for console output"
+          "markdownDescription": "🔍 **Log Level**\nMinimum log level for console output"
         },
         "kiAutoAgent.chat.fallbackMode": {
           "type": "string",
@@ -982,7 +882,7 @@
             "strict"
           ],
           "default": "graceful",
-          "markdownDescription": "🔄 **Fallback Mode** ⚠️ [ORPHANED - NOT CONNECTED]\nHow to handle fallback scenarios"
+          "markdownDescription": "🔄 **Fallback Mode**\nHow to handle fallback scenarios"
         },
         "kiAutoAgent.agents.configuration": {
           "type": "object",
@@ -1012,7 +912,7 @@
             "relaxed"
           ],
           "default": "balanced",
-          "markdownDescription": "🎯 **Intent Detection Mode** ⚠️ [ORPHANED - NOT CONNECTED]\n• **strict**: Favors classifying as tasks (less queries)\n• **balanced**: Standard detection logic\n• **relaxed**: Favors classifying as queries (less tasks)",
+          "markdownDescription": "🎯 **Intent Detection Mode**\n• **strict**: Favors classifying as tasks (less queries)\n• **balanced**: Standard detection logic\n• **relaxed**: Favors classifying as queries (less tasks)",
           "scope": "window"
         },
         "kiAutoAgent.intentDetection.queryKeywords": {
@@ -1037,7 +937,7 @@
             "welche",
             "erkläre"
           ],
-          "markdownDescription": "❓ **Query Keywords** ⚠️ [ORPHANED - NOT CONNECTED]\nKeywords that indicate the request is likely a question/query",
+          "markdownDescription": "❓ **Query Keywords**\nKeywords that indicate the request is likely a question/query",
           "scope": "window"
         },
         "kiAutoAgent.intentDetection.taskKeywords": {
@@ -1067,13 +967,13 @@
             "lösche",
             "schreibe"
           ],
-          "markdownDescription": "⚡ **Task Keywords** ⚠️ [ORPHANED - NOT CONNECTED]\nKeywords that indicate the request is likely an action/task",
+          "markdownDescription": "⚡ **Task Keywords**\nKeywords that indicate the request is likely an action/task",
           "scope": "window"
         },
         "kiAutoAgent.intentDetection.preferTaskExecution": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "🚀 **Prefer Task Execution** ⚠️ [ORPHANED - NOT CONNECTED]\nWhen uncertain, prefer executing as task rather than answering as query",
+          "markdownDescription": "🚀 **Prefer Task Execution**\nWhen uncertain, prefer executing as task rather than answering as query",
           "scope": "window"
         },
         "kiAutoAgent.intentDetection.confidenceThreshold": {
@@ -1081,25 +981,25 @@
           "default": 0.7,
           "minimum": 0,
           "maximum": 1,
-          "markdownDescription": "📊 **Confidence Threshold** ⚠️ [ORPHANED - NOT CONNECTED]\nMinimum confidence level (0.0-1.0) for intent classification",
+          "markdownDescription": "📊 **Confidence Threshold**\nMinimum confidence level (0.0-1.0) for intent classification",
           "scope": "window"
         },
         "kiAutoAgent.intentDetection.useAIClassification": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "🤖 **Use AI Classification** ⚠️ [ORPHANED - NOT CONNECTED]\nEnhance keyword-based detection with AI when confidence is low",
+          "markdownDescription": "🤖 **Use AI Classification**\nEnhance keyword-based detection with AI when confidence is low",
           "scope": "window"
         },
         "kiAutoAgent.intentDetection.debugLogging": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "🐛 **Debug Logging** ⚠️ [ORPHANED - NOT CONNECTED]\nShow intent detection details in console",
+          "markdownDescription": "🐛 **Debug Logging**\nShow intent detection details in console",
           "scope": "window"
         },
         "kiAutoAgent.ai.intentClassification.enabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "🧠 **Enable AI Intent Classification** ⚠️ [ORPHANED - NOT CONNECTED]\nUse advanced AI-based intent classification instead of keywords",
+          "markdownDescription": "🧠 **Enable AI Intent Classification**\nUse advanced AI-based intent classification instead of keywords",
           "scope": "window"
         },
         "kiAutoAgent.ai.intentClassification.provider": {
@@ -1110,7 +1010,7 @@
             "auto"
           ],
           "default": "auto",
-          "markdownDescription": "🤖 **AI Provider** ⚠️ [ORPHANED - NOT CONNECTED]\nWhich AI model to use for intent classification\n• **auto**: Automatically select best available\n• **gpt-4**: Use OpenAI GPT-4\n• **claude**: Use Anthropic Claude",
+          "markdownDescription": "🤖 **AI Provider**\nWhich AI model to use for intent classification\n• **auto**: Automatically select best available\n• **gpt-4**: Use OpenAI GPT-4\n• **claude**: Use Anthropic Claude",
           "scope": "window"
         },
         "kiAutoAgent.ai.intentClassification.confidenceThreshold": {
@@ -1118,41 +1018,41 @@
           "default": 0.7,
           "minimum": 0.3,
           "maximum": 0.95,
-          "markdownDescription": "📊 **AI Confidence Threshold** ⚠️ [ORPHANED - NOT CONNECTED]\nMinimum confidence (0.3-0.95) for automatic execution\n• <0.6: Always ask for clarification\n• 0.6-0.8: May ask for confirmation\n• >0.8: Execute without confirmation",
+          "markdownDescription": "📊 **AI Confidence Threshold**\nMinimum confidence (0.3-0.95) for automatic execution\n• <0.6: Always ask for clarification\n• 0.6-0.8: May ask for confirmation\n• >0.8: Execute without confirmation",
           "scope": "window"
         },
         "kiAutoAgent.ai.intentClassification.requireExplicitConfirmation": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "✅ **Require Explicit Confirmation** ⚠️ [ORPHANED - NOT CONNECTED]\nAlways ask for confirmation even with high confidence",
+          "markdownDescription": "✅ **Require Explicit Confirmation**\nAlways ask for confirmation even with high confidence",
           "scope": "window"
         },
         "kiAutoAgent.ai.intentClassification.learnFromCorrections": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "📚 **Learn from Corrections** ⚠️ [ORPHANED - NOT CONNECTED]\nImprove classification accuracy by learning from user corrections",
+          "markdownDescription": "📚 **Learn from Corrections**\nImprove classification accuracy by learning from user corrections",
           "scope": "window"
         },
         "kiAutoAgent.ai.intentClassification.multiModelConsensus": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "🤝 **Multi-Model Consensus** ⚠️ [ORPHANED - NOT CONNECTED]\nUse multiple AI models for critical decisions (slower but more accurate)",
+          "markdownDescription": "🤝 **Multi-Model Consensus**\nUse multiple AI models for critical decisions (slower but more accurate)",
           "scope": "window"
         },
         "kiAutoAgent.ai.intentClassification.detectSarcasm": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "😏 **Detect Sarcasm** ⚠️ [ORPHANED - NOT CONNECTED]\nDetect and handle sarcastic responses appropriately",
+          "markdownDescription": "😏 **Detect Sarcasm**\nDetect and handle sarcastic responses appropriately",
           "scope": "window"
         },
         "kiAutoAgent.ai.intentClassification.openaiApiKey": {
           "type": "string",
-          "markdownDescription": "🔑 **OpenAI API Key for Classification** ⚠️ [ORPHANED - NOT CONNECTED]\nOptional dedicated key for intent classification (uses main key if not set)",
+          "markdownDescription": "🔑 **OpenAI API Key for Classification**\nOptional dedicated key for intent classification (uses main key if not set)",
           "scope": "application"
         },
         "kiAutoAgent.ai.intentClassification.anthropicApiKey": {
           "type": "string",
-          "markdownDescription": "🔑 **Anthropic API Key for Classification** ⚠️ [ORPHANED - NOT CONNECTED]\nOptional dedicated key for intent classification (uses main key if not set)",
+          "markdownDescription": "🔑 **Anthropic API Key for Classification**\nOptional dedicated key for intent classification (uses main key if not set)",
           "scope": "application"
         },
         "kiAutoAgent.ai.intentClassification.cacheDuration": {
@@ -1160,7 +1060,7 @@
           "default": 5,
           "minimum": 0,
           "maximum": 60,
-          "markdownDescription": "⏱️ **Cache Duration (seconds)** ⚠️ [ORPHANED - NOT CONNECTED]\nHow long to cache classification results (0 to disable)",
+          "markdownDescription": "⏱️ **Cache Duration (seconds)**\nHow long to cache classification results (0 to disable)",
           "scope": "window"
         },
         "kiAutoAgent.history.maxConversations": {
@@ -1168,7 +1068,7 @@
           "default": 50,
           "minimum": 1,
           "maximum": 200,
-          "markdownDescription": "📚 **Max Conversations** ⚠️ [ORPHANED - NOT CONNECTED]\nMaximum number of conversations to keep in history",
+          "markdownDescription": "📚 **Max Conversations**\nMaximum number of conversations to keep in history",
           "scope": "window"
         },
         "kiAutoAgent.history.maxMessagesPerConversation": {
@@ -1176,25 +1076,25 @@
           "default": 100,
           "minimum": 10,
           "maximum": 500,
-          "markdownDescription": "💬 **Max Messages Per Conversation** ⚠️ [ORPHANED - NOT CONNECTED]\nMaximum messages to keep per conversation",
+          "markdownDescription": "💬 **Max Messages Per Conversation**\nMaximum messages to keep per conversation",
           "scope": "window"
         },
         "kiAutoAgent.history.autoSave": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "💾 **Auto Save** ⚠️ [ORPHANED - NOT CONNECTED]\nAutomatically save conversation history",
+          "markdownDescription": "💾 **Auto Save**\nAutomatically save conversation history",
           "scope": "window"
         },
         "kiAutoAgent.ui.compactMode": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "📦 **Compact Mode** ⚠️ [ORPHANED - NOT CONNECTED]\nStart chat in compact message view",
+          "markdownDescription": "📦 **Compact Mode**\nStart chat in compact message view",
           "scope": "window"
         },
         "kiAutoAgent.validationWorkflow.enabled": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "🔍 **Enable Validation Workflow** ⚠️ [ORPHANED - NOT CONNECTED]\nAutomatically validate implementations with ReviewerGPT after each task",
+          "markdownDescription": "🔍 **Enable Validation Workflow**\nAutomatically validate implementations with ReviewerGPT after each task",
           "scope": "window"
         },
         "kiAutoAgent.validationWorkflow.maxIterations": {
@@ -1202,7 +1102,7 @@
           "default": 3,
           "minimum": 1,
           "maximum": 10,
-          "markdownDescription": "🔄 **Max Validation Iterations** ⚠️ [ORPHANED - NOT CONNECTED]\nMaximum number of validation/fix cycles to perform",
+          "markdownDescription": "🔄 **Max Validation Iterations**\nMaximum number of validation/fix cycles to perform",
           "scope": "window"
         },
         "kiAutoAgent.validationWorkflow.agents": {
@@ -1211,13 +1111,13 @@
             "reviewer",
             "fixerbot"
           ],
-          "markdownDescription": "👥 **Validation Agents** ⚠️ [ORPHANED - NOT CONNECTED]\nAgents to use in the validation workflow",
+          "markdownDescription": "👥 **Validation Agents**\nAgents to use in the validation workflow",
           "scope": "window"
         },
         "kiAutoAgent.validationWorkflow.autoFix": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "🔧 **Auto-Fix Issues** ⚠️ [ORPHANED - NOT CONNECTED]\nAutomatically attempt to fix issues found during validation with FixerBot",
+          "markdownDescription": "🔧 **Auto-Fix Issues**\nAutomatically attempt to fix issues found during validation with FixerBot",
           "scope": "window"
         }
       }

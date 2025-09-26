@@ -58,7 +58,8 @@ class PerformanceBot(ChatAgent):
             ],
             temperature=0.3,
             max_tokens=4000,
-            icon="⚡"
+            icon="⚡",
+            instructions_path=".kiautoagent/instructions/performance-instructions.md"
         )
         super().__init__(config)
         self.openai = OpenAIService(model=self.config.model)

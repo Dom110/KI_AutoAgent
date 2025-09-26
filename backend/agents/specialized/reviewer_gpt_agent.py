@@ -39,7 +39,8 @@ class ReviewerGPTAgent(ChatAgent):
             ],
             temperature=0.3,  # Lower temperature for consistent reviews
             max_tokens=3000,
-            icon="🔍"
+            icon="🔍",
+            instructions_path=".kiautoagent/instructions/reviewergpt-instructions.md"
         )
         super().__init__(config)
         self.ai_service = OpenAIService(model=self.config.model)

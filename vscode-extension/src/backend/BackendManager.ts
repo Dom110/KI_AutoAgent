@@ -153,7 +153,7 @@ export class BackendManager {
             this.backendProcess = spawn(pythonExecutable, [
                 path.join(backendDir, 'api', 'server.py')
             ], {
-                cwd: backendDir,
+                cwd: workspaceRoot, // Use project root instead of backend/
                 env: {
                     ...process.env,
                     PYTHONPATH: backendDir

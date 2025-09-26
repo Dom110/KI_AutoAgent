@@ -834,6 +834,38 @@ PATCH Version (X.Y.Z):
 │   │   ├── Debug channel shows in Output panel under "KI AutoAgent Debug"
 │   │   └── Debug messages persist across extension reloads
 │   └── 🎯 IMPACT: Full debug visibility for troubleshooting chat and agent issues
+├── v4.1.0-unstable (26.9.2025) - MAJOR CLEANUP & ARCHITECTURE CONSOLIDATION
+│   ├── 🏗️ ARCHITECTURE CLEANUP
+│   │   ├── Archived 9 old TypeScript folders to archived_typescript_implementation/
+│   │   ├── Deleted deprecated folders: __pycache__, temp_profile, backend/.ki_autoagent
+│   │   ├── Consolidated all instructions to .kiautoagent/instructions/
+│   │   ├── Clean separation: Python backend (backend/) + VS Code UI (vscode-extension/)
+│   │   └── Removed all duplicate agent implementations
+│   ├── 📊 CLEANUP STATISTICS
+│   │   ├── Root folders reduced by 56% (18 → 8)
+│   │   ├── No more mixed TypeScript/Python code
+│   │   ├── Zero duplicate agent implementations
+│   │   ├── ~10MB of obsolete code archived
+│   │   └── Clear single source of truth for all components
+│   ├── 🔧 MODEL DISCOVERY & SETTINGS
+│   │   ├── Added /api/models endpoints for all providers
+│   │   ├── Fixed model dropdown enums in VS Code settings
+│   │   ├── Instructions moved to project-specific .kiautoagent folder
+│   │   ├── Identified and documented 24+ orphaned settings
+│   │   └── Settings naming mismatch documented (kiAutoAgent.* vs ki-autoagent.*)
+│   ├── ✅ TESTS PASSED
+│   │   ├── All 10 agents import successfully
+│   │   ├── Instructions load from new .kiautoagent path
+│   │   ├── VS Code extension compiles without errors
+│   │   ├── Backend API endpoints functional
+│   │   └── No broken references to archived folders
+│   ├── 📝 DOCUMENTATION
+│   │   ├── Created FOLDER_ANALYSIS_2025-09-26.md
+│   │   ├── Created CLEANUP_DECISION_MATRIX.md
+│   │   ├── Created CLAUDE_WEB_PROXY_DOCUMENTATION.md
+│   │   ├── Created CLEANUP_SUMMARY_v4.1.0.md
+│   │   └── Backup branch: backup/v4.0-full-state-2025-09-26
+│   └── 🎯 IMPACT: Clean, maintainable architecture ready for future development
 ├── v4.0.29 (25.9.2025) - MODEL VERSION ALIGNMENT & FILE WATCHER FIX
 │   ├── 🤖 MODEL VERSION FIXES
 │   │   ├── FixerBot: Updated to claude-4.1-sonnet-20250920 (was claude-3-5-sonnet)

@@ -192,11 +192,31 @@ class BaseAgent(ABC):
     def _load_instructions(self) -> str:
         """Load agent instructions from file if available"""
         if self.config.instructions_path:
-            try:
-                with open(self.config.instructions_path, 'r') as f:
-                    return f.read()
-            except FileNotFoundError:
-                logger.warning(f"Instructions file not found: {self.config.instructions_path}")
+            # Try multiple path resolutions including .kiautoagent
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            possible_paths = [
+                self.config.instructions_path,  # As provided
+                os.path.join(os.getcwd(), self.config.instructions_path),  # From CWD
+                os.path.join(project_root, self.config.instructions_path),  # From project root
+                # Also try without .kiautoagent prefix for backward compatibility
+                self.config.instructions_path.replace('.kiautoagent/', '') if self.config.instructions_path.startswith('.kiautoagent/') else None,
+                os.path.join(os.getcwd(), self.config.instructions_path.replace('.kiautoagent/', '')) if self.config.instructions_path.startswith('.kiautoagent/') else None,
+                os.path.join(project_root, self.config.instructions_path.replace('.kiautoagent/', '')) if self.config.instructions_path.startswith('.kiautoagent/') else None,
+            ]
+            # Remove None values
+            possible_paths = [p for p in possible_paths if p is not None]
+
+            for path in possible_paths:
+                if os.path.exists(path):
+                    try:
+                        with open(path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            logger.info(f"✅ Loaded instructions for {self.name} from {path}")
+                            return content
+                    except Exception as e:
+                        logger.warning(f"Error reading instructions from {path}: {e}")
+
+            logger.warning(f"Instructions file not found for {self.name}. Tried: {possible_paths}")
         return ""
 
     def _get_language_directive(self) -> str:
@@ -803,6 +823,156 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             status["pause_state"] = self.pause_handler.get_pause_state()
 
         return status
+
+    async def learn_from_task(self, task: str, result: Any, success: bool, context: str = None) -> str:
+        """
+        Learn from task execution results
+        Integrates with MemoryManager to store learning entries
+        """
+        if not self.memory_manager:
+            logger.warning(f"{self.name}: No memory manager available for learning")
+            return None
+
+        # Determine impact based on success and task complexity
+        impact = "high" if not success else "medium"
+        if success and len(task) > 200:  # Complex successful tasks
+            impact = "high"
+
+        # Create learning description
+        description = f"{self.name} {'succeeded' if success else 'failed'} at: {task[:100]}..."
+
+        # Extract lesson
+        if success:
+            lesson = f"Successful approach for {type(result).__name__} tasks"
+        else:
+            lesson = f"Avoid this approach: {str(result)[:200]}"
+
+        # Add context
+        full_context = f"Agent: {self.name}, Model: {self.model}"
+        if context:
+            full_context += f", Additional: {context}"
+
+        # Store learning
+        learning_id = self.memory_manager.store_learning(
+            description=description,
+            lesson=lesson,
+            context=full_context,
+            impact=impact
+        )
+
+        logger.info(f"✅ {self.name} learned from task: {learning_id}")
+        return learning_id
+
+    async def apply_learnings(self, task: str) -> List[Any]:
+        """
+        Retrieve and apply relevant learnings to current task
+        """
+        if not self.memory_manager:
+            return []
+
+        # Get relevant learnings
+        learnings = self.memory_manager.get_relevant_learnings(
+            context=task,
+            limit=5
+        )
+
+        if learnings:
+            logger.info(f"📚 {self.name} applying {len(learnings)} learnings to task")
+
+            # Track applied learnings
+            for learning in learnings:
+                learning.applied_count += 1
+
+        return learnings
+
+    async def save_learnings_to_disk(self) -> bool:
+        """
+        Persist learning entries to disk
+        Saves to .kiautoagent/learning/{agent_id}.json
+        """
+        import json
+        import os
+
+        if not self.memory_manager or not self.memory_manager.learning_entries:
+            return False
+
+        # Create learning directory
+        learning_dir = os.path.join(os.getcwd(), '.kiautoagent', 'learning')
+        os.makedirs(learning_dir, exist_ok=True)
+
+        # Filter learnings for this agent
+        agent_learnings = [
+            learning for learning in self.memory_manager.learning_entries
+            if self.config.agent_id in learning.context
+        ]
+
+        # Save to JSON
+        learning_file = os.path.join(learning_dir, f"{self.config.agent_id}.json")
+        with open(learning_file, 'w') as f:
+            json.dump([
+                {
+                    'id': l.id,
+                    'timestamp': l.timestamp,
+                    'description': l.description,
+                    'lesson': l.lesson,
+                    'context': l.context,
+                    'impact': l.impact,
+                    'applied_count': l.applied_count
+                }
+                for l in agent_learnings
+            ], f, indent=2)
+
+        logger.info(f"💾 Saved {len(agent_learnings)} learnings for {self.name}")
+        return True
+
+    async def load_learnings_from_disk(self) -> int:
+        """
+        Load learning entries from disk
+        Loads from .kiautoagent/learning/{agent_id}.json
+        """
+        import json
+        import os
+        from dataclasses import asdict
+
+        learning_file = os.path.join(os.getcwd(), '.kiautoagent', 'learning', f"{self.config.agent_id}.json")
+
+        if not os.path.exists(learning_file):
+            return 0
+
+        if not self.memory_manager:
+            logger.warning(f"{self.name}: No memory manager available to load learnings")
+            return 0
+
+        try:
+            with open(learning_file, 'r') as f:
+                learnings_data = json.load(f)
+
+            # Convert to LearningEntry objects and add to memory manager
+            from core.memory_manager import LearningEntry
+
+            loaded_count = 0
+            for data in learnings_data:
+                learning = LearningEntry(
+                    id=data['id'],
+                    timestamp=data['timestamp'],
+                    description=data['description'],
+                    lesson=data['lesson'],
+                    context=data['context'],
+                    impact=data['impact'],
+                    applied_count=data.get('applied_count', 0)
+                )
+
+                # Check if not already in memory
+                if not any(l.id == learning.id for l in self.memory_manager.learning_entries):
+                    self.memory_manager.learning_entries.append(learning)
+                    loaded_count += 1
+
+            logger.info(f"📖 Loaded {loaded_count} learnings for {self.name}")
+            return loaded_count
+
+        except Exception as e:
+            logger.error(f"Failed to load learnings for {self.name}: {e}")
+            return 0
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self.name} ({self.model})>"
