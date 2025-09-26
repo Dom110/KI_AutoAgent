@@ -201,9 +201,23 @@ class StartupChecker:
         # Check for API keys (FAIL FAST if not configured)
         api_keys = [
             ('OPENAI_API_KEY', 'OpenAI GPT Modelle'),
-            ('ANTHROPIC_API_KEY', 'Claude Modelle'),
             ('PERPLEXITY_API_KEY', 'Research Agent'),
         ]
+
+        # Check for Anthropic API key OR Claude CLI
+        # Claude CLI is an alternative authentication method, not a fallback
+        has_claude_cli = False
+        try:
+            import subprocess
+            result = subprocess.run(['which', 'claude'], capture_output=True, text=True)
+            if result.returncode == 0 and result.stdout.strip():
+                has_claude_cli = True
+                logger.info("✅ Claude CLI verfügbar als Alternative zu ANTHROPIC_API_KEY")
+        except:
+            pass
+
+        if not has_claude_cli:
+            api_keys.append(('ANTHROPIC_API_KEY', 'Claude Modelle'))
 
         for env_var, description in api_keys:
             if ConfigManager:
