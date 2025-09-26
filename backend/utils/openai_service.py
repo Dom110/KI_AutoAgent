@@ -55,7 +55,8 @@ class OpenAIService:
         system_prompt: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        stream: bool = False
+        stream: bool = False,
+        timeout: Optional[float] = None
     ) -> str:
         """
         Get completion from OpenAI
@@ -77,7 +78,8 @@ class OpenAIService:
                 )
             else:
                 import asyncio
-                # Add a timeout of 30 seconds for API calls
+                # Use configurable timeout (default 30s for simple tasks, up to 300s for complex ones)
+                api_timeout = timeout or 30.0
                 try:
                     response = await asyncio.wait_for(
                         self.client.chat.completions.create(
@@ -86,7 +88,7 @@ class OpenAIService:
                             temperature=temperature or self.config.temperature,
                             max_tokens=max_tokens or self.config.max_tokens
                         ),
-                        timeout=30.0
+                        timeout=api_timeout
                     )
                     content = response.choices[0].message.content
                     if not content:
@@ -94,8 +96,8 @@ class OpenAIService:
                         logger.debug(f"Full response: {response}")
                     return content or ""
                 except asyncio.TimeoutError:
-                    logger.error(f"OpenAI API call timed out after 30 seconds")
-                    return "Error: OpenAI API call timed out. Please try again."
+                    logger.error(f"OpenAI API call timed out after {api_timeout} seconds")
+                    return f"Error: OpenAI API call timed out after {api_timeout} seconds. Please try again or use a simpler query."
 
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
@@ -208,7 +210,8 @@ class OpenAIService:
         user_prompt: str,
         system_prompt: Optional[str] = None,
         temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        timeout: Optional[float] = None
     ) -> str:
         """
         Get completion from OpenAI (alias for complete method)
@@ -219,7 +222,8 @@ class OpenAIService:
             system_prompt=system_prompt,
             temperature=temperature,
             max_tokens=max_tokens,
-            stream=False
+            stream=False,
+            timeout=timeout
         )
 
     def is_available(self) -> bool:

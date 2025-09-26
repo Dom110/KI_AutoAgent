@@ -652,15 +652,18 @@ export class MultiAgentChatPanel {
                     position: fixed;
                     bottom: 20px;
                     right: 20px;
-                    padding: 10px 15px;
-                    background: var(--vscode-notifications-background);
-                    border: 1px solid var(--vscode-notifications-border);
-                    border-radius: 8px;
+                    padding: 12px 18px;
+                    background: var(--vscode-notifications-background, #1e1e1e);
+                    border: 2px solid var(--vscode-notifications-border, #454545);
+                    border-radius: 10px;
                     display: none;
                     align-items: center;
-                    gap: 10px;
-                    z-index: 1000;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                    gap: 12px;
+                    z-index: 9999;
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+                    min-width: 200px;
+                    max-width: 400px;
+                    font-family: var(--vscode-font-family);
                 }
 
                 .activity-indicator.active {
@@ -681,8 +684,11 @@ export class MultiAgentChatPanel {
                 }
 
                 .activity-indicator .text {
-                    color: var(--vscode-foreground);
+                    color: var(--vscode-foreground, #cccccc);
                     font-size: 13px;
+                    font-weight: 500;
+                    line-height: 1.4;
+                    word-wrap: break-word;
                 }
 
                 /* Progress bubble for updates */
@@ -1446,11 +1452,17 @@ export class MultiAgentChatPanel {
                 document.body.appendChild(activityIndicator);
 
                 function updateActivityIndicator(active, text = 'Processing...') {
+                    console.log('🔄 updateActivityIndicator called:', active, text);
                     if (active) {
                         activityIndicator.classList.add('active');
-                        activityIndicator.querySelector('.text').textContent = text;
+                        const textElement = activityIndicator.querySelector('.text');
+                        if (textElement) {
+                            textElement.textContent = text;
+                        }
+                        console.log('✅ Activity indicator made active with text:', text);
                     } else {
                         activityIndicator.classList.remove('active');
+                        console.log('⏹️ Activity indicator hidden');
                     }
                 }
                 messageInput.addEventListener('keypress', (e) => {
@@ -1486,6 +1498,7 @@ export class MultiAgentChatPanel {
                             break;
 
                         case 'progress':
+                            console.log('📊 Progress message received:', message.agent, message.content);
                             // Update existing progress message or create new one
                             updateProgressMessage(message.agent, message.content);
                             updateActivityIndicator(true, message.content || 'Processing...');

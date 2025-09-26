@@ -154,10 +154,13 @@ class OrchestratorAgentV2(ChatAgent):
         logger.info(f"📡 Calling AI service for intent analysis...")
         await self._send_progress(client_id, "📡 Calling OpenAI GPT-4o for analysis...", manager)
         try:
+            # Use longer timeout for complex infrastructure queries
+            timeout = 120.0 if any(word in prompt.lower() for word in ['infrastructure', 'analyze', 'architecture', 'improve']) else 30.0
             response = await self.ai_service.get_completion(
                 system_prompt=system_prompt,
                 user_prompt=prompt,
-                temperature=0.3
+                temperature=0.3,
+                timeout=timeout
             )
             logger.info(f"📥 AI service response: {response}")
             await self._send_progress(client_id, f"✅ AI identified: {response}", manager)
@@ -346,11 +349,14 @@ Guidelines:
 - Consider dependencies between tasks
 - Choose the most appropriate agent for each subtask"""
 
+        # Use longer timeout for complex task decomposition
+        timeout = 180.0 if any(word in prompt.lower() for word in ['infrastructure', 'analyze', 'architecture', 'improve', 'complex']) else 60.0
         response = await self.ai_service.get_completion(
             system_prompt=system_prompt,
             user_prompt=f"Decompose this task: {prompt}\n\nIMPORTANT: Return ONLY valid JSON, no additional text.",
             temperature=0.5,
-            max_tokens=2000
+            max_tokens=2000,
+            timeout=timeout
         )
 
         # Debug logging
