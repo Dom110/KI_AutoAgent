@@ -3,12 +3,14 @@ KI AutoAgent Backend Server
 FastAPI with WebSocket support for real-time agent communication
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
 import json
 import logging
+import hashlib
+import uuid
 from typing import Dict, Any, Optional, Set
 from datetime import datetime
 import uvicorn
@@ -200,6 +202,49 @@ client_cancel_tokens: Dict[str, CancelToken] = {}
 
 # Track active agent instances for pause/resume functionality
 active_agents: Dict[str, Any] = {}
+
+# Session management for reconnection support
+class SessionManager:
+    """Manages sessions that persist across WebSocket reconnects"""
+    def __init__(self):
+        self.sessions: Dict[str, Dict[str, Any]] = {}
+
+    def create_session(self, workspace_id: str, task_info: Dict[str, Any]):
+        """Create a new session for a workspace"""
+        self.sessions[workspace_id] = {
+            'status': 'running',
+            'started_at': datetime.now().isoformat(),
+            'task': task_info,
+            'progress': [],
+            'result': None
+        }
+
+    def update_progress(self, workspace_id: str, message: str):
+        """Add progress update to session"""
+        if workspace_id in self.sessions:
+            self.sessions[workspace_id]['progress'].append({
+                'time': datetime.now().isoformat(),
+                'message': message
+            })
+
+    def complete_session(self, workspace_id: str, result: Any):
+        """Mark session as complete"""
+        if workspace_id in self.sessions:
+            self.sessions[workspace_id]['status'] = 'completed'
+            self.sessions[workspace_id]['completed_at'] = datetime.now().isoformat()
+            self.sessions[workspace_id]['result'] = result
+
+    def get_session(self, workspace_id: str) -> Optional[Dict[str, Any]]:
+        """Get session for workspace"""
+        return self.sessions.get(workspace_id)
+
+    def clear_session(self, workspace_id: str):
+        """Clear session after it's been retrieved"""
+        if workspace_id in self.sessions:
+            del self.sessions[workspace_id]
+
+# Global session manager
+session_manager = SessionManager()
 
 # Health check endpoint
 @app.get("/")
@@ -443,9 +488,21 @@ async def refresh_models():
 
 # WebSocket Chat Endpoint
 @app.websocket("/ws/chat")
-async def websocket_chat(websocket: WebSocket):
+async def websocket_chat(
+    websocket: WebSocket,
+    workspace: Optional[str] = Query(default=None)
+):
     """Main WebSocket endpoint for chat communication"""
-    client_id = f"client_{manager.connection_count}"
+    # Generate deterministic client_id based on workspace
+    if workspace:
+        # Use workspace path to generate consistent ID
+        workspace_hash = hashlib.md5(workspace.encode()).hexdigest()[:12]
+        client_id = f"ws_{workspace_hash}"
+        logger.info(f"🔑 Using workspace-based ID: {client_id} for {workspace}")
+    else:
+        # Fallback to random ID if no workspace provided
+        client_id = f"client_{uuid.uuid4().hex[:8]}"
+        logger.warning("⚠️ No workspace provided, using random client ID")
 
     try:
         await manager.connect(websocket, client_id)
@@ -458,6 +515,33 @@ async def websocket_chat(websocket: WebSocket):
             "message": "🤖 Connected to KI AutoAgent Backend",
             "timestamp": datetime.now().isoformat()
         })
+
+        # Check for existing session (reconnection scenario)
+        if workspace:
+            session = session_manager.get_session(client_id)
+            if session:
+                if session['status'] == 'running':
+                    # Notify about running task
+                    await manager.send_json(client_id, {
+                        "type": "session_restore",
+                        "status": "running",
+                        "message": "🔄 You have a task still running in the background",
+                        "task": session['task'],
+                        "progress": session['progress'][-10:]  # Last 10 progress messages
+                    })
+                    logger.info(f"📢 Restored running session for {client_id}")
+                elif session['status'] == 'completed':
+                    # Notify about completed task
+                    await manager.send_json(client_id, {
+                        "type": "session_restore",
+                        "status": "completed",
+                        "message": "✅ Your previous task has completed while you were away",
+                        "task": session['task'],
+                        "result": session['result']
+                    })
+                    logger.info(f"📢 Restored completed session for {client_id}")
+                    # Clear session after delivering result
+                    session_manager.clear_session(client_id)
 
         # Message handling loop
         while True:
@@ -725,6 +809,13 @@ async def handle_chat_message(client_id: str, data: dict):
                 "status": result.status,
                 "metadata": result.metadata,
                 "timestamp": datetime.now().isoformat()
+            })
+
+            # Complete session
+            session_manager.complete_session(client_id, {
+                'content': result.content,
+                'status': result.status,
+                'metadata': result.metadata
             })
 
             return

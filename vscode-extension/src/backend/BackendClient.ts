@@ -8,7 +8,7 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 
 export interface BackendMessage {
-    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse';
+    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore';
     content?: string;
     agent?: string;
     metadata?: any;
@@ -21,6 +21,9 @@ export interface BackendMessage {
     additionalInstructions?: string;  // For resume with instructions
     data?: any;  // For pause/resume/rollback data
     response?: any;  // For clarification response
+    task?: any;  // For session_restore - original task info
+    progress?: any[];  // For session_restore - progress messages
+    result?: any;  // For session_restore - completed result
 }
 
 export interface ChatRequest {
@@ -101,9 +104,22 @@ export class BackendClient extends EventEmitter {
     public async connect(): Promise<void> {
         return new Promise((resolve, reject) => {
             try {
-                this.log(`🔌 Connecting to backend at ${this.wsUrl}...`);
+                // Add workspace path as query parameter for persistent session ID
+                const workspaceFolders = vscode.workspace.workspaceFolders;
+                let wsUrlWithWorkspace = this.wsUrl;
 
-                this.ws = new WebSocket(this.wsUrl);
+                if (workspaceFolders && workspaceFolders.length > 0) {
+                    const workspacePath = workspaceFolders[0].uri.fsPath;
+                    const encodedPath = encodeURIComponent(workspacePath);
+                    wsUrlWithWorkspace = `${this.wsUrl}?workspace=${encodedPath}`;
+                    this.log(`🔑 Using workspace-based connection: ${workspacePath}`);
+                } else {
+                    this.log(`⚠️ No workspace folder found, using random session ID`);
+                }
+
+                this.log(`🔌 Connecting to backend at ${wsUrlWithWorkspace}...`);
+
+                this.ws = new WebSocket(wsUrlWithWorkspace);
 
                 this.ws.on('open', () => {
                     this.isConnected = true;
@@ -275,6 +291,11 @@ export class BackendClient extends EventEmitter {
 
             case 'complete':
                 this.emit('complete', message);
+                break;
+
+            case 'session_restore':
+                this.log(`🔄 Session restore: ${message.status} - ${message.message}`);
+                this.emit('session_restore', message);
                 break;
 
             default:

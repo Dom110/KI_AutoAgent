@@ -213,6 +213,54 @@ export class MultiAgentChatPanel {
             MultiAgentChatPanel.debugChannel.appendLine(`🎉 Connected to backend: ${message.message || 'Connection established'}`);
         });
 
+        // Handle session restoration (reconnection to running tasks)
+        this.backendClient.on('session_restore', (message: any) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`🔄 Session restore: ${message.status} - ${message.message}`);
+
+            if (message.status === 'running') {
+                // Show notification about running task
+                vscode.window.showInformationMessage(
+                    `🔄 You have a task still running: "${message.task?.prompt?.substring(0, 50)}..."`,
+                    'View Progress'
+                ).then(selection => {
+                    if (selection === 'View Progress') {
+                        // Show the last progress messages
+                        if (message.progress && message.progress.length > 0) {
+                            message.progress.forEach((p: any) => {
+                                this.sendMessage({
+                                    type: 'progress',
+                                    agent: message.task?.agent || 'orchestrator',
+                                    content: p.message,
+                                    isStreaming: false
+                                });
+                            });
+                        }
+                    }
+                });
+
+                // Mark as processing
+                this._isProcessing = true;
+            } else if (message.status === 'completed') {
+                // Show notification about completed task
+                vscode.window.showInformationMessage(
+                    `✅ Your previous task has completed: "${message.task?.prompt?.substring(0, 50)}..."`,
+                    'View Result'
+                ).then(selection => {
+                    if (selection === 'View Result') {
+                        // Display the result
+                        if (message.result) {
+                            this.sendMessage({
+                                type: 'agentResponse',
+                                agent: message.task?.agent || 'orchestrator',
+                                content: message.result.content || 'Task completed',
+                                timestamp: new Date().toISOString()
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
         MultiAgentChatPanel.debugChannel.appendLine('✅ Backend handlers setup complete');
     }
 

@@ -8703,8 +8703,20 @@ class BackendClient extends events_1.EventEmitter {
     async connect() {
         return new Promise((resolve, reject) => {
             try {
-                this.log(`🔌 Connecting to backend at ${this.wsUrl}...`);
-                this.ws = new ws_1.default(this.wsUrl);
+                // Add workspace path as query parameter for persistent session ID
+                const workspaceFolders = vscode.workspace.workspaceFolders;
+                let wsUrlWithWorkspace = this.wsUrl;
+                if (workspaceFolders && workspaceFolders.length > 0) {
+                    const workspacePath = workspaceFolders[0].uri.fsPath;
+                    const encodedPath = encodeURIComponent(workspacePath);
+                    wsUrlWithWorkspace = `${this.wsUrl}?workspace=${encodedPath}`;
+                    this.log(`🔑 Using workspace-based connection: ${workspacePath}`);
+                }
+                else {
+                    this.log(`⚠️ No workspace folder found, using random session ID`);
+                }
+                this.log(`🔌 Connecting to backend at ${wsUrlWithWorkspace}...`);
+                this.ws = new ws_1.default(wsUrlWithWorkspace);
                 this.ws.on('open', () => {
                     this.isConnected = true;
                     this.reconnectAttempts = 0;
@@ -8854,6 +8866,10 @@ class BackendClient extends events_1.EventEmitter {
                 break;
             case 'complete':
                 this.emit('complete', message);
+                break;
+            case 'session_restore':
+                this.log(`🔄 Session restore: ${message.status} - ${message.message}`);
+                this.emit('session_restore', message);
                 break;
             default:
                 this.emit('message', message);
@@ -10118,6 +10134,46 @@ class MultiAgentChatPanel {
         // Handle welcome/connection
         this.backendClient.on('welcome', (message) => {
             MultiAgentChatPanel.debugChannel.appendLine(`🎉 Connected to backend: ${message.message || 'Connection established'}`);
+        });
+        // Handle session restoration (reconnection to running tasks)
+        this.backendClient.on('session_restore', (message) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`🔄 Session restore: ${message.status} - ${message.message}`);
+            if (message.status === 'running') {
+                // Show notification about running task
+                vscode.window.showInformationMessage(`🔄 You have a task still running: "${message.task?.prompt?.substring(0, 50)}..."`, 'View Progress').then(selection => {
+                    if (selection === 'View Progress') {
+                        // Show the last progress messages
+                        if (message.progress && message.progress.length > 0) {
+                            message.progress.forEach((p) => {
+                                this.sendMessage({
+                                    type: 'progress',
+                                    agent: message.task?.agent || 'orchestrator',
+                                    content: p.message,
+                                    isStreaming: false
+                                });
+                            });
+                        }
+                    }
+                });
+                // Mark as processing
+                this._isProcessing = true;
+            }
+            else if (message.status === 'completed') {
+                // Show notification about completed task
+                vscode.window.showInformationMessage(`✅ Your previous task has completed: "${message.task?.prompt?.substring(0, 50)}..."`, 'View Result').then(selection => {
+                    if (selection === 'View Result') {
+                        // Display the result
+                        if (message.result) {
+                            this.sendMessage({
+                                type: 'agentResponse',
+                                agent: message.task?.agent || 'orchestrator',
+                                content: message.result.content || 'Task completed',
+                                timestamp: new Date().toISOString()
+                            });
+                        }
+                    }
+                });
+            }
         });
         MultiAgentChatPanel.debugChannel.appendLine('✅ Backend handlers setup complete');
     }
