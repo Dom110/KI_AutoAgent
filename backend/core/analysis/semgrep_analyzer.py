@@ -170,78 +170,96 @@ class SemgrepAnalyzer:
         py_files = list(path.rglob('*.py'))
         total_files = len(py_files)
 
-        # Limit analysis for performance (analyze max 100 files)
-        MAX_FILES = 100
-        if total_files > MAX_FILES:
-            logger.warning(f"Large project: analyzing first {MAX_FILES} of {total_files} Python files for security")
-            py_files = py_files[:MAX_FILES]
+        # No limits - analyze ALL files with better progress tracking
+        logger.info(f"Analyzing {total_files} Python files for security patterns")
 
         if progress_callback:
-            await progress_callback(f"🔒 Analyzing {len(py_files)} Python files for security patterns...")
+            await progress_callback(f"🔒 Analyzing {total_files} Python files for security patterns...")
 
         # Scan files for patterns
         for i, py_file in enumerate(py_files, 1):
-            # Progress update every 10 files
-            if progress_callback and i % 10 == 0:
-                await progress_callback(f"🔒 Security scan: {i}/{len(py_files)} files...")
+            # More frequent progress updates for better feedback
+            if progress_callback:
+                # Update every file for first 20, then every 5 files
+                if i <= 20 or i % 5 == 0 or i == total_files:
+                    await progress_callback(f"🔒 Security scan: {i}/{total_files} files...")
             try:
-                content = py_file.read_text(encoding='utf-8')
+                # Add timeout for file reading
+                content = await asyncio.wait_for(
+                    asyncio.to_thread(py_file.read_text, encoding='utf-8'),
+                    timeout=2.0
+                )
+
+                # Limit content size for regex to prevent ReDoS
+                import re
+                truncated_content = content[:100000] if len(content) > 100000 else content
 
                 # Check security patterns
                 for vuln_type, patterns in security_patterns.items():
                     for pattern in patterns:
-                        import re
-                        matches = re.finditer(pattern, content, re.MULTILINE)
-                        for match in matches:
-                            line_num = content[:match.start()].count('\n') + 1
-                            results['security'].append({
-                                'type': vuln_type,
-                                'file': str(py_file),
-                                'line': line_num,
-                                'severity': 'high' if 'injection' in vuln_type else 'medium',
-                                'message': f"Potential {vuln_type.replace('_', ' ')} vulnerability",
-                                'code': content[match.start():match.end()]
-                            })
+                        try:
+                            matches = re.finditer(pattern, truncated_content, re.MULTILINE)
+                            for match in matches:
+                                line_num = content[:match.start()].count('\n') + 1
+                                results['security'].append({
+                                    'type': vuln_type,
+                                    'file': str(py_file),
+                                    'line': line_num,
+                                    'severity': 'high' if 'injection' in vuln_type else 'medium',
+                                    'message': f"Potential {vuln_type.replace('_', ' ')} vulnerability",
+                                    'code': truncated_content[match.start():match.end()]
+                                })
+                        except re.error:
+                            logger.warning(f"Regex error for pattern {pattern} in {py_file}")
 
                 # Check performance patterns
                 for perf_type, patterns in performance_patterns.items():
                     for pattern in patterns:
-                        matches = re.finditer(pattern, content, re.MULTILINE)
-                        for match in matches:
-                            line_num = content[:match.start()].count('\n') + 1
-                            results['performance'].append({
-                                'type': perf_type,
-                                'file': str(py_file),
-                                'line': line_num,
-                                'severity': 'medium',
-                                'message': f"Performance issue: {perf_type.replace('_', ' ')}",
-                                'code': content[match.start():match.end()]
-                            })
+                        try:
+                            matches = re.finditer(pattern, truncated_content, re.MULTILINE)
+                            for match in matches:
+                                line_num = content[:match.start()].count('\n') + 1
+                                results['performance'].append({
+                                    'type': perf_type,
+                                    'file': str(py_file),
+                                    'line': line_num,
+                                    'severity': 'medium',
+                                    'message': f"Performance issue: {perf_type.replace('_', ' ')}",
+                                    'code': truncated_content[match.start():match.end()]
+                                })
+                        except re.error:
+                            logger.warning(f"Regex error for pattern {pattern} in {py_file}")
 
                 # Check best practices
                 for practice_type, patterns in best_practices_patterns.items():
                     for pattern in patterns:
-                        matches = re.finditer(pattern, content, re.MULTILINE)
-                        for match in matches:
-                            line_num = content[:match.start()].count('\n') + 1
-                            results['best_practices'].append({
-                                'type': practice_type,
-                                'file': str(py_file),
-                                'line': line_num,
-                                'severity': 'low',
-                                'message': f"Best practice violation: {practice_type.replace('_', ' ')}",
-                                'code': content[match.start():match.end()]
-                            })
+                        try:
+                            matches = re.finditer(pattern, truncated_content, re.MULTILINE)
+                            for match in matches:
+                                line_num = content[:match.start()].count('\n') + 1
+                                results['best_practices'].append({
+                                    'type': practice_type,
+                                    'file': str(py_file),
+                                    'line': line_num,
+                                    'severity': 'low',
+                                    'message': f"Best practice violation: {practice_type.replace('_', ' ')}",
+                                    'code': truncated_content[match.start():match.end()]
+                                })
+                        except re.error:
+                            logger.warning(f"Regex error for pattern {pattern} in {py_file}")
 
+            except asyncio.TimeoutError:
+                logger.warning(f"Timeout reading {py_file}")
             except Exception as e:
                 logger.warning(f"Failed to analyze {py_file}: {e}")
 
-            # Yield control periodically to prevent blocking
-            if i % 5 == 0:
+            # Yield control frequently to prevent blocking
+            if i % 2 == 0:  # Every 2 files for better responsiveness
                 await asyncio.sleep(0)
 
         if progress_callback:
-            await progress_callback(f"🔒 Security analysis complete: {len(results['security'])} issues found")
+            total_issues = len(results['security']) + len(results['performance']) + len(results['best_practices'])
+            await progress_callback(f"🔒 Security analysis complete: {total_issues} total issues found")
 
         return results
 

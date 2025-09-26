@@ -1088,6 +1088,7 @@ export class MultiAgentChatPanel {
                     <button id="new-chat-btn" class="header-btn" title="New Chat">➕ New</button>
                     <button id="history-btn" class="header-btn" title="History">📜 History</button>
                     <button id="thinking-btn" class="header-btn" title="Toggle Thinking Mode">💭 Thinking</button>
+                    <button id="agent-thinking-btn" class="header-btn" title="Agent Schritte anzeigen">🧠 Agent Schritte</button>
                     <button id="pause-btn" class="header-btn warning" title="Pause Task">⏸️ Pause</button>
                     <span style="opacity: 0.7; font-size: 0.9em;">Backend ✅</span>
                 </div>
@@ -1175,6 +1176,7 @@ export class MultiAgentChatPanel {
                 const newChatBtn = document.getElementById('new-chat-btn');
                 const historyBtn = document.getElementById('history-btn');
                 const thinkingBtn = document.getElementById('thinking-btn');
+                const agentThinkingBtn = document.getElementById('agent-thinking-btn');
                 const pauseBtn = document.getElementById('pause-btn');
 
                 // Debug check
@@ -1271,6 +1273,23 @@ export class MultiAgentChatPanel {
                         type: 'toggleThinking',
                         enabled: thinkingMode,
                         intensity: 'normal'
+                    });
+                });
+
+                // Agent Thinking Button - zeigt interne Agent-Schritte
+                let showAgentThinking = false;
+                agentThinkingBtn.addEventListener('click', () => {
+                    showAgentThinking = !showAgentThinking;
+                    agentThinkingBtn.classList.toggle('active', showAgentThinking);
+                    vscode.postMessage({
+                        type: 'toggleAgentThinking',
+                        enabled: showAgentThinking
+                    });
+
+                    // Update existing messages visibility
+                    const thinkingMessages = document.querySelectorAll('.agent-thinking-message');
+                    thinkingMessages.forEach(msg => {
+                        msg.style.display = showAgentThinking ? 'block' : 'none';
                     });
                 });
 

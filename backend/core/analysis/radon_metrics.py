@@ -11,8 +11,9 @@ Provides:
 import ast
 import math
 import logging
+import fnmatch
 from pathlib import Path
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Set
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ class RadonMetrics:
         Returns:
             Complete metrics report
         """
+        import asyncio
         logger.info(f"Calculating code metrics for {target_path}")
 
         metrics = {
@@ -69,19 +71,32 @@ class RadonMetrics:
 
         path = Path(target_path)
 
-        # Count Python files
-        py_files = list(path.rglob('*.py'))
+        # Load .gitignore patterns if available
+        gitignore_patterns = self._load_gitignore_patterns(path)
+
+        # Get Python files respecting gitignore
+        py_files = self._get_python_files(path, gitignore_patterns)
         total_files = len(py_files)
         processed = 0
+
+        if progress_callback:
+            await progress_callback(f"📊 Starte Metriken-Berechnung für {total_files} Python-Dateien...")
 
         # Analyze each Python file
         for py_file in py_files:
             processed += 1
-            if progress_callback and (processed % 10 == 0 or total_files < 50):
-                await progress_callback(f"📊 Calculating metrics ({processed}/{total_files} files)...")
+            # More frequent progress updates for better feedback
+            if progress_callback:
+                # Update every file for first 20, then every 10 files
+                if processed <= 20 or processed % 10 == 0 or processed == total_files:
+                    await progress_callback(f"📊 Berechne Metriken ({processed}/{total_files} Dateien)...")
 
             try:
-                content = py_file.read_text(encoding='utf-8')
+                # Async file reading with timeout
+                content = await asyncio.wait_for(
+                    asyncio.to_thread(py_file.read_text, encoding='utf-8'),
+                    timeout=2.0
+                )
                 file_metrics = await self._analyze_file(str(py_file), content)
 
                 # Store metrics
@@ -98,11 +113,22 @@ class RadonMetrics:
                         'reason': 'High complexity'
                     })
 
+            except asyncio.TimeoutError:
+                logger.warning(f"Timeout reading {py_file}")
+                continue
             except Exception as e:
                 logger.warning(f"Failed to analyze {py_file}: {e}")
+                continue
+
+            # Yield control periodically for better responsiveness
+            if processed % 5 == 0:
+                await asyncio.sleep(0)
 
         # Calculate summary
         metrics['summary'] = self._calculate_summary(metrics)
+
+        if progress_callback:
+            await progress_callback(f"📊 Metriken-Berechnung abgeschlossen")
 
         return metrics
 
@@ -501,3 +527,91 @@ class RadonMetrics:
         candidates.sort(key=lambda x: (x['priority'] != 'high', x.get('complexity', 0)), reverse=True)
 
         return candidates[:10]  # Return top 10 candidates
+
+    def _load_gitignore_patterns(self, base_path: Path) -> Set[str]:
+        """
+        Lade .gitignore Patterns und default Exclusions
+
+        Args:
+            base_path: Basis-Pfad des Projekts
+
+        Returns:
+            Set von Patterns zum Ausschließen
+        """
+        patterns = set()
+
+        # Standard Exclusions (immer ausschließen)
+        default_patterns = {
+            '**/node_modules/**',
+            '**/__pycache__/**',
+            '**/venv/**',
+            '**/.venv/**',
+            '**/env/**',
+            '**/.env/**',
+            '**/dist/**',
+            '**/build/**',
+            '**/.git/**',
+            '**/*.pyc',
+            '**/*.pyo',
+            '**/*.egg-info/**',
+            '**/.pytest_cache/**',
+            '**/.tox/**',
+            '**/htmlcov/**',
+            '**/.coverage',
+            '**/site-packages/**',
+        }
+        patterns.update(default_patterns)
+
+        # Lade .gitignore wenn vorhanden
+        gitignore_path = base_path / '.gitignore'
+        if gitignore_path.exists():
+            try:
+                with open(gitignore_path, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        # Skip comments und leere Zeilen
+                        if line and not line.startswith('#'):
+                            # Konvertiere gitignore pattern zu glob pattern
+                            if line.endswith('/'):
+                                patterns.add(f'**/{line}**')
+                            else:
+                                patterns.add(f'**/{line}')
+                logger.info(f"✅ .gitignore Patterns geladen: {len(patterns)} Patterns")
+            except Exception as e:
+                logger.warning(f"⚠️ Konnte .gitignore nicht laden: {e}")
+
+        return patterns
+
+    def _get_python_files(self, base_path: Path, exclude_patterns: Set[str]) -> List[Path]:
+        """
+        Sammle Python-Dateien unter Beachtung von Exclusion Patterns
+
+        Args:
+            base_path: Basis-Pfad
+            exclude_patterns: Patterns zum Ausschließen
+
+        Returns:
+            Liste von Python-Dateien (ohne excluded)
+        """
+        python_files = []
+        excluded_count = 0
+
+        # Finde alle Python-Dateien
+        for py_file in base_path.rglob('*.py'):
+            # Prüfe ob Datei excluded werden soll
+            should_exclude = False
+            relative_path = str(py_file.relative_to(base_path))
+
+            for pattern in exclude_patterns:
+                if fnmatch.fnmatch(str(py_file), pattern) or \
+                   fnmatch.fnmatch(relative_path, pattern) or \
+                   any(part.startswith('.') for part in py_file.parts):  # Hidden folders
+                    should_exclude = True
+                    excluded_count += 1
+                    break
+
+            if not should_exclude:
+                python_files.append(py_file)
+
+        logger.info(f"📊 Gefunden: {len(python_files)} Python-Dateien (ausgeschlossen: {excluded_count})")
+        return python_files

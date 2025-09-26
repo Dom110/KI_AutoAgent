@@ -10,7 +10,18 @@ from datetime import datetime
 import asyncio
 import logging
 import json
+import os
+import sys
 from enum import Enum
+
+# Import Settings for German language support
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+try:
+    from config.settings import settings
+    SETTINGS_AVAILABLE = True
+except ImportError:
+    SETTINGS_AVAILABLE = False
+    logging.warning("Settings not available - using defaults")
 
 # Import core systems
 try:
@@ -123,6 +134,9 @@ class BaseAgent(ABC):
         self.model = config.model
         self.instructions = self._load_instructions()
 
+        # Add German language directive to all prompts
+        self.language_directive = self._get_language_directive()
+
         # Execution tracking
         self.execution_count = 0
         self.total_tokens_used = 0
@@ -184,6 +198,23 @@ class BaseAgent(ABC):
             except FileNotFoundError:
                 logger.warning(f"Instructions file not found: {self.config.instructions_path}")
         return ""
+
+    def _get_language_directive(self) -> str:
+        """Get language directive based on settings"""
+        if SETTINGS_AVAILABLE:
+            return settings.get_language_directive()
+        else:
+            # Default to German if settings not available
+            return """
+🇩🇪 KRITISCHE REGEL:
+Du MUSST IMMER auf Deutsch antworten, egal in welcher Sprache die Frage gestellt wird.
+Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
+"""
+
+    def get_system_prompt(self) -> str:
+        """Get complete system prompt with language directive"""
+        base_prompt = self.instructions if self.instructions else f"Du bist {self.name}, ein {self.role}."
+        return f"{self.language_directive}\n\n{base_prompt}"
 
     async def initialize_systems(self, memory_manager=None, shared_context=None, communication_bus=None):
         """Initialize external systems after construction"""

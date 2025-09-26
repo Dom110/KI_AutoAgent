@@ -129,6 +129,7 @@ class VultureAnalyzer:
 
     async def _manual_dead_code_detection(self, target_path: str, progress_callback=None) -> Dict:
         """Manual dead code detection without Vulture"""
+        import asyncio
         results = {
             'unused_functions': [],
             'unused_variables': [],
@@ -145,46 +146,59 @@ class VultureAnalyzer:
         py_files = list(path.rglob('*.py'))
         total_files = len(py_files)
 
-        # Limit analysis for performance (analyze max 100 files)
-        MAX_FILES = 100
-        if total_files > MAX_FILES:
-            logger.warning(f"Large project: analyzing first {MAX_FILES} of {total_files} Python files")
-            py_files = py_files[:MAX_FILES]
+        # No limits - analyze ALL files but with better progress tracking
+        logger.info(f"Analyzing {total_files} Python files for dead code")
 
         if progress_callback:
-            await progress_callback(f"🧹 Analyzing {len(py_files)} Python files for unused code...")
+            await progress_callback(f"🧹 Analyzing {total_files} Python files for unused code...")
 
         # First pass: collect all definitions
         for i, py_file in enumerate(py_files, 1):
-            # Progress update every 10 files
-            if progress_callback and i % 10 == 0:
-                await progress_callback(f"🧹 Scanning definitions: {i}/{len(py_files)} files...")
+            # More frequent progress updates for better feedback
+            if progress_callback:
+                # Update every file for first 20, then every 5 files
+                if i <= 20 or i % 5 == 0 or i == total_files:
+                    await progress_callback(f"🧹 Scanning definitions: {i}/{total_files} files...")
             try:
-                content = py_file.read_text(encoding='utf-8')
+                # Add timeout for file reading
+                content = await asyncio.wait_for(
+                    asyncio.to_thread(py_file.read_text, encoding='utf-8'),
+                    timeout=2.0
+                )
 
-                # Find function definitions
+                # Find function definitions (with timeout for regex operations)
                 import re
-                func_pattern = r'def\s+(\w+)\s*\('
-                for match in re.finditer(func_pattern, content):
-                    func_name = match.group(1)
-                    if not func_name.startswith('_'):  # Skip private
+                # Use simpler, non-backtracking regex for performance
+                func_pattern = r'^\s*def\s+(\w+)\s*\('
+                try:
+                    # Limit content size for regex to prevent ReDoS
+                    truncated_content = content[:50000] if len(content) > 50000 else content
+                    for match in re.finditer(func_pattern, truncated_content, re.MULTILINE):
+                        func_name = match.group(1)
+                        if not func_name.startswith('_'):  # Skip private
+                            line = content[:match.start()].count('\n') + 1
+                            all_definitions[func_name] = {
+                                'type': 'function',
+                                'file': str(py_file),
+                                'line': line
+                            }
+                except re.error:
+                    logger.warning(f"Regex error processing {py_file}")
+
+                # Find class definitions (with safer regex)
+                class_pattern = r'^\s*class\s+(\w+)'
+                try:
+                    truncated_content = content[:50000] if len(content) > 50000 else content
+                    for match in re.finditer(class_pattern, truncated_content, re.MULTILINE):
+                        class_name = match.group(1)
                         line = content[:match.start()].count('\n') + 1
-                        all_definitions[func_name] = {
-                            'type': 'function',
+                        all_definitions[class_name] = {
+                            'type': 'class',
                             'file': str(py_file),
                             'line': line
                         }
-
-                # Find class definitions
-                class_pattern = r'class\s+(\w+)'
-                for match in re.finditer(class_pattern, content):
-                    class_name = match.group(1)
-                    line = content[:match.start()].count('\n') + 1
-                    all_definitions[class_name] = {
-                        'type': 'class',
-                        'file': str(py_file),
-                        'line': line
-                    }
+                except re.error:
+                    logger.warning(f"Regex error processing classes in {py_file}")
 
                 # Find imports
                 import_patterns = [
@@ -203,37 +217,53 @@ class VultureAnalyzer:
                             'name': import_name
                         }
 
+            except asyncio.TimeoutError:
+                logger.warning(f"Timeout reading {py_file}")
             except Exception as e:
                 logger.warning(f"Failed to analyze {py_file}: {e}")
 
-            # Yield control periodically
-            if i % 5 == 0:
-                import asyncio
-                await asyncio.sleep(0)
+            # Yield control periodically for better responsiveness
+            # More frequent yields for better UI responsiveness
+            if i % 2 == 0:  # Every 2 files
+                await asyncio.sleep(0)  # Just yield, no delay needed
 
         if progress_callback:
-            await progress_callback(f"🧹 Checking usages in {len(py_files)} files...")
+            await progress_callback(f"🧹 Checking usages in {total_files} files...")
 
-        # Second pass: find usages (use same limited file list)
+        # Second pass: find usages (analyze ALL files)
         for i, py_file in enumerate(py_files, 1):
-            # Progress update every 10 files
-            if progress_callback and i % 10 == 0:
-                await progress_callback(f"🧹 Checking usages: {i}/{len(py_files)} files...")
+            # More frequent progress updates
+            if progress_callback:
+                if i <= 20 or i % 5 == 0 or i == total_files:
+                    await progress_callback(f"🧹 Checking usages: {i}/{total_files} files...")
             try:
-                content = py_file.read_text(encoding='utf-8')
+                # Add timeout for file reading
+                content = await asyncio.wait_for(
+                    asyncio.to_thread(py_file.read_text, encoding='utf-8'),
+                    timeout=2.0
+                )
 
-                for name in all_definitions.keys():
-                    # Skip checking in definition file
-                    if ':' not in name:  # Not an import
-                        if name in content:
-                            all_usages[name] = all_usages.get(name, 0) + content.count(name)
+                # Limit content size for searching
+                truncated_content = content[:50000] if len(content) > 50000 else content
 
+                # Process definitions in batches to avoid blocking
+                def_keys = list(all_definitions.keys())
+                for j in range(0, len(def_keys), 10):  # Process 10 at a time
+                    batch = def_keys[j:j+10]
+                    for name in batch:
+                        # Skip checking in definition file
+                        if ':' not in name:  # Not an import
+                            if name in truncated_content:
+                                # Use simpler count for performance
+                                all_usages[name] = all_usages.get(name, 0) + truncated_content.count(name)
+
+            except asyncio.TimeoutError:
+                logger.warning(f"Timeout reading {py_file}")
             except Exception:
                 pass
 
             # Yield control periodically
-            if i % 5 == 0:
-                import asyncio
+            if i % 2 == 0:
                 await asyncio.sleep(0)
 
         if progress_callback:
@@ -262,30 +292,41 @@ class VultureAnalyzer:
         if progress_callback:
             await progress_callback(f"🧹 Checking for unreachable code...")
 
-        # Check for unreachable code (use same limited file list)
+        # Check for unreachable code (analyze ALL files)
         for i, py_file in enumerate(py_files, 1):
-            # Progress update every 20 files
-            if progress_callback and i % 20 == 0:
-                await progress_callback(f"🧹 Checking unreachable code: {i}/{len(py_files)} files...")
+            # More frequent progress updates
+            if progress_callback:
+                if i <= 20 or i % 10 == 0 or i == total_files:
+                    await progress_callback(f"🧹 Checking unreachable code: {i}/{total_files} files...")
             try:
-                content = py_file.read_text(encoding='utf-8')
+                # Add timeout for file reading
+                content = await asyncio.wait_for(
+                    asyncio.to_thread(py_file.read_text, encoding='utf-8'),
+                    timeout=2.0
+                )
 
-                # Find code after return/raise/break/continue
-                unreachable_pattern = r'(return|raise|break|continue).*\n\s+\S'
-                for match in re.finditer(unreachable_pattern, content):
-                    line = content[:match.start()].count('\n') + 1
-                    results['unreachable_code'].append({
-                        'file': str(py_file),
-                        'line': line + 1,
-                        'confidence': 90
-                    })
+                # Find code after return/raise/break/continue (with safer regex)
+                # Use simpler pattern to avoid catastrophic backtracking
+                unreachable_pattern = r'^\s*(return|raise|break|continue)[^\n]*\n\s+\S'
+                try:
+                    truncated_content = content[:50000] if len(content) > 50000 else content
+                    for match in re.finditer(unreachable_pattern, truncated_content, re.MULTILINE):
+                        line = content[:match.start()].count('\n') + 1
+                        results['unreachable_code'].append({
+                            'file': str(py_file),
+                            'line': line + 1,
+                            'confidence': 90
+                        })
+                except re.error:
+                    logger.warning(f"Regex error checking unreachable code in {py_file}")
 
+            except asyncio.TimeoutError:
+                logger.warning(f"Timeout reading {py_file}")
             except Exception:
                 pass
 
             # Yield control periodically
-            if i % 10 == 0:
-                import asyncio
+            if i % 3 == 0:
                 await asyncio.sleep(0)
 
         if progress_callback:

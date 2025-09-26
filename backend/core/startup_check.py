@@ -191,17 +191,51 @@ class StartupChecker:
         """Check required environment variables"""
         errors = []
 
-        # Check for API keys (warn if not set, but don't fail)
+        # Import ConfigManager for proper API key checking
+        try:
+            from core.config_manager import ConfigManager
+        except ImportError:
+            # If ConfigManager not available, use env vars directly
+            ConfigManager = None
+
+        # Check for API keys (FAIL FAST if not configured)
         api_keys = [
-            ('OPENAI_API_KEY', 'OpenAI API access'),
-            ('ANTHROPIC_API_KEY', 'Claude API access'),
-            ('PERPLEXITY_API_KEY', 'Perplexity API access'),
+            ('OPENAI_API_KEY', 'OpenAI GPT Modelle'),
+            ('ANTHROPIC_API_KEY', 'Claude Modelle'),
+            ('PERPLEXITY_API_KEY', 'Research Agent'),
         ]
 
         for env_var, description in api_keys:
-            if not os.environ.get(env_var):
-                logger.warning(f"⚠️ {env_var} not set. {description} will not work.")
-                logger.warning(f"   Set with: export {env_var}='your-api-key'")
+            if ConfigManager:
+                try:
+                    # Try to get key through ConfigManager (checks all sources)
+                    value = ConfigManager.get_api_key(env_var)
+                    logger.info(f"✅ {env_var} verfügbar für {description}")
+                except Exception as e:
+                    errors.append({
+                        'component': f'API Key: {env_var}',
+                        'error': f'{env_var} nicht konfiguriert',
+                        'solution': (
+                            f'Konfigurieren Sie {env_var}:\n'
+                            f'   1. export {env_var}="your-api-key"\n'
+                            f'   2. backend/config/api_keys.yaml\n'
+                            f'   3. .env Datei im Projekt-Root'
+                        ),
+                        'file': __file__,
+                        'line': sys._getframe().f_lineno,
+                        'traceback': None
+                    })
+            else:
+                # Fallback to env var check
+                if not os.environ.get(env_var):
+                    errors.append({
+                        'component': f'API Key: {env_var}',
+                        'error': f'{env_var} nicht als Environment Variable gesetzt',
+                        'solution': f'export {env_var}="your-api-key"',
+                        'file': __file__,
+                        'line': sys._getframe().f_lineno,
+                        'traceback': None
+                    })
 
         # Check Python version
         python_version = sys.version_info

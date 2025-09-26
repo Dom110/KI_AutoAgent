@@ -928,8 +928,14 @@ class ArchitectAgent(ChatAgent):
     async def _generate_improvement_suggestions(self) -> List[Dict[str, str]]:
         """
         Generate specific improvement suggestions based on analysis
+        PLAN FIRST MODE: Only suggestions, no automatic implementation
         """
         improvements = []
+
+        # Check settings for Plan First mode
+        plan_first_mode = True  # Default to Plan First
+        if hasattr(settings, 'PLAN_FIRST_DEFAULT'):
+            plan_first_mode = settings.PLAN_FIRST_DEFAULT
 
         # Check for missing caching
         code_index = self.system_knowledge['code_index']
@@ -937,12 +943,18 @@ class ArchitectAgent(ChatAgent):
         has_cache = await self._check_for_technology("cache")
 
         if not has_redis and not has_cache:
-            improvements.append({
-                'title': 'Add Redis Caching',
+            suggestion = {
+                'title': 'Redis Cache hinzufügen',
                 'priority': 'QUICK WIN',
-                'problem': 'No caching layer detected - all API responses computed fresh',
-                'solution': 'Implement Redis for session and response caching',
-                'code': '''# backend/utils/cache_service.py
+                'problem': 'Kein Cache-Layer gefunden - alle API Antworten werden jedes Mal neu berechnet',
+                'solution': 'Redis für Session- und Response-Caching implementieren',
+                'impact': '70% Reduktion der API Response Zeit, 60% weniger AI API Calls',
+                'requires_approval': True
+            }
+
+            # Only add code example if NOT in Plan First mode
+            if not plan_first_mode:
+                suggestion['code'] = '''# backend/utils/cache_service.py
 import redis
 import json
 from functools import wraps
