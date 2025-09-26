@@ -4,6 +4,7 @@ Searches the web for real-time information and best practices
 """
 
 import logging
+import os
 from typing import Dict, Any, Optional
 from datetime import datetime
 
@@ -11,6 +12,7 @@ from ..base.chat_agent import ChatAgent
 from ..base.base_agent import (
     AgentConfig, TaskRequest, TaskResult, AgentCapability
 )
+from ...utils.perplexity_service import PerplexityService
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,7 @@ class ResearchAgent(ChatAgent):
             name="ResearchBot",
             full_name="Web Research Specialist",
             description="Specialized in web research and gathering real-time information",
-            model="perplexity-llama-3.1-sonar-huge-128k",
+            model="sonar",  # Using latest/best Perplexity model
             capabilities=[
                 AgentCapability.WEB_SEARCH,
                 AgentCapability.RESEARCH
@@ -41,9 +43,16 @@ class ResearchAgent(ChatAgent):
             instructions_path=".kiautoagent/instructions/research-instructions.md"
         )
         super().__init__(config)
-        
+
+        # Initialize Perplexity service
         # ASIMOV RULE 1: NO FALLBACK - Perplexity API required
         # System must fail if Perplexity API not available
+        try:
+            self.perplexity_service = PerplexityService(model=config.model)
+            logger.info(f"✅ ResearchAgent initialized with Perplexity API")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize Perplexity API: {e}")
+            raise  # Fail fast - no fallback allowed
 
     async def research_for_agent(self, requesting_agent: str, query: str, context: Dict = None) -> Dict[str, Any]:
         """
@@ -203,12 +212,41 @@ Sources consulted: Technical documentation, Stack Overflow, GitHub repositories"
 
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
-        Execute research task
+        Execute research task using Perplexity API
         """
         try:
-            # ASIMOV RULE 1: NO FALLBACK - Must use real Perplexity API
-            # Removed fallback _perform_research method
-            raise NotImplementedError("Perplexity API integration required - no fallback mode available")
+            prompt = request.prompt
+            context = request.context or {}
+
+            # Log the research request
+            logger.info(f"🔍 ResearchAgent executing: {prompt[:100]}...")
+
+            # Determine research type based on prompt
+            if "best practices" in prompt.lower():
+                result = await self.perplexity_service.get_latest_best_practices(prompt)
+                response = result["best_practices"]
+                citations = result.get("citations", [])
+            elif "technology" in prompt.lower() or "library" in prompt.lower():
+                # Extract technology name (simple heuristic)
+                tech_terms = [word for word in prompt.split() if len(word) > 3 and word[0].isupper()]
+                technology = tech_terms[0] if tech_terms else prompt.split()[-1]
+                result = await self.perplexity_service.research_technology(technology)
+                response = result["research"]
+                citations = result.get("citations", [])
+            else:
+                # General web search
+                result = await self.perplexity_service.search_web(prompt)
+                response = result["answer"]
+                citations = result.get("citations", [])
+
+            # Format response with citations if available
+            if citations:
+                response += "\n\n📚 Sources:"
+                for i, citation in enumerate(citations, 1):
+                    if isinstance(citation, dict):
+                        response += f"\n[{i}] {citation.get('title', 'Source')} - {citation.get('url', '')}"
+                    else:
+                        response += f"\n[{i}] {citation}"
 
             return TaskResult(
                 status="success",
@@ -217,6 +255,7 @@ Sources consulted: Technical documentation, Stack Overflow, GitHub repositories"
                 metadata={
                     "model": self.config.model,
                     "research_type": "web_search",
+                    "citations_count": len(citations) if citations else 0,
                     "timestamp": datetime.now().isoformat()
                 }
             )
