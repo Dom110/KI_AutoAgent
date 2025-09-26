@@ -977,9 +977,9 @@ def cache_response(ttl=300):
             redis_client.setex(cache_key, ttl, json.dumps(result))
             return result
         return wrapper
-    return decorator''',
-                'impact': '70% reduction in API response time, 60% less AI API calls'
-            })
+    return decorator'''
+
+            improvements.append(suggestion)
 
         # Check for connection pooling
         has_pool = await self._check_for_technology("pool")
