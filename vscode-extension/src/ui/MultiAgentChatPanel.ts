@@ -13,6 +13,7 @@ export class MultiAgentChatPanel {
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
     private _disposables: vscode.Disposable[] = [];
+    private _isDisposed = false;
     private backendClient: BackendClient;
 
     // UI State
@@ -398,7 +399,23 @@ export class MultiAgentChatPanel {
     }
 
     private sendMessage(message: any) {
-        this._panel.webview.postMessage(message);
+        // Check if webview is still active before sending messages
+        // This prevents "Webview is disposed" errors when chat is closed during processing
+        if (this._isDisposed) {
+            MultiAgentChatPanel.debugChannel.appendLine(`⚠️ Webview disposed, skipping message (normal if chat was closed)`);
+            return;
+        }
+
+        try {
+            if (this._panel && this._panel.webview) {
+                this._panel.webview.postMessage(message);
+            }
+        } catch (error) {
+            // Webview is disposed - this is expected if user closed the chat
+            // Backend will continue processing and cache results
+            MultiAgentChatPanel.debugChannel.appendLine(`⚠️ Webview disposed, cannot send message (normal if chat was closed)`);
+            this._isDisposed = true;
+        }
     }
 
     private handleDebugMessage(message: any) {
@@ -1682,6 +1699,19 @@ export class MultiAgentChatPanel {
 
     public dispose() {
         MultiAgentChatPanel.currentPanel = undefined;
+        this._isDisposed = true;
+
+        // Clean up BackendClient event listeners to prevent "Webview is disposed" errors
+        if (this.backendClient) {
+            this.backendClient.removeAllListeners('response');
+            this.backendClient.removeAllListeners('thinking');
+            this.backendClient.removeAllListeners('progress');
+            this.backendClient.removeAllListeners('complete');
+            this.backendClient.removeAllListeners('error');
+            this.backendClient.removeAllListeners('welcome');
+            this.backendClient.removeAllListeners('stream_chunk');
+            MultiAgentChatPanel.debugChannel.appendLine('✅ Cleaned up BackendClient event listeners');
+        }
 
         this._panel.dispose();
 
