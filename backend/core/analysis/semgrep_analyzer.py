@@ -165,13 +165,30 @@ class SemgrepAnalyzer:
             ]
         }
 
-        # Count total files first
-        path = Path(target_path)
-        py_files = list(path.rglob('*.py'))
-        total_files = len(py_files)
+        # Directories to always exclude
+        exclude_dirs = {
+            'node_modules', '__pycache__', 'venv', '.venv', 'env', '.env',
+            'dist', 'build', '.git', '.pytest_cache', '.tox', 'htmlcov',
+            'site-packages', '.mypy_cache', '.ruff_cache', 'migrations'
+        }
 
-        # No limits - analyze ALL files with better progress tracking
-        logger.info(f"Analyzing {total_files} Python files for security patterns")
+        # Count total files first (excluding common directories)
+        path = Path(target_path)
+        py_files = []
+        excluded_count = 0
+        for py_file in path.rglob('*.py'):
+            should_exclude = False
+            for part in py_file.parts:
+                if part in exclude_dirs or part.startswith('.'):
+                    should_exclude = True
+                    excluded_count += 1
+                    break
+            if not should_exclude:
+                py_files.append(py_file)
+
+        total_files = len(py_files)
+        # No limits - analyze ALL PROJECT files
+        logger.info(f"Analyzing {total_files} Python files for security patterns (excluded {excluded_count} files)")
 
         if progress_callback:
             await progress_callback(f"🔒 Analyzing {total_files} Python files for security patterns...")

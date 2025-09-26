@@ -596,19 +596,34 @@ class RadonMetrics:
         python_files = []
         excluded_count = 0
 
+        # Directories to always exclude
+        exclude_dirs = {
+            'node_modules', '__pycache__', 'venv', '.venv', 'env', '.env',
+            'dist', 'build', '.git', '.pytest_cache', '.tox', 'htmlcov',
+            'site-packages', '.mypy_cache', '.ruff_cache', 'migrations'
+        }
+
         # Finde alle Python-Dateien
         for py_file in base_path.rglob('*.py'):
             # Prüfe ob Datei excluded werden soll
             should_exclude = False
-            relative_path = str(py_file.relative_to(base_path))
 
-            for pattern in exclude_patterns:
-                if fnmatch.fnmatch(str(py_file), pattern) or \
-                   fnmatch.fnmatch(relative_path, pattern) or \
-                   any(part.startswith('.') for part in py_file.parts):  # Hidden folders
+            # Check if any parent directory should be excluded
+            for part in py_file.parts:
+                if part in exclude_dirs or part.startswith('.'):
                     should_exclude = True
                     excluded_count += 1
                     break
+
+            # Additional check for patterns if not already excluded
+            if not should_exclude:
+                relative_path = str(py_file.relative_to(base_path))
+                for pattern in exclude_patterns:
+                    # Simple pattern matching for common cases
+                    if pattern in relative_path or fnmatch.fnmatch(relative_path, pattern.replace('**/', '*').replace('/**', '*')):
+                        should_exclude = True
+                        excluded_count += 1
+                        break
 
             if not should_exclude:
                 python_files.append(py_file)
