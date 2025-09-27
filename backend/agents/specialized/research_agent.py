@@ -12,7 +12,12 @@ from ..base.chat_agent import ChatAgent
 from ..base.base_agent import (
     AgentConfig, TaskRequest, TaskResult, AgentCapability
 )
-from ...utils.perplexity_service import PerplexityService
+
+# Fix import path - backend is the root package
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from utils.perplexity_service import PerplexityService
 
 logger = logging.getLogger(__name__)
 
