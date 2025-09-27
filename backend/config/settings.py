@@ -41,6 +41,8 @@ This applies to ALL answers, explanations, error messages, and outputs.
     MAX_FILES_FOR_METRICS = None  # Kein Limit (None) oder Zahl
     RESPECT_GITIGNORE = True  # .gitignore beachten
     PROGRESS_UPDATE_INTERVAL = 50  # Update alle X Dateien
+    VERBOSE_PROGRESS_MESSAGES = False  # Detaillierte Progress-Messages (z.B. "Found X dependencies")
+    SHOW_SCAN_DETAILS = False  # Zeige Details wie DB scan, API scan, etc.
 
     # Plan First Mode
     PLAN_FIRST_DEFAULT = True  # Vorschläge statt Auto-Implementation

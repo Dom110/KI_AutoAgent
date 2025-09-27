@@ -17,6 +17,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 
 from .tree_sitter_indexer import TreeSitterIndexer
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -305,7 +306,7 @@ class CodeIndexer:
         # Index all definitions
         for file_path, file_info in ast_index['files'].items():
             processed += 1
-            if progress_callback and (processed % 10 == 0 or total_files < 50):
+            if progress_callback and settings.VERBOSE_PROGRESS_MESSAGES and (processed % 10 == 0 or total_files < 50):
                 await progress_callback(f"🔗 Phase 2/6: Building cross-references ({processed}/{total_files} files)...")
             for func in file_info.get('functions', []):
                 symbol = f"{file_path}:{func['name']}"
@@ -466,7 +467,7 @@ class CodeIndexer:
             processed += 1
 
             # Update progress every 10 files or for small projects every file
-            if progress_callback and (processed % 10 == 0 or total_files < 50):
+            if progress_callback and settings.VERBOSE_PROGRESS_MESSAGES and (processed % 10 == 0 or total_files < 50):
                 await progress_callback(f"📊 Phase 4/6: Building call graph ({processed}/{total_files} files)...")
 
             for func in file_info.get('functions', []):
@@ -493,7 +494,7 @@ class CodeIndexer:
 
         for file_path, file_info in ast_index['files'].items():
             processed += 1
-            if progress_callback and (processed % 10 == 0 or total_files < 50):
+            if progress_callback and settings.VERBOSE_PROGRESS_MESSAGES and (processed % 10 == 0 or total_files < 50):
                 await progress_callback(f"📦 Phase 5/6: Building import graph ({processed}/{total_files} files)...")
             imports = []
 
@@ -526,7 +527,7 @@ class CodeIndexer:
 
         for file_path, file_info in ast_index['files'].items():
             processed += 1
-            if progress_callback and (processed % 10 == 0 or total_files < 50):
+            if progress_callback and settings.VERBOSE_PROGRESS_MESSAGES and (processed % 10 == 0 or total_files < 50):
                 await progress_callback(f"🔍 Phase 6/6: Detecting patterns ({processed}/{total_files} files)...")
             content = file_info.get('content', '')
 

@@ -1,96 +1,102 @@
-2025-09-27 14:33:41,250 - __main__ - INFO - 🚀 Starting server on port 8000
-INFO:     Started server process [72415]
+2025-09-27 14:48:00,961 - __main__ - INFO - 🚀 Starting server on port 8000
+INFO:     Started server process [75864]
 INFO:     Waiting for application startup.
-2025-09-27 14:33:41,266 - __main__ - INFO - 🚀 KI AutoAgent Backend starting...
-2025-09-27 14:33:41,266 - __main__ - INFO - 🔍 Checking system dependencies...
-2025-09-27 14:33:41,279 - core.startup_check - INFO - ✅ Redis server is running and accessible
-2025-09-27 14:33:41,285 - core.startup_check - WARNING - ⚠️ Optional package semgrep (Security analysis) not installed. Install with: pip install semgrep
-2025-09-27 14:33:41,285 - core.startup_check - WARNING - ⚠️ Optional package radon (Code metrics) not installed. Install with: pip install radon
-2025-09-27 14:33:41,285 - core.startup_check - WARNING - ⚠️ Optional package vulture (Dead code detection) not installed. Install with: pip install vulture
-2025-09-27 14:33:41,285 - core.startup_check - INFO - ✅ Cache directory /Users/dominikfoert/.ki_autoagent is writable
-2025-09-27 14:33:41,290 - core.startup_check - INFO - ✅ Claude CLI verfügbar als Alternative zu ANTHROPIC_API_KEY
-2025-09-27 14:33:41,290 - core.startup_check - INFO - ✅ OPENAI_API_KEY verfügbar für OpenAI GPT Modelle
-2025-09-27 14:33:41,290 - core.startup_check - INFO - ✅ PERPLEXITY_API_KEY verfügbar für Research Agent
-2025-09-27 14:33:41,290 - core.startup_check - INFO - ✅ All system dependencies verified successfully
-2025-09-27 14:33:41,290 - core.memory_manager - INFO - MemoryManager initialized with capacity: 10000
-2025-09-27 14:33:41,290 - core.shared_context_manager - INFO - SharedContextManager initialized
-2025-09-27 14:33:41,290 - core.conversation_context_manager - INFO - ConversationContextManager initialized with max history: 50
-2025-09-27 14:33:41,290 - core.workflow_engine - INFO - WorkflowEngine initialized
-2025-09-27 14:33:41,290 - core.agent_communication_bus - INFO - AgentCommunicationBus initialized
-2025-09-27 14:33:41,290 - core.validation_workflow - INFO - ValidationWorkflow initialized (auto_fix=True)
-2025-09-27 14:33:41,290 - core.agent_communication_bus - INFO - Communication bus started
-2025-09-27 14:33:41,290 - __main__ - INFO - 🧠 Core systems initialized: Memory, SharedContext, ConversationContext, Workflow, CommunicationBus, Validation
-2025-09-27 14:33:41,291 - services.conversation_persistence - INFO - ✅ Conversation database initialized at /Users/dominikfoert/.ki_autoagent/conversations.db
-2025-09-27 14:33:41,291 - __main__ - INFO - ✅ Conversation persistence initialized
-2025-09-27 14:33:41,291 - agents.agent_registry - INFO - 🎯 Agent Registry initialized
-2025-09-27 14:33:41,291 - __main__ - INFO - 📦 Registering agents...
-2025-09-27 14:33:41,291 - agents.base.base_agent - INFO - ✅ Loaded instructions for OrchestratorAgent from .kiautoagent/instructions/orchestrator-v2-instructions.md
-2025-09-27 14:33:41,291 - agents.base.base_agent - INFO - 🤖 🎯 OrchestratorAgent initialized (Model: gpt-4o-2024-11-20)
-2025-09-27 14:33:41,306 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
-2025-09-27 14:33:41,306 - agents.agent_registry - INFO - ✅ Registered agent: orchestrator (Advanced KI AutoAgent Orchestrator) with model gpt-4o-2024-11-20
-2025-09-27 14:33:41,306 - agents.base.base_agent - INFO - ✅ Loaded instructions for ArchitectAgent from .kiautoagent/instructions/architect-v2-instructions.md
-2025-09-27 14:33:41,306 - agents.base.base_agent - INFO - 🤖 🏗️ ArchitectAgent initialized (Model: gpt-4o-2024-11-20)
-2025-09-27 14:33:41,311 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
-2025-09-27 14:33:41,312 - services.project_cache - INFO - ✅ Redis cache connected
-2025-09-27 14:33:41,313 - services.code_search - INFO - ✅ Code search database initialized at /Users/dominikfoert/git/KI_AutoAgent/.ki_autoagent/search.db
-2025-09-27 14:33:41,314 - services.smart_file_watcher - INFO - 👁️ Smart file watcher started for /Users/dominikfoert/git/KI_AutoAgent
-2025-09-27 14:33:41,314 - services.smart_file_watcher - INFO - ⏱️ Debounce period: 30 seconds
-2025-09-27 14:33:41,314 - services.smart_file_watcher - INFO - 🤖 Bot change detection: ENABLED
-2025-09-27 14:33:41,314 - agents.specialized.architect_agent - INFO - ✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce
-2025-09-27 14:33:41,314 - agents.specialized.architect_agent - INFO - ✅ Code indexing tools initialized
-2025-09-27 14:33:41,314 - agents.agent_registry - INFO - ✅ Registered agent: architect (System Architecture Specialist) with model gpt-4o-2024-11-20
-2025-09-27 14:33:41,314 - agents.base.base_agent - INFO - ✅ Loaded instructions for CodeSmithAgent from .kiautoagent/instructions/codesmith-v2-instructions.md
-2025-09-27 14:33:41,314 - agents.base.base_agent - INFO - 🤖 💻 CodeSmithAgent initialized (Model: claude-4.1-sonnet-20250920)
-2025-09-27 14:33:41,886 - utils.claude_code_service - INFO - ✅ Claude Code CLI found: 1.0.127 (Claude Code)
-2025-09-27 14:33:41,887 - agents.agent_registry - INFO - ✅ Registered agent: codesmith (Code Implementation Specialist) with model claude-4.1-sonnet-20250920
-2025-09-27 14:33:41,887 - agents.base.base_agent - INFO - ✅ Loaded instructions for DocuBot from .kiautoagent/instructions/docubot-instructions.md
-2025-09-27 14:33:41,887 - agents.base.base_agent - INFO - 🤖 📝 DocuBot initialized (Model: gpt-4o-2024-11-20)
-2025-09-27 14:33:41,892 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
-2025-09-27 14:33:41,892 - agents.agent_registry - INFO - ✅ Registered agent: docubot (Technical Documentation Expert) with model gpt-4o-2024-11-20
-2025-09-27 14:33:41,892 - agents.base.base_agent - INFO - ✅ Loaded instructions for ReviewerGPT from .kiautoagent/instructions/reviewergpt-instructions.md
-2025-09-27 14:33:41,892 - agents.base.base_agent - INFO - 🤖 🔍 ReviewerGPT initialized (Model: gpt-4o-mini-2024-07-18)
-2025-09-27 14:33:41,897 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-mini-2024-07-18
-2025-09-27 14:33:41,897 - agents.agent_registry - INFO - ✅ Registered agent: reviewer (Code Review & Security Expert) with model gpt-4o-mini-2024-07-18
-2025-09-27 14:33:41,898 - agents.base.base_agent - INFO - ✅ Loaded instructions for FixerBot from .kiautoagent/instructions/fixerbot-instructions.md
-2025-09-27 14:33:41,898 - agents.base.base_agent - INFO - 🤖 🔧 FixerBot initialized (Model: claude-4.1-sonnet-20250920)
-2025-09-27 14:33:42,457 - utils.claude_code_service - INFO - ✅ Claude Code CLI found: 1.0.127 (Claude Code)
-2025-09-27 14:33:42,457 - agents.agent_registry - INFO - ✅ Registered agent: fixer (Bug Fixing & Optimization Expert) with model claude-4.1-sonnet-20250920
-2025-09-27 14:33:42,458 - agents.base.base_agent - INFO - ✅ Loaded instructions for ResearchBot from .kiautoagent/instructions/research-instructions.md
-2025-09-27 14:33:42,458 - agents.base.base_agent - INFO - 🤖 🔍 ResearchBot initialized (Model: sonar)
-2025-09-27 14:33:42,458 - utils.perplexity_service - INFO - ✅ PerplexityService initialized with model: sonar
-2025-09-27 14:33:42,458 - agents.specialized.research_agent - INFO - ✅ ResearchAgent initialized with Perplexity API
-2025-09-27 14:33:42,458 - agents.agent_registry - INFO - ✅ Registered agent: research (Web Research Specialist) with model sonar
-2025-09-27 14:33:42,458 - agents.base.base_agent - INFO - ✅ Loaded instructions for TradeStrat from .kiautoagent/instructions/tradestrat-instructions.md
-2025-09-27 14:33:42,458 - agents.base.base_agent - INFO - 🤖 📈 TradeStrat initialized (Model: claude-4.1-sonnet-20250920)
-2025-09-27 14:33:43,018 - utils.claude_code_service - INFO - ✅ Claude Code CLI found: 1.0.127 (Claude Code)
-2025-09-27 14:33:43,018 - agents.agent_registry - INFO - ✅ Registered agent: tradestrat (Trading Strategy Expert) with model claude-4.1-sonnet-20250920
-2025-09-27 14:33:43,019 - agents.base.base_agent - INFO - ✅ Loaded instructions for OpusArbitrator from .kiautoagent/instructions/opus-arbitrator-instructions.md
-2025-09-27 14:33:43,019 - agents.base.base_agent - INFO - 🤖 ⚖️ OpusArbitrator initialized (Model: claude-opus-4-1-20250805)
-2025-09-27 14:33:43,582 - utils.claude_code_service - INFO - ✅ Claude Code CLI found: 1.0.127 (Claude Code)
-2025-09-27 14:33:43,582 - agents.agent_registry - INFO - ✅ Registered agent: opus-arbitrator (Supreme Agent Arbitrator) with model claude-opus-4-1-20250805
-2025-09-27 14:33:43,583 - agents.base.base_agent - INFO - ✅ Loaded instructions for PerformanceBot from .kiautoagent/instructions/performance-instructions.md
-2025-09-27 14:33:43,583 - agents.base.base_agent - INFO - 🤖 ⚡ PerformanceBot initialized (Model: gpt-4o-2024-11-20)
-2025-09-27 14:33:43,588 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
-2025-09-27 14:33:43,588 - agents.agent_registry - INFO - ✅ Registered agent: performance_bot (Performance Analysis Specialist) with model gpt-4o-2024-11-20
-2025-09-27 14:33:43,588 - __main__ - INFO - ✅ Registered 10 agents
-2025-09-27 14:33:43,588 - __main__ - INFO - 🔍 Starting optional model discovery (non-blocking)...
+2025-09-27 14:48:01,005 - __main__ - INFO - 🚀 KI AutoAgent Backend starting...
+2025-09-27 14:48:01,005 - __main__ - INFO - 🔍 Checking system dependencies...
+2025-09-27 14:48:01,011 - core.startup_check - INFO - ✅ Redis server is running and accessible
+2025-09-27 14:48:01,023 - core.startup_check - WARNING - ⚠️ Optional package semgrep (Security analysis) not installed. Install with: pip install semgrep
+2025-09-27 14:48:01,023 - core.startup_check - WARNING - ⚠️ Optional package radon (Code metrics) not installed. Install with: pip install radon
+2025-09-27 14:48:01,023 - core.startup_check - WARNING - ⚠️ Optional package vulture (Dead code detection) not installed. Install with: pip install vulture
+2025-09-27 14:48:01,023 - core.startup_check - INFO - ✅ Cache directory /Users/dominikfoert/.ki_autoagent is writable
+2025-09-27 14:48:01,029 - core.startup_check - INFO - ✅ Claude CLI verfügbar als Alternative zu ANTHROPIC_API_KEY
+2025-09-27 14:48:01,029 - core.startup_check - INFO - ✅ OPENAI_API_KEY verfügbar für OpenAI GPT Modelle
+2025-09-27 14:48:01,029 - core.startup_check - INFO - ✅ PERPLEXITY_API_KEY verfügbar für Research Agent
+2025-09-27 14:48:01,029 - core.startup_check - INFO - ✅ All system dependencies verified successfully
+2025-09-27 14:48:01,029 - core.memory_manager - INFO - MemoryManager initialized with capacity: 10000
+2025-09-27 14:48:01,029 - core.shared_context_manager - INFO - SharedContextManager initialized
+2025-09-27 14:48:01,029 - core.conversation_context_manager - INFO - ConversationContextManager initialized with max history: 50
+2025-09-27 14:48:01,029 - core.workflow_engine - INFO - WorkflowEngine initialized
+2025-09-27 14:48:01,029 - core.agent_communication_bus - INFO - AgentCommunicationBus initialized
+2025-09-27 14:48:01,029 - core.validation_workflow - INFO - ValidationWorkflow initialized (auto_fix=True)
+2025-09-27 14:48:01,029 - core.agent_communication_bus - INFO - Communication bus started
+2025-09-27 14:48:01,029 - __main__ - INFO - 🧠 Core systems initialized: Memory, SharedContext, ConversationContext, Workflow, CommunicationBus, Validation
+2025-09-27 14:48:01,030 - services.conversation_persistence - INFO - ✅ Conversation database initialized at /Users/dominikfoert/.ki_autoagent/conversations.db
+2025-09-27 14:48:01,030 - __main__ - INFO - ✅ Conversation persistence initialized
+2025-09-27 14:48:01,030 - agents.agent_registry - INFO - 🎯 Agent Registry initialized
+2025-09-27 14:48:01,030 - __main__ - INFO - 📦 Registering agents...
+2025-09-27 14:48:01,030 - agents.base.base_agent - INFO - ✅ Loaded instructions for OrchestratorAgent from .kiautoagent/instructions/orchestrator-v2-instructions.md
+2025-09-27 14:48:01,031 - agents.base.base_agent - INFO - 🤖 🎯 OrchestratorAgent initialized (Model: gpt-4o-2024-11-20)
+2025-09-27 14:48:01,054 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+2025-09-27 14:48:01,054 - agents.agent_registry - INFO - ✅ Registered agent: orchestrator (Advanced KI AutoAgent Orchestrator) with model gpt-4o-2024-11-20
+2025-09-27 14:48:01,055 - agents.base.base_agent - INFO - ✅ Loaded instructions for ArchitectAgent from .kiautoagent/instructions/architect-v2-instructions.md
+2025-09-27 14:48:01,055 - agents.base.base_agent - INFO - 🤖 🏗️ ArchitectAgent initialized (Model: gpt-4o-2024-11-20)
+2025-09-27 14:48:01,059 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+2025-09-27 14:48:01,061 - services.project_cache - INFO - ✅ Redis cache connected
+2025-09-27 14:48:01,061 - services.code_search - INFO - ✅ Code search database initialized at /Users/dominikfoert/git/KI_AutoAgent/.ki_autoagent/search.db
+2025-09-27 14:48:01,062 - services.smart_file_watcher - INFO - 👁️ Smart file watcher started for /Users/dominikfoert/git/KI_AutoAgent
+2025-09-27 14:48:01,062 - services.smart_file_watcher - INFO - ⏱️ Debounce period: 30 seconds
+2025-09-27 14:48:01,062 - services.smart_file_watcher - INFO - 🤖 Bot change detection: ENABLED
+2025-09-27 14:48:01,062 - agents.specialized.architect_agent - INFO - ✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce
+2025-09-27 14:48:01,063 - agents.specialized.architect_agent - INFO - ✅ Code indexing tools initialized
+2025-09-27 14:48:01,063 - agents.agent_registry - INFO - ✅ Registered agent: architect (System Architecture Specialist) with model gpt-4o-2024-11-20
+2025-09-27 14:48:01,063 - agents.base.base_agent - INFO - ✅ Loaded instructions for CodeSmithAgent from .kiautoagent/instructions/codesmith-v2-instructions.md
+2025-09-27 14:48:01,063 - agents.base.base_agent - INFO - 🤖 💻 CodeSmithAgent initialized (Model: claude-4.1-sonnet-20250920)
+2025-09-27 14:48:01,608 - utils.claude_code_service - INFO - ✅ Claude Code CLI found: 1.0.127 (Claude Code)
+2025-09-27 14:48:01,609 - agents.agent_registry - INFO - ✅ Registered agent: codesmith (Code Implementation Specialist) with model claude-4.1-sonnet-20250920
+2025-09-27 14:48:01,609 - agents.base.base_agent - INFO - ✅ Loaded instructions for DocuBot from .kiautoagent/instructions/docubot-instructions.md
+2025-09-27 14:48:01,609 - agents.base.base_agent - INFO - 🤖 📝 DocuBot initialized (Model: gpt-4o-2024-11-20)
+2025-09-27 14:48:01,615 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+2025-09-27 14:48:01,615 - agents.agent_registry - INFO - ✅ Registered agent: docubot (Technical Documentation Expert) with model gpt-4o-2024-11-20
+2025-09-27 14:48:01,616 - agents.base.base_agent - INFO - ✅ Loaded instructions for ReviewerGPT from .kiautoagent/instructions/reviewergpt-instructions.md
+2025-09-27 14:48:01,616 - agents.base.base_agent - INFO - 🤖 🔍 ReviewerGPT initialized (Model: gpt-4o-mini-2024-07-18)
+2025-09-27 14:48:01,621 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-mini-2024-07-18
+2025-09-27 14:48:01,621 - agents.agent_registry - INFO - ✅ Registered agent: reviewer (Code Review & Security Expert) with model gpt-4o-mini-2024-07-18
+2025-09-27 14:48:01,621 - agents.base.base_agent - INFO - ✅ Loaded instructions for FixerBot from .kiautoagent/instructions/fixerbot-instructions.md
+2025-09-27 14:48:01,621 - agents.base.base_agent - INFO - 🤖 🔧 FixerBot initialized (Model: claude-4.1-sonnet-20250920)
+2025-09-27 14:48:02,168 - utils.claude_code_service - INFO - ✅ Claude Code CLI found: 1.0.127 (Claude Code)
+2025-09-27 14:48:02,168 - agents.agent_registry - INFO - ✅ Registered agent: fixer (Bug Fixing & Optimization Expert) with model claude-4.1-sonnet-20250920
+2025-09-27 14:48:02,169 - agents.base.base_agent - INFO - ✅ Loaded instructions for ResearchBot from .kiautoagent/instructions/research-instructions.md
+2025-09-27 14:48:02,169 - agents.base.base_agent - INFO - 🤖 🔍 ResearchBot initialized (Model: sonar)
+2025-09-27 14:48:02,169 - utils.perplexity_service - INFO - ✅ PerplexityService initialized with model: sonar
+2025-09-27 14:48:02,169 - agents.specialized.research_agent - INFO - ✅ ResearchAgent initialized with Perplexity API
+2025-09-27 14:48:02,169 - agents.agent_registry - INFO - ✅ Registered agent: research (Web Research Specialist) with model sonar
+2025-09-27 14:48:02,170 - agents.base.base_agent - INFO - ✅ Loaded instructions for TradeStrat from .kiautoagent/instructions/tradestrat-instructions.md
+2025-09-27 14:48:02,170 - agents.base.base_agent - INFO - 🤖 📈 TradeStrat initialized (Model: claude-4.1-sonnet-20250920)
+2025-09-27 14:48:02,715 - utils.claude_code_service - INFO - ✅ Claude Code CLI found: 1.0.127 (Claude Code)
+2025-09-27 14:48:02,715 - agents.agent_registry - INFO - ✅ Registered agent: tradestrat (Trading Strategy Expert) with model claude-4.1-sonnet-20250920
+2025-09-27 14:48:02,716 - agents.base.base_agent - INFO - ✅ Loaded instructions for OpusArbitrator from .kiautoagent/instructions/opus-arbitrator-instructions.md
+2025-09-27 14:48:02,716 - agents.base.base_agent - INFO - 🤖 ⚖️ OpusArbitrator initialized (Model: claude-opus-4-1-20250805)
+2025-09-27 14:48:03,275 - utils.claude_code_service - INFO - ✅ Claude Code CLI found: 1.0.127 (Claude Code)
+2025-09-27 14:48:03,275 - agents.agent_registry - INFO - ✅ Registered agent: opus-arbitrator (Supreme Agent Arbitrator) with model claude-opus-4-1-20250805
+2025-09-27 14:48:03,276 - agents.base.base_agent - INFO - ✅ Loaded instructions for PerformanceBot from .kiautoagent/instructions/performance-instructions.md
+2025-09-27 14:48:03,276 - agents.base.base_agent - INFO - 🤖 ⚡ PerformanceBot initialized (Model: gpt-4o-2024-11-20)
+2025-09-27 14:48:03,281 - utils.openai_service - INFO - ✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+2025-09-27 14:48:03,281 - agents.agent_registry - INFO - ✅ Registered agent: performance_bot (Performance Analysis Specialist) with model gpt-4o-2024-11-20
+2025-09-27 14:48:03,281 - __main__ - INFO - ✅ Registered 10 agents
+2025-09-27 14:48:03,282 - __main__ - INFO - 🔍 Starting optional model discovery (non-blocking)...
 INFO:     Application startup complete.
-ERROR:    [Errno 48] error while attempting to bind on address ('0.0.0.0', 8000): [errno 48] address already in use
-INFO:     Waiting for application shutdown.
-2025-09-27 14:33:43,589 - __main__ - INFO - 👋 KI AutoAgent Backend shutting down...
-2025-09-27 14:33:43,589 - core.agent_communication_bus - INFO - Communication bus stopped
-2025-09-27 14:33:43,589 - agents.agent_registry - INFO - 🛑 Shutting down all agents...
-2025-09-27 14:33:43,589 - agents.agent_registry - INFO - ✅ Agent orchestrator shutdown complete
-2025-09-27 14:33:43,589 - agents.agent_registry - INFO - ✅ Agent architect shutdown complete
-2025-09-27 14:33:43,589 - agents.agent_registry - INFO - ✅ Agent codesmith shutdown complete
-2025-09-27 14:33:43,589 - agents.agent_registry - INFO - ✅ Agent docubot shutdown complete
-2025-09-27 14:33:43,589 - agents.agent_registry - INFO - ✅ Agent reviewer shutdown complete
-2025-09-27 14:33:43,589 - agents.agent_registry - INFO - ✅ Agent fixer shutdown complete
-2025-09-27 14:33:43,589 - agents.agent_registry - INFO - ✅ Agent research shutdown complete
-2025-09-27 14:33:43,589 - agents.agent_registry - INFO - ✅ Agent tradestrat shutdown complete
-2025-09-27 14:33:43,589 - agents.agent_registry - INFO - ✅ Agent opus-arbitrator shutdown complete
-2025-09-27 14:33:43,589 - agents.agent_registry - INFO - ✅ Agent performance_bot shutdown complete
-2025-09-27 14:33:43,590 - services.smart_file_watcher - INFO - 👁️ Smart file watcher stopped
-2025-09-27 14:33:43,590 - agents.specialized.architect_agent - INFO - ✅ File watcher stopped
-2025-09-27 14:33:43,590 - agents.agent_registry - INFO - ✅ All agents shutdown complete
-INFO:     Application shutdown complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2025-09-27 14:48:05,285 - services.model_discovery_service - INFO - 📦 Using cached model discovery results
+2025-09-27 14:48:05,285 - services.model_discovery_service - INFO - ================================================================================
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO - 🤖 MODEL DISCOVERY RESULTS
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO - ================================================================================
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO - 
+OPENAI (20 models):
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO -   1. gpt-realtime-2025-08-28
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO -   2. gpt-realtime
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO -   3. gpt-image-1
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO -   4. gpt-audio-2025-08-28
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO -   5. gpt-audio
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO - 
+ANTHROPIC (4 models):
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO -   1. claude-3.5-sonnet-20241022
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO -   2. claude-3-opus-20240229
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO -   3. claude-3-sonnet-20240229
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO -   4. claude-3-haiku-20240307
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO - 
+PERPLEXITY (3 models):
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO -   1. llama-3.1-sonar-huge-128k-online
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO -   2. llama-3.1-sonar-large-128k-online
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO -   3. llama-3.1-sonar-small-128k-online
+2025-09-27 14:48:05,286 - services.model_discovery_service - INFO - ================================================================================
+2025-09-27 14:48:05,286 - __main__ - INFO - ✅ Background model discovery complete: 27 models found

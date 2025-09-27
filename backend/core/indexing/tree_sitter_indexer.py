@@ -14,6 +14,7 @@ import asyncio
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import logging
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -348,7 +349,7 @@ class TreeSitterIndexer:
                 if imports:
                     self.index['dependency_graph'][file_path] = imports
                     deps_found += len(imports)
-                    if progress_callback and len(imports) > 5:
+                    if progress_callback and len(imports) > 5 and settings.VERBOSE_PROGRESS_MESSAGES:
                         await progress_callback(f"📊 Found {len(imports)} dependencies in {file_name}")
 
             # Yield to event loop more frequently
@@ -378,7 +379,7 @@ class TreeSitterIndexer:
             # Send progress for every Python file or periodically
             if file_info.get('language') == 'python':
                 python_files += 1
-                if progress_callback:
+                if progress_callback and settings.SHOW_SCAN_DETAILS:
                     await progress_callback(f"🔌 API scan {python_files}/{count}: {file_name} ({endpoints_found} endpoints)")
 
                 content = file_info['content']
@@ -446,7 +447,7 @@ class TreeSitterIndexer:
 
             # Send progress for every file when total is small, otherwise every 5 files
             if progress_callback:
-                if total_files < 50 or count % 5 == 0 or count == 1 or count == total_files:
+                if (total_files < 50 or count % 5 == 0 or count == 1 or count == total_files) and settings.SHOW_SCAN_DETAILS:
                     await progress_callback(f"💾 DB scan {count}/{total_files}: {file_name} ({db_ops_found} operations found)")
 
             # Yield to event loop frequently
