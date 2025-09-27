@@ -64,6 +64,10 @@ class OrchestratorAgentV2(ChatAgent):
         )
         super().__init__(config)
 
+        # Progress deduplication tracking
+        self._last_progress_messages = {}  # Track last message per client
+        self._progress_debounce_timers = {}  # Debounce timers per client
+
         # Initialize OpenAI service with specific model
         self.ai_service = OpenAIService(model=self.config.model)
 
@@ -717,11 +721,20 @@ Please synthesize these results into a comprehensive response."""
         return response
 
     async def _send_progress(self, client_id: str, message: str, manager=None):
-        """Send progress update to WebSocket client"""
+        """Send progress update to WebSocket client with deduplication"""
         logger.debug(f"🔍 _send_progress called with client_id={client_id}, message={message}")
         if not client_id:
             logger.debug("⚠️ No client_id, skipping progress message")
             return
+
+        # Check for duplicate message
+        last_message = self._last_progress_messages.get(client_id)
+        if last_message == message:
+            logger.debug(f"⚠️ Skipping duplicate progress message for {client_id}: {message[:50]}...")
+            return
+
+        # Update last message
+        self._last_progress_messages[client_id] = message
 
         try:
             # First try to use manager from parameter (passed through context)

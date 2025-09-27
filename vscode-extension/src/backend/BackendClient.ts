@@ -252,7 +252,13 @@ export class BackendClient extends EventEmitter {
                 break;
 
             case 'agent_progress':
-                this.log(`📊 Agent Progress: ${message.agent} - ${message.message || message.content}`);
+                // Validate content before emitting
+                const progressContent = message.message || message.content || '';
+                if (!progressContent || progressContent === 'undefined') {
+                    this.log(`⚠️ Skipping agent_progress with undefined content from ${message.agent}`);
+                    break;
+                }
+                this.log(`📊 Agent Progress: ${message.agent} - ${progressContent}`);
                 this.emit('progress', message);
                 break;
 
@@ -273,7 +279,12 @@ export class BackendClient extends EventEmitter {
                         type: 'agent_response'
                     });
                 } else {
-                    // Intermediate chunk - emit as progress
+                    // Intermediate chunk - validate content before emitting as progress
+                    const chunkContent = message.content || message.message || '';
+                    if (!chunkContent || chunkContent === 'undefined') {
+                        this.log(`⚠️ Skipping stream_chunk with undefined content from ${message.agent}`);
+                        break;
+                    }
                     this.emit('progress', message);
                 }
                 break;

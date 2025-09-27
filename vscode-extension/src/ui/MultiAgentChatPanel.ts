@@ -24,6 +24,11 @@ export class MultiAgentChatPanel {
     private _streamBuffer: Map<string, string> = new Map();
     private static debugChannel: vscode.OutputChannel;
 
+    // Progress message deduplication
+    private lastProgressMessage: Map<string, string> = new Map();
+    private progressDebounceTimers: Map<string, NodeJS.Timeout> = new Map();
+    private processedMessages: Set<string> = new Set();
+
     public static createOrShow(
         extensionUri: vscode.Uri,
         backendClient: BackendClient
@@ -179,15 +184,43 @@ export class MultiAgentChatPanel {
             const agent = message.agent || 'orchestrator';
             const content = message.content || message.message || '';
 
-            MultiAgentChatPanel.debugChannel.appendLine(`⏳ Progress from ${agent}: ${content}`);
+            // Skip empty or undefined content
+            if (!content || content === 'undefined') {
+                return;
+            }
 
-            // Send progress update directly to UI
-            this.sendMessage({
-                type: 'progress',
-                agent: agent,
-                content: content,
-                isStreaming: false
-            });
+            // Check for duplicate message
+            const lastMessage = this.lastProgressMessage.get(agent);
+            if (lastMessage === content) {
+                return; // Skip duplicate
+            }
+
+            // Clear any existing debounce timer for this agent
+            if (this.progressDebounceTimers.has(agent)) {
+                clearTimeout(this.progressDebounceTimers.get(agent)!);
+            }
+
+            // Debounce rapid updates (50ms)
+            const timer = setTimeout(() => {
+                MultiAgentChatPanel.debugChannel.appendLine(`⏳ Progress from ${agent}: ${content}`);
+
+                // Send progress update to UI
+                this.sendMessage({
+                    type: 'progress',
+                    agent: agent,
+                    content: content,
+                    isStreaming: false,
+                    timestamp: Date.now()
+                });
+
+                // Store this as the last message for this agent
+                this.lastProgressMessage.set(agent, content);
+
+                // Clean up timer reference
+                this.progressDebounceTimers.delete(agent);
+            }, 50);
+
+            this.progressDebounceTimers.set(agent, timer);
         });
 
         this.backendClient.on('complete', (message: BackendMessage) => {
@@ -452,6 +485,29 @@ export class MultiAgentChatPanel {
         if (this._isDisposed) {
             MultiAgentChatPanel.debugChannel.appendLine(`⚠️ Webview disposed, skipping message (normal if chat was closed)`);
             return;
+        }
+
+        // Create unique message ID for deduplication (skip for certain message types that should always go through)
+        const skipDedup = ['userMessage', 'clearChat', 'agentResponse', 'error', 'complete', 'historyMessage'];
+        if (!skipDedup.includes(message.type)) {
+            const messageId = `${message.type}-${message.agent || ''}-${message.content || ''}-${message.timestamp || ''}`;
+
+            // Check if already processed
+            if (this.processedMessages.has(messageId)) {
+                MultiAgentChatPanel.debugChannel.appendLine(`⚡ Skipping duplicate message: ${message.type} from ${message.agent}`);
+                return;
+            }
+
+            // Mark as processed
+            this.processedMessages.add(messageId);
+
+            // Clean old messages (keep last 100)
+            if (this.processedMessages.size > 100) {
+                const entries = Array.from(this.processedMessages);
+                entries.slice(0, entries.length - 100).forEach(id => {
+                    this.processedMessages.delete(id);
+                });
+            }
         }
 
         try {
