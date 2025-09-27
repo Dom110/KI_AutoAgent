@@ -504,8 +504,13 @@ class CodeSmithAgent(ChatAgent):
         analysis_file = os.path.join(ki_autoagent_dir, 'system_analysis.json')
         system_info = {}
         if os.path.exists(analysis_file):
-            with open(analysis_file, 'r') as f:
-                system_info = json.load(f)
+            try:
+                with open(analysis_file, 'r') as f:
+                    system_info = json.load(f)
+            except Exception as e:
+                logger.warning(f"Could not load system_analysis.json: {e}")
+                # Continue without system info
+                system_info = {}
 
         # Create redis.config
         redis_config = """# Redis Configuration for KI AutoAgent

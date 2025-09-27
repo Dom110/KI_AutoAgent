@@ -74,8 +74,8 @@ class FixerBotAgent(ChatAgent):
                 raise Exception("Claude CLI not available for FixerBot")
 
             response = await self.ai_service.complete(
+                prompt=f"Fix this: {request.prompt}",
                 system_prompt=system_prompt,
-                user_prompt=f"Fix this: {request.prompt}",
                 temperature=0.5
             )
 
