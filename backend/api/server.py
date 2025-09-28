@@ -11,7 +11,7 @@ import json
 import logging
 import hashlib
 import uuid
-from typing import Dict, Any, Optional, Set
+from typing import Dict, Any, Optional, Set, List
 from datetime import datetime
 import uvicorn
 import sys
