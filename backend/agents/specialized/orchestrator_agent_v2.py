@@ -60,7 +60,7 @@ class OrchestratorAgentV2(ChatAgent):
             temperature=0.7,
             max_tokens=4000,
             icon="🎯",
-            instructions_path=".kiautoagent/instructions/orchestrator-v2-instructions.md"
+            instructions_path=".ki_autoagent/instructions/orchestrator-v2-instructions.md"
         )
         super().__init__(config)
 

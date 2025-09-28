@@ -133,7 +133,7 @@ class ArchitectAgent(ChatAgent):
             ],
             temperature=0.7,
             max_tokens=4000,
-            instructions_path=".kiautoagent/instructions/architect-v2-instructions.md",
+            instructions_path=".ki_autoagent/instructions/architect-v2-instructions.md",
             icon="🏗️"
         )
         super().__init__(config)

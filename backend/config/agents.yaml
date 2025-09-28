@@ -1,12 +1,12 @@
 # Agent Model Configuration
-# Migrated from legacy .kiautoagent system
+# Migrated from legacy .ki_autoagent system
 # Last Updated: September 2025
 
 agents:
   orchestrator:
     display_name: "Orchestrator"
     model: "gpt-4o-2024-11-20"
-    instructions_file: ".kiautoagent/instructions/orchestrator-v2-instructions.md"
+    instructions_file: ".ki_autoagent/instructions/orchestrator-v2-instructions.md"
     performance_score: 0
     capabilities:
       - task_decomposition
@@ -16,7 +16,7 @@ agents:
   architect:
     display_name: "ArchitectAgent"
     model: "gpt-4o-2024-11-20"
-    instructions_file: ".kiautoagent/instructions/architect-v2-instructions.md"
+    instructions_file: ".ki_autoagent/instructions/architect-v2-instructions.md"
     performance_score: 0
     capabilities:
       - architecture_design
@@ -26,7 +26,7 @@ agents:
   codesmith:
     display_name: "CodeSmithAgent"
     model: "claude-4.1-sonnet-20250920"
-    instructions_file: ".kiautoagent/instructions/codesmith-v2-instructions.md"
+    instructions_file: ".ki_autoagent/instructions/codesmith-v2-instructions.md"
     performance_score: 0
     capabilities:
       - code_generation
@@ -36,7 +36,7 @@ agents:
   tradestrat:
     display_name: "TradeStrat"
     model: "claude-4.1-sonnet-20250920"
-    instructions_file: ".kiautoagent/instructions/tradestrat-instructions.md"
+    instructions_file: ".ki_autoagent/instructions/tradestrat-instructions.md"
     performance_score: 0
     capabilities:
       - trading_strategy
@@ -46,7 +46,7 @@ agents:
   opus_arbitrator:
     display_name: "OpusArbitrator"
     model: "claude-opus-4-1-20250805"
-    instructions_file: ".kiautoagent/instructions/opus-arbitrator-instructions.md"
+    instructions_file: ".ki_autoagent/instructions/opus-arbitrator-instructions.md"
     performance_score: 0
     capabilities:
       - conflict_resolution
@@ -56,7 +56,7 @@ agents:
   research:
     display_name: "ResearchAgent"
     model: "llama-3.1-sonar-small-128k-online"
-    instructions_file: ".kiautoagent/instructions/research-instructions.md"
+    instructions_file: ".ki_autoagent/instructions/research-instructions.md"
     performance_score: 0
     capabilities:
       - web_research
@@ -66,7 +66,7 @@ agents:
   docubot:
     display_name: "DocuBot"
     model: "gpt-4o-2024-11-20"
-    instructions_file: ".kiautoagent/instructions/docubot-instructions.md"
+    instructions_file: ".ki_autoagent/instructions/docubot-instructions.md"
     performance_score: 0
     capabilities:
       - documentation_generation
@@ -76,7 +76,7 @@ agents:
   reviewer_gpt:
     display_name: "ReviewerGPT"
     model: "gpt-5-mini-2025-09-20"
-    instructions_file: ".kiautoagent/instructions/reviewergpt-instructions.md"
+    instructions_file: ".ki_autoagent/instructions/reviewergpt-instructions.md"
     performance_score: 0
     capabilities:
       - code_review
@@ -86,7 +86,7 @@ agents:
   fixerbot:
     display_name: "FixerBot"
     model: "claude-4.1-sonnet-20250920"
-    instructions_file: ".kiautoagent/instructions/fixerbot-instructions.md"
+    instructions_file: ".ki_autoagent/instructions/fixerbot-instructions.md"
     performance_score: 0
     capabilities:
       - bug_fixing
@@ -96,7 +96,7 @@ agents:
   performance_bot:
     display_name: "PerformanceBot"
     model: "gpt-4o-2024-11-20"
-    instructions_file: ".kiautoagent/instructions/performance-instructions.md"
+    instructions_file: ".ki_autoagent/instructions/performance-instructions.md"
     performance_score: 0
     capabilities:
       - performance_profiling
@@ -114,7 +114,7 @@ learning:
     failure_based_learning: false
     pattern_recognition: true
     contextual_adaptation: true
-  storage_path: ".kiautoagent/learning"
+  storage_path: ".ki_autoagent/learning"
 
 # Available Models for Dynamic Selection
 available_models:

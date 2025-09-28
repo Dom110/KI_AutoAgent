@@ -38,7 +38,7 @@ class DocuBotAgent(ChatAgent):
             temperature=0.7,
             max_tokens=4000,
             icon="📝",
-            instructions_path=".kiautoagent/instructions/docubot-instructions.md"
+            instructions_path=".ki_autoagent/instructions/docubot-instructions.md"
         )
         super().__init__(config)
         self.ai_service = OpenAIService(model=self.config.model)

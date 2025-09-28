@@ -39,7 +39,7 @@ class FixerBotAgent(ChatAgent):
             temperature=0.5,
             max_tokens=4000,
             icon="🔧",
-            instructions_path=".kiautoagent/instructions/fixerbot-instructions.md"
+            instructions_path=".ki_autoagent/instructions/fixerbot-instructions.md"
         )
         super().__init__(config)
         # Use Claude CLI - NO FALLBACKS

@@ -192,16 +192,16 @@ class BaseAgent(ABC):
     def _load_instructions(self) -> str:
         """Load agent instructions from file if available"""
         if self.config.instructions_path:
-            # Try multiple path resolutions including .kiautoagent
+            # Try multiple path resolutions including .ki_autoagent
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             possible_paths = [
                 self.config.instructions_path,  # As provided
                 os.path.join(os.getcwd(), self.config.instructions_path),  # From CWD
                 os.path.join(project_root, self.config.instructions_path),  # From project root
-                # Also try without .kiautoagent prefix for backward compatibility
-                self.config.instructions_path.replace('.kiautoagent/', '') if self.config.instructions_path.startswith('.kiautoagent/') else None,
-                os.path.join(os.getcwd(), self.config.instructions_path.replace('.kiautoagent/', '')) if self.config.instructions_path.startswith('.kiautoagent/') else None,
-                os.path.join(project_root, self.config.instructions_path.replace('.kiautoagent/', '')) if self.config.instructions_path.startswith('.kiautoagent/') else None,
+                # Also try without .ki_autoagent prefix for backward compatibility
+                self.config.instructions_path.replace('.ki_autoagent/', '') if self.config.instructions_path.startswith('.ki_autoagent/') else None,
+                os.path.join(os.getcwd(), self.config.instructions_path.replace('.ki_autoagent/', '')) if self.config.instructions_path.startswith('.ki_autoagent/') else None,
+                os.path.join(project_root, self.config.instructions_path.replace('.ki_autoagent/', '')) if self.config.instructions_path.startswith('.ki_autoagent/') else None,
             ]
             # Remove None values
             possible_paths = [p for p in possible_paths if p is not None]
@@ -888,7 +888,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
     async def save_learnings_to_disk(self) -> bool:
         """
         Persist learning entries to disk
-        Saves to .kiautoagent/learning/{agent_id}.json
+        Saves to .ki_autoagent/learning/{agent_id}.json
         """
         import json
         import os
@@ -897,7 +897,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             return False
 
         # Create learning directory
-        learning_dir = os.path.join(os.getcwd(), '.kiautoagent', 'learning')
+        learning_dir = os.path.join(os.getcwd(), '.ki_autoagent', 'learning')
         os.makedirs(learning_dir, exist_ok=True)
 
         # Filter learnings for this agent
@@ -928,13 +928,13 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
     async def load_learnings_from_disk(self) -> int:
         """
         Load learning entries from disk
-        Loads from .kiautoagent/learning/{agent_id}.json
+        Loads from .ki_autoagent/learning/{agent_id}.json
         """
         import json
         import os
         from dataclasses import asdict
 
-        learning_file = os.path.join(os.getcwd(), '.kiautoagent', 'learning', f"{self.config.agent_id}.json")
+        learning_file = os.path.join(os.getcwd(), '.ki_autoagent', 'learning', f"{self.config.agent_id}.json")
 
         if not os.path.exists(learning_file):
             return 0

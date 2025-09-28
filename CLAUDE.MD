@@ -109,6 +109,41 @@ def process_data(data):
 
 ---
 
+# 📁 STANDARDISIERTE PROJEKT-ORDNER - KI_AutoAgent System
+
+## 🎯 STANDARD PROJEKTORDNER: `.ki_autoagent`
+
+### ⚠️ WICHTIG: NUR EINEN ORDNER VERWENDEN!
+**Standardisiert auf:** `.ki_autoagent` (mit Unterstrich)
+
+**NIEMALS verwenden:**
+- ❌ `.kiautoagent` (ohne Unterstrich)
+- ❌ `.KI_AutoAgent`
+- ❌ `.ki-autoagent`
+- ❌ Andere Varianten
+
+### 📂 STRUKTUR:
+```
+.ki_autoagent/
+├── instructions/        # Agent-spezifische Anweisungen
+├── config/             # Konfigurationsdateien
+├── learning/           # Agent-Lernverlauf
+├── search.db          # SQLite Suchindex
+└── system_analysis.json # System-Analyse Cache
+```
+
+### ✅ VERWENDUNG IN CODE:
+```python
+# Korrekt:
+base_path = os.path.join(workspace_path, '.ki_autoagent')
+instructions_path = '.ki_autoagent/instructions'
+
+# Falsch:
+# base_path = os.path.join(workspace_path, '.kiautoagent')  # NEIN!
+```
+
+---
+
 # ⚠️ KRITISCHE ARCHITEKTUR-REGELN - KI_AutoAgent System
 
 ## 🚨 WICHTIGSTE REGEL: PYTHON-BACKEND ARCHITEKTUR (September 2025)
