@@ -151,6 +151,10 @@ class ArchitectAgent(ChatAgent):
         default_path = os.getcwd() if os.path.basename(os.getcwd()) != 'backend' else os.path.dirname(os.getcwd())
         project_path = os.getenv('PROJECT_PATH', default_path)
 
+        # For consistency, always use the full absolute path
+        project_path = os.path.abspath(project_path)
+        logger.info(f"🏗️ Initializing ProjectCache with path: {project_path}")
+
         # Initialize permanent Redis cache - REQUIRED, NO FALLBACK
         self.project_cache = ProjectCache(project_path)
         if not self.project_cache.connected:
@@ -231,8 +235,10 @@ class ArchitectAgent(ChatAgent):
         manager = request.context.get('manager') if isinstance(request.context, dict) else None
 
         try:
-            # Get workspace path
+            # Get workspace path and ensure it's absolute for consistent hashing
             workspace_path = request.context.get('workspace_path', os.getcwd())
+            workspace_path = os.path.abspath(workspace_path)
+            logger.info(f"📂 Using workspace path: {workspace_path}")
 
             # Update file watcher to use correct workspace path if needed
             if hasattr(self, 'file_watcher') and self.file_watcher:
@@ -240,8 +246,11 @@ class ArchitectAgent(ChatAgent):
                 if current_watch_path != workspace_path:
                     logger.info(f"🔄 Updating file watcher from {current_watch_path} to {workspace_path}")
                     self.file_watcher.stop()
+                    # Reinitialize ProjectCache with correct workspace path for consistent hashing
+                    self.project_cache = ProjectCache(workspace_path)
                     self.file_watcher = SmartFileWatcher(workspace_path, self.project_cache, debounce_seconds=30)
                     self.file_watcher.start()
+                    logger.info(f"✅ ProjectCache updated with workspace path: {workspace_path}")
 
             ki_autoagent_dir = os.path.join(workspace_path, '.ki_autoagent')
             os.makedirs(ki_autoagent_dir, exist_ok=True)

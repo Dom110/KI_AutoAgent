@@ -109,3 +109,24 @@ PERPLEXITY (3 models):
 2025-09-28 09:22:54,288 - services.model_discovery_service - INFO -   3. llama-3.1-sonar-small-128k-online
 2025-09-28 09:22:54,288 - services.model_discovery_service - INFO - ================================================================================
 2025-09-28 09:22:54,288 - __main__ - INFO - ✅ Background model discovery complete: 27 models found
+INFO:     127.0.0.1:61928 - "GET / HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-09-28 09:28:06,307 - __main__ - INFO - 👋 KI AutoAgent Backend shutting down...
+2025-09-28 09:28:06,313 - core.agent_communication_bus - INFO - Communication bus stopped
+2025-09-28 09:28:06,315 - agents.agent_registry - INFO - 🛑 Shutting down all agents...
+2025-09-28 09:28:06,316 - agents.agent_registry - INFO - ✅ Agent orchestrator shutdown complete
+2025-09-28 09:28:06,316 - agents.agent_registry - INFO - ✅ Agent architect shutdown complete
+2025-09-28 09:28:06,316 - agents.agent_registry - INFO - ✅ Agent codesmith shutdown complete
+2025-09-28 09:28:06,316 - agents.agent_registry - INFO - ✅ Agent docubot shutdown complete
+2025-09-28 09:28:06,316 - agents.agent_registry - INFO - ✅ Agent reviewer shutdown complete
+2025-09-28 09:28:06,316 - agents.agent_registry - INFO - ✅ Agent fixer shutdown complete
+2025-09-28 09:28:06,319 - agents.agent_registry - INFO - ✅ Agent research shutdown complete
+2025-09-28 09:28:06,319 - agents.agent_registry - INFO - ✅ Agent tradestrat shutdown complete
+2025-09-28 09:28:06,319 - agents.agent_registry - INFO - ✅ Agent opus-arbitrator shutdown complete
+2025-09-28 09:28:06,319 - agents.agent_registry - INFO - ✅ Agent performance_bot shutdown complete
+2025-09-28 09:28:06,324 - services.smart_file_watcher - INFO - 👁️ Smart file watcher stopped
+2025-09-28 09:28:06,324 - agents.specialized.architect_agent - INFO - ✅ File watcher stopped
+2025-09-28 09:28:06,324 - agents.agent_registry - INFO - ✅ All agents shutdown complete
+INFO:     Application shutdown complete.
+INFO:     Finished server process [77644]
