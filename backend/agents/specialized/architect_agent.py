@@ -651,7 +651,7 @@ class ArchitectAgent(ChatAgent):
         self.system_knowledge = None
         self.last_index_time = None
 
-    async def refresh_analysis(self, client_id: str = None):
+    async def refresh_analysis(self, client_id: str = None, manager=None):
         """
         Force a complete refresh of system analysis
         Invalidates cache and rebuilds from scratch
@@ -663,7 +663,67 @@ class ArchitectAgent(ChatAgent):
         await self.invalidate_cache()
 
         # Rebuild analysis
-        return await self.understand_system('.', client_id, 'full refresh')
+        return await self.understand_system('.', client_id, 'full refresh', manager)
+
+    async def refresh_cache_after_implementation(self, client_id: str = None, manager=None, components: List[str] = None):
+        """
+        Intelligently refresh cache after new functions/components are implemented
+
+        Args:
+            client_id: Client ID for progress messages
+            manager: Manager for sending progress
+            components: List of components that were modified (e.g., ['code_index', 'metrics'])
+                       If None, refreshes everything
+        """
+        logger.info(f"🔄 Refreshing cache after implementation. Components: {components}")
+        await self._send_progress(client_id, "🔄 Updating system knowledge after changes...", manager)
+
+        if not components:
+            # Full refresh if no specific components specified
+            return await self.refresh_analysis(client_id, manager)
+
+        # Selective cache refresh based on what was implemented
+        workspace_path = os.path.abspath(os.getcwd())
+
+        if 'code_index' in components or 'functions' in components:
+            logger.info("📂 Refreshing code index...")
+            await self._send_progress(client_id, "📂 Re-indexing code changes...", manager)
+            if self.project_cache:
+                await self.project_cache.invalidate('code_index')
+            # Re-index code
+            async def progress_callback(msg: str):
+                await self._send_progress(client_id, msg, manager)
+            code_index = await self.code_indexer.build_full_index(workspace_path, progress_callback, 'incremental')
+            if self.project_cache:
+                await self.project_cache.set('code_index', code_index)
+
+        if 'security' in components:
+            logger.info("🔒 Refreshing security analysis...")
+            await self._send_progress(client_id, "🔒 Re-running security analysis...", manager)
+            if self.project_cache:
+                await self.project_cache.invalidate('security_analysis')
+
+        if 'metrics' in components:
+            logger.info("📊 Refreshing code metrics...")
+            await self._send_progress(client_id, "📊 Recalculating code metrics...", manager)
+            if self.project_cache:
+                await self.project_cache.invalidate('metrics')
+
+        if 'diagrams' in components:
+            logger.info("📊 Refreshing diagrams...")
+            await self._send_progress(client_id, "📊 Regenerating diagrams...", manager)
+            if self.project_cache:
+                await self.project_cache.invalidate('diagrams')
+
+        # Invalidate the main system knowledge to force rebuild on next access
+        if self.project_cache:
+            await self.project_cache.invalidate('system_knowledge')
+        self.system_knowledge = None
+
+        await self._send_progress(client_id, "✅ Cache refreshed after implementation", manager)
+        logger.info("✅ Selective cache refresh completed")
+
+        return {"status": "success", "message": f"Cache refreshed for components: {components}"}
 
     def __del__(self):
         """

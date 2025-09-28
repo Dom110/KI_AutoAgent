@@ -183,6 +183,9 @@ class CodeSmithAgent(ChatAgent):
             if any(word in prompt_lower for word in ['redis', 'docker', 'cache', 'infrastructure', 'config']):
                 files_created = await self.implement_infrastructure(request, workspace_path)
 
+                # Refresh cache after infrastructure implementation
+                await self._refresh_cache_if_needed(files_created, request)
+
                 execution_time = (datetime.now() - start_time).total_seconds()
 
                 return TaskResult(
@@ -211,6 +214,10 @@ class CodeSmithAgent(ChatAgent):
 
             # Format output
             output = self.format_implementation(implementation)
+
+            # Refresh cache if we created new functions or modified code
+            if implementation.filename:
+                await self._refresh_cache_if_needed([implementation.filename], request)
 
             execution_time = (datetime.now() - start_time).total_seconds()
 
@@ -1119,6 +1126,54 @@ if __name__ == "__main__":
                 })
 
         return refactorings
+
+    async def _refresh_cache_if_needed(self, files_created: List[str], request: TaskRequest):
+        """
+        Refresh cache after implementing new functions or modifying code
+
+        Args:
+            files_created: List of files that were created or modified
+            request: Original task request for context
+        """
+        try:
+            # Get the architect agent from registry
+            from agents.agent_registry import get_agent_registry
+            registry = get_agent_registry()
+            architect = registry.get_agent("architect")
+
+            if not architect:
+                logger.warning("Architect agent not available for cache refresh")
+                return
+
+            # Determine which components to refresh based on files created
+            components_to_refresh = []
+
+            for file_path in files_created:
+                if any(ext in file_path for ext in ['.py', '.js', '.ts', '.java', '.go']):
+                    components_to_refresh.append('code_index')
+                    components_to_refresh.append('functions')
+                    break
+
+            # If we created configuration files, refresh metrics
+            if any('config' in f or 'settings' in f for f in files_created):
+                components_to_refresh.append('metrics')
+
+            # If we have components to refresh, do it
+            if components_to_refresh:
+                # Get client_id and manager from context if available
+                client_id = request.context.get('client_id') if isinstance(request.context, dict) else None
+                manager = request.context.get('manager') if isinstance(request.context, dict) else None
+
+                logger.info(f"🔄 Refreshing cache for components: {list(set(components_to_refresh))}")
+                await architect.refresh_cache_after_implementation(
+                    client_id=client_id,
+                    manager=manager,
+                    components=list(set(components_to_refresh))
+                )
+                logger.info("✅ Cache refreshed after code implementation")
+        except Exception as e:
+            logger.warning(f"Could not refresh cache after implementation: {e}")
+            # Don't fail the whole operation if cache refresh fails
 
     async def optimize_performance_hotspots(self) -> List[Dict[str, str]]:
         """

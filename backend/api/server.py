@@ -492,6 +492,135 @@ async def refresh_models():
         "providers": list(models.keys())
     }
 
+@app.post("/api/cache/refresh")
+async def refresh_cache(
+    full: bool = False,
+    components: Optional[List[str]] = None
+):
+    """
+    Refresh system cache after implementations or changes
+
+    Args:
+        full: If True, performs a complete cache refresh
+        components: List of specific components to refresh (e.g., ['code_index', 'metrics'])
+                   Options: 'code_index', 'functions', 'security', 'metrics', 'diagrams'
+    """
+    registry = get_agent_registry()
+    architect = registry.get_agent("architect")
+
+    if not architect:
+        return {
+            "status": "error",
+            "message": "Architect agent not available"
+        }
+
+    try:
+        if full:
+            result = await architect.refresh_analysis()
+            return {
+                "status": "success",
+                "message": "Full cache refresh completed",
+                "details": result
+            }
+        else:
+            result = await architect.refresh_cache_after_implementation(
+                components=components
+            )
+            return {
+                "status": "success",
+                "message": f"Selective cache refresh completed for: {components}",
+                "details": result
+            }
+    except Exception as e:
+        logger.error(f"Cache refresh error: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+@app.delete("/api/cache/clear")
+async def clear_cache(cache_types: Optional[List[str]] = None):
+    """
+    Clear specific cache types or all caches
+
+    Args:
+        cache_types: List of cache types to clear. If None, clears all.
+                    Options: 'system_knowledge', 'code_index', 'security_analysis',
+                            'metrics', 'dead_code', 'diagrams'
+    """
+    registry = get_agent_registry()
+    architect = registry.get_agent("architect")
+
+    if not architect:
+        return {
+            "status": "error",
+            "message": "Architect agent not available"
+        }
+
+    try:
+        if cache_types:
+            for cache_type in cache_types:
+                await architect.project_cache.invalidate(cache_type)
+            message = f"Cleared cache types: {cache_types}"
+        else:
+            await architect.invalidate_cache()
+            message = "All caches cleared"
+
+        return {
+            "status": "success",
+            "message": message
+        }
+    except Exception as e:
+        logger.error(f"Cache clear error: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+@app.get("/api/cache/status")
+async def get_cache_status():
+    """Get current cache status and statistics"""
+    registry = get_agent_registry()
+    architect = registry.get_agent("architect")
+
+    if not architect:
+        return {
+            "status": "error",
+            "message": "Architect agent not available"
+        }
+
+    try:
+        import redis
+        r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+
+        # Get all cache keys for this project
+        project_hash = architect.project_cache.project_hash if architect.project_cache else "unknown"
+        pattern = f"ki_autoagent:{project_hash}:*"
+        keys = list(r.scan_iter(match=pattern))
+
+        # Group by cache type
+        cache_stats = {}
+        for key in keys:
+            if ':meta' not in key:
+                cache_type = key.split(':')[-1] if ':' in key else 'unknown'
+                if cache_type not in cache_stats:
+                    cache_stats[cache_type] = 0
+                cache_stats[cache_type] += 1
+
+        return {
+            "status": "success",
+            "project_hash": project_hash,
+            "total_cache_entries": len([k for k in keys if ':meta' not in k]),
+            "cache_types": cache_stats,
+            "has_system_knowledge": architect.system_knowledge is not None
+        }
+    except Exception as e:
+        logger.error(f"Cache status error: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
 # WebSocket Chat Endpoint
 @app.websocket("/ws/chat")
 async def websocket_chat(
