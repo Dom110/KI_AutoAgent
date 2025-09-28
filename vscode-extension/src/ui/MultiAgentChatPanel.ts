@@ -1263,6 +1263,7 @@ export class MultiAgentChatPanel {
                         rows="1"
                     ></textarea>
                     <button type="button" id="send-button">Send 📤</button>
+                    <button type="button" id="stop-button" style="display: none;">Stop ⏹️</button>
                 </div>
             </div>
 
@@ -1306,6 +1307,7 @@ export class MultiAgentChatPanel {
                 const messagesDiv = document.getElementById('messages');
                 const messageInput = document.getElementById('message-input');
                 const sendButton = document.getElementById('send-button');
+                const stopButton = document.getElementById('stop-button');
                 const agentOptions = document.querySelectorAll('.agent-option');
                 const newChatBtn = document.getElementById('new-chat-btn');
                 const historyBtn = document.getElementById('history-btn');
@@ -1363,8 +1365,13 @@ export class MultiAgentChatPanel {
                     updatePauseButtonState();
                     updateActivityIndicator(true, 'Sending message...');
 
+                    // Show stop button, hide send button
+                    if (stopButton) {
+                        stopButton.style.display = 'inline-block';
+                        sendButton.style.display = 'none';
+                    }
+
                     // Disable inputs while processing
-                    if (sendButton) sendButton.disabled = true;
                     if (messageInput) messageInput.disabled = true;
 
                     vscode.postMessage({
@@ -1387,6 +1394,24 @@ export class MultiAgentChatPanel {
                     });
                 } else {
                     console.error('Send button not found!');
+                }
+
+                // Bind stop button
+                if (stopButton) {
+                    stopButton.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        console.log('Stop button clicked');
+                        vscode.postMessage({
+                            type: 'stopAndRollback'
+                        });
+                        // Hide stop button, show send button
+                        stopButton.style.display = 'none';
+                        sendButton.style.display = 'inline-block';
+                        // Re-enable inputs
+                        if (messageInput) messageInput.disabled = false;
+                        isProcessing = false;
+                        updateActivityIndicator(false);
+                    });
                 }
 
                 // Header button handlers
@@ -1591,7 +1616,10 @@ export class MultiAgentChatPanel {
                             removeProgressMessages();
                             addMessage(message.content, 'agent', message.agent);
                             // Re-enable input and button
-                            if (sendButton) sendButton.disabled = false;
+                            if (stopButton) {
+                                stopButton.style.display = 'none';
+                                sendButton.style.display = 'inline-block';
+                            }
                             if (messageInput) messageInput.disabled = false;
                             break;
 
@@ -1602,7 +1630,10 @@ export class MultiAgentChatPanel {
                             updateActivityIndicator(false);
                             removeThinkingMessage();
                             removeProgressMessages();
-                            if (sendButton) sendButton.disabled = false;
+                            if (stopButton) {
+                                stopButton.style.display = 'none';
+                                sendButton.style.display = 'inline-block';
+                            }
                             if (messageInput) messageInput.disabled = false;
                             break;
 
@@ -1611,7 +1642,10 @@ export class MultiAgentChatPanel {
                             isProcessing = false;
                             updatePauseButtonState();
                             updateActivityIndicator(false);
-                            if (sendButton) sendButton.disabled = false;
+                            if (stopButton) {
+                                stopButton.style.display = 'none';
+                                sendButton.style.display = 'inline-block';
+                            }
                             if (messageInput) messageInput.disabled = false;
                             break;
 
@@ -1632,7 +1666,10 @@ export class MultiAgentChatPanel {
                             updateActivityIndicator(false);
                             removeThinkingMessage();
                             removeProgressMessages();
-                            if (sendButton) sendButton.disabled = false;
+                            if (stopButton) {
+                                stopButton.style.display = 'none';
+                                sendButton.style.display = 'inline-block';
+                            }
                             if (messageInput) messageInput.disabled = false;
                             break;
                     }

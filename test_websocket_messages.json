@@ -1,0 +1,62 @@
+[
+  {
+    "type": "connection",
+    "status": "connected",
+    "client_id": "client_0",
+    "message": "\ud83e\udd16 Connected to KI AutoAgent Backend",
+    "timestamp": "2025-09-25T08:50:35.808692"
+  },
+  {
+    "type": "agent_thinking",
+    "agent": "orchestrator",
+    "message": "\ud83e\udd14 orchestrator is processing..."
+  },
+  {
+    "type": "agent_progress",
+    "agent": "orchestrator",
+    "content": "\ud83e\udd14 Analyzing your request...",
+    "timestamp": "2025-09-25T08:50:35.812796"
+  },
+  {
+    "type": "agent_progress",
+    "agent": "orchestrator",
+    "content": "\ud83d\udd0d Understanding what you're asking...",
+    "timestamp": "2025-09-25T08:50:35.812895"
+  },
+  {
+    "type": "agent_progress",
+    "agent": "orchestrator",
+    "content": "\ud83e\udde0 Analyzing intent with AI...",
+    "timestamp": "2025-09-25T08:50:35.812971"
+  },
+  {
+    "type": "agent_progress",
+    "agent": "orchestrator",
+    "content": "\ud83d\udce1 Calling OpenAI GPT-4o for analysis...",
+    "timestamp": "2025-09-25T08:50:35.813043"
+  },
+  {
+    "type": "agent_progress",
+    "agent": "orchestrator",
+    "content": "\u2705 AI identified: simple_question",
+    "timestamp": "2025-09-25T08:50:36.920556"
+  },
+  {
+    "type": "agent_progress",
+    "agent": "orchestrator",
+    "content": "\ud83d\udcdd Intent: simple_question",
+    "timestamp": "2025-09-25T08:50:36.921147"
+  },
+  {
+    "type": "agent_response",
+    "agent": "orchestrator",
+    "content": "Hello! How can I assist you today?",
+    "status": "success",
+    "metadata": {
+      "intent": "simple_question",
+      "response_type": "direct_answer",
+      "git_checkpoint": "48653e2c97f81ae082356bddb742bcb0a2b105fe"
+    },
+    "timestamp": "2025-09-25T08:50:38.301144"
+  }
+]

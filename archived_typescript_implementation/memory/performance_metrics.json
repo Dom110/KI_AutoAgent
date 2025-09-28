@@ -1,0 +1,61 @@
+{
+  "agents": {
+    "TestAgent": {
+      "total_executions": 5,
+      "successful": 5,
+      "failed": 0,
+      "total_time": 26.0,
+      "last_used": "2025-09-11T15:27:47.563703"
+    },
+    "ResearchBot": {
+      "total_executions": 16,
+      "successful": 16,
+      "failed": 0,
+      "total_time": 110.08451867103577,
+      "last_used": "2025-09-11T21:13:35.875824"
+    },
+    "ArchitectGPT": {
+      "total_executions": 8,
+      "successful": 8,
+      "failed": 0,
+      "total_time": 0.0518040657043457,
+      "last_used": "2025-09-11T21:13:35.875824"
+    },
+    "CodeSmithClaude": {
+      "total_executions": 16,
+      "successful": 16,
+      "failed": 0,
+      "total_time": 922.3902032375336,
+      "last_used": "2025-09-11T21:28:15.173725"
+    },
+    "ReviewerGPT": {
+      "total_executions": 17,
+      "successful": 17,
+      "failed": 0,
+      "total_time": 922.391820192337,
+      "last_used": "2025-09-11T21:28:15.173725"
+    },
+    "FixerBot": {
+      "total_executions": 4,
+      "successful": 4,
+      "failed": 0,
+      "total_time": 0.03287196159362793,
+      "last_used": "2025-09-11T19:23:34.725827"
+    },
+    "DocuBot": {
+      "total_executions": 12,
+      "successful": 12,
+      "failed": 0,
+      "total_time": 110.06407070159912,
+      "last_used": "2025-09-11T20:44:17.228681"
+    },
+    "TradeStrat": {
+      "total_executions": 12,
+      "successful": 12,
+      "failed": 0,
+      "total_time": 922.3514521121979,
+      "last_used": "2025-09-11T21:28:15.173725"
+    }
+  },
+  "intents": {}
+}

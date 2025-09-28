@@ -6,5 +6,5 @@ vscode-extension/node_modules/
 vscode-extension/out/
 vscode-extension/package-lock.json
 *.vsix
-*.json
-.ki_autagent
+.ki_autoagent/
+backend_server.log

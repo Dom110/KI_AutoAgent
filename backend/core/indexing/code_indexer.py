@@ -78,6 +78,8 @@ class CodeIndexer:
             'target', '*.egg-info', '*.egg', 'wheels',
             # VS Code extension specific
             '*.vsix', 'out/',
+            # KI AutoAgent cache/config directories
+            '.ki_autoagent', '.kiautoagent',
             # Other
             'vendor', 'third_party', 'external'
         }

@@ -951,10 +951,11 @@ class ArchitectAgent(ChatAgent):
         response.append(f"- **{stats.get('lines_of_code', 0)}** Lines of Code\n")
 
         # Architecture Overview (with Mermaid diagram)
-        response.append("### 🏗️ Architecture Overview")
-        response.append("```mermaid")
-        response.append(self.system_knowledge['diagrams']['container'])
-        response.append("```\n")
+        if self.system_knowledge.get('diagrams', {}).get('container'):
+            response.append("### 🏗️ Architecture Overview")
+            response.append("```mermaid")
+            response.append(self.system_knowledge['diagrams']['container'])
+            response.append("```\n")
 
         # Security Analysis
         security_summary = security.get('summary', {})
@@ -993,10 +994,11 @@ class ArchitectAgent(ChatAgent):
             response.append(f"**Impact**: {improvement['impact']}\n")
 
         # Dependency Graph
-        response.append("### 📊 Dependency Graph")
-        response.append("```mermaid")
-        response.append(self.system_knowledge['diagrams']['dependency_graph'])
-        response.append("```\n")
+        if self.system_knowledge.get('diagrams', {}).get('dependency_graph'):
+            response.append("### 📊 Dependency Graph")
+            response.append("```mermaid")
+            response.append(self.system_knowledge['diagrams']['dependency_graph'])
+            response.append("```\n")
 
         return "\n".join(response)
 
@@ -1134,9 +1136,25 @@ pool = ConnectionPool()''',
         if not self.system_knowledge:
             return False
 
-        # Search in code index
-        results = await self.code_indexer.tree_sitter.search_pattern(tech)
-        return len(results) > 0
+        try:
+            # Search in code index if available
+            if self.code_indexer and hasattr(self.code_indexer, 'tree_sitter'):
+                results = await self.code_indexer.tree_sitter.search_pattern(tech)
+                return len(results) > 0
+        except Exception as e:
+            logger.warning(f"Error checking for technology {tech}: {e}")
+
+        # Fallback: Check in code_index directly
+        code_index = self.system_knowledge.get('code_index', {})
+        ast_data = code_index.get('ast', {})
+        files_data = ast_data.get('files', {})
+
+        # Simple text search in indexed files
+        for file_path, file_info in files_data.items():
+            if tech.lower() in str(file_info).lower():
+                return True
+
+        return False
 
     async def generate_architecture_flowchart(self) -> str:
         """

@@ -1,0 +1,13 @@
+{
+  "timestamp": "2025-09-25T15:53:33.475577",
+  "openai": {
+    "available": [],
+    "gpt5_found": false
+  },
+  "anthropic": {
+    "available": []
+  },
+  "perplexity": {
+    "available": []
+  }
+}
