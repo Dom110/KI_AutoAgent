@@ -617,6 +617,7 @@ export class MultiAgentChatPanel {
                 #input-row {
                     display: flex;
                     gap: 10px;
+                    align-items: flex-end;
                 }
 
                 #message-input {
@@ -627,6 +628,12 @@ export class MultiAgentChatPanel {
                     border: 1px solid var(--vscode-input-border);
                     border-radius: 4px;
                     font-size: 14px;
+                    font-family: var(--vscode-font-family);
+                    resize: none;
+                    overflow-y: auto;
+                    min-height: 40px;
+                    max-height: 150px;
+                    line-height: 1.4;
                 }
 
                 #send-button {
@@ -1249,12 +1256,12 @@ export class MultiAgentChatPanel {
                 </div>
 
                 <div id="input-row">
-                    <input
-                        type="text"
+                    <textarea
                         id="message-input"
-                        placeholder="Type your message..."
+                        placeholder="Type your message... (Shift+Enter for new line)"
                         autofocus
-                    />
+                        rows="1"
+                    ></textarea>
                     <button type="button" id="send-button">Send 📤</button>
                 </div>
             </div>
@@ -1368,6 +1375,7 @@ export class MultiAgentChatPanel {
                     });
 
                     messageInput.value = '';
+                    autoResizeTextarea();
                 }
 
                 // Bind send button
@@ -1521,12 +1529,26 @@ export class MultiAgentChatPanel {
                         console.log('⏹️ Activity indicator hidden');
                     }
                 }
-                messageInput.addEventListener('keypress', (e) => {
+                // Auto-resize textarea
+                function autoResizeTextarea() {
+                    messageInput.style.height = 'auto';
+                    const newHeight = Math.min(messageInput.scrollHeight, 150);
+                    messageInput.style.height = newHeight + 'px';
+                }
+
+                // Handle textarea input
+                messageInput.addEventListener('input', autoResizeTextarea);
+
+                // Handle Enter key (send) vs Shift+Enter (new line)
+                messageInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         sendMessage();
                     }
                 });
+
+                // Initialize textarea height
+                autoResizeTextarea();
 
                 // Handle messages from extension
                 window.addEventListener('message', event => {
