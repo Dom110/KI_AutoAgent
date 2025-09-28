@@ -45,7 +45,11 @@ class CodeIndexer:
         self.last_analysis_path = None
         self.last_analysis_time = None
         self.cached_results = None
-        self.cache_validity = timedelta(minutes=15)  # Cache valid for 15 minutes
+        # Use cache validity from settings (None = unlimited)
+        if settings.CACHE_VALIDITY_MINUTES is not None:
+            self.cache_validity = timedelta(minutes=settings.CACHE_VALIDITY_MINUTES)
+        else:
+            self.cache_validity = None  # Unlimited cache
 
         # Default exclusion patterns (common directories/files to skip)
         self.default_exclude_patterns = {
@@ -184,9 +188,15 @@ class CodeIndexer:
         """
         # Check cache first
         if self._is_cache_valid(root_path):
-            logger.info("🎯 Using cached analysis results (in-memory cache, valid for 15 minutes)")
-            if progress_callback:
-                await progress_callback("📦 Using cached analysis (still fresh, expires after 15 min)")
+            if self.cache_validity is None:
+                logger.info("🎯 Using cached analysis results (unlimited cache, file watcher monitors changes)")
+                if progress_callback:
+                    await progress_callback("📦 Using cached analysis (monitoring for file changes)")
+            else:
+                cache_limit = int(self.cache_validity.total_seconds() / 60)
+                logger.info(f"🎯 Using cached analysis results (in-memory cache, valid for {cache_limit} minutes)")
+                if progress_callback:
+                    await progress_callback(f"📦 Using cached analysis (expires after {cache_limit} min)")
             return self.cached_results
         else:
             logger.info("🔄 Starting fresh analysis (cache miss or expired)")
@@ -274,13 +284,23 @@ class CodeIndexer:
             return False
 
         age = datetime.now() - self.last_analysis_time
+
+        # Check if cache is unlimited
+        if self.cache_validity is None:
+            minutes_old = int(age.total_seconds() / 60)
+            logger.info(f"✅ Cache valid: {minutes_old} minutes old (unlimited cache, file watcher monitors changes)")
+            return True
+
+        # Time-based cache validity check
         is_valid = age < self.cache_validity
+        minutes_old = int(age.total_seconds() / 60)
 
         if is_valid:
-            minutes_old = int(age.total_seconds() / 60)
-            logger.info(f"✅ Cache valid: {minutes_old} minutes old (expires after 15 minutes)")
+            cache_limit = int(self.cache_validity.total_seconds() / 60)
+            logger.info(f"✅ Cache valid: {minutes_old} minutes old (expires after {cache_limit} minutes)")
         else:
-            logger.info(f"❌ Cache expired: {int(age.total_seconds() / 60)} minutes old (>15 minutes)")
+            cache_limit = int(self.cache_validity.total_seconds() / 60)
+            logger.info(f"❌ Cache expired: {minutes_old} minutes old (>{cache_limit} minutes)")
 
         return is_valid
 
@@ -289,7 +309,11 @@ class CodeIndexer:
         self.last_analysis_path = root_path
         self.last_analysis_time = datetime.now()
         self.cached_results = results
-        logger.info(f"💾 Cached analysis results for {root_path} (in-memory cache, valid for 15 minutes)")
+        if self.cache_validity is None:
+            logger.info(f"💾 Cached analysis results for {root_path} (unlimited cache, file watcher monitors changes)")
+        else:
+            cache_limit = int(self.cache_validity.total_seconds() / 60)
+            logger.info(f"💾 Cached analysis results for {root_path} (in-memory cache, valid for {cache_limit} minutes)")
 
 
     async def _build_cross_references(self, ast_index: Dict, progress_callback=None) -> Dict:

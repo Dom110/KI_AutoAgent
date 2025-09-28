@@ -34,7 +34,9 @@ This applies to ALL answers, explanations, error messages, and outputs.
     SIMPLE_QUERY_TIMEOUT = 30  # Schnelle Antworten
 
     # Cache Einstellungen
-    CACHE_VALIDITY_MINUTES = 15  # In-Memory Cache Gültigkeit
+    CACHE_VALIDITY_MINUTES = None  # None = Unbegrenzt, nur File-Watcher invalidiert
+    # Cache wird automatisch durch File-Watcher bei Code-Änderungen invalidiert
+    # None = Cache bleibt gültig bis Dateiänderung oder manueller Clear
     USE_PERSISTENT_CACHE = True  # Redis/SQLite nutzen
 
     # Analyse Einstellungen
