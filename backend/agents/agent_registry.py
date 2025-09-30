@@ -11,6 +11,14 @@ from enum import Enum
 from .base.base_agent import BaseAgent, TaskRequest, TaskResult
 from .specialized.orchestrator_agent_v2 import OrchestratorAgentV2
 
+# Import capabilities loader
+try:
+    from config.capabilities_loader import apply_capabilities_to_agent
+    CAPABILITIES_AVAILABLE = True
+except ImportError:
+    CAPABILITIES_AVAILABLE = False
+    logger.warning("Capabilities loader not available")
+
 logger = logging.getLogger(__name__)
 
 class AgentType(Enum):
@@ -84,16 +92,44 @@ class AgentRegistry:
         Register an agent with the registry
         """
         try:
+            # Apply capabilities from config if available
+            if CAPABILITIES_AVAILABLE:
+                agent.config = apply_capabilities_to_agent(agent.config)
+
+                # Update agent's file tools settings - these attributes exist in BaseAgent
+                # We need to update them after config is modified
+                if isinstance(agent.config.capabilities, dict):
+                    agent.can_write = agent.config.capabilities.get('file_write', False)
+                    agent.allowed_paths = agent.config.capabilities.get('allowed_paths', [])
+                    logger.info(f"✅ Applied file write permissions to {agent.config.agent_id}: can_write={agent.can_write}")
+                else:
+                    # Old format or no capabilities
+                    agent.can_write = False
+                    agent.allowed_paths = []
+
             agent_id = agent.config.agent_id
 
             if agent_id in self.agents:
                 logger.warning(f"Agent {agent_id} already registered, updating...")
 
+            # Extract capabilities list
+            # Handle both old format (list of enums) and new format (dict with file_write settings)
+            if isinstance(agent.config.capabilities, dict):
+                # New format - extract capabilities from dict or use default list
+                caps_list = []
+                if agent.config.capabilities.get('file_write', False):
+                    caps_list.append('file_write')
+            elif isinstance(agent.config.capabilities, list):
+                # Old format - list of capability enums
+                caps_list = [cap.value if hasattr(cap, 'value') else str(cap) for cap in agent.config.capabilities]
+            else:
+                caps_list = []
+
             registered = RegisteredAgent(
                 agent_id=agent_id,
                 agent_type=AgentType(agent_id),
                 instance=agent,
-                capabilities=[cap.value for cap in agent.config.capabilities],
+                capabilities=caps_list,
                 model=agent.config.model,
                 status="ready"
             )

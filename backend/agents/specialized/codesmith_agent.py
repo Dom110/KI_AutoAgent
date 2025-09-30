@@ -118,6 +118,14 @@ class CodeSmithAgent(ChatAgent):
             icon="💻",
             instructions_path=".ki_autoagent/instructions/codesmith-v2-instructions.md"
         )
+
+        # Apply capabilities from config file before calling parent init
+        try:
+            from config.capabilities_loader import apply_capabilities_to_agent
+            config = apply_capabilities_to_agent(config)
+        except ImportError:
+            pass  # Capabilities loader not available
+
         super().__init__(config)
 
         # Initialize Claude Code CLI service (NO FALLBACKS)
@@ -1072,11 +1080,19 @@ if __name__ == "__main__":
         architecture = self.code_knowledge.get('architecture', {})
 
         # Build context-aware prompt
+        design_patterns_list = patterns.get('design_patterns', [])
+        # Convert to strings if they are dicts
+        if design_patterns_list and isinstance(design_patterns_list[0], dict):
+            pattern_names = [p.get('name', str(p)) if isinstance(p, dict) else str(p)
+                            for p in design_patterns_list]
+        else:
+            pattern_names = [str(p) for p in design_patterns_list]
+
         context_prompt = f"""
         Implement the following feature using these existing patterns:
 
         Architecture Style: {architecture.get('style', 'Unknown')}
-        Design Patterns Found: {', '.join(patterns.get('design_patterns', []))}
+        Design Patterns Found: {', '.join(pattern_names)}
 
         Feature Specification:
         {spec}
@@ -1084,8 +1100,8 @@ if __name__ == "__main__":
         Follow the existing code style and patterns exactly.
         """
 
-        # Generate implementation
-        response = await self.claude_cli.process_message(context_prompt)
+        # Generate implementation using claude_cli.complete
+        response = await self.claude_cli.complete(context_prompt)
         return response
 
     async def refactor_complex_code(self, file_path: str = None) -> List[Dict[str, Any]]:
@@ -1291,3 +1307,61 @@ Run this script to safely comment out dead code for review.
             return {"code_result": result.content}
 
         return {"message": "CodeSmith received request"}
+
+    async def implement_code_to_file(self, spec: str, file_path: str) -> Dict[str, Any]:
+        """
+        Generate code and write it to a file
+
+        Args:
+            spec: Code specification/requirements
+            file_path: Path where to write the code
+
+        Returns:
+            Dict with status and details
+        """
+        try:
+            # Generate the code using existing methods
+            code = await self.implement_with_patterns(spec)
+
+            if not code:
+                return {
+                    "status": "error",
+                    "error": "Failed to generate code",
+                    "agent": self.name
+                }
+
+            # Write the code to file
+            result = await self.write_implementation(file_path, code)
+
+            if result.get('status') == 'success':
+                logger.info(f"✅ CodeSmithAgent successfully implemented code to {file_path}")
+
+                # Add to response
+                result['code'] = code[:500] + "..." if len(code) > 500 else code
+                result['lines'] = len(code.split('\n'))
+
+                # Track in shared context if available
+                if self.shared_context:
+                    await self.shared_context.update_context(
+                        self.config.agent_id,
+                        "last_implementation",
+                        {
+                            "file": file_path,
+                            "spec": spec[:200],
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    )
+
+            return result
+
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            logger.error(f"❌ CodeSmithAgent failed to implement code: {e}\n{error_details}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "agent": self.name,
+                "path": file_path,
+                "traceback": error_details
+            }

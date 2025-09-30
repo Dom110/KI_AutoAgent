@@ -50,6 +50,14 @@ except ImportError:
     PAUSE_AVAILABLE = False
     logging.warning("Pause and Git checkpoint systems not available")
 
+# Import File System Tools
+try:
+    from agents.tools.file_tools import FileSystemTools
+    FILE_TOOLS_AVAILABLE = True
+except ImportError:
+    FILE_TOOLS_AVAILABLE = False
+    logging.warning("File system tools not available")
+
 # Setup logging
 logger = logging.getLogger(__name__)
 
@@ -171,6 +179,29 @@ class BaseAgent(ABC):
         else:
             self.pause_handler = None
             self.git_manager = None
+
+        # Initialize File System Tools if available
+        if FILE_TOOLS_AVAILABLE:
+            workspace_path = getattr(config, 'workspace_path', os.getcwd())
+            self.file_tools = FileSystemTools(workspace_path)
+
+            # Get write capabilities from config
+            # Handle both list and dict format for capabilities
+            if hasattr(config, 'capabilities'):
+                if isinstance(config.capabilities, dict):
+                    self.can_write = config.capabilities.get('file_write', False)
+                    self.allowed_paths = config.capabilities.get('allowed_paths', [])
+                else:
+                    # capabilities is a list (old format)
+                    self.can_write = False
+                    self.allowed_paths = []
+            else:
+                self.can_write = False
+                self.allowed_paths = []
+        else:
+            self.file_tools = None
+            self.can_write = False
+            self.allowed_paths = []
 
         # WebSocket callback for pause notifications (will be set by server)
         self.websocket_callback = None
@@ -598,6 +629,118 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         logger.info(f"⏱️ Dynamic timeout calculated: {timeout}s for prompt length {len(prompt)}")
         return timeout
+
+    async def write_implementation(self, file_path: str, content: str, create_dirs: bool = True) -> Dict[str, Any]:
+        """
+        Write implementation to file with proper validation and error handling
+
+        Args:
+            file_path: Path to file (relative to workspace)
+            content: Content to write
+            create_dirs: Create parent directories if needed
+
+        Returns:
+            Dict with status and details
+        """
+        if not self.file_tools:
+            error_msg = f"❌ File system tools not available for {self.name}"
+            logger.error(error_msg)
+            return {
+                "status": "error",
+                "error": error_msg,
+                "agent": self.name
+            }
+
+        if not self.can_write:
+            error_msg = f"❌ Agent {self.name} has no write permissions"
+            logger.error(error_msg)
+            return {
+                "status": "error",
+                "error": error_msg,
+                "agent": self.name
+            }
+
+        try:
+            # Use file tools to write with validation
+            result = await self.file_tools.write_file(
+                path=file_path,
+                content=content,
+                agent_name=self.name,
+                allowed_paths=self.allowed_paths,
+                create_dirs=create_dirs
+            )
+
+            if result.get('status') == 'success':
+                logger.info(f"✅ {self.name} successfully wrote to {file_path}")
+                # Track in memory if available
+                if self.memory_manager:
+                    await self.memory_manager.store(
+                        content={
+                            "action": "file_write",
+                            "path": file_path,
+                            "size": result.get('size', 0),
+                            "timestamp": datetime.now().isoformat()
+                        },
+                        memory_type="procedural",
+                        agent_id=self.config.agent_id
+                    )
+            else:
+                logger.error(f"❌ {self.name} failed to write to {file_path}: {result.get('error')}")
+
+            return result
+
+        except Exception as e:
+            error_msg = f"Exception during file write: {str(e)}"
+            logger.error(f"❌ {self.name} - {error_msg}")
+            return {
+                "status": "error",
+                "error": error_msg,
+                "agent": self.name,
+                "path": file_path
+            }
+
+    async def create_file(self, file_path: str, content: str, overwrite: bool = False) -> Dict[str, Any]:
+        """
+        Create a new file with content
+
+        Args:
+            file_path: Path to file (relative to workspace)
+            content: Content to write
+            overwrite: Allow overwriting existing file
+
+        Returns:
+            Dict with status and details
+        """
+        if not self.file_tools:
+            return {
+                "status": "error",
+                "error": "File system tools not available",
+                "agent": self.name
+            }
+
+        if not self.can_write:
+            return {
+                "status": "error",
+                "error": f"Agent {self.name} has no write permissions",
+                "agent": self.name
+            }
+
+        try:
+            result = await self.file_tools.create_file(
+                path=file_path,
+                content=content,
+                agent_name=self.name,
+                allowed_paths=self.allowed_paths,
+                overwrite=overwrite
+            )
+            return result
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e),
+                "agent": self.name,
+                "path": file_path
+            }
 
     async def _perform_mandatory_research(self, prompt: str, topics: list, technologies: list) -> Dict[str, Any]:
         """

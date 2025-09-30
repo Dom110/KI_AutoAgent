@@ -1,0 +1,94 @@
+# Agent Capabilities Configuration
+# Defines which agents have file write permissions and their allowed paths
+
+agents:
+  CodeSmithAgent:
+    capabilities:
+      file_write: true
+      allowed_paths:
+        - "./backend/**/*.py"
+        - "./tests/**/*.py"
+        - "./examples/**/*.py"
+    description: "Can write Python code files in backend and tests directories"
+
+  ArchitectAgent:
+    capabilities:
+      file_write: true
+      allowed_paths:
+        - "./*.config"
+        - "./docker-compose.yml"
+        - "./Dockerfile"
+        - "./backend/config/**"
+        - "./docs/architecture/**"
+    description: "Can create configuration files and architecture documentation"
+
+  FixerBot:
+    capabilities:
+      file_write: true
+      allowed_paths:
+        - "./backend/**/*.py"
+        - "./vscode-extension/**/*.ts"
+        - "./vscode-extension/**/*.js"
+    description: "Can fix code in any supported language"
+
+  DocuBot:
+    capabilities:
+      file_write: true
+      allowed_paths:
+        - "./docs/**"
+        - "./*.md"
+        - "./backend/docs/**"
+    description: "Can write documentation files"
+
+  PerformanceBot:
+    capabilities:
+      file_write: true
+      allowed_paths:
+        - "./performance/**"
+        - "./benchmarks/**"
+        - "./profiling/**"
+    description: "Can write performance analysis results and benchmarks"
+
+  ReviewerGPT:
+    capabilities:
+      file_write: false
+      allowed_paths: []
+    description: "Read-only agent for code review and analysis"
+
+  ResearchBot:
+    capabilities:
+      file_write: false
+      allowed_paths: []
+    description: "Read-only agent for research and information gathering"
+
+  OrchestratorAgent:
+    capabilities:
+      file_write: false
+      allowed_paths: []
+    description: "Coordination agent, delegates writing to specialized agents"
+
+  OpusArbitrator:
+    capabilities:
+      file_write: false
+      allowed_paths: []
+    description: "Decision-making agent for conflict resolution"
+
+  TradeStrat:
+    capabilities:
+      file_write: true
+      allowed_paths:
+        - "./trading/**"
+        - "./strategies/**"
+        - "./backtest/**"
+    description: "Can write trading strategies and backtest results"
+
+# Default settings for all agents
+defaults:
+  backup_before_write: true
+  audit_logging: true
+  max_file_size_mb: 10
+  protected_files:
+    - "*.env"
+    - "*.key"
+    - "*.pem"
+    - "*.secret"

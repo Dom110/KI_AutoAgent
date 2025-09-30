@@ -157,14 +157,26 @@ class ClaudeCodeService:
                         elif isinstance(data['content'], list):
                             for item in data['content']:
                                 if isinstance(item, dict) and item.get('type') == 'text':
-                                    text_parts.append(item.get('text', ''))
+                                    text = item.get('text', '')
+                                    if isinstance(text, str):
+                                        text_parts.append(text)
+                                elif isinstance(item, str):
+                                    text_parts.append(item)
 
             except json.JSONDecodeError:
                 # If not JSON, treat as plain text
                 if line and not line.startswith('{'):
                     text_parts.append(line)
 
-        return ''.join(text_parts)
+        # Ensure all parts are strings before joining
+        string_parts = []
+        for part in text_parts:
+            if isinstance(part, str):
+                string_parts.append(part)
+            else:
+                logger.warning(f"Skipping non-string part: {type(part)} - {part}")
+
+        return ''.join(string_parts)
 
     async def generate_code(
         self,
