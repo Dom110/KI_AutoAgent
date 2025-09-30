@@ -186,12 +186,34 @@ class CodeSmithAgent(ChatAgent):
         files_created = []
 
         try:
+            # 🔍 Validate workspace context first
+            workspace_context = self._validate_workspace_context()
+            if workspace_context['project'] != 'KI_AutoAgent':
+                logger.warning(f"⚠️ Unexpected project context: {workspace_context['project']}")
+
             # 🧠 INTELLIGENT FILE CREATION DETECTION - No keywords, pure AI understanding
             prompt = request.prompt
             workspace_path = request.context.get('workspace_path', os.getcwd())
             prompt_lower = prompt.lower()  # Still needed for infrastructure check
 
-            # Check if this is a cache update request first
+            # Check for button implementation request first (special case)
+            if 'button' in prompt_lower and ('orchestrator' in prompt_lower or 'plan' in prompt_lower):
+                logger.info("🎯 Button implementation request detected")
+                result = await self.handle_button_implementation(request, workspace_path)
+
+                # Check for hallucinations
+                if self._check_for_hallucination(result.content):
+                    logger.error("🚨 Hallucination in button implementation detected!")
+                    return TaskResult(
+                        status="error",
+                        content="Error: Agent confused about project context. This is KI_AutoAgent, not JD Edwards!",
+                        agent=self.config.agent_id,
+                        execution_time=(datetime.now() - start_time).total_seconds()
+                    )
+
+                return result
+
+            # Check if this is a cache update request
             if any(word in prompt_lower for word in ['cache', 'update', 'refresh', 'reload', 'extern']):
                 logger.info("🔄 Cache update request detected")
                 cache_results = await self.update_caches_for_external_changes(workspace_path)
@@ -1359,6 +1381,103 @@ Run this script to safely comment out dead code for review.
 
         return {"message": "CodeSmith received request"}
 
+    async def handle_button_implementation(self, request: TaskRequest, workspace_path: str) -> TaskResult:
+        """
+        🎯 Special handler for button implementation requests
+        Ensures buttons are added to the correct file in KI_AutoAgent
+        """
+        start_time = datetime.now()
+        logger.info("🎯 Handling button implementation request")
+
+        try:
+            # KNOW EXACTLY where buttons go
+            file_path = os.path.join(workspace_path, 'vscode-extension/src/ui/MultiAgentChatPanel.ts')
+
+            # Check if file exists
+            if not os.path.exists(file_path):
+                logger.error(f"❌ MultiAgentChatPanel.ts not found at {file_path}")
+                return TaskResult(
+                    status="error",
+                    content=f"Cannot find MultiAgentChatPanel.ts at expected location: {file_path}",
+                    agent=self.config.agent_id,
+                    execution_time=(datetime.now() - start_time).total_seconds()
+                )
+
+            # Read the current file
+            with open(file_path, 'r') as f:
+                current_content = f.read()
+
+            # Find the orchestrator button
+            orchestrator_pos = current_content.find('🎯 Orchestrator')
+            if orchestrator_pos == -1:
+                logger.error("❌ Could not find Orchestrator button in file")
+                return TaskResult(
+                    status="error",
+                    content="Could not locate Orchestrator button in MultiAgentChatPanel.ts",
+                    agent=self.config.agent_id,
+                    execution_time=(datetime.now() - start_time).total_seconds()
+                )
+
+            logger.info(f"✅ Found Orchestrator button at position {orchestrator_pos}")
+
+            # Generate the implementation
+            implementation_prompt = f"""Add a Plan-First button to KI_AutoAgent's MultiAgentChatPanel.ts.
+
+PROJECT: KI_AutoAgent VSCode Extension (NOT JD Edwards!)
+FILE: vscode-extension/src/ui/MultiAgentChatPanel.ts
+LOCATION: Next to the Orchestrator button
+
+The file already has:
+- Orchestrator button with text "🎯 Orchestrator"
+- Agent selector buttons
+- A Plan-First button may already be partially implemented
+
+Task: {request.prompt}
+
+IMPORTANT:
+- This is TypeScript/HTML, not Java or enterprise code
+- The button should be placed near the Orchestrator button
+- Include appropriate event handlers
+- DO NOT mention JD Edwards, Oracle, or any enterprise systems!"""
+
+            # Use implement_code_to_file
+            result = await self.implement_code_to_file(
+                spec=implementation_prompt,
+                file_path=file_path
+            )
+
+            if result.get('status') == 'success':
+                execution_time = (datetime.now() - start_time).total_seconds()
+                return TaskResult(
+                    status="success",
+                    content=f"✅ Successfully added button to MultiAgentChatPanel.ts\n"
+                            f"File: {file_path}\n"
+                            f"Lines modified: {result.get('lines', 0)}",
+                    agent=self.config.agent_id,
+                    metadata={
+                        "file_modified": file_path,
+                        "lines": result.get('lines', 0),
+                        "execution_time": execution_time
+                    },
+                    execution_time=execution_time
+                )
+            else:
+                return TaskResult(
+                    status="error",
+                    content=f"Failed to implement button: {result.get('error', 'Unknown error')}",
+                    agent=self.config.agent_id,
+                    execution_time=(datetime.now() - start_time).total_seconds()
+                )
+
+        except Exception as e:
+            logger.error(f"Button implementation failed: {e}")
+            return TaskResult(
+                status="error",
+                content=f"Button implementation failed: {str(e)}",
+                agent=self.config.agent_id,
+                execution_time=(datetime.now() - start_time).total_seconds()
+            )
+
     async def update_caches_for_external_changes(self, workspace_path: str) -> Dict[str, Any]:
         """
         🔄 Update all caches when code was changed externally
@@ -1433,6 +1552,62 @@ Run this script to safely comment out dead code for review.
             results["errors"].append(str(e))
             return results
 
+    def _check_for_hallucination(self, content: str) -> bool:
+        """
+        🧠 Check if agent is hallucinating about wrong systems
+        Prevents talking about JD Edwards, Oracle, etc.
+        """
+        hallucination_indicators = [
+            'JD Edwards', 'jd edwards', 'JDEdwards',
+            'Oracle', 'oracle',
+            'EnterpriseOne', 'enterprise one',
+            'P4310', 'Form Extension', 'form extension',
+            'ERP', 'SAP', 'PeopleSoft'
+        ]
+
+        content_lower = content.lower()
+        for indicator in hallucination_indicators:
+            if indicator.lower() in content_lower:
+                logger.error(f"🚨 HALLUCINATION DETECTED: Found '{indicator}' in response!")
+                logger.error(f"🚨 This is KI_AutoAgent, not an enterprise system!")
+                return True
+
+        return False
+
+    def _validate_workspace_context(self) -> Dict[str, str]:
+        """
+        🔍 Ensure agent knows it's in KI_AutoAgent workspace
+        """
+        import os
+
+        # Check for KI_AutoAgent markers
+        expected_files = [
+            'vscode-extension/src/ui/MultiAgentChatPanel.ts',
+            'backend/agents/specialized/codesmith_agent.py',
+            'package.json'
+        ]
+
+        workspace_path = os.getcwd()
+
+        for expected_file in expected_files:
+            file_path = os.path.join(workspace_path, expected_file)
+            if os.path.exists(file_path):
+                logger.info(f"✅ Workspace validation: Found {expected_file}")
+                return {
+                    'project': 'KI_AutoAgent',
+                    'type': 'VSCode Extension',
+                    'ui_file': 'vscode-extension/src/ui/MultiAgentChatPanel.ts',
+                    'workspace_path': workspace_path
+                }
+
+        logger.warning("⚠️ Not in expected KI_AutoAgent workspace structure")
+        return {
+            'project': 'Unknown',
+            'type': 'Unknown',
+            'ui_file': 'unknown',
+            'workspace_path': workspace_path
+        }
+
     def _enforce_asimov_rule_1(self, file_path: str):
         """
         🚫 ASIMOV RULE 1 ENFORCEMENT
@@ -1456,10 +1631,16 @@ Run this script to safely comment out dead code for review.
     async def _ai_detect_implementation_request(self, prompt: str) -> bool:
         """
         🧠 Use AI to intelligently detect if this is an implementation request
-        NO KEYWORDS - pure understanding of user intent
+        With KI_AutoAgent project context awareness
         """
         try:
-            ai_prompt = f"""Analyze this request and determine if it requires creating or modifying code files.
+            ai_prompt = f"""You are working on KI_AutoAgent, a VS Code extension with AI agents.
+
+PROJECT CONTEXT:
+- Frontend: TypeScript/HTML in vscode-extension/src/ui/MultiAgentChatPanel.ts
+- Backend: Python agents in backend/agents/
+- The "Orchestrator button" is in the MultiAgentChatPanel.ts file
+- This is NOT JD Edwards, Oracle, or any enterprise system!
 
 Request: {prompt}
 
@@ -1471,12 +1652,9 @@ Remember ASIMOV RULE 1: No fallbacks. Be definitive.
 
 Answer (YES/NO):"""
 
-            response = await self.claude_cli.get_completion(
-                system_prompt="You are an expert at understanding software development requests.",
-                user_prompt=ai_prompt,
-                temperature=0.1,
-                max_tokens=10
-            )
+            # Use complete method with combined prompt
+            full_prompt = f"System: You are an expert at understanding KI_AutoAgent VSCode extension development.\n\n{ai_prompt}"
+            response = await self.claude_cli.complete(full_prompt)
 
             result = response.strip().upper().startswith('YES')
             if result:
@@ -1493,9 +1671,17 @@ Answer (YES/NO):"""
     async def _ai_determine_file_path(self, prompt: str, workspace_path: str) -> str:
         """
         🧠 Use AI to intelligently determine the appropriate file path
-        Based on project structure, conventions, and request context
+        With explicit KI_AutoAgent project knowledge
         """
         try:
+            # Check for button-related keywords first
+            prompt_lower = prompt.lower()
+            if 'button' in prompt_lower and 'orchestrator' in prompt_lower:
+                # We KNOW where buttons go in KI_AutoAgent
+                file_path = 'vscode-extension/src/ui/MultiAgentChatPanel.ts'
+                logger.info(f"🎯 Direct path determination: Button near Orchestrator → {file_path}")
+                return os.path.join(workspace_path, file_path)
+
             # Get project structure context
             project_files = []
             try:
@@ -1513,34 +1699,29 @@ Answer (YES/NO):"""
 
             project_structure = "\n".join(project_files[:30]) if project_files else "Empty project"
 
-            ai_prompt = f"""Determine the appropriate file path for this implementation request.
+            ai_prompt = f"""KI_AutoAgent VSCode Extension - Determine the correct file path.
 
 Request: {prompt}
+
+CRITICAL PROJECT CONTEXT:
+- This is KI_AutoAgent, NOT JD Edwards or any enterprise system!
+- "Orchestrator button" is in: vscode-extension/src/ui/MultiAgentChatPanel.ts
+- UI components and buttons: vscode-extension/src/ui/MultiAgentChatPanel.ts
+- Backend agents: backend/agents/specialized/*.py
+- This is a VS Code extension with TypeScript frontend and Python backend
 
 Project structure sample:
 {project_structure}
 
-Workspace path: {workspace_path}
-
-Based on the request and project structure, provide ONLY the file path.
-Follow standard conventions:
-- UI components → vscode-extension/src/ui/
-- Backend code → backend/
-- Agents → backend/agents/
-- Config files → root or config/
-- Tests → tests/
-
+Based on the request, what file should be modified?
 IMPORTANT: Return ONLY the file path, nothing else.
-Example: vscode-extension/src/ui/PlanFirstButton.ts
+DO NOT mention JD Edwards, Oracle, or any enterprise systems!
 
 File path:"""
 
-            response = await self.claude_cli.get_completion(
-                system_prompt="You are an expert at determining file paths based on project structure and conventions.",
-                user_prompt=ai_prompt,
-                temperature=0.2,
-                max_tokens=100
-            )
+            # Use complete method with combined prompt
+            full_prompt = f"System: You are an expert at determining file paths based on project structure and conventions.\n\n{ai_prompt}"
+            response = await self.claude_cli.complete(full_prompt)
 
             file_path = response.strip()
 

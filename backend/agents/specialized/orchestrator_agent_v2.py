@@ -5,6 +5,7 @@ Provides the same functionality as the TypeScript version
 
 import asyncio
 import json
+import os
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -357,7 +358,19 @@ Current question: {prompt}"""
             await self._send_progress(client_id, f"🏗️ Infrastructure task detected: {', '.join(matched)}", manager)
             return await self._create_infrastructure_workflow(prompt, client_id, manager, conversation_history)
 
-        system_prompt = """You are an INTELLIGENT task decomposer with deep understanding of software implementation.
+        # Get workspace path for context
+        workspace_path = os.getenv('VSCODE_WORKSPACE', os.getcwd())
+
+        system_prompt = """You are an INTELLIGENT task decomposer for the KI_AutoAgent system.
+
+🏗️ PROJECT CONTEXT - KI_AutoAgent VSCode Extension:
+- This is a VS Code extension with AI agents, NOT JD Edwards or any enterprise system!
+- Frontend UI: TypeScript/HTML in vscode-extension/src/ui/MultiAgentChatPanel.ts
+- Backend: Python agents in backend/agents/
+- The "Orchestrator button" is in: vscode-extension/src/ui/MultiAgentChatPanel.ts
+- UI buttons and components go in the MultiAgentChatPanel.ts file
+
+⚠️ NEVER mention: JD Edwards, Oracle, EnterpriseOne, P4310, Form Extension, or any ERP systems!
 
 🚨 CRITICAL DIRECTIVE: REAL FILE CREATION IS MANDATORY
 When ANY task involves implementing, building, creating, adding, or modifying features:
@@ -370,7 +383,7 @@ You must INTELLIGENTLY analyze the user's request to determine:
 1. Does this involve creating/modifying code or features? → Files MUST be created
 2. Is the user asking for implementation/feature addition? → Files MUST be created
 3. Keywords like "add", "create", "implement", "build", "einführen", "erstelle" → Files MUST be created
-4. Even vague requests like "make it better" or "improve this" → Determine what files to create
+4. For UI/Button tasks → Target file is vscode-extension/src/ui/MultiAgentChatPanel.ts
 
 Available agents and their capabilities:
 - architect: System design, architecture patterns, UI/UX design, component architecture
@@ -379,6 +392,7 @@ Available agents and their capabilities:
 - codesmith: ALL code implementation, features, UI components, buttons, functions
   FILE CREATION: implement_code_to_file() - THIS IS MANDATORY FOR ALL CODE
   CRITICAL: For ANY code task, description MUST include: "USE implement_code_to_file() to create [intelligent_path/filename]"
+  FOR BUTTON TASKS: Target file is ALWAYS vscode-extension/src/ui/MultiAgentChatPanel.ts
 
 - research: Web research, best practices, trends, patterns, examples
 
