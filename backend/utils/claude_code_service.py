@@ -103,10 +103,13 @@ class ClaudeCodeService:
                 stderr=asyncio.subprocess.PIPE
             )
 
-            # Send prompt and get response
+            # Send prompt and get response (increased timeout for complex requests)
+            timeout_seconds = 120  # Increased from 30 to 120 seconds
+            logger.info(f"⏱️ Running Claude CLI with {timeout_seconds}s timeout...")
+
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(input=full_prompt.encode()),
-                timeout=30  # 30 second timeout
+                timeout=timeout_seconds
             )
 
             if process.returncode != 0:
@@ -121,8 +124,9 @@ class ClaudeCodeService:
                 return stdout.decode().strip()
 
         except asyncio.TimeoutError:
-            error_msg = "Claude CLI timed out after 30 seconds"
+            error_msg = f"Claude CLI timed out after {timeout_seconds} seconds"
             logger.error(error_msg)
+            logger.error("💡 Tip: Complex code generation may need more time")
             raise Exception(error_msg)
         except Exception as e:
             error_msg = f"Claude CLI error: {str(e)}"
