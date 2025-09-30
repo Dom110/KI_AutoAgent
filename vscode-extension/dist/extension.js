@@ -11236,6 +11236,29 @@ class MultiAgentChatPanel {
                     });
                 }, 500); // Small delay to ensure webview is ready
 
+                // Define addMessage function before it's used
+                function addMessage(content, type, agent) {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message ' + type + '-message';
+
+                    // Add agent-specific class for styling
+                    if (agent) {
+                        const agentClass = agent.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                        messageDiv.classList.add(agentClass + '-bubble');
+                        const badge = document.createElement('span');
+                        badge.className = 'agent-badge';
+                        badge.textContent = agent;
+                        messageDiv.appendChild(badge);
+                    }
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.innerHTML = formatContent(content);
+                    messageDiv.appendChild(contentDiv);
+
+                    messagesDiv.appendChild(messageDiv);
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
+
                 // Agent selection
                 agentOptions.forEach(option => {
                     option.addEventListener('click', () => {
@@ -11373,21 +11396,404 @@ class MultiAgentChatPanel {
 
                         // Show notification
                         const mode = planFirstMode ? 'enabled' : 'disabled';
-                        addMessage(`;
-        // removed by dead control flow
+                        const modeMessage = planFirstMode
+                            ? 'I will show you the execution plan before running tasks.'
+                            : 'I will execute tasks immediately.';
+                        addMessage('📋 Plan-First mode ' + mode + '. ' + modeMessage, 'system');
 
-        // removed by dead control flow
+                        // Save preference
+                        vscode.postMessage({
+                            type: 'planFirstMode',
+                            enabled: planFirstMode
+                        });
+                    });
+                }
 
-        // removed by dead control flow
+                pauseBtn.addEventListener('click', () => {
+                    if (isProcessing && !isPaused) {
+                        vscode.postMessage({ type: 'pause' });
+                        isPaused = true;
+                        showPauseUI();
+                        updatePauseButtonState();
+                    }
+                });
 
-        // removed by dead control flow
-{}
-        // removed by dead control flow
+                // Function to show pause UI with instruction input
+                function showPauseUI() {
+                    const pauseOverlay = document.createElement('div');
+                    pauseOverlay.className = 'pause-overlay';
+                    pauseOverlay.innerHTML = [
+                        '<div class="pause-dialog">',
+                        '<h3>⏸️ Task Paused</h3>',
+                        '<p>Add additional instructions or stop the task:</p>',
+                        '<textarea id="pause-instructions" placeholder="Enter additional instructions (optional)..." rows="4"></textarea>',
+                        '<div class="pause-actions">',
+                        '<button id="resume-btn" class="btn primary">▶️ Resume</button>',
+                        '<button id="resume-with-instructions-btn" class="btn info">📝 Resume with Instructions</button>',
+                        '<button id="stop-rollback-btn" class="btn danger">🔄 Stop & Rollback</button>',
+                        '</div>',
+                        '</div>'
+                    ].join('');
+                    document.body.appendChild(pauseOverlay);
 
-        // removed by dead control flow
-{}
-        // removed by dead control flow
+                    // Handle pause dialog buttons
+                    document.getElementById('resume-btn').addEventListener('click', () => {
+                        vscode.postMessage({ type: 'resumeWithInstructions' });
+                        document.body.removeChild(pauseOverlay);
+                        isPaused = false;
+                        updatePauseButtonState();
+                    });
 
+                    document.getElementById('resume-with-instructions-btn').addEventListener('click', () => {
+                        const instructions = document.getElementById('pause-instructions').value;
+                        if (instructions.trim()) {
+                            vscode.postMessage({
+                                type: 'resumeWithInstructions',
+                                instructions: instructions
+                            });
+                            document.body.removeChild(pauseOverlay);
+                            isPaused = false;
+                            updatePauseButtonState();
+                        } else {
+                            alert('Please enter instructions or click Resume to continue without changes');
+                        }
+                    });
+
+                    document.getElementById('stop-rollback-btn').addEventListener('click', () => {
+                        if (confirm('Are you sure you want to stop and rollback to the last checkpoint?')) {
+                            vscode.postMessage({ type: 'stopAndRollback' });
+                            document.body.removeChild(pauseOverlay);
+                            isPaused = false;
+                            isProcessing = false;
+                            updatePauseButtonState();
+                        }
+                    });
+                }
+
+                // Create activity indicator
+                const activityIndicator = document.createElement('div');
+                activityIndicator.className = 'activity-indicator';
+
+                const spinner = document.createElement('div');
+                spinner.className = 'spinner';
+
+                const text = document.createElement('div');
+                text.className = 'text';
+                text.textContent = 'Processing...';
+
+                activityIndicator.appendChild(spinner);
+                activityIndicator.appendChild(text);
+                document.body.appendChild(activityIndicator);
+
+                function updateActivityIndicator(active, text = 'Processing...') {
+                    console.log('🔄 updateActivityIndicator called:', active, text);
+                    if (active) {
+                        activityIndicator.classList.add('active');
+                        const textElement = activityIndicator.querySelector('.text');
+                        if (textElement) {
+                            textElement.textContent = text;
+                        }
+                        console.log('✅ Activity indicator made active with text:', text);
+                    } else {
+                        activityIndicator.classList.remove('active');
+                        console.log('⏹️ Activity indicator hidden');
+                    }
+                }
+                // Auto-resize textarea
+                function autoResizeTextarea() {
+                    messageInput.style.height = 'auto';
+                    const newHeight = Math.min(messageInput.scrollHeight, 150);
+                    messageInput.style.height = newHeight + 'px';
+                }
+
+                // Handle textarea input
+                messageInput.addEventListener('input', autoResizeTextarea);
+
+                // Handle Enter key (send) vs Shift+Enter (new line)
+                messageInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                });
+
+                // Initialize textarea height
+                autoResizeTextarea();
+
+                // Handle messages from extension
+                window.addEventListener('message', event => {
+                    const message = event.data;
+
+                    switch (message.type) {
+                        case 'userMessage':
+                            addMessage(message.content, 'user');
+                            break;
+
+                        case 'historyMessage':
+                            // Display history message from persistent storage
+                            if (message.isUser) {
+                                addMessage(message.content, 'user');
+                            } else {
+                                addMessage(message.content, 'assistant', message.agent);
+                            }
+                            break;
+
+                        case 'agentThinking':
+                            isProcessing = true;
+                            updatePauseButtonState();
+                            updateActivityIndicator(true, message.content || 'Processing...');
+                            addThinkingMessage(message.agent, message.content);
+                            break;
+
+                        case 'progress':
+                            console.log('📊 Progress message received:', message.agent, message.content);
+                            // Update existing progress message or create new one
+                            updateProgressMessage(message.agent, message.content);
+                            updateActivityIndicator(true, message.content || 'Processing...');
+                            break;
+
+                        case 'agentResponse':
+                            // Always reset processing state on response
+                            isProcessing = false;
+                            updatePauseButtonState();
+                            updateActivityIndicator(false);
+                            removeThinkingMessage();
+                            removeProgressMessages();
+                            addMessage(message.content, 'agent', message.agent);
+                            // Re-enable input and button
+                            if (stopButton) {
+                                stopButton.style.display = 'none';
+                                sendButton.style.display = 'inline-block';
+                            }
+                            if (messageInput) messageInput.disabled = false;
+                            break;
+
+                        case 'complete':
+                            // Double-check processing state is reset
+                            isProcessing = false;
+                            updatePauseButtonState();
+                            updateActivityIndicator(false);
+                            removeThinkingMessage();
+                            removeProgressMessages();
+                            if (stopButton) {
+                                stopButton.style.display = 'none';
+                                sendButton.style.display = 'inline-block';
+                            }
+                            if (messageInput) messageInput.disabled = false;
+                            break;
+
+                        case 'clearChat':
+                            messagesDiv.innerHTML = '';
+                            isProcessing = false;
+                            updatePauseButtonState();
+                            updateActivityIndicator(false);
+                            if (stopButton) {
+                                stopButton.style.display = 'none';
+                                sendButton.style.display = 'inline-block';
+                            }
+                            if (messageInput) messageInput.disabled = false;
+                            break;
+
+                        case 'pauseActivated':
+                            isPaused = true;
+                            updatePauseButtonState();
+                            break;
+
+                        case 'resumed':
+                            isPaused = false;
+                            updatePauseButtonState();
+                            break;
+
+                        case 'stoppedAndRolledBack':
+                            isProcessing = false;
+                            isPaused = false;
+                            updatePauseButtonState();
+                            updateActivityIndicator(false);
+                            removeThinkingMessage();
+                            removeProgressMessages();
+                            if (stopButton) {
+                                stopButton.style.display = 'none';
+                                sendButton.style.display = 'inline-block';
+                            }
+                            if (messageInput) messageInput.disabled = false;
+                            break;
+                    }
+                });
+
+                function addThinkingMessage(agent, content) {
+                    removeThinkingMessage();
+
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message agent-message agent-thinking';
+                    messageDiv.id = 'thinking-message';
+
+                    const badge = document.createElement('span');
+                    badge.className = 'agent-badge';
+                    badge.textContent = agent;
+                    messageDiv.appendChild(badge);
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.innerHTML = formatContent(content || 'Thinking...');
+                    messageDiv.appendChild(contentDiv);
+
+                    messagesDiv.appendChild(messageDiv);
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
+
+                function removeThinkingMessage() {
+                    const thinkingMsg = document.getElementById('thinking-message');
+                    if (thinkingMsg) {
+                        thinkingMsg.remove();
+                    }
+                }
+
+                // Map to track progress messages by agent
+                const progressMessages = new Map();
+
+                function updateProgressMessage(agent, content) {
+                    let progressDiv = progressMessages.get(agent);
+
+                    if (!progressDiv) {
+                        // Create new progress message
+                        progressDiv = document.createElement('div');
+                        progressDiv.className = 'message system-message progress-update';
+                        progressDiv.id = 'progress-' + agent.replace(/[^a-z0-9]/gi, '-');
+
+                        const badge = document.createElement('span');
+                        badge.className = 'agent-badge';
+                        badge.textContent = agent + ' Progress';
+                        progressDiv.appendChild(badge);
+
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'progress-content';
+                        progressDiv.appendChild(contentDiv);
+
+                        messagesDiv.appendChild(progressDiv);
+                        progressMessages.set(agent, progressDiv);
+                    }
+
+                    // Update content
+                    const contentDiv = progressDiv.querySelector('.progress-content');
+                    if (contentDiv) {
+                        contentDiv.innerHTML = formatContent(content);
+                    }
+
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
+
+                function removeProgressMessages() {
+                    progressMessages.forEach((div, agent) => {
+                        if (div.parentNode) {
+                            div.parentNode.removeChild(div);
+                        }
+                    });
+                    progressMessages.clear();
+                }
+
+                // Initialization overlay functions
+                function showInitializationOverlay() {
+                    if (document.getElementById('initialization-overlay')) return;
+
+                    const overlay = document.createElement('div');
+                    overlay.id = 'initialization-overlay';
+                    overlay.className = 'initialization-overlay';
+                    overlay.innerHTML = [
+                        '<div class="initialization-content">',
+                        '    <div class="spinner"></div>',
+                        '    <h2>🚀 Initializing System</h2>',
+                        '    <p id="init-status">Preparing KI AutoAgent...</p>',
+                        '    <div id="init-progress" class="progress-bar">',
+                        '        <div class="progress-fill"></div>',
+                        '    </div>',
+                        '</div>'
+                    ].join('');
+                    document.body.appendChild(overlay);
+                }
+
+                function hideInitializationOverlay() {
+                    const overlay = document.getElementById('initialization-overlay');
+                    if (overlay) {
+                        overlay.classList.add('fade-out');
+                        setTimeout(() => overlay.remove(), 300);
+                    }
+                    isInitializing = false;
+                }
+
+                function updateInitStatus(status) {
+                    const statusEl = document.getElementById('init-status');
+                    if (statusEl) {
+                        statusEl.textContent = status;
+                    }
+                }
+
+                function formatContent(content) {
+                    // Enhanced markdown and formatting support
+                    if (!content) return '';
+
+                    // First escape HTML for security
+                    const escapeMap = {
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#039;'
+                    };
+
+                    let escaped = '';
+                    for (let i = 0; i < content.length; i++) {
+                        const char = content[i];
+                        escaped += escapeMap[char] || char;
+                    }
+
+                    // Convert markdown-style formatting
+                    // Headers
+                    escaped = escaped.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+                    escaped = escaped.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+                    escaped = escaped.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+                    // Bold and Italic
+                    escaped = escaped.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
+                    escaped = escaped.replace(/\\*(.+?)\\*/g, '<em>$1</em>');
+
+                    // Code blocks - match triple backticks
+                    const codeBlockStart = escaped.indexOf('&lt;code&gt;&lt;code&gt;&lt;code&gt;');
+                    if (codeBlockStart !== -1) {
+                        const codeBlockEnd = escaped.indexOf('&lt;code&gt;&lt;code&gt;&lt;code&gt;', codeBlockStart + 1);
+                        if (codeBlockEnd !== -1) {
+                            const before = escaped.substring(0, codeBlockStart);
+                            const code = escaped.substring(codeBlockStart + 39, codeBlockEnd);
+                            const after = escaped.substring(codeBlockEnd + 39);
+                            escaped = before + '&lt;pre&gt;&lt;code&gt;' + code + '&lt;/code&gt;&lt;/pre&gt;' + after;
+                        }
+                    }
+
+                    // Inline code - match single backticks
+                    escaped = escaped.replace(/&lt;code&gt;([^&]+)&lt;code&gt;/g, '&lt;code&gt;$1&lt;/code&gt;');
+
+                    // Lists
+                    escaped = escaped.replace(/^\\* (.+)$/gm, '<li>$1</li>');
+                    escaped = escaped.replace(/^- (.+)$/gm, '<li>$1</li>');
+                    escaped = escaped.replace(/^\\d+\\. (.+)$/gm, '<li>$1</li>');
+
+                    // Wrap consecutive li elements in ul
+                    escaped = escaped.replace(/(<li>.+<\\/li>\\s*)+/g, function(match) {
+                        return '<ul>' + match + '</ul>';
+                    });
+
+                    // Line breaks
+                    escaped = escaped.split('\\n\\n').join('</p><p>');
+                    escaped = escaped.split('\\n').join('<br>');
+
+                    // Wrap in paragraph if not already wrapped
+                    if (!escaped.startsWith('<')) {
+                        escaped = '<p>' + escaped + '</p>';
+                    }
+
+                    return escaped;
+                }
+            </script>
+        </body>
+        </html>`;
     }
     dispose() {
         MultiAgentChatPanel.currentPanel = undefined;

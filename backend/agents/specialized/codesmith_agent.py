@@ -1590,6 +1590,112 @@ IMPORTANT:
                 "error": f"Direct implementation failed: {str(e)}"
             }
 
+    async def analyze_typescript_errors(self, file_path: str, line_number: int) -> Dict[str, Any]:
+        """
+        🔍 Analyze TypeScript errors at specific line
+        Better error analysis for the Orchestrator
+        """
+        logger.info(f"🔍 Analyzing TypeScript errors at {file_path}:{line_number}")
+
+        try:
+            import subprocess
+
+            # Read the file to get context
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            # Get context around the error line
+            start = max(0, line_number - 10)
+            end = min(len(lines), line_number + 10)
+            context_lines = lines[start:end]
+
+            # Run TypeScript compiler to get errors
+            result = subprocess.run(
+                ['npx', 'tsc', '--noEmit', file_path],
+                capture_output=True,
+                text=True,
+                cwd=os.path.dirname(file_path) or '.'
+            )
+
+            errors = []
+
+            # Parse TypeScript errors
+            if result.stderr or result.stdout:
+                error_output = result.stderr + result.stdout
+                for line in error_output.split('\n'):
+                    if f':{line_number}:' in line and 'error' in line:
+                        errors.append(line.strip())
+
+            # Analyze common TypeScript issues at this line
+            if line_number <= len(lines):
+                line_content = lines[line_number - 1]
+
+                # Check for common issues
+                issues = []
+
+                # Template string issues
+                if '`' in line_content:
+                    # Check for unmatched backticks
+                    backtick_count = line_content.count('`')
+                    if backtick_count % 2 != 0:
+                        issues.append("Unmatched backtick in template string")
+
+                    # Check for nested quotes
+                    if '${' in line_content and ("'" in line_content or '"' in line_content):
+                        issues.append("Possible quote conflict in template string")
+
+                # Function call before definition
+                if '(' in line_content:
+                    func_name = line_content.split('(')[0].strip().split(' ')[-1]
+                    # Check if function is defined later
+                    defined_later = False
+                    for i in range(line_number, len(lines)):
+                        if f'function {func_name}' in lines[i]:
+                            defined_later = True
+                            issues.append(f"Function '{func_name}' used before declaration (defined at line {i+1})")
+                            break
+
+                # Missing semicolons (simple check)
+                if not line_content.strip().endswith((';', '{', '}', ',')) and line_content.strip():
+                    if not any(keyword in line_content for keyword in ['if', 'else', 'for', 'while', '//']):
+                        issues.append("Possible missing semicolon")
+
+                return {
+                    "status": "success",
+                    "line": line_number,
+                    "content": line_content.strip(),
+                    "context": ''.join(context_lines),
+                    "typescript_errors": errors,
+                    "detected_issues": issues,
+                    "suggestion": self._generate_fix_suggestion(issues, line_content)
+                }
+
+            return {
+                "status": "error",
+                "message": f"Line {line_number} not found in file"
+            }
+
+        except Exception as e:
+            logger.error(f"❌ Error analyzing TypeScript: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+    def _generate_fix_suggestion(self, issues: List[str], line_content: str) -> str:
+        """Generate fix suggestions based on detected issues"""
+        suggestions = []
+
+        for issue in issues:
+            if "Function" in issue and "before declaration" in issue:
+                suggestions.append("Move the function definition before its first use")
+            elif "template string" in issue:
+                suggestions.append("Check template string syntax - ensure backticks are matched")
+            elif "missing semicolon" in issue:
+                suggestions.append("Add a semicolon at the end of the statement")
+
+        return " | ".join(suggestions) if suggestions else "Review the line for syntax errors"
+
     async def update_caches_for_external_changes(self, workspace_path: str) -> Dict[str, Any]:
         """
         🔄 Update all caches when code was changed externally

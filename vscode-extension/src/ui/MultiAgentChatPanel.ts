@@ -1362,6 +1362,29 @@ export class MultiAgentChatPanel {
                     });
                 }, 500); // Small delay to ensure webview is ready
 
+                // Define addMessage function before it's used
+                function addMessage(content, type, agent) {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message ' + type + '-message';
+
+                    // Add agent-specific class for styling
+                    if (agent) {
+                        const agentClass = agent.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                        messageDiv.classList.add(agentClass + '-bubble');
+                        const badge = document.createElement('span');
+                        badge.className = 'agent-badge';
+                        badge.textContent = agent;
+                        messageDiv.appendChild(badge);
+                    }
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.innerHTML = formatContent(content);
+                    messageDiv.appendChild(contentDiv);
+
+                    messagesDiv.appendChild(messageDiv);
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
+
                 // Agent selection
                 agentOptions.forEach(option => {
                     option.addEventListener('click', () => {
@@ -1499,7 +1522,10 @@ export class MultiAgentChatPanel {
 
                         // Show notification
                         const mode = planFirstMode ? 'enabled' : 'disabled';
-                        addMessage(`📋 Plan-First mode ${mode}. ${planFirstMode ? 'I will show you the execution plan before running tasks.' : 'I will execute tasks immediately.'}`, 'system');
+                        const modeMessage = planFirstMode
+                            ? 'I will show you the execution plan before running tasks.'
+                            : 'I will execute tasks immediately.';
+                        addMessage('📋 Plan-First mode ' + mode + '. ' + modeMessage, 'system');
 
                         // Save preference
                         vscode.postMessage({
@@ -1719,28 +1745,6 @@ export class MultiAgentChatPanel {
                             break;
                     }
                 });
-
-                function addMessage(content, type, agent) {
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = 'message ' + type + '-message';
-
-                    // Add agent-specific class for styling
-                    if (agent) {
-                        const agentClass = agent.toLowerCase().replace(/[^a-z0-9]/g, '-');
-                        messageDiv.classList.add(agentClass + '-bubble');
-                        const badge = document.createElement('span');
-                        badge.className = 'agent-badge';
-                        badge.textContent = agent;
-                        messageDiv.appendChild(badge);
-                    }
-
-                    const contentDiv = document.createElement('div');
-                    contentDiv.innerHTML = formatContent(content);
-                    messageDiv.appendChild(contentDiv);
-
-                    messagesDiv.appendChild(messageDiv);
-                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                }
 
                 function addThinkingMessage(agent, content) {
                     removeThinkingMessage();
