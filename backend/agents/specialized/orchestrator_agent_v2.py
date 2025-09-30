@@ -280,7 +280,8 @@ Current question: {prompt}"""
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             temperature=0.7,
-            max_tokens=2000
+            max_tokens=2000,
+            timeout=60.0  # Standard timeout for simple questions
         )
 
         return TaskResult(
@@ -715,7 +716,8 @@ DO NOT provide general advice. PROVIDE ACTUAL CODE."""
             system_prompt=system_prompt,
             user_prompt=enhanced_prompt,
             temperature=0.7,
-            max_tokens=1500
+            max_tokens=1500,
+            timeout=90.0  # UI component suggestions need moderate timeout
         )
 
         return response
@@ -773,7 +775,8 @@ Please synthesize these results into a comprehensive response."""
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
                 temperature=0.7,
-                max_tokens=2000  # Reduced from 3000
+                max_tokens=2000,  # Reduced from 3000
+                timeout=120.0  # Complex synthesis needs more time
             )
 
         # Add execution metadata

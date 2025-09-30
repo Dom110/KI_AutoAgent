@@ -521,6 +521,84 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         return result
 
+    def calculate_dynamic_timeout(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> float:
+        """
+        Calculate dynamic timeout based on task complexity and keywords
+        Returns timeout in seconds
+        """
+        # Default timeout
+        timeout = 60.0
+
+        # Keywords that indicate complex tasks needing more time
+        complex_keywords = {
+            'analyze': 180.0,
+            'analyse': 180.0,  # German variant
+            'architecture': 180.0,
+            'infrastructure': 240.0,
+            'improve': 180.0,
+            'verbessern': 180.0,  # German: improve
+            'system': 150.0,
+            'complex': 180.0,
+            'komplex': 180.0,  # German: complex
+            'comprehensive': 240.0,
+            'umfassend': 240.0,  # German: comprehensive
+            'refactor': 180.0,
+            'optimize': 180.0,
+            'optimieren': 180.0,  # German: optimize
+            'research': 150.0,
+            'forschen': 150.0,  # German: research
+            'understand': 180.0,
+            'verstehen': 180.0,  # German: understand
+            'debug': 150.0,
+            'security': 180.0,
+            'sicherheit': 180.0,  # German: security
+            'review': 150.0,
+            'überprüfen': 150.0,  # German: review
+        }
+
+        # Keywords for simpler tasks
+        simple_keywords = {
+            'list': 30.0,
+            'show': 30.0,
+            'zeigen': 30.0,  # German: show
+            'get': 30.0,
+            'holen': 30.0,  # German: get
+            'check': 45.0,
+            'prüfen': 45.0,  # German: check
+            'status': 30.0,
+            'count': 30.0,
+            'zählen': 30.0,  # German: count
+        }
+
+        prompt_lower = prompt.lower()
+
+        # Check for complex keywords (take the maximum timeout found)
+        for keyword, keyword_timeout in complex_keywords.items():
+            if keyword in prompt_lower:
+                timeout = max(timeout, keyword_timeout)
+
+        # If no complex keywords, check for simple keywords (take the minimum)
+        if timeout == 60.0:
+            for keyword, keyword_timeout in simple_keywords.items():
+                if keyword in prompt_lower:
+                    timeout = min(timeout, keyword_timeout)
+
+        # Consider prompt length
+        if len(prompt) > 1000:
+            timeout = max(timeout, 180.0)
+        elif len(prompt) > 500:
+            timeout = max(timeout, 120.0)
+
+        # Consider context size if available
+        if context and 'files' in context and len(context.get('files', [])) > 10:
+            timeout = max(timeout, 180.0)
+
+        # Apply minimum and maximum bounds
+        timeout = max(30.0, min(timeout, 300.0))
+
+        logger.info(f"⏱️ Dynamic timeout calculated: {timeout}s for prompt length {len(prompt)}")
+        return timeout
+
     async def _perform_mandatory_research(self, prompt: str, topics: list, technologies: list) -> Dict[str, Any]:
         """
         Perform mandatory research as required by Prime Directive 4

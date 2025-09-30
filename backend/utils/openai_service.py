@@ -78,26 +78,58 @@ class OpenAIService:
                 )
             else:
                 import asyncio
-                # Use configurable timeout (default 30s for simple tasks, up to 300s for complex ones)
-                api_timeout = timeout or 30.0
-                try:
-                    response = await asyncio.wait_for(
-                        self.client.chat.completions.create(
-                            model=self.config.model,
-                            messages=messages,
-                            temperature=temperature or self.config.temperature,
-                            max_tokens=max_tokens or self.config.max_tokens
-                        ),
-                        timeout=api_timeout
-                    )
-                    content = response.choices[0].message.content
-                    if not content:
-                        logger.warning(f"OpenAI returned empty response for model {self.config.model}")
-                        logger.debug(f"Full response: {response}")
-                    return content or ""
-                except asyncio.TimeoutError:
-                    logger.error(f"OpenAI API call timed out after {api_timeout} seconds")
-                    return f"Error: OpenAI API call timed out after {api_timeout} seconds. Please try again or use a simpler query."
+                # Use configurable timeout (default 120s for normal tasks, up to 300s for complex ones)
+                api_timeout = timeout or 120.0  # Increased default from 30s to 120s
+
+                # Retry mechanism with exponential backoff
+                max_retries = 3
+                last_error = None
+
+                for attempt in range(max_retries):
+                    try:
+                        if attempt > 0:
+                            wait_time = 2 ** attempt  # Exponential backoff: 2, 4, 8 seconds
+                            logger.info(f"Retry attempt {attempt + 1}/{max_retries} after {wait_time}s wait...")
+                            await asyncio.sleep(wait_time)
+                            # Increase timeout for retries
+                            api_timeout = min(api_timeout * 1.5, 300.0)
+
+                        response = await asyncio.wait_for(
+                            self.client.chat.completions.create(
+                                model=self.config.model,
+                                messages=messages,
+                                temperature=temperature or self.config.temperature,
+                                max_tokens=max_tokens or self.config.max_tokens
+                            ),
+                            timeout=api_timeout
+                        )
+                        content = response.choices[0].message.content
+                        if not content:
+                            logger.warning(f"OpenAI returned empty response for model {self.config.model}")
+                            logger.debug(f"Full response: {response}")
+                        return content or ""
+
+                    except asyncio.TimeoutError as e:
+                        last_error = e
+                        if attempt < max_retries - 1:
+                            logger.warning(f"OpenAI API call timed out after {api_timeout}s (attempt {attempt + 1}/{max_retries})")
+                            continue
+                        else:
+                            logger.error(f"OpenAI API call failed after {max_retries} attempts")
+                            return f"Error: OpenAI API call timed out after {max_retries} attempts. The task may be too complex. Consider breaking it into smaller parts."
+                    except Exception as e:
+                        last_error = e
+                        logger.error(f"OpenAI API error on attempt {attempt + 1}: {e}")
+                        if "rate_limit" in str(e).lower():
+                            # For rate limit errors, wait longer
+                            await asyncio.sleep(10 * (attempt + 1))
+                            continue
+                        else:
+                            # For other errors, fail immediately
+                            break
+
+                # If we get here, all retries failed
+                return f"Error calling OpenAI API after {max_retries} attempts: {str(last_error)}"
 
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
