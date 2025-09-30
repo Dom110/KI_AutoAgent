@@ -980,6 +980,7 @@ async def handle_chat_message(client_id: str, data: dict):
                 })
 
             # Send response
+            logger.info(f"📤 About to send response to {client_id} - content length: {len(result.content) if result.content else 0}")
             await manager.send_json(client_id, {
                 "type": "agent_response",
                 "agent": agent_id,
@@ -988,13 +989,16 @@ async def handle_chat_message(client_id: str, data: dict):
                 "metadata": result.metadata,
                 "timestamp": datetime.now().isoformat()
             })
+            logger.info(f"✅ Response sent successfully to {client_id}")
 
             # Complete session
+            logger.info(f"📝 Completing session for {client_id}")
             session_manager.complete_session(client_id, {
                 'content': result.content,
                 'status': result.status,
                 'metadata': result.metadata
             })
+            logger.info(f"✅ Session completed for {client_id}")
 
             return
 
