@@ -828,7 +828,8 @@ async def websocket_chat(
 
 async def handle_chat_message(client_id: str, data: dict):
     """Handle chat messages with real agents, memory, and context"""
-    content = data.get("content", "")
+    # Support both 'content' and 'message' fields for compatibility
+    content = data.get("content") or data.get("message") or ""
     agent_id = data.get("agent", "orchestrator")
     # Map 'auto' to 'orchestrator' for backward compatibility
     if agent_id == "auto":
@@ -857,10 +858,19 @@ async def handle_chat_message(client_id: str, data: dict):
     context_str = conversation.get_formatted_context(limit=5)
     shared_data = shared_ctx.get_context()
 
+    # Check if we have content to process
+    if not content:
+        logger.warning(f"⚠️ Empty content received from {client_id}, data keys: {list(data.keys())}")
+        await manager.send_json(client_id, {
+            "type": "error",
+            "message": "Empty message received. Please provide a message."
+        })
+        return
+
     # Send thinking message
     # Log the request for debugging
-    logger.info(f"📨 Processing request from {client_id} for agent {agent_id}")
-    logger.debug(f"Request content: {content[:100]}..." if len(content) > 100 else f"Request content: {content}")
+    logger.info(f"📨 Processing request from {client_id} for agent {agent_id}: '{content[:50]}...'")
+    logger.debug(f"Full request content: {content}")
 
     await manager.send_json(client_id, {
         "type": "agent_thinking",
@@ -881,11 +891,19 @@ async def handle_chat_message(client_id: str, data: dict):
                 lambda msg: asyncio.create_task(manager.send_json(client_id, msg))
             )
 
+        # Extract workspace path from data or use current directory
+        workspace_path = (
+            data.get("workspace_path") or
+            metadata.get("workspace_path") or
+            os.getcwd()
+        )
+
         # Create enhanced task request with context
         request = TaskRequest(
             prompt=content,
             context={
                 **metadata.get("context", {}),
+                "workspace_path": workspace_path,  # Explicitly add workspace path
                 "conversation_history": context_str,
                 "shared_context": shared_data,
                 "client_id": client_id,
