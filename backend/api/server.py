@@ -208,6 +208,7 @@ client_cancel_tokens: Dict[str, CancelToken] = {}
 
 # Track active agent instances for pause/resume functionality
 active_agents: Dict[str, Any] = {}
+client_states: Dict[str, Dict[str, Any]] = {}
 
 # Session management for reconnection support
 class SessionManager:
@@ -842,6 +843,27 @@ async def websocket_chat(
                         "data": result
                     })
 
+            elif message_type == "planFirstMode":
+                # Handle Plan-First mode toggle
+                enabled = data.get("enabled", False)
+                logger.info(f"📋 Plan-First mode {'enabled' if enabled else 'disabled'} for client {client_id}")
+
+                # Store in client session
+                if client_id not in client_states:
+                    client_states[client_id] = {}
+                client_states[client_id]['plan_first'] = enabled
+
+                # Notify orchestrator about the mode change
+                registry = get_agent_registry()
+                orchestrator = registry.get_agent("orchestrator")
+                if orchestrator and hasattr(orchestrator, 'set_planning_mode'):
+                    orchestrator.set_planning_mode('detailed' if enabled else 'immediate')
+
+                await manager.send_json(client_id, {
+                    "type": "planFirstModeUpdated",
+                    "enabled": enabled,
+                    "message": f"Plan-First mode {'enabled' if enabled else 'disabled'}"
+                })
             elif message_type == "ping":
                 await manager.send_json(client_id, {"type": "pong"})
             else:

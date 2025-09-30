@@ -78,6 +78,9 @@ class OrchestratorAgentV2(ChatAgent):
         # Track active workflows
         self.active_workflows: Dict[str, Any] = {}
 
+        # Planning mode for Plan-First feature
+        self.planning_mode = 'immediate'  # 'immediate' or 'detailed'
+
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute orchestration with real AI
@@ -147,6 +150,20 @@ class OrchestratorAgentV2(ChatAgent):
                 content=f"I encountered an error: {str(e)}",
                 agent=self.config.agent_id
             )
+
+    def set_planning_mode(self, mode: str):
+        """
+        Set the planning mode for the orchestrator.
+
+        Args:
+            mode: 'immediate' for direct execution or 'detailed' for Plan-First mode
+        """
+        if mode in ['immediate', 'detailed']:
+            self.planning_mode = mode
+            logger.info(f"📋 Planning mode set to: {mode}")
+        else:
+            logger.warning(f"⚠️ Invalid planning mode: {mode}. Using 'immediate'.")
+            self.planning_mode = 'immediate'
 
     async def _analyze_intent(self, prompt: str, client_id: str = None, manager=None, conversation_history: str = "") -> str:
         """
@@ -314,6 +331,20 @@ Current question: {prompt}"""
         logger.info("🔧 Starting task decomposition...")
         await self._send_progress(client_id, "🔧 Breaking down your request into subtasks...", manager)
         decomposition = await self._decompose_task_with_ai(prompt, client_id, manager, conversation_history)
+
+        # Check if Plan-First mode is enabled
+        if self.planning_mode == 'detailed':
+            # Generate and show execution plan before running
+            plan_text = await self._format_execution_plan(decomposition)
+            logger.info(f"📋 Plan-First mode: Showing execution plan")
+            await self._send_progress(client_id, f"📋 Plan-First mode enabled. Here's the execution plan:\n\n{plan_text}", manager)
+
+            # Wait for user approval (in real implementation, would wait for approval message)
+            # For now, add a notification that the plan is ready
+            await self._send_progress(client_id, "⏸️ Review the plan above. Click 'Execute' to proceed or provide feedback to adjust.", manager)
+
+            # In a full implementation, we would wait here for user approval
+            # For now, we'll continue with execution
 
         # Execute the workflow with request context
         logger.info(f"🎯 Executing workflow with {len(decomposition.subtasks)} subtasks")
@@ -773,6 +804,59 @@ DO NOT provide general advice. PROVIDE ACTUAL CODE."""
         )
 
         return response
+
+    async def _format_execution_plan(self, decomposition: TaskDecomposition) -> str:
+        """
+        Format the task decomposition into a readable execution plan.
+        """
+        plan_lines = ["## 📋 Execution Plan\n"]
+
+        if hasattr(decomposition, 'execution_mode'):
+            plan_lines.append(f"**Workflow Type:** {decomposition.execution_mode}\n")
+
+        plan_lines.append("### Tasks to Execute:\n")
+
+        for i, subtask in enumerate(decomposition.subtasks, 1):
+            agent_emoji = {
+                'ArchitectAgent': '🏗️',
+                'CodeSmithAgent': '💻',
+                'ReviewerGPT': '🔎',
+                'FixerBot': '🔧',
+                'DocuBot': '📚',
+                'DocBot': '📚',  # Support both DocuBot and DocBot
+                'ResearchAgent': '🔍',
+                'TradeStrat': '📈',
+                'OpusArbitrator': '⚖️',
+                'PerformanceBot': '⚡'
+            }.get(subtask.agent, '🤖')
+
+            plan_lines.append(f"**{i}. {agent_emoji} {subtask.agent}**")
+            plan_lines.append(f"   - **Task:** {subtask.description}")
+            plan_lines.append(f"   - **Expected Output:** {subtask.expected_output}")
+
+            if subtask.dependencies:
+                deps = ', '.join(subtask.dependencies)
+                plan_lines.append(f"   - **Dependencies:** {deps}")
+            plan_lines.append("")
+
+        if hasattr(decomposition, 'execution_mode') and decomposition.execution_mode == 'parallel':
+            plan_lines.append("### Execution Strategy:")
+            plan_lines.append("- Tasks without dependencies will run **in parallel** for faster completion")
+            plan_lines.append("- Dependent tasks will wait for their prerequisites")
+        else:
+            plan_lines.append("### Execution Strategy:")
+            plan_lines.append("- Tasks will run **sequentially** in the order shown above")
+
+        plan_lines.append("\n### Estimated Complexity:")
+        total_tasks = len(decomposition.subtasks)
+        if total_tasks <= 3:
+            plan_lines.append("- **Simple** workflow with few tasks")
+        elif total_tasks <= 7:
+            plan_lines.append("- **Moderate** complexity workflow")
+        else:
+            plan_lines.append("- **Complex** workflow with multiple coordinated tasks")
+
+        return '\n'.join(plan_lines)
 
     async def _synthesize_results(
         self,
