@@ -141,3 +141,34 @@ INFO:     connection open
 2025-09-30 15:46:47,155 - agents.specialized.architect_agent - INFO - ✅ Created: /Users/dominikfoert/git/KI_AutoAgent/.ki_autoagent/system_analysis.json
 2025-09-30 15:46:47,155 - agents.specialized.architect_agent - INFO - 🔧 Using analyze_infrastructure_improvements()...
 2025-09-30 15:46:47,156 - agents.specialized.architect_agent - INFO - ✅ Created: /Users/dominikfoert/git/KI_AutoAgent/.ki_autoagent/improvements.md
+2025-09-30 15:46:47,251 - core.git_checkpoint_manager - INFO - ✅ Checkpoint created: 02580f21
+2025-09-30 15:46:47,251 - agents.base.base_agent - INFO - ✅ Git checkpoint created: 02580f21
+2025-09-30 15:46:47,252 - __main__ - INFO - 📊 Agent result - Status: success, Content length: 7113
+2025-09-30 15:46:47,253 - __main__ - INFO - 📤 About to send response to ws_d6513549bbae - content length: 7113
+2025-09-30 15:46:47,253 - __main__ - INFO - ✅ Response sent successfully to ws_d6513549bbae
+2025-09-30 15:46:47,253 - __main__ - INFO - 📝 Completing session for ws_d6513549bbae
+2025-09-30 15:46:47,253 - __main__ - INFO - ✅ Session completed for ws_d6513549bbae
+2025-09-30 15:49:47,314 - __main__ - INFO - ❌ Client ws_d6513549bbae disconnected. Total: 0
+INFO:     connection closed
+INFO:     127.0.0.1:51822 - "POST /api/shutdown HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51956 - "GET /api/conversation/history?limit=20&project_path=%2FUsers%2Fdominikfoert%2Fgit%2FKI_AutoAgent HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     127.0.0.1:51960 - "GET / HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-09-30 16:32:15,726 - __main__ - INFO - 👋 KI AutoAgent Backend shutting down...
+2025-09-30 16:32:15,726 - core.agent_communication_bus - INFO - Communication bus stopped
+2025-09-30 16:32:15,726 - agents.agent_registry - INFO - 🛑 Shutting down all agents...
+2025-09-30 16:32:15,726 - agents.agent_registry - INFO - ✅ Agent orchestrator shutdown complete
+2025-09-30 16:32:15,726 - agents.agent_registry - INFO - ✅ Agent architect shutdown complete
+2025-09-30 16:32:15,726 - agents.agent_registry - INFO - ✅ Agent codesmith shutdown complete
+2025-09-30 16:32:15,726 - agents.agent_registry - INFO - ✅ Agent docubot shutdown complete
+2025-09-30 16:32:15,726 - agents.agent_registry - INFO - ✅ Agent reviewer shutdown complete
+2025-09-30 16:32:15,726 - agents.agent_registry - INFO - ✅ Agent fixer shutdown complete
+2025-09-30 16:32:15,726 - agents.agent_registry - INFO - ✅ Agent research shutdown complete
+2025-09-30 16:32:15,726 - agents.agent_registry - INFO - ✅ Agent tradestrat shutdown complete
+2025-09-30 16:32:15,726 - agents.agent_registry - INFO - ✅ Agent opus-arbitrator shutdown complete
+2025-09-30 16:32:15,726 - agents.agent_registry - INFO - ✅ Agent performance_bot shutdown complete
+2025-09-30 16:32:15,727 - agents.agent_registry - INFO - ✅ All agents shutdown complete
+INFO:     Application shutdown complete.
+INFO:     Finished server process [16989]

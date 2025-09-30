@@ -387,6 +387,36 @@ async def validate_code(task: str, implementation: str, agent: str = "unknown"):
         }
     }
 
+@app.post("/api/shutdown")
+async def shutdown_server():
+    """Gracefully shutdown the server"""
+    logger.info("🛑 Shutdown request received")
+
+    # Disconnect all WebSocket clients
+    for client_id in list(manager.clients.keys()):
+        await manager.send_json(client_id, {
+            "type": "server_shutdown",
+            "message": "Server is shutting down gracefully"
+        })
+        await manager.disconnect(client_id)
+
+    # Clean up active tasks
+    for client_id, cancel_token in active_tasks.items():
+        cancel_token.cancel()
+    active_tasks.clear()
+
+    # Schedule shutdown after response is sent
+    asyncio.create_task(shutdown_after_response())
+
+    return {"message": "Server shutdown initiated", "status": "success"}
+
+async def shutdown_after_response():
+    """Shutdown server after a small delay to allow response to be sent"""
+    await asyncio.sleep(0.5)
+    logger.info("✅ Server shutting down gracefully")
+    # Use os._exit to ensure immediate termination
+    os._exit(0)
+
 async def handle_streaming_response(client_id: str, agent_id: str, request: TaskRequest, registry):
     """Handle streaming response from agent"""
     try:
