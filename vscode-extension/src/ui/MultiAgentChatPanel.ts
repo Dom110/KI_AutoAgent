@@ -488,7 +488,7 @@ export class MultiAgentChatPanel {
         }
 
         // Create unique message ID for deduplication (skip for certain message types that should always go through)
-        const skipDedup = ['userMessage', 'clearChat', 'agentResponse', 'error', 'complete', 'historyMessage'];
+        const skipDedup = ['userMessage', 'clearChat', 'agentResponse', 'error', 'complete', 'historyMessage', 'agentThinking', 'agent_thinking'];
         if (!skipDedup.includes(message.type)) {
             const messageId = `${message.type}-${message.agent || ''}-${message.content || ''}-${message.timestamp || ''}`;
 

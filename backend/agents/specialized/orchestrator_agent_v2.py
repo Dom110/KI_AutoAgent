@@ -359,11 +359,14 @@ Current question: {prompt}"""
 
         system_prompt = """You are an expert task decomposer. Analyze the given task and break it down into subtasks.
 
+CRITICAL: When tasks involve implementing, creating, or building features, YOU MUST INSTRUCT AGENTS TO CREATE REAL FILES!
+
 Available agents and their specialties:
 - architect: System design, architecture patterns, UI/UX design, component architecture, VSCode extension design
-  TOOLS: understand_system(), analyze_infrastructure_improvements(), generate_architecture_flowchart()
+  TOOLS: create_redis_config(), create_docker_compose(), write_implementation() - CREATES REAL FILES
 - codesmith: Code implementation, CSS/HTML/TypeScript, UI components, button styling, VSCode API integration
-  TOOLS: Creates actual files, config, docker-compose, implementation code
+  CRITICAL: MUST USE implement_code_to_file() TO CREATE ACTUAL FILES - NOT JUST TEXT!
+  When assigning tasks to codesmith, ALWAYS add: "USE implement_code_to_file() to create [filename]"
 - research: Web research, finding best practices, UI/UX trends, design patterns, VSCode extension examples
   TOOLS: Web search for state-of-the-art solutions
 - reviewer: Code review, security analysis, quality checks, accessibility testing
@@ -371,6 +374,12 @@ Available agents and their specialties:
 - fixer: Bug fixing, optimization, performance improvements, CSS fixes
 - tradestrat: Trading systems, financial algorithms (NOT for UI tasks)
 - opus-arbitrator: Conflict resolution (only when agents disagree)
+
+FILE CREATION RULES:
+1. For implementation tasks, ALWAYS specify: "USE implement_code_to_file() to create [path/filename]"
+2. For config tasks, ALWAYS specify: "USE create_file() or write_implementation() to create [filename]"
+3. NEVER accept text-only responses for implementation tasks
+4. Each subtask that creates code MUST specify the target file path
 
 Respond with a JSON object containing:
 {
@@ -380,11 +389,13 @@ Respond with a JSON object containing:
     "subtasks": [
         {
             "id": "task_1",
-            "description": "Clear description of subtask",
+            "description": "Clear description of subtask - MUST include 'USE implement_code_to_file() to create [filename]' for code tasks",
             "agent": "agent_name",
             "priority": 1,
             "dependencies": [],
-            "expected_output": "What this subtask should produce"
+            "expected_output": "What this subtask should produce - specify actual files to be created",
+            "write_files": true,
+            "target_files": ["path/to/file.ext"]
         }
     ],
     "estimated_duration": 10.0,

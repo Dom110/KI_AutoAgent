@@ -183,9 +183,18 @@ class CodeSmithAgent(ChatAgent):
         files_created = []
 
         try:
-            # Check if this is an infrastructure task
+            # Check if this is an implementation/file creation task
             prompt_lower = request.prompt.lower()
             workspace_path = request.context.get('workspace_path', os.getcwd())
+
+            # CRITICAL: Check for implementation keywords that MUST create files
+            file_creation_keywords = [
+                'implement', 'create', 'add', 'write', 'build', 'develop',
+                'generate', 'erstelle', 'schreibe', 'button', 'feature',
+                'function', 'class', 'module', 'component', 'fix', 'update'
+            ]
+
+            should_create_files = any(keyword in prompt_lower for keyword in file_creation_keywords)
 
             # Handle infrastructure implementation specifically
             if any(word in prompt_lower for word in ['redis', 'docker', 'cache', 'infrastructure', 'config']):
@@ -208,7 +217,45 @@ class CodeSmithAgent(ChatAgent):
                     execution_time=execution_time
                 )
 
-            # Standard code generation
+            # If this is a file creation task, use implement_code_to_file
+            if should_create_files:
+                # Determine file path from request
+                file_path = self._extract_file_path(request.prompt)
+                if not file_path:
+                    # Auto-generate file path based on task
+                    file_path = self._generate_file_path(request.prompt)
+
+                # USE THE FILE WRITING METHOD!
+                logger.info(f"📝 CodeSmithAgent creating ACTUAL FILE at: {file_path}")
+                result = await self.implement_code_to_file(
+                    spec=request.prompt,
+                    file_path=file_path
+                )
+
+                if result.get('status') == 'success':
+                    execution_time = (datetime.now() - start_time).total_seconds()
+                    return TaskResult(
+                        status="success",
+                        content=f"✅ Created file: {file_path}\n"
+                                f"Lines written: {result.get('lines', 0)}\n"
+                                f"Size: {result.get('size', 0)} bytes",
+                        agent=self.config.agent_id,
+                        metadata={
+                            "file_created": file_path,
+                            "lines": result.get('lines', 0),
+                            "execution_time": execution_time
+                        },
+                        execution_time=execution_time
+                    )
+                else:
+                    return TaskResult(
+                        status="error",
+                        content=f"Failed to create file: {result.get('error')}",
+                        agent=self.config.agent_id,
+                        execution_time=(datetime.now() - start_time).total_seconds()
+                    )
+
+            # Fallback: Standard code generation (text only - DEPRECATED)
             code_spec = await self.analyze_code_request(request.prompt)
             implementation = await self.generate_implementation(code_spec)
 
@@ -1308,6 +1355,78 @@ Run this script to safely comment out dead code for review.
 
         return {"message": "CodeSmith received request"}
 
+    def _extract_file_path(self, prompt: str) -> str:
+        """Extract file path from prompt if mentioned"""
+        import re
+
+        # Look for file paths in the prompt
+        patterns = [
+            r'(?:file|create|write|update|in)\s+([a-zA-Z0-9_/.-]+\.(?:py|js|ts|tsx|jsx|yml|yaml|json|md|txt))',
+            r'([a-zA-Z0-9_/.-]+\.(?:py|js|ts|tsx|jsx|yml|yaml|json|md|txt))',
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, prompt, re.IGNORECASE)
+            if match:
+                return match.group(1)
+
+        return None
+
+    def _generate_file_path(self, prompt: str) -> str:
+        """Generate appropriate file path based on prompt"""
+        prompt_lower = prompt.lower()
+
+        # Determine directory
+        if 'test' in prompt_lower:
+            directory = 'backend/tests/'
+        elif 'button' in prompt_lower or 'ui' in prompt_lower:
+            directory = 'vscode-extension/src/ui/'
+        elif 'agent' in prompt_lower:
+            directory = 'backend/agents/'
+        elif 'api' in prompt_lower or 'endpoint' in prompt_lower:
+            directory = 'backend/api/'
+        elif 'service' in prompt_lower:
+            directory = 'backend/services/'
+        else:
+            directory = 'backend/'
+
+        # Extract feature name
+        feature_name = self._extract_feature_name(prompt)
+
+        # Determine extension
+        if 'typescript' in prompt_lower or 'button' in prompt_lower:
+            extension = '.ts'
+        elif 'react' in prompt_lower:
+            extension = '.tsx'
+        elif 'config' in prompt_lower:
+            extension = '.yml'
+        else:
+            extension = '.py'
+
+        return f"{directory}{feature_name}{extension}"
+
+    def _extract_feature_name(self, prompt: str) -> str:
+        """Extract feature name from prompt"""
+        import re
+
+        # Remove common words
+        stop_words = ['implement', 'create', 'add', 'build', 'write', 'erstelle',
+                     'the', 'a', 'an', 'for', 'with', 'to', 'in', 'feature',
+                     'function', 'button', 'einen', 'der', 'die', 'das']
+
+        words = re.findall(r'\w+', prompt.lower())
+        feature_words = [w for w in words if w not in stop_words and len(w) > 2]
+
+        if feature_words:
+            # Take first meaningful word
+            feature = feature_words[0].replace('-', '_')
+            # For buttons, add _button suffix
+            if 'button' in prompt.lower():
+                feature = f"{feature}_button"
+            return feature
+
+        return 'new_feature'
+
     async def implement_code_to_file(self, spec: str, file_path: str) -> Dict[str, Any]:
         """
         Generate code and write it to a file
@@ -1320,7 +1439,7 @@ Run this script to safely comment out dead code for review.
             Dict with status and details
         """
         try:
-            # Generate the code using existing methods
+            # Generate the code - NO FALLBACKS (ASIMOV RULE 1)
             code = await self.implement_with_patterns(spec)
 
             if not code:
