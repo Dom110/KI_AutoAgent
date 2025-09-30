@@ -667,6 +667,27 @@ export class MultiAgentChatPanel {
                     font-size: 12px;
                 }
 
+                #plan-first-btn {
+                    padding: 5px 10px;
+                    background: var(--vscode-button-background);
+                    color: var(--vscode-button-foreground);
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    font-weight: bold;
+                    margin-right: 10px;
+                }
+
+                #plan-first-btn:hover {
+                    background: var(--vscode-button-hoverBackground);
+                }
+
+                #plan-first-btn.active {
+                    background: var(--vscode-editorWarning-foreground);
+                    color: var(--vscode-editor-background);
+                }
+
                 .agent-option.selected {
                     background: var(--vscode-button-background);
                     color: var(--vscode-button-foreground);
@@ -1232,6 +1253,9 @@ export class MultiAgentChatPanel {
 
             <div id="input-container">
                 <div id="agent-selector">
+                    <button id="plan-first-btn" class="control-button" title="Show plan before executing">
+                        📋 Plan First
+                    </button>
                     <button class="agent-option selected" data-agent="orchestrator">
                         🎯 Orchestrator
                     </button>
@@ -1314,6 +1338,7 @@ export class MultiAgentChatPanel {
                 const thinkingBtn = document.getElementById('thinking-btn');
                 const agentThinkingBtn = document.getElementById('agent-thinking-btn');
                 const pauseBtn = document.getElementById('pause-btn');
+                const planFirstBtn = document.getElementById('plan-first-btn');
 
                 // Debug check
                 console.log('Elements found:', {
@@ -1326,6 +1351,7 @@ export class MultiAgentChatPanel {
                 let selectedAgent = 'orchestrator';
                 let thinkingMode = false;
                 let isProcessing = false;
+                let planFirstMode = false;
 
                 // Load conversation history on startup
                 setTimeout(() => {
@@ -1378,7 +1404,8 @@ export class MultiAgentChatPanel {
                         type: 'chat',
                         content: content,
                         agent: selectedAgent,
-                        mode: 'auto'
+                        mode: 'auto',
+                        planFirst: planFirstMode
                     });
 
                     messageInput.value = '';
@@ -1463,6 +1490,24 @@ export class MultiAgentChatPanel {
                 }
 
                 let isPaused = false;
+
+                // Plan-First button handler
+                if (planFirstBtn) {
+                    planFirstBtn.addEventListener('click', () => {
+                        planFirstMode = !planFirstMode;
+                        planFirstBtn.classList.toggle('active', planFirstMode);
+
+                        // Show notification
+                        const mode = planFirstMode ? 'enabled' : 'disabled';
+                        addMessage(`📋 Plan-First mode ${mode}. ${planFirstMode ? 'I will show you the execution plan before running tasks.' : 'I will execute tasks immediately.'}`, 'system');
+
+                        // Save preference
+                        vscode.postMessage({
+                            type: 'planFirstMode',
+                            enabled: planFirstMode
+                        });
+                    });
+                }
 
                 pauseBtn.addEventListener('click', () => {
                     if (isProcessing && !isPaused) {

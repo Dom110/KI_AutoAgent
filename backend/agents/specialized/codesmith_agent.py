@@ -133,6 +133,9 @@ class CodeSmithAgent(ChatAgent):
             ClaudeCodeConfig(model="sonnet")  # Use Sonnet model via CLI
         )
 
+        # Set ai_service to claude_cli for the new AI-based methods
+        self.ai_service = self.claude_cli
+
         # Check if CLI is available
         if not self.claude_cli.is_available():
             error_msg = (
@@ -187,6 +190,32 @@ class CodeSmithAgent(ChatAgent):
             prompt = request.prompt
             workspace_path = request.context.get('workspace_path', os.getcwd())
             prompt_lower = prompt.lower()  # Still needed for infrastructure check
+
+            # Check if this is a cache update request first
+            if any(word in prompt_lower for word in ['cache', 'update', 'refresh', 'reload', 'extern']):
+                logger.info("🔄 Cache update request detected")
+                cache_results = await self.update_caches_for_external_changes(workspace_path)
+
+                execution_time = (datetime.now() - start_time).total_seconds()
+
+                message = f"✅ Cache update completed!\n\n"
+                message += f"**Cleared caches:** {', '.join(cache_results['caches_cleared']) or 'None'}\n"
+                message += f"**Rebuilt caches:** {', '.join(cache_results['caches_rebuilt']) or 'None'}\n"
+
+                if cache_results['errors']:
+                    message += f"\n⚠️ **Errors:** {', '.join(cache_results['errors'])}"
+
+                return TaskResult(
+                    status="success",
+                    content=message,
+                    agent=self.config.agent_id,
+                    metadata={
+                        "cache_update": True,
+                        "results": cache_results,
+                        "execution_time": execution_time
+                    },
+                    execution_time=execution_time
+                )
 
             # Use AI to understand if this is an implementation request
             should_create_files = await self._ai_detect_implementation_request(prompt)
@@ -1330,6 +1359,80 @@ Run this script to safely comment out dead code for review.
 
         return {"message": "CodeSmith received request"}
 
+    async def update_caches_for_external_changes(self, workspace_path: str) -> Dict[str, Any]:
+        """
+        🔄 Update all caches when code was changed externally
+        Clears and rebuilds caches to reflect external modifications
+        """
+        logger.info("🔄 Updating caches for external code changes...")
+        results = {
+            "caches_cleared": [],
+            "caches_rebuilt": [],
+            "errors": []
+        }
+
+        try:
+            # 1. Clear code knowledge cache
+            self.code_knowledge = None
+            results["caches_cleared"].append("code_knowledge")
+
+            # 2. Clear and rebuild indexing if available
+            if INDEXING_AVAILABLE and self.code_indexer:
+                try:
+                    # Clear existing index
+                    if hasattr(self.code_indexer, 'clear_cache'):
+                        self.code_indexer.clear_cache()
+                        results["caches_cleared"].append("code_indexer")
+
+                    # Rebuild index
+                    logger.info("📇 Rebuilding code index...")
+                    await self.code_indexer.index_codebase(workspace_path)
+                    results["caches_rebuilt"].append("code_indexer")
+                except Exception as e:
+                    error_msg = f"Code indexer cache update failed: {e}"
+                    logger.error(error_msg)
+                    results["errors"].append(error_msg)
+
+            # 3. Clear tree-sitter cache if available
+            if INDEXING_AVAILABLE and self.tree_sitter:
+                try:
+                    if hasattr(self.tree_sitter, 'clear_cache'):
+                        self.tree_sitter.clear_cache()
+                        results["caches_cleared"].append("tree_sitter")
+                except Exception as e:
+                    error_msg = f"Tree-sitter cache clear failed: {e}"
+                    logger.error(error_msg)
+                    results["errors"].append(error_msg)
+
+            # 4. Reload code patterns (in case they were modified)
+            self.code_patterns = self._load_code_patterns()
+            results["caches_rebuilt"].append("code_patterns")
+
+            # 5. Clear any project-specific caches in .ki_autoagent
+            ki_autoagent_dir = os.path.join(workspace_path, '.ki_autoagent')
+            if os.path.exists(ki_autoagent_dir):
+                cache_files = ['system_analysis.json', 'search.db']
+                for cache_file in cache_files:
+                    cache_path = os.path.join(ki_autoagent_dir, cache_file)
+                    if os.path.exists(cache_path):
+                        try:
+                            # Instead of deleting, mark as stale
+                            stale_path = cache_path + '.stale'
+                            os.rename(cache_path, stale_path)
+                            results["caches_cleared"].append(f"ki_autoagent/{cache_file}")
+                        except Exception as e:
+                            error_msg = f"Failed to mark {cache_file} as stale: {e}"
+                            logger.error(error_msg)
+                            results["errors"].append(error_msg)
+
+            logger.info(f"✅ Cache update complete. Cleared: {len(results['caches_cleared'])}, Rebuilt: {len(results['caches_rebuilt'])}")
+            return results
+
+        except Exception as e:
+            logger.error(f"Cache update failed: {e}")
+            results["errors"].append(str(e))
+            return results
+
     def _enforce_asimov_rule_1(self, file_path: str):
         """
         🚫 ASIMOV RULE 1 ENFORCEMENT
@@ -1368,7 +1471,7 @@ Remember ASIMOV RULE 1: No fallbacks. Be definitive.
 
 Answer (YES/NO):"""
 
-            response = await self.ai_service.get_completion(
+            response = await self.claude_cli.get_completion(
                 system_prompt="You are an expert at understanding software development requests.",
                 user_prompt=ai_prompt,
                 temperature=0.1,
@@ -1432,7 +1535,7 @@ Example: vscode-extension/src/ui/PlanFirstButton.ts
 
 File path:"""
 
-            response = await self.ai_service.get_completion(
+            response = await self.claude_cli.get_completion(
                 system_prompt="You are an expert at determining file paths based on project structure and conventions.",
                 user_prompt=ai_prompt,
                 temperature=0.2,
