@@ -759,22 +759,47 @@ async def websocket_chat(
 
             elif message_type == "stopAndRollback":
                 # Handle stop and rollback request
+                logger.info(f"⏹️ Stop request received from client {client_id}")
+
+                # First, cancel any active tasks
+                if client_id in active_agent_tasks:
+                    for task in active_agent_tasks[client_id]:
+                        if not task.done():
+                            task.cancel()
+                    active_agent_tasks.pop(client_id, None)
+                    logger.info(f"✅ Cancelled active tasks for client {client_id}")
+
+                # Cancel the token to signal the agent to stop
+                if client_id in client_cancel_tokens:
+                    await client_cancel_tokens[client_id].cancel()
+                    client_cancel_tokens.pop(client_id, None)
+                    logger.info(f"✅ Cancelled token for client {client_id}")
+
+                # If there's an active agent with rollback capability
                 current_agent = active_agents.get(client_id)
-                if current_agent:
-                    result = await current_agent.stop_and_rollback()
+                if current_agent and hasattr(current_agent, 'stop_and_rollback'):
+                    try:
+                        result = await current_agent.stop_and_rollback()
+                        await manager.send_json(client_id, {
+                            "type": "stoppedAndRolledBack",
+                            "data": result
+                        })
+                        logger.info(f"🔄 Stopped and rolled back task for client {client_id}")
+                    except Exception as e:
+                        logger.error(f"Error during rollback: {e}")
+                        await manager.send_json(client_id, {
+                            "type": "stoppedAndRolledBack",
+                            "message": "Task stopped (rollback failed)"
+                        })
+                else:
+                    # Just confirm stop even if no rollback available
                     await manager.send_json(client_id, {
                         "type": "stoppedAndRolledBack",
-                        "data": result
+                        "message": "Task stopped successfully"
                     })
-                    logger.info(f"🔄 Stopped and rolled back task for client {client_id}")
 
-                    # Clear active agent
-                    active_agents.pop(client_id, None)
-                else:
-                    await manager.send_json(client_id, {
-                        "type": "error",
-                        "message": "No active agent to stop and rollback"
-                    })
+                # Clear active agent
+                active_agents.pop(client_id, None)
 
             elif message_type == "clarificationResponse":
                 # Handle user's response to clarification request
