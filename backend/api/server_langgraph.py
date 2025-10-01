@@ -29,8 +29,12 @@ from langgraph_system import (
     DynamicWorkflowManager
 )
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging with detailed format
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s:%(name)s:%(message)s',
+    force=True  # Force reconfiguration (Python 3.8+)
+)
 logger = logging.getLogger(__name__)
 
 # Add debug message on startup
@@ -90,32 +94,50 @@ async def lifespan(app: FastAPI):
     """Lifecycle manager for FastAPI"""
     global workflow_system
 
-    # Startup
-    logger.info("🚀 Starting KI AutoAgent LangGraph Backend v5.0.0...")
-    logger.info("🔍 DEBUG: Initializing LangGraph StateGraph workflow system")
-    logger.info("🔍 DEBUG: Using port 8001 (NOT 8000)")
+    try:
+        # Startup
+        logger.info("=" * 80)
+        logger.info("🚀 Starting KI AutoAgent LangGraph Backend v5.0.0...")
+        logger.info("🔍 DEBUG: Initializing LangGraph StateGraph workflow system")
+        logger.info("🔍 DEBUG: Using port 8001 (NOT 8000)")
 
-    # Initialize LangGraph workflow system
-    workflow_system = create_agent_workflow(
-        websocket_manager=manager,
-        db_path="langgraph_state.db",
-        memory_db_path="agent_memories.db"
-    )
+        # Initialize LangGraph workflow system
+        logger.info("📦 Creating agent workflow...")
+        workflow_system = create_agent_workflow(
+            websocket_manager=manager,
+            db_path="langgraph_state.db",
+            memory_db_path="agent_memories.db"
+        )
 
-    logger.info("✅ LangGraph workflow system initialized")
+        if workflow_system is None:
+            logger.error("❌ CRITICAL: create_agent_workflow returned None!")
+            raise RuntimeError("Failed to create workflow system")
 
-    # Initialize tool registry
-    tool_registry = workflow_system.tool_registry
-    logger.info(f"🔧 Tool registry initialized with {len(tool_registry.tools)} tools")
+        logger.info("✅ LangGraph workflow system initialized")
+        logger.info(f"✅ workflow_system type: {type(workflow_system).__name__}")
 
-    # Initialize approval manager
-    approval_manager = workflow_system.approval_manager
-    logger.info("✅ Approval manager initialized")
+        # Initialize tool registry
+        tool_registry = workflow_system.tool_registry
+        logger.info(f"🔧 Tool registry initialized with {len(tool_registry.tools)} tools")
 
-    yield
+        # Initialize approval manager
+        approval_manager = workflow_system.approval_manager
+        logger.info("✅ Approval manager initialized")
 
-    # Cleanup
-    logger.info("👋 Shutting down KI AutoAgent Backend...")
+        logger.info("=" * 80)
+        logger.info("🎉 STARTUP COMPLETE - Ready to accept connections!")
+        logger.info("=" * 80)
+
+        yield
+
+        # Cleanup
+        logger.info("👋 Shutting down KI AutoAgent Backend...")
+
+    except Exception as e:
+        import traceback
+        logger.error(f"❌ FATAL ERROR during startup: {e}")
+        logger.error(f"📍 Traceback:\n{traceback.format_exc()}")
+        raise
 
 # Create FastAPI app
 app = FastAPI(
@@ -347,11 +369,14 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
         return
 
     if not workflow_system:
+        logger.error("❌ CRITICAL: workflow_system is None! Server may not have initialized correctly.")
         await manager.send_json(client_id, {
             "type": "error",
             "message": "Workflow system not initialized"
         })
         return
+
+    logger.info(f"✅ workflow_system available: {type(workflow_system).__name__}")
 
     # Send thinking message
     logger.info(f"🔍 DEBUG: Starting LangGraph workflow for: {content[:100]}...")
@@ -418,10 +443,13 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
         })
 
     except Exception as e:
-        logger.error(f"Error executing workflow: {e}")
+        import traceback
+        logger.error(f"❌ Error executing workflow: {e}")
+        logger.error(f"📍 Full traceback:\n{traceback.format_exc()}")
         await manager.send_json(client_id, {
             "type": "error",
-            "message": f"Error executing workflow: {str(e)}"
+            "message": f"Error executing workflow: {str(e)}",
+            "traceback": traceback.format_exc()
         })
 
 
@@ -478,7 +506,8 @@ def main():
         host="127.0.0.1",
         port=port,
         log_level="info",
-        reload=False  # Disable reload for production
+        reload=False,  # Disable reload for production
+        log_config=None  # Use our basicConfig instead of uvicorn's default
     )
 
 

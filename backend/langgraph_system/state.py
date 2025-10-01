@@ -3,10 +3,11 @@ Extended Agent State for LangGraph
 Defines the complete state structure for agent communication
 """
 
-from typing import TypedDict, List, Dict, Any, Optional, Literal
+from typing import TypedDict, List, Dict, Any, Optional, Literal, Annotated
 from dataclasses import dataclass
 from datetime import datetime
 import uuid
+import operator
 
 
 @dataclass
@@ -53,8 +54,8 @@ class ExtendedAgentState(TypedDict):
     Includes all features: memory, tools, approval, etc.
     """
 
-    # Core conversation state
-    messages: List[Dict[str, Any]]
+    # Core conversation state (using Annotated with operator.add to handle concurrent updates)
+    messages: Annotated[List[Dict[str, Any]], operator.add]
     current_agent: str
     current_task: str
 
