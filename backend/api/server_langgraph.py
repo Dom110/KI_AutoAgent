@@ -30,7 +30,7 @@ from langgraph_system import (
 )
 
 # Import Models Endpoint
-from backend.api.models_endpoint import router as models_router
+from models_endpoint import router as models_router
 
 # Configure logging with detailed format
 logging.basicConfig(
