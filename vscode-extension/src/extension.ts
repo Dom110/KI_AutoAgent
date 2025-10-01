@@ -115,8 +115,8 @@ export async function activate(context: vscode.ExtensionContext) {
         // Success message
         outputChannel.appendLine('');
         outputChannel.appendLine('✅ KI AutoAgent Extension activated successfully!');
-        outputChannel.appendLine('✅ Python backend is running on http://localhost:8000');
-        outputChannel.appendLine('✅ WebSocket connected to ws://localhost:8000/ws/chat');
+        outputChannel.appendLine('✅ Python backend is running on http://localhost:8001');
+        outputChannel.appendLine('✅ WebSocket connected to ws://localhost:8001/ws/chat');
         outputChannel.appendLine('');
         outputChannel.appendLine('Use Ctrl+Shift+P and type "KI AutoAgent" to see available commands');
 
@@ -181,7 +181,7 @@ function registerCommandsEarly(context: vscode.ExtensionContext) {
         () => {
             if (!backendClient) {
                 // Create a temporary client if backend is not ready
-                const wsUrl = 'ws://localhost:8000/ws/chat';
+                const wsUrl = 'ws://localhost:8001/ws/chat';
                 backendClient = BackendClient.getInstance(wsUrl);
             }
             MultiAgentChatPanel.createOrShow(

@@ -33,6 +33,11 @@ from langgraph_system import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Add debug message on startup
+logger.info("🔍 DEBUG: Starting LangGraph server v5.0.0 on port 8001")
+logger.info("🔍 DEBUG: This is the ACTIVE server for v5.0.0-unstable")
+logger.info("🔍 DEBUG: WebSocket endpoint: ws://localhost:8001/ws/chat")
+
 # WebSocket connection manager
 class ConnectionManager:
     def __init__(self):
@@ -86,7 +91,9 @@ async def lifespan(app: FastAPI):
     global workflow_system
 
     # Startup
-    logger.info("🚀 Starting KI AutoAgent LangGraph Backend...")
+    logger.info("🚀 Starting KI AutoAgent LangGraph Backend v5.0.0...")
+    logger.info("🔍 DEBUG: Initializing LangGraph StateGraph workflow system")
+    logger.info("🔍 DEBUG: Using port 8001 (NOT 8000)")
 
     # Initialize LangGraph workflow system
     workflow_system = create_agent_workflow(
@@ -240,19 +247,27 @@ async def websocket_chat(websocket: WebSocket):
 
     try:
         # Send welcome message
+        logger.info(f"🔍 DEBUG: New client connected: {client_id}")
         await manager.send_json(client_id, {
             "type": "connected",
-            "message": "Connected to KI AutoAgent LangGraph System",
+            "message": "Connected to KI AutoAgent LangGraph System v5.0.0",
             "session_id": session["session_id"],
-            "client_id": client_id
+            "client_id": client_id,
+            "version": "v5.0.0-unstable"
         })
+        logger.info(f"🔍 DEBUG: Welcome message sent to {client_id}")
 
         # Message handling loop
         while True:
             data = await websocket.receive_json()
             message_type = data.get("type", "chat")
 
-            logger.info(f"📨 Received {message_type} from {client_id}")
+            logger.info(f"🔍 DEBUG: Received {message_type} from {client_id}")
+            logger.info(f"🔍 DEBUG: Using LangGraph v5.0.0 - Port 8001")
+            logger.info(f"🔍 DEBUG: Message data keys: {list(data.keys())}")
+            if message_type == "chat":
+                content = data.get("content") or data.get("message") or ""
+                logger.info(f"🔍 DEBUG: Chat message content: {content[:100]}...")
 
             if message_type == "chat":
                 await handle_chat_message(client_id, data, session)
@@ -339,14 +354,20 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
         return
 
     # Send thinking message
+    logger.info(f"🔍 DEBUG: Starting LangGraph workflow for: {content[:100]}...")
+    logger.info(f"🔍 DEBUG: Session state - plan_first_mode: {session.get('plan_first_mode')}, workspace: {session.get('workspace_path')}")
+    logger.info(f"🔍 DEBUG: Plan-First mode: {session.get('plan_first_mode', False)}")
     await manager.send_json(client_id, {
         "type": "agent_thinking",
         "agent": "orchestrator",
-        "message": "🤔 Processing your request..."
+        "message": "🤔 Processing your request using LangGraph v5.0.0..."
     })
 
     try:
         # Execute workflow
+        logger.info(f"🔍 DEBUG: Executing LangGraph workflow")
+        logger.info(f"🔍 DEBUG: Session ID: {session['session_id']}")
+        logger.info(f"🔍 DEBUG: Workspace: {session.get('workspace_path', 'None')}")
         final_state = await workflow_system.execute(
             task=content,
             session_id=session["session_id"],
@@ -438,9 +459,9 @@ async def add_workflow_edge(source: str, target: str):
 
 def main():
     """Main entry point"""
-    # Find available port
-    port = 8000
-    for p in range(8000, 8010):
+    # Find available port (v5.0.0 uses 8001)
+    port = 8001
+    for p in range(8001, 8010):
         import socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         result = sock.connect_ex(('127.0.0.1', p))

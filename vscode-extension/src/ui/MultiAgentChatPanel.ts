@@ -438,7 +438,7 @@ export class MultiAgentChatPanel {
 
         try {
             // Request history from backend
-            const response = await fetch(`http://localhost:8000/api/conversation/history?limit=${message.limit || 20}&project_path=${encodeURIComponent(projectPath)}`);
+            const response = await fetch(`http://localhost:8001/api/conversation/history?limit=${message.limit || 20}&project_path=${encodeURIComponent(projectPath)}`);
 
             if (response.ok) {
                 // Type the response data properly

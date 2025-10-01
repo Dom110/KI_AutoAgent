@@ -22,13 +22,13 @@ export class BackendManager {
     // Get configuration from settings
     private get backendUrl(): string {
         const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        const url = config.get<string>('backend.url', 'localhost:8000');
+        const url = config.get<string>('backend.url', 'localhost:8001');
         return url.startsWith('http') ? url : `http://${url}`;
     }
 
     private get wsUrl(): string {
         const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        const url = config.get<string>('backend.url', 'localhost:8000');
+        const url = config.get<string>('backend.url', 'localhost:8001');
         const wsProtocol = url.startsWith('https') ? 'wss' : 'ws';
         const cleanUrl = url.replace(/^https?:\/\//, '');
         return `${wsProtocol}://${cleanUrl}/ws/chat`;
@@ -76,7 +76,7 @@ export class BackendManager {
         try {
             // Extract port from backend URL
             const urlParts = this.backendUrl.match(/:(\d+)/);
-            const port = parseInt(urlParts ? urlParts[1] : '8000');
+            const port = parseInt(urlParts ? urlParts[1] : '8001');
 
             // Check if backend is already running and healthy
             const isAlreadyRunning = await this.checkBackendHealth();
@@ -130,7 +130,9 @@ export class BackendManager {
 
             const backendDir = path.join(workspaceRoot, 'backend');
             const venvPython = path.join(workspaceRoot, 'venv', 'bin', 'python');  // venv is in project root, not backend
-            const serverPath = path.join(backendDir, 'api', 'server.py');
+            // Use LangGraph server for v5.0.0
+            const serverPath = path.join(backendDir, 'api', 'server_langgraph.py');
+            this.outputChannel.appendLine(`🔍 DEBUG: Starting LangGraph server v5.0.0 on port 8001`);
 
             // Check if backend directory exists
             if (!fs.existsSync(backendDir)) {
@@ -149,9 +151,9 @@ export class BackendManager {
             // Start the backend process
             const pythonExecutable = fs.existsSync(venvPython) ? venvPython : this.pythonPath;
 
-            // Use server.py directly so our port cleanup logic runs
+            // Use server_langgraph.py for v5.0.0 on port 8001
             this.backendProcess = spawn(pythonExecutable, [
-                path.join(backendDir, 'api', 'server.py')
+                path.join(backendDir, 'api', 'server_langgraph.py')
             ], {
                 cwd: workspaceRoot, // Use project root instead of backend/
                 env: {
@@ -210,10 +212,10 @@ export class BackendManager {
                         this.lastAttemptTime = Date.now();
 
                         // Make sure port is free before restarting
-                        const portInUse = await this.isPortInUse(8000);
+                        const portInUse = await this.isPortInUse(8001);
                         if (portInUse) {
-                            this.outputChannel.appendLine('⚠️ Port 8000 still in use after exit, cleaning up...');
-                            await this.killProcessOnPort(8000);
+                            this.outputChannel.appendLine('⚠️ Port 8001 still in use after exit, cleaning up...');
+                            await this.killProcessOnPort(8001);
                             // Wait for port to be released
                             await new Promise(resolve => setTimeout(resolve, 2000));
                         }
@@ -313,7 +315,7 @@ export class BackendManager {
 4. Start the server:
    python -m uvicorn api.server:app --reload
 
-5. The backend should be available at http://localhost:8000
+5. The backend should be available at http://localhost:8001
 `;
 
         this.outputChannel.appendLine(instructions);

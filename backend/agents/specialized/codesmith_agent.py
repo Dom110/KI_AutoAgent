@@ -832,7 +832,7 @@ import asyncio
 import json
 from unittest.mock import Mock, patch, AsyncMock
 
-from backend.core.cache_manager import CacheManager, cache_agent_response
+# from backend.core.cache_manager import CacheManager, cache_agent_response  # REMOVED v4.0
 
 @pytest.mark.asyncio
 async def test_cache_manager_connect():

@@ -534,8 +534,8 @@
         },
         "kiAutoAgent.backend.url": {
           "type": "string",
-          "default": "localhost:8000",
-          "markdownDescription": "🐍 **Python Backend URL**\n- Default: `localhost:8000`\n- The KI AutoAgent Python backend server\n- All AI intelligence runs here",
+          "default": "localhost:8001",
+          "markdownDescription": "🐍 **Python Backend URL**\n- Default: `localhost:8001` (v5.0.0 LangGraph)\n- The KI AutoAgent Python backend server with LangGraph integration\n- All AI intelligence runs here",
           "scope": "application"
         },
         "kiAutoAgent.backend.autoStart": {

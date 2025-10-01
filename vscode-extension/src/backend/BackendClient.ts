@@ -60,8 +60,8 @@ export class BackendClient extends EventEmitter {
         if (match) {
             return match[1];
         }
-        // Fallback to default
-        return 'localhost:8000';
+        // Fallback to default (v5.0.0 LangGraph port)
+        return 'localhost:8001';
     }
 
     /**
@@ -86,7 +86,7 @@ export class BackendClient extends EventEmitter {
         // Get URL from configuration if not provided
         if (!wsUrl) {
             const config = vscode.workspace.getConfiguration('kiAutoAgent');
-            const backendUrl = config.get<string>('backend.url', 'localhost:8000');
+            const backendUrl = config.get<string>('backend.url', 'localhost:8001');  // v5.0.0 LangGraph port
             const wsProtocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
             const cleanUrl = backendUrl.replace(/^https?:\/\//, '');
             wsUrl = `${wsProtocol}://${cleanUrl}/ws/chat`;
