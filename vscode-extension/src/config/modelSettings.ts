@@ -62,6 +62,107 @@ export class ModelSettingsManager {
     }
 
     /**
+     * Discover models with rich descriptions on startup
+     * Differentiates GPT (15), Claude (5), Perplexity (5)
+     */
+    async discoverModelsOnStartup(): Promise<void> {
+        try {
+            console.log('🔍 Discovering available AI models with descriptions...');
+
+            // Fetch model descriptions from backend
+            const response = await fetch(`http://${this.backendClient.getBackendUrl()}/api/models/descriptions`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const descriptions = await response.json() as any;
+
+            // Store in cache with rich metadata
+            this.cachedModels.clear();
+            for (const [provider, data] of Object.entries(descriptions)) {
+                const providerData = data as any;
+                this.cachedModels.set(provider, {
+                    provider,
+                    models: providerData.models.map((m: any) => m.id),
+                    latest: providerData.models.slice(0, 3).map((m: any) => m.id),
+                    recommended: providerData.recommended,
+                    descriptions: providerData.models // Full descriptions with pros/cons
+                });
+            }
+
+            console.log(`✅ Discovered ${descriptions.openai.total} GPT models, ${descriptions.anthropic.total} Claude models, ${descriptions.perplexity.total} Perplexity models`);
+
+            // Show notification with summary
+            vscode.window.showInformationMessage(
+                `🤖 Model Discovery Complete!\n` +
+                `• ${descriptions.openai.total} GPT models (incl. Realtime, o1)\n` +
+                `• ${descriptions.anthropic.total} Claude models (Opus, Sonnet)\n` +
+                `• ${descriptions.perplexity.total} Perplexity models (Research)`
+            );
+
+        } catch (error) {
+            console.error('Model discovery failed:', error);
+            vscode.window.showWarningMessage(`⚠️ Could not discover AI models: ${error instanceof Error ? error.message : String(error)}\n\nUsing defaults.`);
+        }
+    }
+
+    /**
+     * Show rich model picker with descriptions, pros/cons, and cost
+     */
+    async showRichModelPicker(provider: string, agentId?: string): Promise<string | undefined> {
+        const modelData = this.cachedModels.get(provider);
+
+        // If no cached data, discover first
+        if (!modelData || !modelData.descriptions) {
+            await this.discoverModelsOnStartup();
+            const refreshedData = this.cachedModels.get(provider);
+            if (!refreshedData || !refreshedData.descriptions) {
+                vscode.window.showWarningMessage(`No models available for ${provider}`);
+                return undefined;
+            }
+            return this.showRichModelPicker(provider, agentId);
+        }
+
+        // Build rich quick pick items
+        const items = modelData.descriptions.map((model: any) => {
+            const costInfo = `${model.costPerMToken.input}/${model.costPerMToken.output} $/M tokens`;
+            const prosText = model.pros.join(', ');
+            const consText = model.cons.join(', ');
+
+            return {
+                label: `$(star-full) ${model.name}`,
+                description: `${model.tier} • ${costInfo}`,
+                detail: `✅ Best for: ${model.bestFor}\n` +
+                        `👍 Pros: ${prosText}\n` +
+                        `👎 Cons: ${consText}`,
+                model: model.id
+            };
+        });
+
+        // Add recommended badge
+        if (modelData.recommended) {
+            const recommendedIds = Object.values(modelData.recommended);
+            items.forEach(item => {
+                if (recommendedIds.includes(item.model)) {
+                    item.label = `⭐ ${item.label} (Recommended)`;
+                }
+            });
+        }
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: agentId ?
+                `Select model for ${agentId}` :
+                `Select ${provider} model`,
+            title: `${provider.toUpperCase()} Model Selection`,
+            matchOnDescription: true,
+            matchOnDetail: true
+        });
+
+        return selected?.model;
+    }
+
+    /**
      * Store discovered models for dropdown options
      * NOTE: Does NOT automatically update user settings - user must select manually
      */
@@ -171,42 +272,88 @@ export class ModelSettingsManager {
         // Command to refresh models
         context.subscriptions.push(
             vscode.commands.registerCommand('ki-autoagent.refreshModels', async () => {
-                await this.refreshAvailableModels();
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: "Discovering AI Models",
+                    cancellable: false
+                }, async (progress) => {
+                    progress.report({ message: "Querying API endpoints..." });
+                    await this.discoverModelsOnStartup();
+                });
             })
         );
 
-        // Command to select OpenAI model
+        // Command to configure agent models (per-agent selection)
+        context.subscriptions.push(
+            vscode.commands.registerCommand('ki-autoagent.configureAgentModels', async () => {
+                // Show agent picker first
+                const agents = [
+                    { label: '🎯 Orchestrator', id: 'orchestrator', provider: 'openai' },
+                    { label: '🏗️ Architect', id: 'architect', provider: 'openai' },
+                    { label: '💻 CodeSmith', id: 'codesmith', provider: 'anthropic' },
+                    { label: '🔍 Reviewer', id: 'reviewer', provider: 'openai' },
+                    { label: '🔧 Fixer', id: 'fixer', provider: 'anthropic' },
+                    { label: '📝 DocBot', id: 'docubot', provider: 'openai' },
+                    { label: '🔬 Research', id: 'research', provider: 'perplexity' },
+                    { label: '📈 TradeStrat', id: 'tradestrat', provider: 'anthropic' },
+                    { label: '⚖️ OpusArbitrator', id: 'opus', provider: 'anthropic' },
+                    { label: '⚡ Performance', id: 'performancebot', provider: 'openai' }
+                ];
+
+                const selectedAgent = await vscode.window.showQuickPick(agents, {
+                    placeHolder: 'Select agent to configure model',
+                    title: 'Agent Model Configuration'
+                });
+
+                if (!selectedAgent) return;
+
+                // Show rich model picker for that agent's provider
+                const model = await this.showRichModelPicker(
+                    selectedAgent.provider,
+                    selectedAgent.id
+                );
+
+                if (model) {
+                    const config = vscode.workspace.getConfiguration('kiAutoAgent.models');
+                    await config.update(
+                        `${selectedAgent.provider}.${selectedAgent.id}`,
+                        model,
+                        vscode.ConfigurationTarget.Global
+                    );
+
+                    vscode.window.showInformationMessage(
+                        `✅ ${selectedAgent.label} model set to: ${model}`
+                    );
+                }
+            })
+        );
+
+        // Command to select OpenAI model (shows all GPT models)
         context.subscriptions.push(
             vscode.commands.registerCommand('ki-autoagent.selectOpenAIModel', async () => {
-                const model = await this.showModelSelectionPicker('openai');
+                const model = await this.showRichModelPicker('openai');
                 if (model) {
-                    const config = vscode.workspace.getConfiguration('kiAutoAgent.models');
-                    await config.update('openai.default', model, vscode.ConfigurationTarget.Global);
-                    vscode.window.showInformationMessage(`✅ OpenAI model set to: ${model}`);
+                    vscode.window.showInformationMessage(`Selected GPT model: ${model}\n\nUse "Configure Agent Models" to assign it to a specific agent.`);
                 }
             })
         );
 
-        // Command to select Anthropic model
+        // Command to select Anthropic model (shows all Claude models)
         context.subscriptions.push(
             vscode.commands.registerCommand('ki-autoagent.selectAnthropicModel', async () => {
-                const model = await this.showModelSelectionPicker('anthropic');
+                const model = await this.showRichModelPicker('anthropic');
                 if (model) {
-                    const config = vscode.workspace.getConfiguration('kiAutoAgent.models');
-                    await config.update('anthropic.default', model, vscode.ConfigurationTarget.Global);
-                    vscode.window.showInformationMessage(`✅ Anthropic model set to: ${model}`);
+                    vscode.window.showInformationMessage(`Selected Claude model: ${model}\n\nUse "Configure Agent Models" to assign it to a specific agent.`);
                 }
             })
         );
 
-        // Command to select Perplexity model
+        // Command to select Perplexity model (shows all Perplexity models)
         context.subscriptions.push(
             vscode.commands.registerCommand('ki-autoagent.selectPerplexityModel', async () => {
-                const model = await this.showModelSelectionPicker('perplexity');
+                const model = await this.showRichModelPicker('perplexity');
                 if (model) {
-                    const config = vscode.workspace.getConfiguration('kiAutoAgent.models');
-                    await config.update('perplexity.default', model, vscode.ConfigurationTarget.Global);
-                    vscode.window.showInformationMessage(`✅ Perplexity model set to: ${model}`);
+                    vscode.window.showInformationMessage(`Selected Perplexity model: ${model}\n\nUse "Configure Agent Models" to assign it to a specific agent.`);
                 }
             })
         );

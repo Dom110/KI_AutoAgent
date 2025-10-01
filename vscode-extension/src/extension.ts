@@ -91,15 +91,20 @@ export async function activate(context: vscode.ExtensionContext) {
         outputChannel.appendLine('🤖 Initializing Model Settings Manager...');
         modelSettingsManager = ModelSettingsManager.getInstance(backendClient);
 
-        // Auto-discover models if enabled
+        // Auto-discover models if enabled (with rich descriptions)
         const config = vscode.workspace.getConfiguration('kiAutoAgent.models');
         if (config.get('autoDiscover', true)) {
-            outputChannel.appendLine('🔍 Auto-discovering available AI models...');
+            outputChannel.appendLine('🔍 Auto-discovering available AI models with descriptions...');
+            outputChannel.appendLine('   Fetching 15 GPT models (incl. Realtime, o1)...');
+            outputChannel.appendLine('   Fetching 5 Claude models (Opus, Sonnet)...');
+            outputChannel.appendLine('   Fetching 5 Perplexity models (Research)...');
             try {
-                await modelSettingsManager.refreshAvailableModels();
-                outputChannel.appendLine('✅ Model discovery complete!');
+                // Use new rich discovery method instead of legacy refreshAvailableModels
+                await modelSettingsManager.discoverModelsOnStartup();
+                outputChannel.appendLine('✅ Model discovery complete with pros/cons/cost info!');
             } catch (error) {
                 outputChannel.appendLine(`⚠️ Model discovery failed: ${error}`);
+                outputChannel.appendLine('   Continuing with default models...');
             }
         }
 

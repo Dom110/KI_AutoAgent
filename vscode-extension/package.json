@@ -578,16 +578,22 @@
           "type": "string",
           "enum": [
             "gpt-4o-2024-11-20",
-            "gpt-5-mini-2025-09-20",
-            "gpt-4o-mini-2024-07-18"
+            "chatgpt-4o-latest",
+            "o1-preview",
+            "o1-mini",
+            "gpt-4o-mini-2024-07-18",
+            "gpt-5-mini-2025-09-20"
           ],
           "enumDescriptions": [
-            "Optimized GPT-4 - Best for task decomposition and routing",
-            "Fast GPT-5 Mini - Lightweight but capable",
-            "Lightweight GPT-4 - Fast and cost-effective"
+            "GPT-4o (Nov 2024) - Balanced performance, multimodal (2.5/10 $/M) ⭐ Recommended",
+            "ChatGPT-4o Latest - Always newest version, best features (5/15 $/M)",
+            "o1 Preview - Advanced reasoning, slower but best for complex logic (15/60 $/M)",
+            "o1 Mini - Fast reasoning, cost-effective for problem solving (3/12 $/M)",
+            "GPT-4o Mini - Very fast, budget-friendly for simple tasks (0.15/0.6 $/M)",
+            "GPT-5 Mini (2025) - Next-gen fast model, future-proof (0.2/0.8 $/M)"
           ],
           "default": "gpt-4o-2024-11-20",
-          "markdownDescription": "🎯 **Model for OrchestratorAgent**\n- Task decomposition and routing\n- Multi-agent coordination",
+          "markdownDescription": "🎯 **Model for Orchestrator Agent**\n\n**Current:** GPT-4o (November 2024)\n\n**Use For:**\n- Task decomposition & routing\n- Multi-agent coordination\n- Workflow planning\n\n**👍 Why GPT-4o?**\n- Excellent at breaking down complex tasks\n- Fast response times\n- Good cost/performance balance\n- 128K context window\n\n**🔄 Alternatives:**\n- `o1-preview` → Best reasoning for very complex workflows (slower, expensive)\n- `gpt-4o-mini` → Fast & cheap for simple routing\n- `chatgpt-4o-latest` → Always newest features\n\n**💡 Tip:** Use `KI AutoAgent: Configure Agent Models` to see all 15 GPT models with pros/cons/cost info.",
           "scope": "application"
         },
         "kiAutoAgent.models.openai.docubot": {
@@ -643,15 +649,19 @@
           "enum": [
             "claude-4.1-sonnet-20250920",
             "claude-opus-4-1-20250805",
-            "claude-3-7-sonnet-20250219"
+            "claude-3-7-sonnet-20250219",
+            "claude-3-5-haiku-20241022",
+            "claude-3-opus-20240229"
           ],
           "enumDescriptions": [
-            "Claude Sonnet 4.1 - Latest and most capable coding model",
-            "Supreme Claude Opus 4.1 - Ultimate reasoning and code quality",
-            "Claude 3.7 Sonnet - Stable and reliable coding assistant"
+            "Claude Sonnet 4.1 - Best for coding, fast, balanced (3/15 $/M) ⭐ Recommended",
+            "Claude Opus 4.1 - Supreme quality, best reasoning (15/75 $/M)",
+            "Claude 3.7 Sonnet - Extended thinking, cost-effective (3/15 $/M)",
+            "Claude 3.5 Haiku - Very fast, simple tasks (0.8/4 $/M)",
+            "Claude 3 Opus Legacy - Proven reliability, older (15/75 $/M)"
           ],
           "default": "claude-4.1-sonnet-20250920",
-          "markdownDescription": "💻 **Model for CodeSmithAgent**\n- Code generation and synthesis\n- Pattern implementation",
+          "markdownDescription": "💻 **Model for CodeSmith Agent**\n\n**Current:** Claude Sonnet 4.1\n\n**Use For:**\n- Code generation & implementation\n- Bug fixing & refactoring\n- Complex algorithms\n- Full-stack development\n\n**👍 Why Sonnet 4.1?**\n- Excellent at coding tasks\n- Fast response times\n- 200K context window\n- Best cost/performance for coding\n\n**🔄 Alternatives:**\n- `claude-opus-4-1` → Supreme quality for critical code (slower, 5x cost)\n- `claude-3-5-haiku` → Very fast for simple implementations\n- `claude-3-7-sonnet` → Extended thinking for complex logic\n\n**💡 Tip:** Use `KI AutoAgent: Configure Agent Models` to see all 5 Claude models with detailed pros/cons.",
           "scope": "application"
         },
         "kiAutoAgent.models.anthropic.fixer": {
@@ -721,7 +731,7 @@
         "kiAutoAgent.models.autoDiscover": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "🔍 **Auto-discover available models on startup**\n- Queries APIs for latest available models\n- Updates settings with discovered models\n- Shows latest 3 models per provider",
+          "markdownDescription": "🔍 **Auto-Discover AI Models on Startup**\n\nAutomatically queries provider APIs for available models with detailed information:\n\n**📊 What's Discovered:**\n- ✅ **15 GPT models** including Realtime, o1 reasoning models\n- ✅ **5 Claude models** (Opus 4.1, Sonnet 4.1, Haiku)\n- ✅ **5 Perplexity models** (Sonar variants for research)\n\n**📝 Rich Information:**\n- Pros & Cons for each model\n- Cost per million tokens ($/M)\n- Best use cases\n- Performance tier (Premium, Fast, Budget)\n\n**💡 Commands:**\n- `KI AutoAgent: Refresh Models` - Manual refresh\n- `KI AutoAgent: Configure Agent Models` - Per-agent selection\n- `KI AutoAgent: Select OpenAI/Anthropic/Perplexity Model` - Browse all models\n\n**⚙️ Tip:** Disable this if you prefer manual model configuration or have API rate limits.",
           "scope": "application"
         },
         "kiAutoAgent.claude.serviceMode": {

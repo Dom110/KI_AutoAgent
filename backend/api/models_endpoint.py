@@ -306,3 +306,281 @@ async def refresh_model_cache():
     except Exception as e:
         logger.error(f"Error refreshing model cache: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to refresh models: {str(e)}")
+
+@router.get("/descriptions")
+async def get_model_descriptions():
+    """
+    Return detailed model descriptions with pros/cons and use cases
+    - OpenAI: 15 models (including Realtime, o1, etc.)
+    - Anthropic: 5 models (Opus, Sonnet, Haiku)
+    - Perplexity: 5 models (Sonar variants)
+    """
+    try:
+        descriptions = {
+            "openai": {
+                "models": [
+                    {
+                        "id": "gpt-4o-2024-11-20",
+                        "name": "GPT-4o (November 2024)",
+                        "tier": "Premium",
+                        "pros": ["Multimodal capabilities", "Excellent at system architecture", "Fast responses", "128K context"],
+                        "cons": ["Higher cost than mini", "Not specialized for pure coding"],
+                        "bestFor": "System design, architecture planning, documentation, multimodal tasks",
+                        "costPerMToken": {"input": 2.5, "output": 10.0}
+                    },
+                    {
+                        "id": "chatgpt-4o-latest",
+                        "name": "ChatGPT-4o (Latest)",
+                        "tier": "Premium",
+                        "pros": ["Latest improvements", "Best general performance", "Continuously updated"],
+                        "cons": ["May change without notice", "Less predictable"],
+                        "bestFor": "General purpose, latest features, experimental workflows",
+                        "costPerMToken": {"input": 5.0, "output": 15.0}
+                    },
+                    {
+                        "id": "gpt-4o-mini-2024-07-18",
+                        "name": "GPT-4o Mini",
+                        "tier": "Efficient",
+                        "pros": ["Very cost-effective", "Fast", "Good for reviews", "128K context"],
+                        "cons": ["Less capable than full GPT-4o", "May miss edge cases"],
+                        "bestFor": "Code reviews, quick analyses, cost-conscious workflows, high-volume tasks",
+                        "costPerMToken": {"input": 0.15, "output": 0.6}
+                    },
+                    {
+                        "id": "gpt-4o-realtime-preview",
+                        "name": "GPT-4o Realtime (Preview)",
+                        "tier": "Experimental",
+                        "pros": ["Real-time audio/text", "Voice interactions", "Low latency"],
+                        "cons": ["Preview only", "Limited availability", "Higher cost"],
+                        "bestFor": "Voice assistants, real-time interactions, conversational AI",
+                        "costPerMToken": {"input": 5.0, "output": 20.0}
+                    },
+                    {
+                        "id": "gpt-4o-audio-preview",
+                        "name": "GPT-4o Audio (Preview)",
+                        "tier": "Experimental",
+                        "pros": ["Audio processing", "Voice capabilities", "Transcription"],
+                        "cons": ["Preview only", "Limited availability"],
+                        "bestFor": "Audio analysis, transcription, voice processing",
+                        "costPerMToken": {"input": 2.5, "output": 10.0}
+                    },
+                    {
+                        "id": "o1-preview",
+                        "name": "o1 Preview (Reasoning)",
+                        "tier": "Experimental",
+                        "pros": ["Advanced reasoning", "Complex problem solving", "Chain-of-thought"],
+                        "cons": ["Much slower", "Very high cost", "Limited availability"],
+                        "bestFor": "Complex logic, mathematical reasoning, research, algorithm design",
+                        "costPerMToken": {"input": 15.0, "output": 60.0}
+                    },
+                    {
+                        "id": "o1-mini",
+                        "name": "o1 Mini (Reasoning)",
+                        "tier": "Experimental",
+                        "pros": ["Faster than o1", "Good reasoning at lower cost", "STEM focused"],
+                        "cons": ["Less capable than full o1", "Still slower than GPT-4o"],
+                        "bestFor": "Quick reasoning tasks, cost-effective problem solving, STEM education",
+                        "costPerMToken": {"input": 3.0, "output": 12.0}
+                    },
+                    {
+                        "id": "gpt-4-turbo-2024-04-09",
+                        "name": "GPT-4 Turbo (April 2024)",
+                        "tier": "Standard",
+                        "pros": ["Proven reliability", "128K context", "Good general performance"],
+                        "cons": ["Superseded by GPT-4o", "Slower than 4o"],
+                        "bestFor": "Legacy workflows, proven stable tasks, large context needs",
+                        "costPerMToken": {"input": 10.0, "output": 30.0}
+                    },
+                    {
+                        "id": "gpt-4-0125-preview",
+                        "name": "GPT-4 0125 Preview",
+                        "tier": "Standard",
+                        "pros": ["Reduced lazy responses", "Better task completion"],
+                        "cons": ["Older model", "Superseded by 4o"],
+                        "bestFor": "Tasks requiring thorough completion, legacy compatibility",
+                        "costPerMToken": {"input": 10.0, "output": 30.0}
+                    },
+                    {
+                        "id": "gpt-3.5-turbo",
+                        "name": "GPT-3.5 Turbo",
+                        "tier": "Budget",
+                        "pros": ["Very low cost", "Fast", "Good for simple tasks"],
+                        "cons": ["Less capable", "Limited context (16K)"],
+                        "bestFor": "Simple queries, high-volume simple tasks, testing",
+                        "costPerMToken": {"input": 0.5, "output": 1.5}
+                    },
+                    {
+                        "id": "gpt-3.5-turbo-16k",
+                        "name": "GPT-3.5 Turbo 16K",
+                        "tier": "Budget",
+                        "pros": ["Low cost", "16K context", "Fast"],
+                        "cons": ["Less capable than GPT-4 series"],
+                        "bestFor": "Cost-conscious workflows with moderate context needs",
+                        "costPerMToken": {"input": 1.0, "output": 2.0}
+                    },
+                    {
+                        "id": "gpt-4-32k",
+                        "name": "GPT-4 32K",
+                        "tier": "Standard",
+                        "pros": ["Large 32K context", "Good for long documents"],
+                        "cons": ["Expensive", "Slower", "Superseded by Turbo"],
+                        "bestFor": "Long document analysis, legacy large-context workflows",
+                        "costPerMToken": {"input": 60.0, "output": 120.0}
+                    },
+                    {
+                        "id": "gpt-4",
+                        "name": "GPT-4 (Base)",
+                        "tier": "Standard",
+                        "pros": ["Proven reliability", "Good general performance"],
+                        "cons": ["8K context limit", "Superseded by Turbo/4o"],
+                        "bestFor": "Legacy workflows, specific GPT-4 requirements",
+                        "costPerMToken": {"input": 30.0, "output": 60.0}
+                    },
+                    {
+                        "id": "gpt-4-vision-preview",
+                        "name": "GPT-4 Vision (Preview)",
+                        "tier": "Experimental",
+                        "pros": ["Image understanding", "Visual analysis"],
+                        "cons": ["Preview only", "Superseded by GPT-4o multimodal"],
+                        "bestFor": "Image analysis (legacy), visual reasoning",
+                        "costPerMToken": {"input": 10.0, "output": 30.0}
+                    },
+                    {
+                        "id": "gpt-5-mini-2025-09-20",
+                        "name": "GPT-5 Mini (2025)",
+                        "tier": "Next-Gen",
+                        "pros": ["Latest generation", "Fast", "Cost-effective"],
+                        "cons": ["May not be available yet", "Preview status"],
+                        "bestFor": "Code review, quick tasks, future-proofing",
+                        "costPerMToken": {"input": 0.2, "output": 0.8}
+                    }
+                ],
+                "total": 15,
+                "recommended": {
+                    "architecture": "gpt-4o-2024-11-20",
+                    "review": "gpt-4o-mini-2024-07-18",
+                    "reasoning": "o1-preview",
+                    "general": "chatgpt-4o-latest",
+                    "budget": "gpt-3.5-turbo"
+                }
+            },
+            "anthropic": {
+                "models": [
+                    {
+                        "id": "claude-opus-4-1-20250805",
+                        "name": "Claude Opus 4.1",
+                        "tier": "Supreme",
+                        "pros": ["Best reasoning", "Supreme judgment", "Conflict resolution", "200K context"],
+                        "cons": ["Most expensive", "Slower responses", "Overkill for simple tasks"],
+                        "bestFor": "Critical decisions, complex reasoning, final arbitration, conflict resolution",
+                        "costPerMToken": {"input": 15.0, "output": 75.0}
+                    },
+                    {
+                        "id": "claude-4.1-sonnet-20250920",
+                        "name": "Claude Sonnet 4.1",
+                        "tier": "Premium",
+                        "pros": ["Excellent at coding", "Fast", "Balanced cost/performance", "200K context"],
+                        "cons": ["Not as capable as Opus for reasoning"],
+                        "bestFor": "Code generation, implementation, bug fixing, refactoring",
+                        "costPerMToken": {"input": 3.0, "output": 15.0}
+                    },
+                    {
+                        "id": "claude-3-7-sonnet-20250219",
+                        "name": "Claude 3.7 Sonnet",
+                        "tier": "Standard",
+                        "pros": ["Extended thinking", "Good reasoning", "Cost-effective", "200K context"],
+                        "cons": ["Older than 4.1", "Slower than 4.1"],
+                        "bestFor": "General tasks, thinking-heavy workflows, extended reasoning",
+                        "costPerMToken": {"input": 3.0, "output": 15.0}
+                    },
+                    {
+                        "id": "claude-3-5-haiku-20241022",
+                        "name": "Claude 3.5 Haiku",
+                        "tier": "Fast",
+                        "pros": ["Very fast", "Cost-effective", "Good for simple tasks", "200K context"],
+                        "cons": ["Less capable than Sonnet", "Not for complex reasoning"],
+                        "bestFor": "Quick responses, simple implementations, high-volume tasks, fast iteration",
+                        "costPerMToken": {"input": 0.8, "output": 4.0}
+                    },
+                    {
+                        "id": "claude-3-opus-20240229",
+                        "name": "Claude 3 Opus (Legacy)",
+                        "tier": "Legacy",
+                        "pros": ["Still very capable", "Proven reliability", "200K context"],
+                        "cons": ["Older model", "Superseded by 4.1 Opus"],
+                        "bestFor": "Legacy workflows, proven stable tasks, backward compatibility",
+                        "costPerMToken": {"input": 15.0, "output": 75.0}
+                    }
+                ],
+                "total": 5,
+                "recommended": {
+                    "coding": "claude-4.1-sonnet-20250920",
+                    "reasoning": "claude-opus-4-1-20250805",
+                    "fast": "claude-3-5-haiku-20241022",
+                    "general": "claude-3-7-sonnet-20250219"
+                }
+            },
+            "perplexity": {
+                "models": [
+                    {
+                        "id": "llama-3.1-sonar-huge-128k-online",
+                        "name": "Llama 3.1 Sonar Huge (Online)",
+                        "tier": "Premium+",
+                        "pros": ["Best research capability", "Comprehensive answers", "Real-time web access", "128K context"],
+                        "cons": ["Most expensive", "Slower", "Overkill for simple lookups"],
+                        "bestFor": "In-depth research, competitive analysis, market research, comprehensive reports",
+                        "costPerMToken": {"input": 5.0, "output": 5.0}
+                    },
+                    {
+                        "id": "llama-3.1-sonar-large-128k-online",
+                        "name": "Llama 3.1 Sonar Large (Online)",
+                        "tier": "Premium",
+                        "pros": ["Better reasoning", "Real-time web", "Large context", "Balanced cost"],
+                        "cons": ["More expensive than small"],
+                        "bestFor": "Comprehensive research, detailed analyses, technical documentation lookup",
+                        "costPerMToken": {"input": 1.0, "output": 1.0}
+                    },
+                    {
+                        "id": "llama-3.1-sonar-small-128k-online",
+                        "name": "Llama 3.1 Sonar Small (Online)",
+                        "tier": "Standard",
+                        "pros": ["Real-time web access", "Fast", "Cost-effective", "128K context"],
+                        "cons": ["Less capable than huge", "May miss nuances"],
+                        "bestFor": "Quick web research, fact-checking, documentation lookup, fast queries",
+                        "costPerMToken": {"input": 0.2, "output": 0.2}
+                    },
+                    {
+                        "id": "llama-3.1-70b-instruct",
+                        "name": "Llama 3.1 70B Instruct (Offline)",
+                        "tier": "Offline",
+                        "pros": ["No web access needed", "Fast", "Privacy", "70B parameters"],
+                        "cons": ["No real-time data", "No web search", "Stale knowledge"],
+                        "bestFor": "Code analysis, offline tasks, privacy-sensitive work, internal processing",
+                        "costPerMToken": {"input": 0.5, "output": 0.5}
+                    },
+                    {
+                        "id": "mixtral-8x7b-instruct",
+                        "name": "Mixtral 8x7B Instruct",
+                        "tier": "Efficient",
+                        "pros": ["Very fast", "Low cost", "Good quality", "Mixture of Experts"],
+                        "cons": ["Smaller model", "Less capable", "Limited knowledge"],
+                        "bestFor": "Simple research, quick lookups, high-volume queries, budget workflows",
+                        "costPerMToken": {"input": 0.1, "output": 0.1}
+                    }
+                ],
+                "total": 5,
+                "recommended": {
+                    "research": "llama-3.1-sonar-huge-128k-online",
+                    "fast": "llama-3.1-sonar-small-128k-online",
+                    "offline": "llama-3.1-70b-instruct",
+                    "budget": "mixtral-8x7b-instruct"
+                }
+            }
+        }
+
+        logger.info(f"✅ Returned model descriptions: {descriptions['openai']['total']} GPT, {descriptions['anthropic']['total']} Claude, {descriptions['perplexity']['total']} Perplexity models")
+        return descriptions
+
+    except Exception as e:
+        logger.error(f"Error getting model descriptions: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get model descriptions: {str(e)}")

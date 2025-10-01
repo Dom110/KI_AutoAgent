@@ -29,6 +29,9 @@ from langgraph_system import (
     DynamicWorkflowManager
 )
 
+# Import Models Endpoint
+from backend.api.models_endpoint import router as models_router
+
 # Configure logging with detailed format
 logging.basicConfig(
     level=logging.INFO,
@@ -154,6 +157,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include Models API Router
+app.include_router(models_router)
+logger.info("✅ Models API endpoint registered at /api/models")
 
 # Health check endpoint
 @app.get("/health")
