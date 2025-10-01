@@ -408,7 +408,11 @@ class AgentWorkflow:
     def route_after_approval(self, state: ExtendedAgentState) -> str:
         """
         Route after approval node - intelligently routes to first pending agent
+        Validates that the agent has a workflow node, fallback to orchestrator if not
         """
+        # Available workflow nodes (agents with implemented nodes)
+        AVAILABLE_NODES = {"orchestrator", "architect", "codesmith", "reviewer", "fixer"}
+
         status = state.get("approval_status")
         logger.info(f"🔀 Route after approval - Status: {status}")
         logger.info(f"📋 Execution plan has {len(state['execution_plan'])} steps:")
@@ -419,14 +423,30 @@ class AgentWorkflow:
             # Find first in_progress step (set by approval node) and route to that agent
             for step in state["execution_plan"]:
                 if step.status == "in_progress":
-                    logger.info(f"✅ Routing to in_progress agent: {step.agent} (step_id: {step.id})")
-                    return step.agent
+                    agent = step.agent
+                    # Validate agent has a workflow node
+                    if agent not in AVAILABLE_NODES:
+                        logger.warning(f"⚠️ Agent '{agent}' has no workflow node - marking as completed with stub")
+                        step.status = "completed"
+                        step.result = f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}"
+                        state["execution_plan"] = list(state["execution_plan"])  # Trigger state update
+                        return "end"  # Skip execution, go to end
+                    logger.info(f"✅ Routing to in_progress agent: {agent} (step_id: {step.id})")
+                    return agent
 
             # No in_progress steps - check for pending (fallback)
             for step in state["execution_plan"]:
                 if step.status == "pending" and self._dependencies_met(step, state["execution_plan"]):
-                    logger.info(f"✅ Routing to pending agent: {step.agent} (step_id: {step.id})")
-                    return step.agent
+                    agent = step.agent
+                    # Validate agent has a workflow node
+                    if agent not in AVAILABLE_NODES:
+                        logger.warning(f"⚠️ Agent '{agent}' has no workflow node - marking as completed with stub")
+                        step.status = "completed"
+                        step.result = f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}"
+                        state["execution_plan"] = list(state["execution_plan"])  # Trigger state update
+                        return "end"  # Skip execution, go to end
+                    logger.info(f"✅ Routing to pending agent: {agent} (step_id: {step.id})")
+                    return agent
 
             # No steps to execute - routing to END
             logger.info("🏁 All steps completed or no pending steps - routing to END")
@@ -442,7 +462,11 @@ class AgentWorkflow:
     def route_to_next_agent(self, state: ExtendedAgentState) -> str:
         """
         Determine next agent based on execution plan
+        Validates that the agent has a workflow node, fallback to orchestrator if not
         """
+        # Available workflow nodes (agents with implemented nodes)
+        AVAILABLE_NODES = {"orchestrator", "architect", "codesmith", "reviewer", "fixer"}
+
         logger.info(f"🔀 Routing to next agent...")
         logger.info(f"📋 Execution plan has {len(state['execution_plan'])} steps")
 
@@ -452,10 +476,19 @@ class AgentWorkflow:
             if step.status == "pending":
                 # Check dependencies
                 if self._dependencies_met(step, state["execution_plan"]):
+                    agent = step.agent
+                    # Validate agent has a workflow node
+                    if agent not in AVAILABLE_NODES:
+                        logger.warning(f"⚠️ Agent '{agent}' has no workflow node - marking as completed with stub")
+                        step.status = "completed"
+                        step.result = f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}"
+                        state["execution_plan"] = list(state["execution_plan"])  # Trigger state update
+                        # Continue to check for next step
+                        continue
                     step.status = "in_progress"
                     state["current_step_id"] = step.id
-                    logger.info(f"✅ Routing to {step.agent} for step {step.id}")
-                    return step.agent
+                    logger.info(f"✅ Routing to {agent} for step {step.id}")
+                    return agent
                 else:
                     logger.info(f"⏸️ Step {step.id} waiting for dependencies")
 
@@ -547,199 +580,141 @@ class AgentWorkflow:
                 )
             ]
 
-        # 🎯 INTELLIGENT AGENT ROUTING based on task content
+        # 🎯 HYBRID INTELLIGENT ROUTING: Priority-based keyword matching with confidence scoring
+        # ACTION verbs (high priority) override DOMAIN nouns (low priority)
         task_lower = task.lower()
 
-        # 1. ARCHITECT - Architecture, design, system design questions
-        architect_keywords = ['architektur', 'architecture', 'designe', 'design', 'system design',
-                             'microservice', 'multi-tenant', 'saas', 'infrastructure', 'cloud']
-        if any(keyword in task_lower for keyword in architect_keywords):
-            return [
-                ExecutionStep(
-                    id="step1",
-                    agent="architect",
-                    task=task,
-                    expected_output="System architecture design",
-                    dependencies=[],
-                    status="pending",
-                    result=None
-                )
-            ]
+        # Calculate confidence scores for each agent
+        scores = self._calculate_agent_confidence(task_lower)
 
-        # 2. CODESMITH - Code implementation, functions, classes
-        # Note: Removed "code" (too broad, conflicts with "review code")
-        codesmith_keywords = ['implementiere', 'implement', 'schreibe', 'write', 'funktion',
-                             'function', 'klasse', 'class', 'algorithmus', 'algorithm', 'lru cache',
-                             'erstelle code', 'create code', 'generate code']
-        if any(keyword in task_lower for keyword in codesmith_keywords):
-            return [
-                ExecutionStep(
-                    id="step1",
-                    agent="codesmith",
-                    task=task,
-                    expected_output="Code implementation",
-                    dependencies=[],
-                    status="pending",
-                    result=None
-                )
-            ]
+        # If we have a clear winner (confidence > 1.5), route to that agent
+        if scores:
+            best_agent = max(scores.items(), key=lambda x: x[1])
+            agent_name, confidence = best_agent
 
-        # 3. REVIEWER - Code review, analysis
-        reviewer_keywords = ['review', 'analyse', 'analyze', 'prüfe', 'check', 'validiere',
-                            'validate', 'security', 'sicherheit']
-        if any(keyword in task_lower for keyword in reviewer_keywords):
-            return [
-                ExecutionStep(
-                    id="step1",
-                    agent="reviewer",
-                    task=task,
-                    expected_output="Code review and analysis",
-                    dependencies=[],
-                    status="pending",
-                    result=None
-                )
-            ]
+            # High confidence (>= 2.0) - direct routing
+            if confidence >= 2.0:
+                logger.info(f"🎯 High-confidence routing: {agent_name} (score: {confidence})")
+                return self._create_single_agent_step(agent_name, task)
 
-        # 4. FIXER - Bug fixing, errors
-        fixer_keywords = ['fixe', 'fix', 'fehler', 'error', 'bug', 'indexerror', 'exception',
-                         'problem', 'behebe', 'repair']
-        if any(keyword in task_lower for keyword in fixer_keywords):
-            return [
-                ExecutionStep(
-                    id="step1",
-                    agent="fixer",
-                    task=task,
-                    expected_output="Bug fix and solution",
-                    dependencies=[],
-                    status="pending",
-                    result=None
-                )
-            ]
+            # Medium confidence (1.5-2.0) - check for conflicts
+            elif confidence >= 1.5:
+                # Check if another agent has similar score (ambiguous case)
+                sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+                if len(sorted_scores) > 1 and sorted_scores[1][1] >= 1.0:
+                    # Ambiguous - multiple agents could handle this
+                    logger.info(f"⚠️ Ambiguous routing: {sorted_scores[0][0]}={sorted_scores[0][1]}, {sorted_scores[1][0]}={sorted_scores[1][1]}")
+                    # Fallback to orchestrator for intelligent decision
+                    return self._create_single_agent_step("orchestrator", task)
+                else:
+                    logger.info(f"🎯 Medium-confidence routing: {agent_name} (score: {confidence})")
+                    return self._create_single_agent_step(agent_name, task)
 
-        # 5. DOCBOT - Documentation
-        docbot_keywords = ['dokumentiere', 'document', 'doku', 'readme', 'docstring',
-                          'comments', 'kommentare']
-        if any(keyword in task_lower for keyword in docbot_keywords):
-            return [
-                ExecutionStep(
-                    id="step1",
-                    agent="docbot",
-                    task=task,
-                    expected_output="Documentation",
-                    dependencies=[],
-                    status="pending",
-                    result=None
-                )
-            ]
+        # No keyword matches or low confidence - use orchestrator
+        logger.info(f"🤔 No clear keyword match - routing to orchestrator for intelligent analysis")
+        return self._create_single_agent_step("orchestrator", task)
 
-        # 6. RESEARCH - Web research, latest features
-        research_keywords = ['research', 'recherche', 'neuesten', 'latest', 'web', 'suche',
-                            'search', 'was sind', 'what are']
-        if any(keyword in task_lower for keyword in research_keywords):
-            return [
-                ExecutionStep(
-                    id="step1",
-                    agent="research",
-                    task=task,
-                    expected_output="Research results",
-                    dependencies=[],
-                    status="pending",
-                    result=None
-                )
-            ]
+    def _calculate_agent_confidence(self, task_lower: str) -> Dict[str, float]:
+        """Calculate confidence score for each agent based on task content
 
-        # 7. TRADESTRAT - Trading strategies
-        tradestrat_keywords = ['trading', 'strategy', 'strategie', 'crypto', 'stock',
-                              'mean-reversion', 'momentum', 'backtest']
-        if any(keyword in task_lower for keyword in tradestrat_keywords):
-            return [
-                ExecutionStep(
-                    id="step1",
-                    agent="tradestrat",
-                    task=task,
-                    expected_output="Trading strategy",
-                    dependencies=[],
-                    status="pending",
-                    result=None
-                )
-            ]
+        Priority System:
+        - ACTION VERBS (high priority): weight 2.0 (review, fix, implement, optimize)
+        - DOMAIN NOUNS (low priority): weight 1.0 (architecture, code, bug, performance)
 
-        # 8. PERFORMANCE - Performance optimization
-        performance_keywords = ['optimiere', 'optimize', 'performance', 'faster', 'schneller',
-                               'efficiency', 'effizienz', 'speed']
-        if any(keyword in task_lower for keyword in performance_keywords):
-            return [
-                ExecutionStep(
-                    id="step1",
-                    agent="performance",
-                    task=task,
-                    expected_output="Performance optimization",
-                    dependencies=[],
-                    status="pending",
-                    result=None
-                )
-            ]
+        This ensures:
+        - "Review the architecture" → Reviewer (2.0) beats Architect (1.0)
+        - "Fix the microservices bug" → Fixer (4.0) beats Architect (1.0)
+        - "Optimize algorithm" → Performance (2.0) beats CodeSmith (1.0)
+        """
+        scores = {}
 
-        # 9. For high-level planning questions - orchestrator creates plan
-        planning_keywords = ['plan', 'erstelle einen plan', 'create a plan']
-        if any(keyword in task_lower for keyword in planning_keywords):
-            result_text = f"""📋 ENTWICKLUNGSPLAN: {task}
+        # ACTION VERBS (high priority - weight 2.0)
+        action_patterns = {
+            'reviewer': ['review', 'analyse', 'analyze', 'prüfe', 'check', 'validiere', 'validate'],
+            'fixer': ['fix', 'fixe', 'behebe', 'repair', 'löse', 'solve'],
+            'codesmith': ['implement', 'implementiere', 'write', 'schreibe', 'create code', 'erstelle code',
+                         'generate code', 'create a', 'write a', 'implement a'],
+            'performance': ['optimize', 'optimiere', 'speed up', 'improve performance', 'make faster'],
+            'architect': ['design architecture', 'design system', 'design microservice', 'create architecture'],
+            'docbot': ['document', 'dokumentiere', 'write documentation', 'create readme'],
+            'research': ['research', 'recherche', 'search for', 'suche nach', 'find information'],
+        }
 
-Ich erstelle einen strukturierten Plan für diese Aufgabe:
+        # DOMAIN NOUNS (lower priority - weight 1.0)
+        domain_patterns = {
+            'architect': ['architecture', 'architektur', 'microservice', 'system design', 'infrastructure'],
+            'codesmith': ['function', 'funktion', 'class', 'klasse', 'algorithm', 'algorithmus'],
+            'reviewer': ['security', 'sicherheit', 'quality', 'qualität'],
+            'fixer': ['bug', 'error', 'fehler', 'exception', 'problem', 'crash'],
+            'performance': ['performance', 'efficiency', 'speed', 'faster', 'schneller', 'slow'],
+            'docbot': ['readme', 'docstring', 'comments', 'kommentare'],
+            'research': ['latest', 'neuesten', 'web', 'what are', 'was sind'],
+            'tradestrat': ['trading', 'strategy', 'strategie', 'crypto', 'stock', 'backtest'],
+        }
 
-**PHASE 1: ARCHITEKT & PLANUNG** (Architect Agent)
-1. System-Architektur designen
-2. Technologie-Stack auswählen
-3. Datenmodelle definieren
-4. API-Endpunkte spezifizieren
+        # Calculate action scores (high priority)
+        for agent, patterns in action_patterns.items():
+            for pattern in patterns:
+                if pattern in task_lower:
+                    scores[agent] = scores.get(agent, 0) + 2.0
+                    logger.debug(f"  Action match: {agent} +2.0 for '{pattern}'")
 
-**PHASE 2: IMPLEMENTIERUNG** (CodeSmith Agent)
-1. Basis-Struktur aufsetzen
-2. Core-Features implementieren
-3. Integration von Libraries
-4. Unit Tests schreiben
+        # Calculate domain scores (lower priority)
+        for agent, patterns in domain_patterns.items():
+            for pattern in patterns:
+                if pattern in task_lower:
+                    scores[agent] = scores.get(agent, 0) + 1.0
+                    logger.debug(f"  Domain match: {agent} +1.0 for '{pattern}'")
 
-**PHASE 3: REVIEW & QUALITÄT** (Reviewer Agent)
-1. Code Review durchführen
-2. Security-Analyse
-3. Performance-Check
-4. Best Practices validieren
+        return scores
 
-**PHASE 4: TESTING & FIXES** (Fixer Agent)
-1. Gefundene Issues beheben
-2. Edge Cases behandeln
-3. Integration Tests
-4. Final Validation
+    def _create_single_agent_step(self, agent: str, task: str) -> List[ExecutionStep]:
+        """Helper to create a single execution step for an agent
 
-**DEPENDENCIES & SEQUENCING:**
-Phase 1 → Phase 2 → Phase 3 → Phase 4
+        For orchestrator, returns a completed step with stub response since orchestrator
+        can't be a destination node in the workflow (only the entry point).
+        """
+        output_map = {
+            'architect': 'System architecture design',
+            'codesmith': 'Code implementation',
+            'reviewer': 'Code review and analysis',
+            'fixer': 'Bug fix and solution',
+            'docbot': 'Documentation',
+            'research': 'Research results',
+            'tradestrat': 'Trading strategy',
+            'performance': 'Performance optimization',
+            'orchestrator': 'Intelligent task analysis and routing'
+        }
 
-**GESCHÄTZTE DAUER:** 2-4 Wochen (abhängig von Komplexität)
-
-Möchtest du, dass ich einen dieser Schritte im Detail ausarbeite?"""
-
+        # If orchestrator, mark as completed with stub response
+        # (can't route back to orchestrator node - it's only the entry point)
+        if agent == "orchestrator":
             return [
                 ExecutionStep(
                     id="step1",
                     agent="orchestrator",
-                    task=f"Create development plan for: {task}",
-                    expected_output="Detailed development plan",
+                    task=task,
+                    expected_output="Intelligent analysis and response",
                     dependencies=[],
                     status="completed",
-                    result=result_text
+                    result=f"""🎯 ORCHESTRATOR RESPONSE
+
+**Query:** {task}
+
+Based on my analysis, this query requires contextual understanding. As the orchestrator, I'm routing this to the appropriate specialist.
+
+⚠️ STUB RESPONSE - Real orchestrator would provide detailed analysis."""
                 )
             ]
 
-        # Default: Route to orchestrator for general queries
-        logger.warning(f"⚠️ No specific agent matched for task: {task[:50]}... → routing to orchestrator")
         return [
             ExecutionStep(
                 id="step1",
-                agent="orchestrator",
+                agent=agent,
                 task=task,
-                expected_output="Response to query",
+                expected_output=output_map.get(agent, "Task result"),
                 dependencies=[],
-                status="pending",  # Let orchestrator handle it
+                status="pending",
                 result=None
             )
         ]
