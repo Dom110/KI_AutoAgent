@@ -58,6 +58,57 @@ This applies to ALL answers, explanations, error messages, and outputs.
     SEND_THINKING_UPDATES = True  # Agent-Gedanken zum Frontend senden
     THINKING_DETAIL_LEVEL = "high"  # low, medium, high
 
+    # ========================================
+    # v5.0 LangGraph Workflow Settings
+    # ========================================
+    LANGGRAPH_ENABLED = True
+    LANGGRAPH_CHECKPOINT_INTERVAL = 5  # Save state every N agent steps
+    LANGGRAPH_MAX_ITERATIONS = 20  # Max workflow iterations before stopping
+    LANGGRAPH_PARALLEL_EXECUTION = False  # Allow parallel agent execution
+    LANGGRAPH_STATE_MANAGEMENT = "sqlite"  # memory, sqlite, checkpoint
+
+    # ========================================
+    # Agent Quality & Validation Settings
+    # ========================================
+    AGENT_QUALITY_THRESHOLD = 0.75  # Min quality score (0-1) to accept output
+    AGENT_MAX_RETRIES = 3  # Max retry attempts per agent
+    AGENT_REVIEWER_ITERATIONS = 2  # How many review cycles
+    AGENT_FIXER_ITERATIONS = 3  # How many fix attempts before escalating
+
+    # ========================================
+    # Routing & Orchestration Settings
+    # ========================================
+    ROUTING_STRATEGY = "hybrid"  # keyword, confidence, hybrid
+    ROUTING_CONFIDENCE_THRESHOLD = 0.8  # Min confidence for auto-routing
+    ROUTING_FALLBACK_AGENT = "orchestrator"  # orchestrator, codesmith, ask-user
+    ROUTING_ENABLE_KEYWORD_MATCHING = True
+    ROUTING_ENABLE_SEMANTIC_MATCHING = True
+
+    # ========================================
+    # Performance & Monitoring Settings
+    # ========================================
+    MONITORING_ENABLED = True
+    MONITORING_LOG_AGENT_METRICS = False  # Log to .kiautoagent/metrics.json
+    MONITORING_TRACK_ROUTING_SUCCESS = True
+    MONITORING_ALERT_ON_FAILURES = True
+
+    # ========================================
+    # Context & Memory Settings
+    # ========================================
+    CONTEXT_MAX_TOKENS_PER_AGENT = 8000  # Max context tokens per agent
+    CONTEXT_INCLUDE_HISTORY = True  # Include chat history in context
+    CONTEXT_HISTORY_DEPTH = 10  # How many previous messages to include
+    MEMORY_ENABLED = False  # Long-term memory (experimental)
+    MEMORY_STORAGE_BACKEND = "sqlite"  # sqlite, json, memory
+
+    # ========================================
+    # Cost Management Settings
+    # ========================================
+    COST_TRACK_USAGE = True
+    COST_MONTHLY_BUDGET = 100.0  # USD, 0 = unlimited
+    COST_ALERT_ON_THRESHOLD = 0.8  # Alert at 80% of budget
+    COST_PREFER_CHEAPER_MODELS = False
+
     @classmethod
     def get_language_directive(cls) -> str:
         """Hole die aktuelle Sprach-Direktive"""
@@ -72,6 +123,143 @@ This applies to ALL answers, explanations, error messages, and outputs.
             "default": cls.DEFAULT_TIMEOUT
         }
         return timeouts.get(task_type, cls.DEFAULT_TIMEOUT)
+
+    @classmethod
+    def update_from_vscode(cls, vscode_settings: dict) -> None:
+        """
+        Update backend settings from VS Code extension settings.
+
+        Maps VS Code setting keys (e.g., 'langgraph.enabled') to backend constants.
+
+        Args:
+            vscode_settings: Dictionary with VS Code settings
+        """
+        # LangGraph Settings
+        if 'langgraph.enabled' in vscode_settings:
+            cls.LANGGRAPH_ENABLED = vscode_settings['langgraph.enabled']
+        if 'langgraph.checkpointInterval' in vscode_settings:
+            cls.LANGGRAPH_CHECKPOINT_INTERVAL = vscode_settings['langgraph.checkpointInterval']
+        if 'langgraph.maxIterations' in vscode_settings:
+            cls.LANGGRAPH_MAX_ITERATIONS = vscode_settings['langgraph.maxIterations']
+        if 'langgraph.parallelExecution' in vscode_settings:
+            cls.LANGGRAPH_PARALLEL_EXECUTION = vscode_settings['langgraph.parallelExecution']
+        if 'langgraph.stateManagement' in vscode_settings:
+            cls.LANGGRAPH_STATE_MANAGEMENT = vscode_settings['langgraph.stateManagement']
+
+        # Agent Quality Settings
+        if 'agents.qualityThreshold' in vscode_settings:
+            cls.AGENT_QUALITY_THRESHOLD = vscode_settings['agents.qualityThreshold']
+        if 'agents.maxRetries' in vscode_settings:
+            cls.AGENT_MAX_RETRIES = vscode_settings['agents.maxRetries']
+        if 'agents.reviewerIterations' in vscode_settings:
+            cls.AGENT_REVIEWER_ITERATIONS = vscode_settings['agents.reviewerIterations']
+        if 'agents.fixerIterations' in vscode_settings:
+            cls.AGENT_FIXER_ITERATIONS = vscode_settings['agents.fixerIterations']
+
+        # Routing Settings
+        if 'routing.strategy' in vscode_settings:
+            cls.ROUTING_STRATEGY = vscode_settings['routing.strategy']
+        if 'routing.confidenceThreshold' in vscode_settings:
+            cls.ROUTING_CONFIDENCE_THRESHOLD = vscode_settings['routing.confidenceThreshold']
+        if 'routing.fallbackAgent' in vscode_settings:
+            cls.ROUTING_FALLBACK_AGENT = vscode_settings['routing.fallbackAgent']
+        if 'routing.enableKeywordMatching' in vscode_settings:
+            cls.ROUTING_ENABLE_KEYWORD_MATCHING = vscode_settings['routing.enableKeywordMatching']
+        if 'routing.enableSemanticMatching' in vscode_settings:
+            cls.ROUTING_ENABLE_SEMANTIC_MATCHING = vscode_settings['routing.enableSemanticMatching']
+
+        # Monitoring Settings
+        if 'monitoring.enabled' in vscode_settings:
+            cls.MONITORING_ENABLED = vscode_settings['monitoring.enabled']
+        if 'monitoring.logAgentMetrics' in vscode_settings:
+            cls.MONITORING_LOG_AGENT_METRICS = vscode_settings['monitoring.logAgentMetrics']
+        if 'monitoring.trackRoutingSuccess' in vscode_settings:
+            cls.MONITORING_TRACK_ROUTING_SUCCESS = vscode_settings['monitoring.trackRoutingSuccess']
+        if 'monitoring.alertOnFailures' in vscode_settings:
+            cls.MONITORING_ALERT_ON_FAILURES = vscode_settings['monitoring.alertOnFailures']
+
+        # Context Settings
+        if 'context.maxTokensPerAgent' in vscode_settings:
+            cls.CONTEXT_MAX_TOKENS_PER_AGENT = vscode_settings['context.maxTokensPerAgent']
+        if 'context.includeHistory' in vscode_settings:
+            cls.CONTEXT_INCLUDE_HISTORY = vscode_settings['context.includeHistory']
+        if 'context.historyDepth' in vscode_settings:
+            cls.CONTEXT_HISTORY_DEPTH = vscode_settings['context.historyDepth']
+
+        # Memory Settings
+        if 'memory.enabled' in vscode_settings:
+            cls.MEMORY_ENABLED = vscode_settings['memory.enabled']
+        if 'memory.storageBackend' in vscode_settings:
+            cls.MEMORY_STORAGE_BACKEND = vscode_settings['memory.storageBackend']
+
+        # Cost Settings
+        if 'cost.trackUsage' in vscode_settings:
+            cls.COST_TRACK_USAGE = vscode_settings['cost.trackUsage']
+        if 'cost.monthlyBudget' in vscode_settings:
+            cls.COST_MONTHLY_BUDGET = vscode_settings['cost.monthlyBudget']
+        if 'cost.alertOnThreshold' in vscode_settings:
+            cls.COST_ALERT_ON_THRESHOLD = vscode_settings['cost.alertOnThreshold']
+        if 'cost.preferCheaperModels' in vscode_settings:
+            cls.COST_PREFER_CHEAPER_MODELS = vscode_settings['cost.preferCheaperModels']
+
+    @classmethod
+    def to_dict(cls) -> dict:
+        """
+        Export all v5.0 settings as dictionary.
+
+        Returns:
+            Dictionary with all configurable settings
+        """
+        return {
+            # LangGraph
+            "langgraph": {
+                "enabled": cls.LANGGRAPH_ENABLED,
+                "checkpointInterval": cls.LANGGRAPH_CHECKPOINT_INTERVAL,
+                "maxIterations": cls.LANGGRAPH_MAX_ITERATIONS,
+                "parallelExecution": cls.LANGGRAPH_PARALLEL_EXECUTION,
+                "stateManagement": cls.LANGGRAPH_STATE_MANAGEMENT,
+            },
+            # Agent Quality
+            "agents": {
+                "qualityThreshold": cls.AGENT_QUALITY_THRESHOLD,
+                "maxRetries": cls.AGENT_MAX_RETRIES,
+                "reviewerIterations": cls.AGENT_REVIEWER_ITERATIONS,
+                "fixerIterations": cls.AGENT_FIXER_ITERATIONS,
+            },
+            # Routing
+            "routing": {
+                "strategy": cls.ROUTING_STRATEGY,
+                "confidenceThreshold": cls.ROUTING_CONFIDENCE_THRESHOLD,
+                "fallbackAgent": cls.ROUTING_FALLBACK_AGENT,
+                "enableKeywordMatching": cls.ROUTING_ENABLE_KEYWORD_MATCHING,
+                "enableSemanticMatching": cls.ROUTING_ENABLE_SEMANTIC_MATCHING,
+            },
+            # Monitoring
+            "monitoring": {
+                "enabled": cls.MONITORING_ENABLED,
+                "logAgentMetrics": cls.MONITORING_LOG_AGENT_METRICS,
+                "trackRoutingSuccess": cls.MONITORING_TRACK_ROUTING_SUCCESS,
+                "alertOnFailures": cls.MONITORING_ALERT_ON_FAILURES,
+            },
+            # Context
+            "context": {
+                "maxTokensPerAgent": cls.CONTEXT_MAX_TOKENS_PER_AGENT,
+                "includeHistory": cls.CONTEXT_INCLUDE_HISTORY,
+                "historyDepth": cls.CONTEXT_HISTORY_DEPTH,
+            },
+            # Memory
+            "memory": {
+                "enabled": cls.MEMORY_ENABLED,
+                "storageBackend": cls.MEMORY_STORAGE_BACKEND,
+            },
+            # Cost
+            "cost": {
+                "trackUsage": cls.COST_TRACK_USAGE,
+                "monthlyBudget": cls.COST_MONTHLY_BUDGET,
+                "alertOnThreshold": cls.COST_ALERT_ON_THRESHOLD,
+                "preferCheaperModels": cls.COST_PREFER_CHEAPER_MODELS,
+            },
+        }
 
 # Globale Instanz
 settings = Settings()

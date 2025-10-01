@@ -32,6 +32,9 @@ from langgraph_system import (
 # Import Models Endpoint
 from models_endpoint import router as models_router
 
+# Import Settings Endpoint
+from settings_endpoint import router as settings_router
+
 # Configure logging with detailed format
 logging.basicConfig(
     level=logging.INFO,
@@ -161,6 +164,10 @@ app.add_middleware(
 # Include Models API Router
 app.include_router(models_router)
 logger.info("✅ Models API endpoint registered at /api/models")
+
+# Include Settings API Router
+app.include_router(settings_router)
+logger.info("✅ Settings API endpoint registered at /api/settings")
 
 # Health check endpoint
 @app.get("/health")

@@ -1229,6 +1229,230 @@
           "default": false,
           "markdownDescription": "🔧 **Auto-Fix Issues** ⚠️ [ORPHANED - NOT CONNECTED]\nAutomatically attempt to fix issues found during validation with FixerBot",
           "scope": "window"
+        },
+        "kiAutoAgent.langgraph.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🔀 **Enable LangGraph Workflow Engine**\n\nControls the v5.0 LangGraph-based multi-agent workflow system:\n\n**✅ Enabled (default):**\n- Advanced state management\n- Agent-to-agent communication\n- Automatic checkpointing\n- Workflow visualization\n\n**❌ Disabled:**\n- Falls back to simple agent calls\n- No state persistence\n- Limited error recovery\n\n**💡 Recommended:** Keep enabled for production workflows",
+          "scope": "window"
+        },
+        "kiAutoAgent.langgraph.checkpointInterval": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 50,
+          "markdownDescription": "💾 **LangGraph Checkpoint Interval**\n\nHow often to save workflow state (in agent steps):\n\n- **1**: Save after every agent call (safest, slower)\n- **5**: Balance between safety and speed ⭐ Recommended\n- **10+**: Faster but risk losing progress on crash\n\n**Use Cases:**\n- Critical tasks: 1-3\n- Normal development: 5-7\n- Fast iterations: 10+",
+          "scope": "window"
+        },
+        "kiAutoAgent.langgraph.maxIterations": {
+          "type": "number",
+          "default": 20,
+          "minimum": 5,
+          "maximum": 100,
+          "markdownDescription": "🔄 **Max LangGraph Workflow Iterations**\n\nMaximum number of agent steps before stopping:\n\n**Prevents infinite loops in workflows**\n\n- **5-10**: Simple tasks (code review, documentation)\n- **20**: Complex tasks (architecture, refactoring) ⭐ Recommended\n- **50+**: Very complex multi-agent workflows\n\n**⚠️ Warning:** Higher values = more API cost",
+          "scope": "window"
+        },
+        "kiAutoAgent.langgraph.parallelExecution": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "⚡ **Enable Parallel Agent Execution**\n\nAllow multiple agents to work simultaneously:\n\n**✅ Enabled:**\n- 2-3x faster for independent tasks\n- Higher API rate limit usage\n- More complex error handling\n\n**❌ Disabled (recommended):**\n- Sequential agent execution\n- Easier to debug\n- Lower API costs\n\n**💡 Tip:** Enable for large codebases or urgent tasks",
+          "scope": "window"
+        },
+        "kiAutoAgent.langgraph.stateManagement": {
+          "type": "string",
+          "enum": [
+            "memory",
+            "sqlite",
+            "checkpoint"
+          ],
+          "default": "sqlite",
+          "markdownDescription": "🗄️ **LangGraph State Storage Backend**\n\nHow to persist workflow state:\n\n- **memory**: Fast but lost on restart (testing only)\n- **sqlite**: Persistent, good performance ⭐ Recommended\n- **checkpoint**: Full workflow snapshots (slower, safe)\n\n**Recommendation:** sqlite for production, memory for testing",
+          "enumDescriptions": [
+            "In-Memory - Fast but volatile",
+            "SQLite Database - Persistent and balanced ⭐",
+            "Checkpoint Files - Maximum safety, slower"
+          ],
+          "scope": "window"
+        },
+        "kiAutoAgent.agents.qualityThreshold": {
+          "type": "number",
+          "default": 0.75,
+          "minimum": 0.5,
+          "maximum": 0.95,
+          "markdownDescription": "⭐ **Agent Quality Threshold**\n\nMinimum quality score (0.5-0.95) to accept agent output:\n\n**Score Ranges:**\n- **0.5-0.6**: Accept most outputs (fast, may have issues)\n- **0.7-0.8**: Balanced quality ⭐ Recommended\n- **0.85-0.95**: Very strict (slower, expensive, best quality)\n\n**How it works:**\n1. Agent produces output\n2. Reviewer scores quality (0-1)\n3. If < threshold → Send to Fixer\n4. Repeat until quality met or max iterations\n\n**💡 Tip:** Lower for prototyping, raise for production",
+          "scope": "window"
+        },
+        "kiAutoAgent.agents.maxRetries": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "markdownDescription": "🔄 **Max Agent Retries**\n\nHow many times to retry an agent on failure:\n\n- **1**: Fail fast (good for testing)\n- **3**: Standard retries ⭐ Recommended\n- **5+**: Persistent retry (expensive)\n\n**Retry Triggers:**\n- API rate limits\n- Timeout errors\n- Quality below threshold\n- Agent exceptions\n\n**⚠️ Cost Impact:** Each retry = additional API call",
+          "scope": "window"
+        },
+        "kiAutoAgent.agents.reviewerIterations": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 5,
+          "markdownDescription": "🔍 **Reviewer Iteration Cycles**\n\nHow many review passes before accepting code:\n\n- **1**: Single review (fast, may miss issues)\n- **2**: Double review ⭐ Recommended\n- **3+**: Thorough review (slower, expensive)\n\n**Workflow:**\n1. CodeSmith implements\n2. Reviewer checks (iteration 1)\n3. If issues → Fixer fixes\n4. Reviewer checks again (iteration 2)\n5. Accept or repeat\n\n**💡 Tip:** Use 3+ for critical production code",
+          "scope": "window"
+        },
+        "kiAutoAgent.agents.fixerIterations": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 5,
+          "markdownDescription": "🔧 **Fixer Iteration Attempts**\n\nHow many times Fixer can attempt to fix issues:\n\n- **1**: One fix attempt (fast)\n- **3**: Multiple fix attempts ⭐ Recommended\n- **5**: Maximum fix persistence (expensive)\n\n**Escalation Path:**\n1. Fixer attempts fix (iteration 1-3)\n2. Reviewer validates each fix\n3. If all iterations fail → Escalate to OpusArbitrator\n\n**⚠️ Cost:** Each iteration = CodeSmith + Reviewer + Fixer calls",
+          "scope": "window"
+        },
+        "kiAutoAgent.routing.strategy": {
+          "type": "string",
+          "enum": [
+            "keyword",
+            "confidence",
+            "hybrid"
+          ],
+          "default": "hybrid",
+          "markdownDescription": "🎯 **Agent Routing Strategy**\n\nHow to select which agent handles a task:\n\n**Options:**\n\n- **keyword**: Fast pattern matching (90% accuracy)\n  - Pros: Very fast, predictable, low cost\n  - Cons: Can miss edge cases\n  - Best for: Clear, well-defined tasks\n\n- **confidence**: AI-based semantic routing (95% accuracy)\n  - Pros: Handles ambiguous requests\n  - Cons: Slower, costs 1 API call per routing\n  - Best for: Complex or unclear requests\n\n- **hybrid**: Keyword + confidence fallback ⭐ Recommended\n  - Pros: Fast + accurate, best of both worlds\n  - Cons: Slightly more complex logic\n  - Best for: Production use\n\n**💡 Current v5.0:** Hybrid system with priority keywords",
+          "enumDescriptions": [
+            "Keyword Matching - Fast pattern-based routing",
+            "Confidence Scoring - AI-based semantic routing",
+            "Hybrid Approach - Keywords + confidence fallback ⭐"
+          ],
+          "scope": "window"
+        },
+        "kiAutoAgent.routing.confidenceThreshold": {
+          "type": "number",
+          "default": 0.8,
+          "minimum": 0.5,
+          "maximum": 0.95,
+          "markdownDescription": "📊 **Routing Confidence Threshold**\n\nMinimum confidence (0.5-0.95) to auto-route to an agent:\n\n**Confidence Levels:**\n- **< 0.6**: Ask user to clarify\n- **0.6-0.7**: Suggest agent, ask confirmation\n- **0.8-0.9**: Auto-route with notification ⭐ Recommended\n- **> 0.9**: Silent auto-routing\n\n**Example:**\n- \"fix this bug\" → 0.95 confidence → FixerBot (auto)\n- \"improve code\" → 0.65 confidence → Ask: FixerBot or Performance?\n- \"do something\" → 0.3 confidence → Ask user to clarify\n\n**💡 Tip:** Lower = more user interaction, Higher = more automation",
+          "scope": "window"
+        },
+        "kiAutoAgent.routing.fallbackAgent": {
+          "type": "string",
+          "enum": [
+            "orchestrator",
+            "codesmith",
+            "ask-user"
+          ],
+          "default": "orchestrator",
+          "markdownDescription": "🔀 **Fallback Agent When Routing Fails**\n\nWhich agent to use when routing confidence is too low:\n\n- **orchestrator**: Let orchestrator decide ⭐ Recommended\n  - Pros: Intelligent decomposition\n  - Cons: Extra API call\n\n- **codesmith**: Default to CodeSmith\n  - Pros: Fast, direct\n  - Cons: May not be optimal choice\n\n- **ask-user**: Show agent picker\n  - Pros: User in control\n  - Cons: Interrupts workflow\n\n**💡 Recommended:** orchestrator for production",
+          "enumDescriptions": [
+            "Orchestrator - Let orchestrator decompose task ⭐",
+            "CodeSmith - Default implementation agent",
+            "Ask User - Show agent selection dialog"
+          ],
+          "scope": "window"
+        },
+        "kiAutoAgent.routing.enableKeywordMatching": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🔤 **Enable Keyword-Based Routing**\n\nUse fast keyword matching for agent selection:\n\n**✅ Enabled (recommended):**\n- 10x faster than AI routing\n- 90% accuracy for clear requests\n- No API cost for routing\n- Priority system for ambiguous keywords\n\n**❌ Disabled:**\n- Falls back to confidence scoring\n- Slower but more accurate\n- API cost for every routing decision\n\n**💡 Current v5.0:** Hybrid system - keywords first, then confidence if needed",
+          "scope": "window"
+        },
+        "kiAutoAgent.routing.enableSemanticMatching": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🧠 **Enable Semantic Similarity Routing**\n\nUse AI-based semantic matching as fallback:\n\n**✅ Enabled (recommended):**\n- Handles ambiguous requests\n- Better for natural language\n- Costs 1 API call per uncertain routing\n\n**❌ Disabled:**\n- Falls back to `routing.fallbackAgent` setting\n- Faster but less accurate\n- No routing API costs\n\n**💡 Works with:** `routing.strategy = hybrid` or `confidence`",
+          "scope": "window"
+        },
+        "kiAutoAgent.monitoring.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "📊 **Enable Performance Monitoring**\n\nTrack agent performance metrics:\n\n**✅ Enabled:**\n- Agent execution times\n- Routing success rates\n- Quality scores\n- API usage statistics\n- Error rates per agent\n\n**❌ Disabled:**\n- Minimal overhead\n- No performance data\n\n**💡 View Stats:** `KI AutoAgent: Show Agent Performance`",
+          "scope": "window"
+        },
+        "kiAutoAgent.monitoring.logAgentMetrics": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "📈 **Log Agent Metrics to File**\n\nSave detailed agent metrics to `.kiautoagent/metrics.json`:\n\n**✅ Enabled:**\n- Persistent metrics history\n- Analyze trends over time\n- Debug performance issues\n- ~1MB per 1000 requests\n\n**❌ Disabled (recommended):**\n- In-memory only\n- Lower disk usage\n\n**💡 Tip:** Enable for 1-2 weeks to analyze patterns, then disable",
+          "scope": "window"
+        },
+        "kiAutoAgent.monitoring.trackRoutingSuccess": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🎯 **Track Routing Success Rate**\n\nMonitor how often agents are routed correctly:\n\n**Metrics Tracked:**\n- Keyword match success rate\n- Confidence score distribution\n- User corrections (when user picks different agent)\n- Fallback frequency\n\n**💡 View:** `KI AutoAgent: Show Agent Performance` → Routing tab",
+          "scope": "window"
+        },
+        "kiAutoAgent.monitoring.alertOnFailures": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🚨 **Show Alerts on Agent Failures**\n\nDisplay notifications when agents fail:\n\n**✅ Enabled (recommended):**\n- Immediate failure notification\n- Error details in popup\n- Suggest retry or alternative agent\n\n**❌ Disabled:**\n- Silent failures\n- Errors only in logs\n\n**💡 Recommended:** Keep enabled during development",
+          "scope": "window"
+        },
+        "kiAutoAgent.context.maxTokensPerAgent": {
+          "type": "number",
+          "default": 8000,
+          "minimum": 1000,
+          "maximum": 128000,
+          "markdownDescription": "📝 **Max Context Tokens Per Agent**\n\nMaximum tokens to send to each agent:\n\n**Token Budgets:**\n- **1000-2000**: Single file tasks\n- **4000-8000**: Multi-file tasks ⭐ Recommended\n- **16000-32000**: Large codebase analysis\n- **64000-128000**: Entire project context (expensive!)\n\n**⚠️ Cost Impact:**\n- 8K tokens ≈ $0.02-0.20 per request (varies by model)\n- Higher = more context but exponentially higher cost\n\n**💡 Tip:** Start with 8K, increase only if agent needs more context",
+          "scope": "window"
+        },
+        "kiAutoAgent.context.includeHistory": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "💬 **Include Chat History in Context**\n\nSend previous conversation to agents:\n\n**✅ Enabled (recommended):**\n- Agents remember previous context\n- Better continuity\n- Higher token usage\n\n**❌ Disabled:**\n- Each agent call is independent\n- Lower token usage\n- May lose context\n\n**💡 Controlled by:** `context.historyDepth` setting",
+          "scope": "window"
+        },
+        "kiAutoAgent.context.historyDepth": {
+          "type": "number",
+          "default": 10,
+          "minimum": 0,
+          "maximum": 50,
+          "markdownDescription": "📚 **Chat History Depth**\n\nHow many previous messages to include:\n\n- **0**: No history (stateless agents)\n- **5-10**: Recent context ⭐ Recommended\n- **20-50**: Full conversation (expensive)\n\n**Token Impact:**\n- ~100-500 tokens per message\n- 10 messages ≈ 1K-5K tokens\n\n**💡 Tip:** 10 messages = good balance between context and cost",
+          "scope": "window"
+        },
+        "kiAutoAgent.memory.enabled": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "🧠 **Enable Long-Term Memory**\n\n**⚠️ EXPERIMENTAL v5.0 Feature**\n\nAllow agents to remember across sessions:\n\n**✅ Enabled:**\n- Agents learn from past interactions\n- Remember project patterns\n- Improve over time\n- Stored in `.kiautoagent/memory.db`\n\n**❌ Disabled (recommended for now):**\n- Stateless agents\n- No cross-session memory\n\n**💡 Status:** Currently experimental, use with caution",
+          "scope": "window"
+        },
+        "kiAutoAgent.memory.storageBackend": {
+          "type": "string",
+          "enum": [
+            "sqlite",
+            "json",
+            "memory"
+          ],
+          "default": "sqlite",
+          "markdownDescription": "🗄️ **Memory Storage Backend**\n\nHow to persist agent memory:\n\n- **sqlite**: Fast, persistent, queryable ⭐ Recommended\n- **json**: Simple files, easy to inspect\n- **memory**: RAM only, lost on restart (testing)\n\n**Storage Locations:**\n- SQLite: `.kiautoagent/memory.db`\n- JSON: `.kiautoagent/memory/*.json`\n- Memory: No persistence\n\n**💡 Tip:** sqlite for production, json for debugging",
+          "enumDescriptions": [
+            "SQLite Database - Fast and persistent ⭐",
+            "JSON Files - Easy to inspect and edit",
+            "In-Memory - Testing only, no persistence"
+          ],
+          "scope": "window"
+        },
+        "kiAutoAgent.cost.trackUsage": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "💰 **Track API Usage & Costs**\n\nMonitor API token usage and estimated costs:\n\n**✅ Enabled (recommended):**\n- Real-time cost tracking\n- Per-agent cost breakdown\n- Monthly/daily summaries\n- Budget alerts\n\n**❌ Disabled:**\n- No cost visibility\n\n**💡 View:** `KI AutoAgent: Show Agent Performance` → Costs tab",
+          "scope": "window"
+        },
+        "kiAutoAgent.cost.monthlyBudget": {
+          "type": "number",
+          "default": 100,
+          "minimum": 0,
+          "maximum": 10000,
+          "markdownDescription": "💵 **Monthly Budget Limit (USD)**\n\nMaximum monthly spend on API calls:\n\n**Budget Ranges:**\n- **$0**: Unlimited (no budget tracking)\n- **$10-50**: Personal projects\n- **$100-500**: Small team ⭐ Recommended\n- **$1000+**: Enterprise usage\n\n**What Happens at Limit:**\n1. Warning at 80% usage\n2. Confirmation required at 90%\n3. Blocked at 100% (configurable)\n\n**💡 Tip:** Set realistic budget, review monthly in performance stats",
+          "scope": "window"
+        },
+        "kiAutoAgent.cost.alertOnThreshold": {
+          "type": "number",
+          "default": 0.8,
+          "minimum": 0.5,
+          "maximum": 0.95,
+          "markdownDescription": "🚨 **Budget Alert Threshold**\n\nShow warning when reaching % of monthly budget:\n\n- **0.5** (50%): Early warning\n- **0.8** (80%): Standard warning ⭐ Recommended\n- **0.9** (90%): Late warning\n\n**Alert Actions:**\n- Notification with current spend\n- Suggest switching to cheaper models\n- Option to increase budget\n\n**💡 Tip:** 0.8 gives time to adjust before hitting limit",
+          "scope": "window"
+        },
+        "kiAutoAgent.cost.preferCheaperModels": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "💸 **Prefer Cheaper Models When Possible**\n\nAutomatically use cost-effective models:\n\n**✅ Enabled:**\n- Simple tasks → Mini models (GPT-4o-mini, Haiku)\n- Complex tasks → Full models (GPT-4o, Sonnet)\n- Can save 60-90% on API costs\n- May reduce quality for edge cases\n\n**❌ Disabled (recommended):**\n- Always use configured models\n- Consistent quality\n- Higher costs\n\n**💡 Tip:** Enable when approaching budget limit",
+          "scope": "window"
         }
       }
     }
