@@ -486,6 +486,15 @@ PATCH Version (X.Y.Z):
 
 ```markdown
 📦 Version History:
+├── v5.0.0-unstable (30.9.2025) - LANGGRAPH INTEGRATION & AGENT-TO-AGENT COMMUNICATION
+│   ├── 🚀 Complete LangGraph architecture implementation
+│   ├── 🧠 Extended agent state system with 20+ fields
+│   ├── 🔧 Automatic tool discovery with @tool decorator
+│   ├── ✅ Human-in-the-loop approval system for Plan-First mode
+│   ├── 💾 Persistent memory with SQLite and optional FAISS
+│   ├── 🔄 Dynamic workflow modification at runtime
+│   ├── 🌐 New FastAPI server on port 8001
+│   └── 💥 BREAKING: Complete replacement of agent communication system
 ├── v4.0.0 (22.9.2025) - COGNITIVE ARCHITECTURE: SELF-UNDERSTANDING AI SYSTEM
 │   ├── 🧠 PARADIGM SHIFT: FROM CODE GENERATOR TO INTELLIGENT SYSTEM
 │   │   ├── Agents can now inherently understand any codebase
@@ -869,6 +878,108 @@ PATCH Version (X.Y.Z):
 │   │   ├── Debug channel shows in Output panel under "KI AutoAgent Debug"
 │   │   └── Debug messages persist across extension reloads
 │   └── 🎯 IMPACT: Full debug visibility for troubleshooting chat and agent issues
+├── v5.0.0-unstable (30.9.2025) - LANGGRAPH INTEGRATION & AGENT-TO-AGENT COMMUNICATION
+│   ├── 🚀 COMPLETE LANGGRAPH ARCHITECTURE IMPLEMENTATION
+│   │   ├── Replaced legacy WebSocket-only communication with LangGraph StateGraph
+│   │   ├── Full agent-to-agent communication protocol implementation
+│   │   ├── StateGraph-based workflow orchestration with conditional routing
+│   │   ├── Human-in-the-loop approval system for Plan-First mode
+│   │   ├── Dynamic workflow modification at runtime
+│   │   └── Complete state persistence and checkpointing
+│   ├── 🧠 EXTENDED AGENT STATE SYSTEM
+│   │   ├── Rich state management with 20+ fields
+│   │   ├── Session tracking with unique IDs
+│   │   ├── Client/workspace path integration
+│   │   ├── Plan-First mode with approval status tracking
+│   │   ├── Tool availability and usage statistics
+│   │   ├── Memory recall integration
+│   │   ├── Execution plan management
+│   │   ├── Error tracking and debugging
+│   │   └── Performance metrics collection
+│   ├── 🔧 TOOL DISCOVERY SYSTEM
+│   │   ├── Automatic tool discovery from agent methods
+│   │   ├── @tool decorator for marking methods as tools
+│   │   ├── Parameter extraction and JSON schema generation
+│   │   ├── Tool categorization with tags (query, action, analysis)
+│   │   ├── Tool usage statistics tracking
+│   │   ├── Global tool registry singleton pattern
+│   │   ├── Agent-specific tool filtering
+│   │   └── Runtime tool registration/deregistration
+│   ├── ✅ APPROVAL MANAGER (HUMAN-IN-THE-LOOP)
+│   │   ├── Comprehensive approval request system
+│   │   ├── WebSocket integration for real-time UI communication
+│   │   ├── Timeout handling with configurable limits
+│   │   ├── Plan modification support
+│   │   ├── Batch approval for multiple requests
+│   │   ├── Approval history tracking
+│   │   ├── User feedback incorporation
+│   │   └── Async/await pattern for approval flow
+│   ├── 💾 PERSISTENT MEMORY SYSTEM
+│   │   ├── SQLite database for long-term storage
+│   │   ├── Optional FAISS vector search for semantic similarity
+│   │   ├── Memory types: episodic, semantic, procedural, entity
+│   │   ├── Pattern learning and recognition
+│   │   ├── Agent interaction history
+│   │   ├── Memory consolidation and cleanup
+│   │   ├── Short-term buffer management
+│   │   ├── Importance scoring (0-1 scale)
+│   │   └── Session-based memory isolation
+│   ├── 🔄 DYNAMIC WORKFLOW MANAGER
+│   │   ├── Runtime graph modification capabilities
+│   │   ├── Add/remove nodes and edges dynamically
+│   │   ├── Conditional routing support
+│   │   ├── Workflow templates for reusability
+│   │   ├── Graph visualization (Mermaid/Graphviz)
+│   │   ├── Version control with rollback
+│   │   ├── Template system with parameterization
+│   │   └── Graph structure introspection
+│   ├── 🌐 NEW LANGGRAPH SERVER
+│   │   ├── FastAPI server on port 8001
+│   │   ├── WebSocket endpoint: ws://localhost:8001/ws/chat
+│   │   ├── Health check endpoint: /health
+│   │   ├── Memory statistics API: /api/memory/stats
+│   │   ├── Tool discovery API: /api/tools
+│   │   ├── Workflow visualization: /api/workflow/visualize
+│   │   ├── Approval handling endpoints
+│   │   └── Session management
+│   ├── 🏗️ WORKFLOW IMPLEMENTATION
+│   │   ├── Orchestrator → Approval → Agent execution flow
+│   │   ├── Parallel and sequential execution support
+│   │   ├── Dependency tracking between steps
+│   │   ├── Error handling and recovery
+│   │   ├── Step-by-step execution plan
+│   │   ├── Agent-specific nodes (architect, codesmith, reviewer, fixer)
+│   │   ├── Conditional edges based on execution results
+│   │   └── END node integration for workflow completion
+│   ├── 📦 NEW DEPENDENCIES
+│   │   ├── langgraph==0.2.45 - Core workflow engine
+│   │   ├── langchain==0.3.9 - Chain orchestration
+│   │   ├── langchain-core==0.3.21 - Core abstractions
+│   │   ├── langchain-openai==0.2.12 - OpenAI integration
+│   │   ├── faiss-cpu==1.9.0.post1 - Vector search (optional)
+│   │   └── SQLite (built-in) - Persistence layer
+│   ├── 🔧 TECHNICAL FIXES APPLIED
+│   │   ├── Fixed StateGraph import from langgraph.graph
+│   │   ├── Fixed List type import in approval_manager
+│   │   ├── Removed CompiledGraph (not in v0.2.45)
+│   │   ├── Fixed get_tool_registry export
+│   │   ├── Fixed create_initial_state export
+│   │   └── Simplified checkpointer for testing
+│   ├── ✅ TEST RESULTS
+│   │   ├── State Creation: PASSED
+│   │   ├── Tool Discovery: PASSED
+│   │   ├── Persistent Memory: PASSED
+│   │   ├── Dynamic Workflow: PASSED
+│   │   ├── Workflow Execution: PASSED
+│   │   └── All 5/5 integration tests passing
+│   ├── 💥 BREAKING CHANGES
+│   │   ├── Complete replacement of agent communication system
+│   │   ├── New workflow execution paradigm
+│   │   ├── Changed from port 8000 to 8001
+│   │   ├── New WebSocket message format
+│   │   ├── Approval system requires UI updates
+│   │   └── No backward compatibility with v4.x
+│   └── 🎯 IMPACT: Complete agent-to-agent communication with LangGraph, persistent memory, and human-in-the-loop
 ├── v4.1.0-unstable (26.9.2025) - MAJOR CLEANUP & ARCHITECTURE CONSOLIDATION
 │   ├── 🏗️ ARCHITECTURE CLEANUP
 │   │   ├── Archived 9 old TypeScript folders to archived_typescript_implementation/
