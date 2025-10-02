@@ -35,6 +35,9 @@ from models_endpoint import router as models_router
 # Import Settings Endpoint
 from settings_endpoint import router as settings_router
 
+# Import version information
+from __version__ import __version__, __version_display__, __release_tag__
+
 # Configure logging with detailed format
 logging.basicConfig(
     level=logging.INFO,
@@ -44,8 +47,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Add debug message on startup
-logger.info("🔍 DEBUG: Starting LangGraph server v5.4.0 on port 8001")
-logger.info("🔍 DEBUG: This is the ACTIVE server for v5.4.0-stable-remote")
+logger.info(f"🔍 DEBUG: Starting LangGraph server {__version_display__} on port 8001")
+logger.info(f"🔍 DEBUG: This is the ACTIVE server for {__release_tag__}")
 logger.info("🔍 DEBUG: WebSocket endpoint: ws://localhost:8001/ws/chat")
 
 # WebSocket connection manager
@@ -103,7 +106,7 @@ async def lifespan(app: FastAPI):
     try:
         # Startup
         logger.info("=" * 80)
-        logger.info("🚀 Starting KI AutoAgent LangGraph Backend v5.4.0...")
+        logger.info(f"🚀 Starting KI AutoAgent LangGraph Backend {__version_display__}...")
         logger.info("🔍 DEBUG: Initializing LangGraph StateGraph workflow system")
         logger.info("🔍 DEBUG: Using port 8001 (NOT 8000)")
 
@@ -148,7 +151,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="KI AutoAgent LangGraph Backend",
-    version="5.4.0",
+    version=__version__,
     lifespan=lifespan
 )
 
@@ -286,10 +289,10 @@ async def websocket_chat(websocket: WebSocket):
         logger.info(f"🔍 DEBUG: New client connected: {client_id}")
         await manager.send_json(client_id, {
             "type": "connected",
-            "message": "Connected to KI AutoAgent LangGraph System v5.4.0",
+            "message": f"Connected to KI AutoAgent LangGraph System {__version_display__}",
             "session_id": session["session_id"],
             "client_id": client_id,
-            "version": "v5.4.0-stable-remote"
+            "version": __release_tag__
         })
         logger.info(f"🔍 DEBUG: Welcome message sent to {client_id}")
 
@@ -299,7 +302,7 @@ async def websocket_chat(websocket: WebSocket):
             message_type = data.get("type", "chat")
 
             logger.info(f"🔍 DEBUG: Received {message_type} from {client_id}")
-            logger.info(f"🔍 DEBUG: Using LangGraph v5.4.0 - Port 8001")
+            logger.info(f"🔍 DEBUG: Using LangGraph {__version_display__} - Port 8001")
             logger.info(f"🔍 DEBUG: Message data keys: {list(data.keys())}")
             if message_type == "chat":
                 content = data.get("content") or data.get("message") or ""
@@ -477,7 +480,7 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
     await manager.send_json(client_id, {
         "type": "agent_thinking",
         "agent": "orchestrator",
-        "message": "🤔 Processing your request using LangGraph v5.4.0..."
+        "message": f"🤔 Processing your request using LangGraph {__version_display__}..."
     })
 
     try:
@@ -579,7 +582,7 @@ async def add_workflow_edge(source: str, target: str):
 
 def main():
     """Main entry point"""
-    # Find available port (v5.4.0 uses 8001)
+    # Find available port ({__version_display__} uses 8001)
     port = 8001
     for p in range(8001, 8010):
         import socket

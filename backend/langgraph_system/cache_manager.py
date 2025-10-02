@@ -8,7 +8,12 @@ import time
 import logging
 import redis
 import os
+import sys
 from typing import Dict, Any, Optional
+
+# Add parent directory to path for version import
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from __version__ import __version_display__
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +147,7 @@ class CacheManager:
             try:
                 # Set some initial cache values
                 self.redis_client.set("ki_autoagent:initialized", "true")
-                self.redis_client.set("ki_autoagent:version", "v5.4.0")
+                self.redis_client.set("ki_autoagent:version", __version_display__)
                 result["redis"]["actions"].append("✅ Redis Cache initialisiert")
             except Exception as e:
                 result["redis"]["actions"].append(f"⚠️ Cache-Initialisierung fehlgeschlagen: {e}")

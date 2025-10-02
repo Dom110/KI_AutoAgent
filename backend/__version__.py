@@ -1,14 +1,19 @@
 """
 KI AutoAgent Backend Version Information
 
-Version 5.4.0 - Stable Remote: Approval Workflow Bug Fix & Workspace Path Fix
+Version 5.4.1 - Version Management Refactoring
 """
 
-__version__ = "5.4.0"
-__version_info__ = (5, 4, 0)
+# Version numbers - Single source of truth
+__version__ = "5.4.1"
+__version_info__ = (5, 4, 1)
+__release_tag__ = "v5.4.1-stable-remote"
 __release_date__ = "2025-10-03"
 __author__ = "KI AutoAgent Team"
 __description__ = "Cognitive AI Development Platform with Self-Understanding Capabilities"
+
+# Version string with 'v' prefix for display
+__version_display__ = f"v{__version__}"
 
 def get_version():
     """Return the current version as a string"""
