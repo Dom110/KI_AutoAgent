@@ -30,10 +30,15 @@ class ProjectCache:
         self.project_root = Path(project_root)
         self.cache_dir = self.project_root / ".kiautoagent" / "cache"
         self.cache_duration = timedelta(hours=cache_duration_hours)
+        self.connected = True  # Always connected for file-based cache
 
         # Create cache directory if it doesn't exist
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"📦 ProjectCache initialized: {self.cache_dir}")
+        try:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"📦 ProjectCache initialized: {self.cache_dir}")
+        except Exception as e:
+            logger.error(f"Failed to create cache directory: {e}")
+            self.connected = False
 
     def _get_cache_key(self, key: str) -> str:
         """Generate cache filename from key"""
