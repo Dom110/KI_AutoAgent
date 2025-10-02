@@ -593,9 +593,17 @@ class AgentWorkflow:
         tools = self.tool_registry.discover_tools_for_agent("codesmith")
         state["available_tools"] = tools
 
-        current_step = self._get_current_step(state)
+        # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
+        # (routing functions can't modify state, so current_step_id is unreliable)
+        current_step = next(
+            (s for s in state["execution_plan"] if s.agent == "codesmith" and s.status == "in_progress"),
+            None
+        )
         if not current_step:
+            logger.error("❌ No in_progress codesmith step found!")
             return state
+
+        logger.info(f"💻 Executing step {current_step.id}: {current_step.task[:100]}...")
 
         # Check for code patterns
         patterns = memory.recall_similar(
@@ -658,10 +666,17 @@ class AgentWorkflow:
         state["current_agent"] = "reviewer"
 
         memory = self.agent_memories["reviewer"]
-        current_step = self._get_current_step(state)
 
+        # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
+        current_step = next(
+            (s for s in state["execution_plan"] if s.agent == "reviewer" and s.status == "in_progress"),
+            None
+        )
         if not current_step:
+            logger.error("❌ No in_progress reviewer step found!")
             return state
+
+        logger.info(f"🔎 Executing step {current_step.id}: {current_step.task[:100]}...")
 
         try:
             # Perform review
@@ -722,10 +737,17 @@ class AgentWorkflow:
         state["current_agent"] = "fixer"
 
         memory = self.agent_memories["fixer"]
-        current_step = self._get_current_step(state)
 
+        # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
+        current_step = next(
+            (s for s in state["execution_plan"] if s.agent == "fixer" and s.status == "in_progress"),
+            None
+        )
         if not current_step:
+            logger.error("❌ No in_progress fixer step found!")
             return state
+
+        logger.info(f"🔧 Executing step {current_step.id}: {current_step.task[:100]}...")
 
         # Get previous review results
         review_step = self._get_step_by_agent(state, "reviewer")
@@ -765,9 +787,16 @@ class AgentWorkflow:
         logger.info("🔍 Research node executing")
         state["current_agent"] = "research"
 
-        current_step = self._get_current_step(state)
+        # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
+        current_step = next(
+            (s for s in state["execution_plan"] if s.agent == "research" and s.status == "in_progress"),
+            None
+        )
         if not current_step:
+            logger.error("❌ No in_progress research step found!")
             return state
+
+        logger.info(f"🔍 Executing step {current_step.id}: {current_step.task[:100]}...")
 
         try:
             # Get research query from task
@@ -825,9 +854,16 @@ class AgentWorkflow:
         logger.info("🔧🔄 FixerGPT node executing (ALTERNATIVE FIXER)")
         state["current_agent"] = "fixer_gpt"
 
-        current_step = self._get_current_step(state)
+        # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
+        current_step = next(
+            (s for s in state["execution_plan"] if s.agent == "fixer_gpt" and s.status == "in_progress"),
+            None
+        )
         if not current_step:
+            logger.error("❌ No in_progress fixer_gpt step found!")
             return state
+
+        logger.info(f"🔧 Executing step {current_step.id}: {current_step.task[:100]}...")
 
         try:
             # Import FixerGPTAgent
@@ -1017,6 +1053,24 @@ class AgentWorkflow:
                     return agent
                 else:
                     logger.info(f"⏸️ Step {step.id} waiting for dependencies")
+
+        # v5.2.2 BUG FIX #8: Check for stuck in_progress steps before declaring "complete"
+        stuck_steps = [s for s in state["execution_plan"] if s.status == "in_progress"]
+        if stuck_steps:
+            logger.error("❌ CRITICAL: Found in_progress steps but no more routing possible!")
+            logger.error("   This indicates a step failed to mark itself as completed.")
+            for step in stuck_steps:
+                logger.error(f"   ⚠️ Stuck step: {step.id} ({step.agent}): {step.task[:100]}")
+                # Force mark as failed
+                step.status = "failed"
+                step.error = "Step execution completed but status was not updated to 'completed'"
+            state["execution_plan"] = list(state["execution_plan"])
+            # Now check if there are any more pending steps
+            has_pending = any(s.status == "pending" for s in state["execution_plan"])
+            if has_pending:
+                # Recurse to route to next pending step
+                logger.info("🔄 Retrying routing after fixing stuck steps...")
+                return self.route_to_next_agent(state)
 
         # All steps complete
         logger.info("🏁 All steps complete - routing to END")
