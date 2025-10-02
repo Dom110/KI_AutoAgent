@@ -16,7 +16,7 @@ class SemgrepAnalyzer:
     """
 
     def __init__(self):
-        logger.warning("SemgrepAnalyzer: Stub implementation - install semgrep for full functionality")
+        logger.debug("SemgrepAnalyzer: Stub implementation - install semgrep for full functionality")
 
     async def run_analysis(
         self,

@@ -22,7 +22,7 @@ class ConversationContextManager:
 
     def __init__(self):
         self._conversations: Dict[str, List[Dict[str, Any]]] = {}
-        logger.info("📦 ConversationContextManager initialized (stub implementation)")
+        logger.debug("📦 ConversationContextManager initialized (stub implementation)")
 
     def add_message(self, conversation_id: str, role: str, content: str) -> None:
         """Add message to conversation"""

@@ -9,6 +9,7 @@ agents:
         - "./backend/**/*.py"
         - "./tests/**/*.py"
         - "./examples/**/*.py"
+        - "./*.py"  # Allow Python files in root directory
         - "./vscode-extension/**/*.ts"
         - "./vscode-extension/**/*.js"
         - "./**/*.html"

@@ -142,7 +142,7 @@ class CacheManager:
             try:
                 # Set some initial cache values
                 self.redis_client.set("ki_autoagent:initialized", "true")
-                self.redis_client.set("ki_autoagent:version", "v5.0.0")
+                self.redis_client.set("ki_autoagent:version", "v5.4.0")
                 result["redis"]["actions"].append("✅ Redis Cache initialisiert")
             except Exception as e:
                 result["redis"]["actions"].append(f"⚠️ Cache-Initialisierung fehlgeschlagen: {e}")

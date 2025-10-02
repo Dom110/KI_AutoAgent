@@ -22,7 +22,7 @@ class SharedContextManager:
 
     def __init__(self):
         self._context: Dict[str, Any] = {}
-        logger.info("📦 SharedContextManager initialized (stub implementation)")
+        logger.debug("📦 SharedContextManager initialized (stub implementation)")
 
     def set(self, key: str, value: Any) -> None:
         """Set context value"""

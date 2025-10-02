@@ -1,12 +1,12 @@
 """
 KI AutoAgent Backend Version Information
 
-Version 5.2.3 - Architecture Proposal System & Multi-Agent Workflow
+Version 5.4.0 - Stable Remote: Approval Workflow Bug Fix & Workspace Path Fix
 """
 
-__version__ = "5.2.3"
-__version_info__ = (5, 2, 3)
-__release_date__ = "2025-10-02"
+__version__ = "5.4.0"
+__version_info__ = (5, 4, 0)
+__release_date__ = "2025-10-03"
 __author__ = "KI AutoAgent Team"
 __description__ = "Cognitive AI Development Platform with Self-Understanding Capabilities"
 

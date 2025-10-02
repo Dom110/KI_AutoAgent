@@ -10,6 +10,7 @@ from datetime import datetime
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.memory import MemorySaver
 
 from .state import ExtendedAgentState, create_initial_state, ExecutionStep
 from .extensions import (
@@ -104,7 +105,11 @@ class AgentWorkflow:
 
         # Initialize workflow
         self.workflow = None
-        self.checkpointer = None
+
+        # Initialize checkpointer for workflow state persistence (v5.4.0)
+        # Use MemorySaver for in-memory checkpointing (simpler and faster)
+        # For production, consider SqliteSaver(db_path)
+        self.checkpointer = MemorySaver()
 
     def _init_agent_memories(self):
         """Initialize persistent memory for each agent"""
@@ -274,26 +279,22 @@ class AgentWorkflow:
         plan = await self._create_execution_plan(state)
         state["execution_plan"] = plan
 
-        # Set approval type for execution plan (default for non-architecture proposals)
+        # Set default approval type to none
         # This will be overridden to "architecture_proposal" by architect_node if needed
-        if not state.get("approval_type") or state.get("approval_type") == "none":
-            state["approval_type"] = "execution_plan"
-            logger.info("📋 Set approval_type to 'execution_plan' (default)")
+        if not state.get("approval_type") or state.get("approval_type") == "execution_plan":
+            state["approval_type"] = "none"
+            logger.info("📋 Set approval_type to 'none' (no approval needed)")
 
-        # DON'T mark as completed here - let the agent nodes execute
-        # We want the workflow to actually call the agent nodes
-        # even for simple queries
+        # Set status to executing
+        state["status"] = "executing"
 
-        # Check if Plan-First mode
-        if state.get("plan_first_mode"):
-            state["status"] = "awaiting_approval"
-            state["waiting_for_approval"] = True
-        else:
-            state["status"] = "executing"
-            # Keep completed steps completed, mark others as pending
-            for step in plan:
-                if step.status != "failed" and step.status != "completed":
-                    step.status = "pending"
+        # Mark all steps as pending (keep completed/failed as is)
+        for step in plan:
+            if step.status != "failed" and step.status != "completed":
+                step.status = "pending"
+        state["execution_plan"] = list(plan)
+
+        logger.info(f"📋 Orchestrator created {len(plan)}-step execution plan")
 
         # Store this planning in memory
         memory.store_memory(
@@ -308,43 +309,39 @@ class AgentWorkflow:
 
     async def approval_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
         """
-        Approval node for Plan-First mode and Architecture Proposals (v5.2.0)
+        Approval node for Architecture Proposals (v5.4.0)
 
-        Handles two types of approvals:
-        1. execution_plan approval (Plan-First mode)
-        2. architecture_proposal approval (v5.2.0)
+        Simplified: Only handles architecture_proposal approval
+        Plan-First mode removed for simplicity
         """
         logger.info("✅ Approval node executing")
 
-        # ============================================================
-        # v5.2.0: Check approval type
-        # ============================================================
-        approval_type = state.get("approval_type", "execution_plan")
+        # Check if this is an architecture proposal
+        approval_type = state.get("approval_type", "none")
 
-        # CASE 1: Architecture Proposal Approval (v5.2.0)
         if approval_type == "architecture_proposal":
-            proposal_status = state.get("proposal_status")
+            proposal_status = state.get("proposal_status", "none")
 
             if proposal_status == "pending":
-                # First time seeing proposal - wait for user approval
+                # Pause workflow - wait for user approval
                 logger.info("📋 Architecture proposal pending - workflow will pause here")
                 state["status"] = "waiting_architecture_approval"
                 state["waiting_for_approval"] = True
                 logger.info("⏸️  Workflow pausing - user must approve via WebSocket")
-                # Don't change proposal_status - leave as "pending"
                 return state
 
             elif proposal_status == "approved":
-                # User approved - continue workflow
+                # Continue workflow
                 logger.info("✅ Architecture proposal approved - continuing workflow")
                 state["needs_approval"] = False
                 state["waiting_for_approval"] = False
                 state["approval_status"] = "approved"
-                state["approval_type"] = "none"  # Reset for next approvals
+                state["approval_type"] = "none"
+                state["status"] = "executing"
                 return state
 
             elif proposal_status == "rejected":
-                # User rejected - end workflow
+                # End workflow
                 logger.info("❌ Architecture proposal rejected - ending workflow")
                 state["needs_approval"] = False
                 state["waiting_for_approval"] = False
@@ -353,64 +350,30 @@ class AgentWorkflow:
                 return state
 
             elif proposal_status == "modified":
-                # User requested changes - route back to architect for revision
+                # Route back to architect for revision
                 logger.info("🔄 Architecture proposal needs modifications")
                 state["needs_approval"] = True
                 state["waiting_for_approval"] = False
                 state["approval_status"] = "modified"
                 return state
 
-            # Fallback - shouldn't reach here
             logger.warning(f"⚠️  Unexpected proposal_status: {proposal_status}")
             return state
 
-        # CASE 2: Execution Plan Approval (existing Plan-First mode)
-        if approval_type == "execution_plan":
-            logger.info("📋 Execution plan approval flow")
-
-            if not state.get("plan_first_mode"):
-                # Auto-approve if not in Plan-First mode
-                logger.info("📌 Auto-approving (not in Plan-First mode)")
-                state["approval_status"] = "approved"
-                state["waiting_for_approval"] = False
-
-                # ✅ FIX: Set current_step_id to first pending step HERE (node can modify state)
-                for step in state["execution_plan"]:
-                    if step.status == "pending" and self._dependencies_met(step, state["execution_plan"]):
-                        step.status = "in_progress"
-                        state["current_step_id"] = step.id
-                        state["execution_plan"] = list(state["execution_plan"])  # Trigger state update
-                        logger.info(f"📍 Set current_step_id to: {step.id} for agent: {step.agent}")
-                        break
-
-                return state
-
-            # Request approval from user
-            request = await self.approval_manager.request_approval(
-                client_id=state["client_id"],
-                plan=state["execution_plan"],
-                metadata={
-                    "task": state["current_task"],
-                    "agent_count": len(set(step.agent for step in state["execution_plan"]))
-                }
-            )
-
-            state["approval_status"] = request.status
-            state["approval_feedback"] = request.feedback
-            state["waiting_for_approval"] = False
-
-            if request.status == "modified" and request.modifications:
-                # Apply modifications to plan
-                state["execution_plan"] = self._apply_plan_modifications(
-                    state["execution_plan"],
-                    request.modifications
-                )
-
-            return state
-
-        # FALLBACK: Unknown approval type
-        logger.warning(f"⚠️ Unknown approval_type: {approval_type}")
+        # No approval needed - auto-approve and set first step to in_progress
+        logger.info("📌 Auto-approving - no architecture proposal")
+        state["approval_status"] = "approved"
         state["waiting_for_approval"] = False
+
+        # Set first pending step to in_progress
+        for step in state["execution_plan"]:
+            if step.status == "pending" and self._dependencies_met(step, state["execution_plan"]):
+                step.status = "in_progress"
+                state["current_step_id"] = step.id
+                state["execution_plan"] = list(state["execution_plan"])
+                logger.info(f"📍 Set current_step_id to: {step.id} for agent: {step.agent}")
+                break
+
         return state
 
     async def architect_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -755,7 +718,15 @@ class AgentWorkflow:
 
         # Get previous review results
         review_step = self._get_step_by_agent(state, "reviewer")
-        issues = review_step.result.get("issues", []) if review_step else []
+        # Handle both dict and string results from reviewer
+        if review_step and review_step.result:
+            if isinstance(review_step.result, dict):
+                issues = review_step.result.get("issues", [])
+            else:
+                # If result is a string, treat it as a single issue
+                issues = [{"description": str(review_step.result), "severity": "unknown"}]
+        else:
+            issues = []
 
         try:
             # Fix issues
@@ -1376,6 +1347,62 @@ Research:
         # ACTION verbs (high priority) override DOMAIN nouns (low priority)
         task_lower = task.lower()
 
+        # 🏗️ SPECIAL CASE: Development/Implementation tasks always get multi-agent workflow
+        # This ensures proper architecture → code → review flow
+        is_development_task = any(keyword in task_lower for keyword in [
+            'entwickle', 'erstelle', 'baue', 'build', 'create', 'implement',
+            'write', 'code', 'app', 'application', 'webapp', 'website', 'game'
+        ])
+
+        is_html_task = any(keyword in task_lower for keyword in [
+            'html', 'web', 'browser', 'tetris', 'game', 'canvas'
+        ])
+
+        if is_development_task or is_html_task:
+            logger.info(f"🏗️ DEVELOPMENT TASK detected - creating multi-agent workflow (architect → codesmith → reviewer → fixer)")
+
+            steps = [
+                ExecutionStep(
+                    id="step1",
+                    agent="architect",
+                    task=f"Design system architecture for: {task}",
+                    expected_output="Architecture design and technology recommendations",
+                    dependencies=[],
+                    status="pending",
+                    result=None
+                ),
+                ExecutionStep(
+                    id="step2",
+                    agent="codesmith",
+                    task=f"GENERATE ACTUAL WORKING CODE (NOT DOCUMENTATION): {task}. Create complete, functional code that is ready to run. DO NOT create architecture documentation or specifications - only create the actual working implementation.",
+                    expected_output="Complete working code implementation",
+                    dependencies=["step1"],
+                    status="pending",
+                    result=None
+                ),
+                ExecutionStep(
+                    id="step3",
+                    agent="reviewer",
+                    task=f"Review and test implementation",
+                    expected_output="Test results with quality score and recommendations",
+                    dependencies=["step2"],
+                    status="pending",
+                    result=None
+                ),
+                ExecutionStep(
+                    id="step4",
+                    agent="fixer",
+                    task="Fix any issues found by reviewer",
+                    expected_output="All issues resolved",
+                    dependencies=["step3"],
+                    status="pending",
+                    result=None
+                )
+            ]
+
+            logger.info(f"✅ Created {len(steps)}-step development workflow")
+            return steps
+
         # Calculate confidence scores for each agent
         scores = self._calculate_agent_confidence(task_lower)
 
@@ -1479,142 +1506,7 @@ Research:
             'orchestrator': 'Intelligent task analysis and routing'
         }
 
-        # If orchestrator, mark as completed with stub response
-        # (can't route back to orchestrator node - it's only the entry point)
-        if agent == "orchestrator":
-            # Detect if this is a development/implementation task
-            task_lower = task.lower()
-            is_development_task = any(keyword in task_lower for keyword in [
-                'entwickle', 'erstelle', 'baue', 'build', 'create', 'implement',
-                'write', 'code', 'app', 'application', 'webapp', 'website'
-            ])
-
-            is_html_task = any(keyword in task_lower for keyword in [
-                'html', 'web', 'browser', 'tetris', 'game', 'canvas'
-            ])
-
-            if is_development_task or is_html_task:
-                # Multi-agent workflow for development tasks
-                logger.info(f"🎯 Orchestrator detected DEVELOPMENT task - creating multi-agent workflow")
-
-                steps = [
-                    ExecutionStep(
-                        id="step1",
-                        agent="architect",
-                        task=f"Design system architecture for: {task}",
-                        expected_output="Architecture design and technology recommendations",
-                        dependencies=[],
-                        status="pending",
-                        result=None
-                    ),
-                    ExecutionStep(
-                        id="step2",
-                        agent="codesmith",
-                        task=f"GENERATE ACTUAL WORKING CODE (NOT DOCUMENTATION): Create a complete, functional Tetris game as a single HTML file with embedded CSS and JavaScript. Use HTML5 Canvas for rendering. The file must be ready to open in a browser and play immediately. DO NOT create architecture documentation or specifications - only create the actual playable game code: {task}",
-                        expected_output="Complete working HTML file with embedded game code",
-                        dependencies=["step1"],
-                        status="pending",
-                        result=None
-                    ),
-                    ExecutionStep(
-                        id="step3",
-                        agent="reviewer",
-                        task=f"Review and test implementation using Playwright browser testing",
-                        expected_output="Test results with quality score and recommendations",
-                        dependencies=["step2"],
-                        status="pending",
-                        result=None
-                    )
-                ]
-
-                # Add optional Fixer step (only if reviewer finds issues)
-                # Note: This will be conditionally executed based on reviewer result
-                steps.append(
-                    ExecutionStep(
-                        id="step4",
-                        agent="fixer",
-                        task="Fix any issues found by reviewer",
-                        expected_output="All issues resolved",
-                        dependencies=["step3"],
-                        status="pending",
-                        result=None
-                    )
-                )
-
-                logger.info(f"✅ Created {len(steps)}-step development workflow")
-                return steps
-            else:
-                # Simple orchestrator response for non-development tasks
-                return [
-                    ExecutionStep(
-                        id="step1",
-                        agent="orchestrator",
-                        task=task,
-                        expected_output="Intelligent analysis and response",
-                        dependencies=[],
-                        status="completed",
-                        result=f"""🎯 ORCHESTRATOR RESPONSE
-
-**Query:** {task}
-
-Based on my analysis, this query requires contextual understanding. As the orchestrator, I'm routing this to the appropriate specialist.
-
-⚠️ For development tasks, use keywords like: entwickle, erstelle, build, create, implement"""
-                    )
-                ]
-
-        # v5.2.1: If codesmith is targeted for an app/game/website task,
-        # create full development workflow (architect → codesmith → reviewer → fixer)
-        if agent == "codesmith":
-            task_lower = task.lower()
-            is_app_task = any(keyword in task_lower for keyword in [
-                'app', 'application', 'webapp', 'website', 'web', 'game',
-                'spiel', 'tool', 'utility', 'portal', 'dashboard', 'interface'
-            ])
-
-            if is_app_task:
-                logger.info(f"🎯 CodeSmith detected APP/GAME task - creating multi-agent development workflow")
-                steps = [
-                    ExecutionStep(
-                        id="step1",
-                        agent="architect",
-                        task=f"Design system architecture for: {task}",
-                        expected_output="Architecture design and technology recommendations",
-                        dependencies=[],
-                        status="pending",
-                        result=None
-                    ),
-                    ExecutionStep(
-                        id="step2",
-                        agent="codesmith",
-                        task=f"{task}",
-                        expected_output="Complete working implementation",
-                        dependencies=["step1"],
-                        status="pending",
-                        result=None
-                    ),
-                    ExecutionStep(
-                        id="step3",
-                        agent="reviewer",
-                        task=f"Review and test implementation",
-                        expected_output="Test results with quality score and recommendations",
-                        dependencies=["step2"],
-                        status="pending",
-                        result=None
-                    ),
-                    ExecutionStep(
-                        id="step4",
-                        agent="fixer",
-                        task="Fix any issues found by reviewer",
-                        expected_output="All issues resolved",
-                        dependencies=["step3"],
-                        status="pending",
-                        result=None
-                    )
-                ]
-                logger.info(f"✅ Created {len(steps)}-step development workflow")
-                return steps
-
+        # Return single agent step
         return [
             ExecutionStep(
                 id="step1",
@@ -2490,14 +2382,19 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
 
     def compile_workflow(self):
         """
-        Compile the workflow with checkpointing
+        Compile the workflow with checkpointer (v5.4.0)
+        Enables workflow persistence and resumption for approval flows
         """
         workflow = self.create_workflow()
 
-        # For now, compile without checkpointer to simplify testing
-        # TODO: Fix checkpointer implementation
-        self.workflow = workflow.compile()
-        logger.info("✅ Workflow compiled")
+        # Compile with checkpointer to enable state persistence and resumption
+        # The checkpointer automatically saves state at each step
+        # When route_after_approval returns "end" for waiting_architecture_approval,
+        # the workflow pauses and can be resumed later with the same thread_id
+        self.workflow = workflow.compile(
+            checkpointer=self.checkpointer
+        )
+        logger.info("✅ Workflow compiled with checkpointer support")
 
         return self.workflow
 

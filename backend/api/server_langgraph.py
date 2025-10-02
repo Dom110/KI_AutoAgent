@@ -44,8 +44,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Add debug message on startup
-logger.info("🔍 DEBUG: Starting LangGraph server v5.0.0 on port 8001")
-logger.info("🔍 DEBUG: This is the ACTIVE server for v5.0.0-unstable")
+logger.info("🔍 DEBUG: Starting LangGraph server v5.4.0 on port 8001")
+logger.info("🔍 DEBUG: This is the ACTIVE server for v5.4.0-stable-remote")
 logger.info("🔍 DEBUG: WebSocket endpoint: ws://localhost:8001/ws/chat")
 
 # WebSocket connection manager
@@ -103,7 +103,7 @@ async def lifespan(app: FastAPI):
     try:
         # Startup
         logger.info("=" * 80)
-        logger.info("🚀 Starting KI AutoAgent LangGraph Backend v5.0.0...")
+        logger.info("🚀 Starting KI AutoAgent LangGraph Backend v5.4.0...")
         logger.info("🔍 DEBUG: Initializing LangGraph StateGraph workflow system")
         logger.info("🔍 DEBUG: Using port 8001 (NOT 8000)")
 
@@ -148,7 +148,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="KI AutoAgent LangGraph Backend",
-    version="5.0.0",
+    version="5.4.0",
     lifespan=lifespan
 )
 
@@ -286,10 +286,10 @@ async def websocket_chat(websocket: WebSocket):
         logger.info(f"🔍 DEBUG: New client connected: {client_id}")
         await manager.send_json(client_id, {
             "type": "connected",
-            "message": "Connected to KI AutoAgent LangGraph System v5.0.0",
+            "message": "Connected to KI AutoAgent LangGraph System v5.4.0",
             "session_id": session["session_id"],
             "client_id": client_id,
-            "version": "v5.0.0-unstable"
+            "version": "v5.4.0-stable-remote"
         })
         logger.info(f"🔍 DEBUG: Welcome message sent to {client_id}")
 
@@ -299,7 +299,7 @@ async def websocket_chat(websocket: WebSocket):
             message_type = data.get("type", "chat")
 
             logger.info(f"🔍 DEBUG: Received {message_type} from {client_id}")
-            logger.info(f"🔍 DEBUG: Using LangGraph v5.0.0 - Port 8001")
+            logger.info(f"🔍 DEBUG: Using LangGraph v5.4.0 - Port 8001")
             logger.info(f"🔍 DEBUG: Message data keys: {list(data.keys())}")
             if message_type == "chat":
                 content = data.get("content") or data.get("message") or ""
@@ -307,34 +307,6 @@ async def websocket_chat(websocket: WebSocket):
 
             if message_type == "chat":
                 await handle_chat_message(client_id, data, session)
-
-            elif message_type == "planFirstMode":
-                # Update Plan-First mode
-                enabled = data.get("enabled", False)
-                session["plan_first_mode"] = enabled
-                logger.info(f"📋 Plan-First mode {'enabled' if enabled else 'disabled'} for {client_id}")
-
-                await manager.send_json(client_id, {
-                    "type": "planFirstModeUpdated",
-                    "enabled": enabled
-                })
-
-            elif message_type == "approval":
-                # Handle approval response
-                approval_id = data.get("approval_id")
-                response = data.get("response", {})
-
-                if workflow_system:
-                    success = await workflow_system.approval_manager.handle_user_response(
-                        approval_id,
-                        response
-                    )
-
-                    await manager.send_json(client_id, {
-                        "type": "approvalProcessed",
-                        "approval_id": approval_id,
-                        "success": success
-                    })
 
             elif message_type == "architecture_approval":
                 # v5.2.0: Handle architecture proposal approval
@@ -371,14 +343,7 @@ async def websocket_chat(websocket: WebSocket):
                             break
 
                     if workflow_state:
-                        # Update proposal status in the stored state
-                        workflow_state["proposal_status"] = decision
-                        workflow_state["user_feedback_on_proposal"] = feedback
-                        workflow_state["needs_approval"] = False
-                        workflow_state["waiting_for_approval"] = False
-                        workflow_state["status"] = "executing"  # Resume execution
-
-                        logger.info(f"✅ Updated workflow state: proposal_status={decision}")
+                        logger.info(f"✅ Found workflow state for session {session_id}")
 
                         # Send acknowledgment to client
                         await manager.send_json(client_id, {
@@ -388,19 +353,30 @@ async def websocket_chat(websocket: WebSocket):
                             "message": f"Architecture proposal {decision}"
                         })
 
-                        # Resume workflow by calling execute() again with the updated state
-                        logger.info(f"🔄 Resuming workflow with updated state...")
+                        # Update checkpoint with approval decision
+                        logger.info(f"🔄 Updating checkpoint with approval decision: {decision}")
                         try:
-                            # Get the session to access workspace_path
-                            session_obj = active_sessions.get(client_id, {})
+                            config = {"configurable": {"thread_id": session_id}}
 
-                            # Resume workflow from the updated state
-                            final_state = await workflow_system.workflow.ainvoke(
-                                workflow_state,
-                                config={
-                                    "configurable": {"thread_id": session_id},
-                                    "recursion_limit": 100
+                            # Update state in checkpoint (this is the critical fix!)
+                            workflow_system.workflow.update_state(
+                                config=config,
+                                values={
+                                    "proposal_status": decision,
+                                    "user_feedback_on_proposal": feedback,
+                                    "status": "executing" if decision == "approved" else "failed",
+                                    "needs_approval": False,
+                                    "waiting_for_approval": False
                                 }
+                            )
+
+                            logger.info(f"✅ Checkpoint updated with proposal_status={decision}")
+
+                            # Resume workflow from checkpoint (NO input - this is critical!)
+                            logger.info(f"🔄 Resuming workflow from checkpoint...")
+                            final_state = await workflow_system.workflow.ainvoke(
+                                None,  # ← NO input! Resume from checkpoint
+                                config=config
                             )
 
                             # Update the stored state
@@ -439,8 +415,8 @@ async def websocket_chat(websocket: WebSocket):
                     })
 
             elif message_type == "setWorkspace":
-                # Set workspace path
-                session["workspace_path"] = data.get("workspace_path")
+                # Set workspace path (handle both camelCase and snake_case)
+                session["workspace_path"] = data.get("workspacePath") or data.get("workspace_path")
                 logger.info(f"📁 Workspace set for {client_id}: {session['workspace_path']}")
 
             elif message_type == "stop":
@@ -501,7 +477,7 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
     await manager.send_json(client_id, {
         "type": "agent_thinking",
         "agent": "orchestrator",
-        "message": "🤔 Processing your request using LangGraph v5.0.0..."
+        "message": "🤔 Processing your request using LangGraph v5.4.0..."
     })
 
     try:
@@ -603,7 +579,7 @@ async def add_workflow_edge(source: str, target: str):
 
 def main():
     """Main entry point"""
-    # Find available port (v5.0.0 uses 8001)
+    # Find available port (v5.4.0 uses 8001)
     port = 8001
     for p in range(8001, 8010):
         import socket

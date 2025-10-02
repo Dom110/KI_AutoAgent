@@ -34,7 +34,7 @@ class MemoryManager:
             "long_term": [],
             "working": []
         }
-        logger.info("📦 MemoryManager initialized (stub implementation)")
+        logger.debug("📦 MemoryManager initialized (stub implementation)")
 
     def store(self, memory_type: MemoryType, data: Any) -> None:
         """Store data in memory"""

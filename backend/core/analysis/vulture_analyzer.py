@@ -16,7 +16,7 @@ class VultureAnalyzer:
     """
 
     def __init__(self):
-        logger.warning("VultureAnalyzer: Stub implementation - install vulture for full functionality")
+        logger.debug("VultureAnalyzer: Stub implementation - install vulture for full functionality")
 
     async def find_dead_code(
         self,

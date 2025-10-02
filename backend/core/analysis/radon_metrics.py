@@ -16,7 +16,7 @@ class RadonMetrics:
     """
 
     def __init__(self):
-        logger.warning("RadonMetrics: Stub implementation - install radon for full functionality")
+        logger.debug("RadonMetrics: Stub implementation - install radon for full functionality")
 
     async def calculate_all_metrics(
         self,

@@ -37,7 +37,7 @@ class PauseHandler:
         """
         self.project_path = project_path
         self._paused_tasks: Dict[str, Dict[str, Any]] = {}
-        logger.info("📦 PauseHandler initialized (stub implementation)")
+        logger.debug("📦 PauseHandler initialized (stub implementation)")
 
     def pause(self, task_id: str, state: Dict[str, Any], reason: str = "") -> None:
         """Pause a task"""

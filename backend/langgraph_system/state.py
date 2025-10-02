@@ -39,13 +39,18 @@ class ExecutionStep:
     id: str
     agent: str
     task: str
-    expected_output: str
-    dependencies: List[str]
-    status: Literal["pending", "in_progress", "completed", "failed"]
+    expected_output: str = ""  # Default to empty string for checkpoint deserialization
+    dependencies: List[str] = None  # Default to empty list
+    status: Literal["pending", "in_progress", "completed", "failed"] = "pending"
     result: Optional[Any] = None
     error: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
+
+    def __post_init__(self):
+        """Initialize mutable defaults"""
+        if self.dependencies is None:
+            self.dependencies = []
 
 
 class ExtendedAgentState(TypedDict):
@@ -140,6 +145,7 @@ def create_initial_state(
     """
     Create initial state for a new workflow
     """
+    import os
     return ExtendedAgentState(
         # Core
         messages=[],
@@ -149,7 +155,7 @@ def create_initial_state(
         # Session
         session_id=session_id or str(uuid.uuid4()),
         client_id=client_id or "",
-        workspace_path=workspace_path or "/",
+        workspace_path=workspace_path or os.getcwd(),
 
         # Execution
         execution_plan=[],

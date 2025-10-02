@@ -29,7 +29,7 @@ class GitCheckpointManager:
         """
         self.project_path = project_path
         self._checkpoints: List[Dict[str, Any]] = []
-        logger.info("📦 GitCheckpointManager initialized (stub implementation)")
+        logger.debug("📦 GitCheckpointManager initialized (stub implementation)")
 
     def create_checkpoint(self, name: str, message: str = "") -> str:
         """Create a checkpoint"""
