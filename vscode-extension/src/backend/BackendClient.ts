@@ -8,7 +8,7 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 
 export interface BackendMessage {
-    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore';
+    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'response' | 'step_completed';
     content?: string;
     agent?: string;
     metadata?: any;
@@ -244,11 +244,26 @@ export class BackendClient extends EventEmitter {
 
         switch (message.type) {
             case 'connection':
+            case 'connected':  // LangGraph v5.0.0 sends 'connected'
                 this.emit('welcome', message);
                 break;
 
             case 'agent_thinking':
                 this.emit('thinking', message);
+                break;
+
+            case 'response':  // LangGraph v5.0.0 response
+                this.log(`✅ LangGraph Response: ${message.agent || 'orchestrator'} - Content: ${message.content ? 'Present' : 'Missing'}`);
+                // Log the actual content for debugging
+                if (message.content) {
+                    this.log(`📝 Content preview: ${message.content.substring(0, 100)}...`);
+                }
+                this.emit('response', message);
+                break;
+
+            case 'step_completed':  // LangGraph v5.0.0 intermediate step
+                this.log(`📊 Step Completed: ${message.agent || 'orchestrator'}`);
+                this.emit('step_completed', message);
                 break;
 
             case 'agent_progress':

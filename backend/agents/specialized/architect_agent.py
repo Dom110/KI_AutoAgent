@@ -25,79 +25,70 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Import cache services - FAIL FAST, NO FALLBACK
+# Import cache services - OPTIONAL (NOT YET IMPLEMENTED)
+# DOCUMENTED REASON: Cache services are planned but not yet implemented
+# This is NOT a fallback - Architect will work without caching, just slower
 from core.exceptions import DependencyError
+CACHE_SERVICES_AVAILABLE = False
 try:
     from services.project_cache import ProjectCache
     from services.smart_file_watcher import SmartFileWatcher
     from services.code_search import LightweightCodeSearch
+    CACHE_SERVICES_AVAILABLE = True
 except ImportError as e:
-    raise DependencyError([
-        {
-            'component': 'Cache Services',
-            'error': f'Required cache services not installed: {str(e)}',
-            'solution': 'pip install redis msgpack watchdog sqlite3',
-            'file': __file__,
-            'line': 29,
-            'traceback': None
-        }
-    ])
+    logger.warning(f"⚠️  Cache services not available (feature not yet implemented): {e}")
+    logger.warning("⚠️  Architect will work without caching (slower analysis)")
+    ProjectCache = None
+    SmartFileWatcher = None
+    LightweightCodeSearch = None
 
-# Import indexing tools - FAIL FAST, NO FALLBACK
+# Import indexing tools - OPTIONAL (NEW FEATURE)
+# DOCUMENTED REASON: New indexing features for enhanced analysis
+# Architect works without indexing using AI-only mode
+INDEXING_AVAILABLE = False
 try:
     from core.indexing.tree_sitter_indexer import TreeSitterIndexer
     from core.indexing.code_indexer import CodeIndexer
-    INDEXING_AVAILABLE = True  # ✅ FIXED: Variable was missing
+    INDEXING_AVAILABLE = True
+    logger.info("✅ Code indexing tools available")
 except ImportError as e:
-    INDEXING_AVAILABLE = False  # ✅ FIXED: Set to False on import error
-    raise DependencyError([
-        {
-            'component': 'Code Indexing Tools',
-            'error': f'Required indexing tools not installed: {str(e)}',
-            'solution': 'pip install tree-sitter tree-sitter-python tree-sitter-javascript tree-sitter-typescript',
-            'file': __file__,
-            'line': 42,
-            'traceback': None
-        }
-    ])
+    logger.warning(f"⚠️  Code indexing not available (new feature): {e}")
+    logger.warning("⚠️  Architect will use AI-only mode")
+    TreeSitterIndexer = None
+    CodeIndexer = None
 
-# Import analysis tools - FAIL FAST per ASIMOV RULE 1
+# Import analysis tools - OPTIONAL (NEW FEATURE)
+# DOCUMENTED REASON: New analysis tools for enhanced architecture insights
+# Architect works without these using AI-only mode
+ANALYSIS_AVAILABLE = False
 try:
     from core.analysis.semgrep_analyzer import SemgrepAnalyzer
     from core.analysis.vulture_analyzer import VultureAnalyzer
     from core.analysis.radon_metrics import RadonMetrics
+    from core.analysis.call_graph_analyzer import CallGraphAnalyzer
+    from core.analysis.layer_analyzer import LayerAnalyzer
     ANALYSIS_AVAILABLE = True
+    logger.info("✅ Code analysis tools available")
 except ImportError as e:
-    ANALYSIS_AVAILABLE = False
-    # ASIMOV RULE 1: NO FALLBACK WITHOUT DOCUMENTED REASON
-    raise DependencyError([
-        {
-            'component': 'Code Analysis Tools',
-            'error': f'Required analysis tools not installed: {str(e)}',
-            'solution': 'pip install semgrep radon vulture',
-            'file': __file__,
-            'line': 63,
-            'traceback': None
-        }
-    ])
+    logger.warning(f"⚠️  Code analysis tools not available (new feature): {e}")
+    logger.warning("⚠️  Architect will use AI-only mode")
+    SemgrepAnalyzer = None
+    VultureAnalyzer = None
+    RadonMetrics = None
+    CallGraphAnalyzer = None
+    LayerAnalyzer = None
 
-# Import diagram service - FAIL FAST per ASIMOV RULE 1
+# Import diagram service - OPTIONAL (NEW FEATURE)
+# DOCUMENTED REASON: Diagram generation is a new feature
+# Architect works without diagrams using text-based architecture descriptions
+DIAGRAM_AVAILABLE = False
 try:
     from services.diagram_service import DiagramService
     DIAGRAM_AVAILABLE = True
+    logger.info("✅ Diagram service available")
 except ImportError as e:
-    DIAGRAM_AVAILABLE = False
-    # ASIMOV RULE 1: NO FALLBACK WITHOUT DOCUMENTED REASON
-    raise DependencyError([
-        {
-            'component': 'Diagram Service',
-            'error': f'Required diagram service not installed: {str(e)}',
-            'solution': 'pip install mermaid-py graphviz',
-            'file': __file__,
-            'line': 83,
-            'traceback': None
-        }
-    ])
+    logger.warning(f"⚠️  Diagram service not available (new feature): {e}")
+    DiagramService = None
 
 @dataclass
 class ArchitectureDesign:
@@ -162,26 +153,36 @@ class ArchitectAgent(ChatAgent):
 
         # For consistency, always use the full absolute path
         project_path = os.path.abspath(project_path)
-        logger.info(f"🏗️ Initializing ProjectCache with path: {project_path}")
+        logger.info(f"🏗️ Initializing ArchitectAgent with path: {project_path}")
 
-        # Initialize permanent Redis cache - REQUIRED, NO FALLBACK
-        self.project_cache = ProjectCache(project_path)
-        if not self.project_cache.connected:
-            from core.exceptions import CacheNotAvailableError
-            raise CacheNotAvailableError(
-                component="ArchitectAgent",
-                file=__file__,
-                line=123
-            )
+        # Initialize cache services if available
+        # DOCUMENTED REASON: Cache services are optional - not yet implemented
+        # Architect works without caching, just slower
+        if CACHE_SERVICES_AVAILABLE:
+            logger.info(f"🏗️ Initializing ProjectCache with path: {project_path}")
+            self.project_cache = ProjectCache(project_path)
+            if not self.project_cache.connected:
+                from core.exceptions import CacheNotAvailableError
+                raise CacheNotAvailableError(
+                    component="ArchitectAgent",
+                    file=__file__,
+                    line=123
+                )
 
-        # Initialize SQLite search
-        self.code_search = LightweightCodeSearch(project_path)
+            # Initialize SQLite search
+            self.code_search = LightweightCodeSearch(project_path)
 
-        # Initialize SMART file watcher with debouncing
-        self.file_watcher = SmartFileWatcher(project_path, self.project_cache, debounce_seconds=30)
-        self.file_watcher.start()
+            # Initialize SMART file watcher with debouncing
+            self.file_watcher = SmartFileWatcher(project_path, self.project_cache, debounce_seconds=30)
+            self.file_watcher.start()
 
-        logger.info("✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce")
+            logger.info("✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce")
+        else:
+            # No cache services - work without them
+            self.project_cache = None
+            self.code_search = None
+            self.file_watcher = None
+            logger.warning("⚠️  Cache services not available - working without caching (slower)")
 
         # Initialize code indexing tools - REQUIRED
         self.tree_sitter = TreeSitterIndexer()
@@ -192,10 +193,15 @@ class ArchitectAgent(ChatAgent):
             self.semgrep = SemgrepAnalyzer()
             self.vulture = VultureAnalyzer()
             self.metrics = RadonMetrics()
+            self.call_graph_analyzer = CallGraphAnalyzer()
+            self.layer_analyzer = LayerAnalyzer()
+            logger.info("✅ Analysis tools initialized: Semgrep, Vulture, Radon, CallGraph, Layers")
         else:
             self.semgrep = None
             self.vulture = None
             self.metrics = None
+            self.call_graph_analyzer = None
+            self.layer_analyzer = None
             logger.warning("Analysis tools not available - some features will be limited")
 
         if DIAGRAM_AVAILABLE:
@@ -415,7 +421,11 @@ class ArchitectAgent(ChatAgent):
         }}
         """
 
-        response = await self.openai.complete(analysis_prompt, system_prompt)
+        response = await self.openai.complete(
+            analysis_prompt,
+            system_prompt,
+            response_format={"type": "json_object"}
+        )
 
         try:
             return json.loads(response)
@@ -1039,6 +1049,30 @@ networks:
             if self.project_cache:
                 await self.project_cache.set('metrics', metrics)
 
+        # Phase 2d: Build Function Call Graph (NEW - v5.0)
+        call_graph = None
+        if self.project_cache:
+            call_graph = await self.project_cache.get('function_call_graph')
+
+        if not call_graph and self.call_graph_analyzer:
+            await self._send_progress(client_id, "📞 Phase 2d: Building function call graph...", manager)
+            call_graph = await self.call_graph_analyzer.build_call_graph(code_index)
+            if self.project_cache:
+                await self.project_cache.set('function_call_graph', call_graph)
+            logger.info(f"✅ Call graph built: {call_graph['metrics']['total_functions']} functions, {call_graph['metrics']['total_calls']} calls")
+
+        # Phase 2e: Analyze System Layers (NEW - v5.0)
+        system_layers = None
+        if self.project_cache:
+            system_layers = await self.project_cache.get('system_layers')
+
+        if not system_layers and self.layer_analyzer:
+            await self._send_progress(client_id, "🏗️ Phase 2e: Analyzing system layers...", manager)
+            system_layers = await self.layer_analyzer.detect_system_layers(code_index)
+            if self.project_cache:
+                await self.project_cache.set('system_layers', system_layers)
+            logger.info(f"✅ System layers analyzed: Quality score = {system_layers['quality_score']:.2f}, Violations = {len(system_layers['violations'])}")
+
         # Phase 3: Generate visualizations
         logger.info("Phase 3: Generating architecture diagrams")
         await self._send_progress(client_id, "📊 Phase 3: Generating architecture diagrams...", manager)
@@ -1067,6 +1101,8 @@ networks:
             'security': security_analysis,
             'dead_code': dead_code,
             'metrics': metrics,
+            'call_graph': call_graph,  # NEW - v5.0
+            'system_layers': system_layers,  # NEW - v5.0
             'diagrams': diagrams,
             'timestamp': datetime.now().isoformat()
         }

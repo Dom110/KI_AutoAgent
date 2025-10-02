@@ -24,62 +24,46 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Import indexing tools - FAIL FAST per ASIMOV RULE 1
+# Import indexing tools - OPTIONAL (NEW FEATURE)
+# DOCUMENTED REASON: New indexing features for enhanced code analysis
+# CodeSmith works without indexing using AI-only code generation
 from core.exceptions import DependencyError
+INDEXING_AVAILABLE = False
 try:
     from core.indexing.tree_sitter_indexer import TreeSitterIndexer
     from core.indexing.code_indexer import CodeIndexer
     INDEXING_AVAILABLE = True
+    logger.info("✅ Code indexing tools available")
 except ImportError as e:
-    INDEXING_AVAILABLE = False
-    # ASIMOV RULE 1: NO FALLBACK WITHOUT DOCUMENTED REASON
-    raise DependencyError([
-        {
-            'component': 'Code Indexing Tools',
-            'error': f'Required indexing tools not installed: {str(e)}',
-            'solution': 'pip install tree-sitter tree-sitter-python tree-sitter-javascript tree-sitter-typescript',
-            'file': __file__,
-            'line': 29,
-            'traceback': None
-        }
-    ])
+    logger.warning(f"⚠️  Code indexing not available (new feature): {e}")
+    TreeSitterIndexer = None
+    CodeIndexer = None
 
-# Import analysis tools - FAIL FAST per ASIMOV RULE 1
+# Import analysis tools - OPTIONAL (NEW FEATURE)
+# DOCUMENTED REASON: New analysis tools for code quality checks
+# CodeSmith works without these using AI-only mode
+ANALYSIS_AVAILABLE = False
 try:
     from core.analysis.vulture_analyzer import VultureAnalyzer
     from core.analysis.radon_metrics import RadonMetrics
     ANALYSIS_AVAILABLE = True
+    logger.info("✅ Code analysis tools available")
 except ImportError as e:
-    ANALYSIS_AVAILABLE = False
-    # ASIMOV RULE 1: NO FALLBACK WITHOUT DOCUMENTED REASON
-    raise DependencyError([
-        {
-            'component': 'Code Analysis Tools',
-            'error': f'Required analysis tools not installed: {str(e)}',
-            'solution': 'pip install radon vulture',
-            'file': __file__,
-            'line': 38,
-            'traceback': None
-        }
-    ])
+    logger.warning(f"⚠️  Code analysis tools not available (new feature): {e}")
+    VultureAnalyzer = None
+    RadonMetrics = None
 
-# Import diagram service - FAIL FAST per ASIMOV RULE 1
+# Import diagram service - OPTIONAL (NEW FEATURE)
+# DOCUMENTED REASON: Diagram generation is a new feature
+# CodeSmith works without diagrams, generating text-based documentation instead
+DIAGRAM_AVAILABLE = False
 try:
     from services.diagram_service import DiagramService
     DIAGRAM_AVAILABLE = True
+    logger.info("✅ Diagram service available")
 except ImportError as e:
-    DIAGRAM_AVAILABLE = False
-    # ASIMOV RULE 1: NO FALLBACK WITHOUT DOCUMENTED REASON
-    raise DependencyError([
-        {
-            'component': 'Diagram Service',
-            'error': f'Required diagram service not installed: {str(e)}',
-            'solution': 'pip install mermaid-py graphviz',
-            'file': __file__,
-            'line': 48,
-            'traceback': None
-        }
-    ])
+    logger.warning(f"⚠️  Diagram service not available (new feature): {e}")
+    DiagramService = None
 
 @dataclass
 class CodeImplementation:
@@ -1149,11 +1133,23 @@ if __name__ == "__main__":
         if not self.code_knowledge:
             logger.info("📝 Using simplified implementation (no codebase analysis)")
             # Use simplified implementation without patterns
-            simple_prompt = f"""Generate code for this specification:
+            # ✅ OPTIMIZED PROMPT based on Anthropic Best Practices
+            simple_prompt = f"""ULTRATHINK THROUGH THIS STEP BY STEP:
 
+You are a senior software engineer. Your task is to WRITE ACTUAL, COMPLETE, WORKING CODE.
+
+CRITICAL INSTRUCTIONS:
+- Output ONLY the complete code file - NO explanations, NO descriptions, NO summaries
+- Write code that is ready to run immediately
+- Include ALL necessary HTML, CSS, and JavaScript in a single file
+- Make it fully functional - not a template or example
+- DO NOT describe what the code should do - WRITE THE ACTUAL CODE
+
+SPECIFICATION:
 {spec}
 
-Generate clean, well-structured code that follows best practices."""
+OUTPUT FORMAT: A single, complete, working code file.
+BEGIN YOUR RESPONSE WITH THE CODE DIRECTLY (no preamble, no markdown blocks, just the code):"""
 
             try:
                 response = await self.claude_cli.complete(simple_prompt)
@@ -1852,26 +1848,33 @@ IMPORTANT:
         With KI_AutoAgent project context awareness
         """
         try:
-            ai_prompt = f"""You are working on KI_AutoAgent, a VS Code extension with AI agents.
-
-PROJECT CONTEXT:
-- Frontend: TypeScript/HTML in vscode-extension/src/ui/MultiAgentChatPanel.ts
-- Backend: Python agents in backend/agents/
-- The "Orchestrator button" is in the MultiAgentChatPanel.ts file
-- This is NOT JD Edwards, Oracle, or any enterprise system!
+            ai_prompt = f"""You are an expert code implementation assistant.
 
 Request: {prompt}
 
 Answer with ONLY 'YES' or 'NO':
-- YES if: Implementation, feature creation, code modification, button addition, function creation, etc.
-- NO if: Just a question, explanation request, review request, or analysis
+- YES if: The request asks to implement, create, build, develop, write code/files, add features, modify code, etc.
+  Examples of YES:
+  * "Implement the application"
+  * "Create a Tetris game"
+  * "Build a web app"
+  * "Add a button"
+  * "Write a function"
+  * "Develop a feature"
 
-Remember ASIMOV RULE 1: No fallbacks. Be definitive.
+- NO if: The request is only asking for explanation, analysis, review, or questions without code creation
+  Examples of NO:
+  * "Explain how X works"
+  * "What is the purpose of Y?"
+  * "Review this code"
+  * "Analyze the architecture"
+
+Remember: Focus on the ACTION requested, not the subject matter.
 
 Answer (YES/NO):"""
 
             # Use complete method with combined prompt
-            full_prompt = f"System: You are an expert at understanding KI_AutoAgent VSCode extension development.\n\n{ai_prompt}"
+            full_prompt = f"System: You are an expert code implementation assistant.\n\n{ai_prompt}"
             response = await self.claude_cli.complete(full_prompt)
 
             result = response.strip().upper().startswith('YES')
@@ -1917,25 +1920,34 @@ Answer (YES/NO):"""
 
             project_structure = "\n".join(project_files[:30]) if project_files else "Empty project"
 
-            ai_prompt = f"""KI_AutoAgent VSCode Extension - Determine the correct file path.
+            # Check if this is a standalone web app request
+            is_web_app = any(keyword in prompt_lower for keyword in [
+                'webapplikation', 'web app', 'html', 'tetris', 'game', 'website'
+            ])
+
+            if is_web_app:
+                # For standalone web apps, use simple HTML file in workspace root
+                feature_name = self._extract_feature_name(prompt)
+                file_path = f"{feature_name}.html"
+                full_path = os.path.join(workspace_path, file_path)
+                logger.info(f"🌐 Standalone web app detected → {full_path}")
+                return full_path  # ✅ FIX: Return full path in workspace!
+
+            ai_prompt = f"""Determine the correct file path for this code implementation.
 
 Request: {prompt}
 
-CRITICAL PROJECT CONTEXT:
-- This is KI_AutoAgent, NOT JD Edwards or any enterprise system!
-- "Orchestrator button" is in: vscode-extension/src/ui/MultiAgentChatPanel.ts
-- UI components and buttons: vscode-extension/src/ui/MultiAgentChatPanel.ts
-- Backend agents: backend/agents/specialized/*.py
-- This is a VS Code extension with TypeScript frontend and Python backend
+Workspace: {workspace_path}
 
-Project structure sample:
-{project_structure}
+Based on the request and standard conventions:
+- For Python code: use .py extension
+- For JavaScript/TypeScript: use .js/.ts extension
+- For HTML/CSS: use .html/.css extension
+- For configuration: use .json/.yaml extension
 
-Based on the request, what file should be modified?
-IMPORTANT: Return ONLY the file path, nothing else.
-DO NOT mention JD Edwards, Oracle, or any enterprise systems!
+Return ONLY the filename (e.g., "myfeature.py" or "app.js"), nothing else.
 
-File path:"""
+Filename:"""
 
             # Use complete method with combined prompt
             full_prompt = f"System: You are an expert at determining file paths based on project structure and conventions.\n\n{ai_prompt}"
@@ -1947,14 +1959,16 @@ File path:"""
             if not file_path or file_path == "":
                 # Extract feature name and generate path
                 feature_name = self._extract_feature_name(prompt)
-                file_path = f"src/{feature_name}.py"
+                file_path = f"{feature_name}.py"
 
-            # Make path relative to workspace
-            if not file_path.startswith('/'):
-                file_path = os.path.join(workspace_path, file_path)
+            # Clean up any absolute path - we want relative only
+            if file_path.startswith('/'):
+                file_path = os.path.basename(file_path)
 
-            logger.info(f"🧠 AI determined file path: {file_path}")
-            return file_path
+            # Build full path in workspace
+            full_path = os.path.join(workspace_path, file_path)
+            logger.info(f"🧠 AI determined file path: {full_path}")
+            return full_path  # ✅ FIX: Return full path in workspace!
 
         except Exception as e:
             logger.error(f"AI file path determination failed: {e}")

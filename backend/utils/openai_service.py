@@ -56,7 +56,8 @@ class OpenAIService:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         stream: bool = False,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
+        response_format: Optional[Dict[str, str]] = None
     ) -> str:
         """
         Get completion from OpenAI
@@ -94,13 +95,17 @@ class OpenAIService:
                             # Increase timeout for retries
                             api_timeout = min(api_timeout * 1.5, 300.0)
 
+                        api_params = {
+                            "model": self.config.model,
+                            "messages": messages,
+                            "temperature": temperature or self.config.temperature,
+                            "max_tokens": max_tokens or self.config.max_tokens
+                        }
+                        if response_format:
+                            api_params["response_format"] = response_format
+
                         response = await asyncio.wait_for(
-                            self.client.chat.completions.create(
-                                model=self.config.model,
-                                messages=messages,
-                                temperature=temperature or self.config.temperature,
-                                max_tokens=max_tokens or self.config.max_tokens
-                            ),
+                            self.client.chat.completions.create(**api_params),
                             timeout=api_timeout
                         )
                         content = response.choices[0].message.content

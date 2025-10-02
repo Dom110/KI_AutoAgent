@@ -80,18 +80,29 @@ class FileSystemTools:
 
         # Check against agent's allowed paths if specified
         if allowed_paths:
+            import fnmatch
+
             path_allowed = False
+            # Get relative path from workspace for pattern matching
+            try:
+                rel_path = Path(abs_path).relative_to(self.workspace_path)
+                rel_path_str = str(rel_path)
+            except ValueError:
+                # Path is outside workspace
+                return False, f"Path {file_path} is outside workspace"
+
             for pattern in allowed_paths:
-                # Convert glob pattern to check
-                if '*' in pattern:
-                    # Simple glob matching
-                    pattern_base = pattern.replace('**/', '').replace('*', '')
-                    if pattern_base in abs_path:
-                        path_allowed = True
-                        break
-                else:
-                    # Exact directory match
-                    if abs_path.startswith(os.path.abspath(os.path.join(self.workspace_path, pattern))):
+                # Remove leading ./ if present for cleaner matching
+                clean_pattern = pattern.lstrip('./')
+
+                # Use fnmatch for glob pattern matching
+                if fnmatch.fnmatch(rel_path_str, clean_pattern):
+                    path_allowed = True
+                    break
+                # Also try with ** replaced by * for broader matching
+                if '**' in clean_pattern:
+                    # pathlib-style glob matching
+                    if Path(rel_path_str).match(clean_pattern):
                         path_allowed = True
                         break
 

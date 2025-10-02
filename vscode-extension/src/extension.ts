@@ -14,6 +14,114 @@ let backendManager: BackendManager;
 let backendClient: BackendClient;
 let modelSettingsManager: ModelSettingsManager;
 
+/**
+ * Sync VS Code settings to backend/.env file
+ * This ensures Python backend always has latest API keys
+ */
+async function syncSettingsToEnv(channel: vscode.OutputChannel): Promise<void> {
+    const fs = require('fs').promises;
+    const path = require('path');
+
+    try {
+        // Get settings
+        const config = vscode.workspace.getConfiguration('kiAutoAgent');
+        const openaiKey = config.get<string>('openai.apiKey', '');
+        const anthropicKey = config.get<string>('anthropic.apiKey', '');
+        const perplexityKey = config.get<string>('perplexity.apiKey', '');
+
+        // Get workspace folder
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            channel.appendLine('⚠️ No workspace folder found, skipping .env sync');
+            return;
+        }
+
+        const workspacePath = workspaceFolders[0].uri.fsPath;
+        const envPath = path.join(workspacePath, 'backend', '.env');
+
+        // Read existing .env if it exists
+        let envContent = '';
+        try {
+            envContent = await fs.readFile(envPath, 'utf8');
+        } catch (error) {
+            // .env doesn't exist, will create new one
+            channel.appendLine('📝 Creating new .env file...');
+        }
+
+        // Parse existing .env
+        const envLines: string[] = envContent.split('\n');
+        const envMap = new Map<string, string>();
+
+        for (const line of envLines) {
+            if (line.trim() && !line.startsWith('#')) {
+                const [key, ...valueParts] = line.split('=');
+                if (key) {
+                    envMap.set(key.trim(), valueParts.join('='));
+                }
+            }
+        }
+
+        // Update with settings values (only if provided in settings)
+        if (openaiKey) {
+            envMap.set('OPENAI_API_KEY', openaiKey);
+            channel.appendLine('  ✓ Updated OPENAI_API_KEY');
+        }
+        if (anthropicKey) {
+            envMap.set('ANTHROPIC_API_KEY', anthropicKey);
+            channel.appendLine('  ✓ Updated ANTHROPIC_API_KEY');
+        }
+        if (perplexityKey) {
+            envMap.set('PERPLEXITY_API_KEY', perplexityKey);
+            channel.appendLine('  ✓ Updated PERPLEXITY_API_KEY');
+        }
+
+        // Build new .env content
+        const newEnvLines: string[] = [];
+        newEnvLines.push('# API Keys - Auto-synced from VS Code settings');
+        newEnvLines.push('# Edit in: VS Code Settings → KI AutoAgent');
+        newEnvLines.push('');
+
+        for (const [key, value] of envMap) {
+            newEnvLines.push(`${key}=${value}`);
+        }
+
+        // Write back to .env
+        await fs.writeFile(envPath, newEnvLines.join('\n'), 'utf8');
+        channel.appendLine(`  📁 Written to: ${envPath}`);
+
+    } catch (error: any) {
+        channel.appendLine(`❌ Failed to sync settings to .env: ${error.message}`);
+        // Don't throw - allow extension to continue even if sync fails
+    }
+}
+
+/**
+ * Watch for settings changes and auto-sync to .env
+ */
+function watchSettingsChanges(channel: vscode.OutputChannel): vscode.Disposable {
+    return vscode.workspace.onDidChangeConfiguration(async (e) => {
+        if (e.affectsConfiguration('kiAutoAgent.openai.apiKey') ||
+            e.affectsConfiguration('kiAutoAgent.anthropic.apiKey') ||
+            e.affectsConfiguration('kiAutoAgent.perplexity.apiKey')) {
+
+            channel.appendLine('🔄 Settings changed, re-syncing to .env...');
+            await syncSettingsToEnv(channel);
+            channel.appendLine('✅ Settings re-synced');
+
+            // Notify user that backend may need restart
+            const action = await vscode.window.showInformationMessage(
+                'API keys updated. Restart backend for changes to take effect?',
+                'Restart Backend',
+                'Not Now'
+            );
+
+            if (action === 'Restart Backend') {
+                vscode.commands.executeCommand('ki-autoagent.restartBackend');
+            }
+        }
+    });
+}
+
 export async function activate(context: vscode.ExtensionContext) {
     // VERSION 4.0.0 - PYTHON BACKEND ARCHITECTURE
     console.log('🚀 KI AutoAgent v4.0.0: Python Backend Architecture');
@@ -55,6 +163,11 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(statusBarItem);
 
     try {
+
+        // Sync settings to .env BEFORE starting backend
+        outputChannel.appendLine('🔑 Syncing API keys from settings to .env...');
+        await syncSettingsToEnv(outputChannel);
+        outputChannel.appendLine('✅ Settings synced to .env');
 
         // Start Python backend automatically
         outputChannel.appendLine('🐍 Starting Python backend...');
@@ -110,6 +223,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
         // Register model management commands
         modelSettingsManager.registerCommands(context);
+
+        // Watch for settings changes and auto-sync
+        const settingsWatcher = watchSettingsChanges(outputChannel);
+        context.subscriptions.push(settingsWatcher);
 
         // Set up event handlers
         setupBackendEventHandlers();

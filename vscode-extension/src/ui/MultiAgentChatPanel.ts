@@ -144,20 +144,28 @@ export class MultiAgentChatPanel {
 
         // Handle responses from backend
         this.backendClient.on('response', (message: BackendMessage) => {
-            MultiAgentChatPanel.debugChannel.appendLine(`📥 Received response from ${message.agent || 'orchestrator'}: ${message.content?.substring(0, 100)}...`);
+            const agent = message.agent || 'orchestrator';
+            const content = message.content || 'No content received';
+
+            MultiAgentChatPanel.debugChannel.appendLine(`📥 Received response from ${agent}: ${content.substring(0, 100)}...`);
+            MultiAgentChatPanel.debugChannel.appendLine(`📝 Full content length: ${content.length} characters`);
+
             // Reset processing flag when we get a response
             this._isProcessing = false;
 
             // Clear stream buffer for this agent
-            const agent = message.agent || 'orchestrator';
             this._streamBuffer.delete(agent);
 
-            this.sendMessage({
-                type: 'agentResponse',
+            // Send to webview
+            const msgToSend = {
+                type: 'response',  // Changed to 'response' for v5.0.0
                 agent: agent,
-                content: message.content,
-                timestamp: message.timestamp
-            });
+                content: content,
+                timestamp: message.timestamp || new Date().toISOString()
+            };
+
+            MultiAgentChatPanel.debugChannel.appendLine(`🚀 Sending to webview: ${JSON.stringify(msgToSend).substring(0, 200)}...`);
+            this.sendMessage(msgToSend);
 
             // Add to history
             if (message.content) {
@@ -171,11 +179,11 @@ export class MultiAgentChatPanel {
         });
 
         this.backendClient.on('thinking', (message: BackendMessage) => {
-            MultiAgentChatPanel.debugChannel.appendLine(`💭 Agent thinking: ${message.agent}`);
+            MultiAgentChatPanel.debugChannel.appendLine(`💭 Agent thinking: ${message.agent || 'orchestrator'}`);
             this.sendMessage({
-                type: 'agentThinking',
-                agent: message.agent,
-                content: message.content
+                type: 'agent_thinking',  // Use underscore for v5.0.0
+                agent: message.agent || 'orchestrator',
+                content: message.content || message.message || 'Processing...'
             });
         });
 
@@ -231,6 +239,16 @@ export class MultiAgentChatPanel {
                 type: 'complete',
                 agent: message.agent,
                 metadata: message.metadata
+            });
+        });
+
+        // Handle step_completed from LangGraph v5.0.0
+        this.backendClient.on('step_completed', (message: any) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`📊 Step completed: ${message.agent} - ${message.task}`);
+            this.sendMessage({
+                type: 'step_completed',
+                agent: message.agent || 'orchestrator',
+                result: message.result || ''
             });
         });
 
@@ -1665,10 +1683,11 @@ export class MultiAgentChatPanel {
                             break;
 
                         case 'agentThinking':
+                        case 'agent_thinking':  // LangGraph v5.0.0 sends 'agent_thinking' type
                             isProcessing = true;
                             updatePauseButtonState();
-                            updateActivityIndicator(true, message.content || 'Processing...');
-                            addThinkingMessage(message.agent, message.content);
+                            updateActivityIndicator(true, message.content || message.message || 'Processing...');
+                            addThinkingMessage(message.agent || 'orchestrator', message.content || message.message);
                             break;
 
                         case 'progress':
@@ -1679,13 +1698,21 @@ export class MultiAgentChatPanel {
                             break;
 
                         case 'agentResponse':
+                        case 'response':  // LangGraph v5.0.0 sends 'response' type
                             // Always reset processing state on response
                             isProcessing = false;
                             updatePauseButtonState();
                             updateActivityIndicator(false);
                             removeThinkingMessage();
                             removeProgressMessages();
-                            addMessage(message.content, 'agent', message.agent);
+
+                            // Handle content - check if it's present
+                            if (message.content) {
+                                addMessage(message.content, 'agent', message.agent || 'orchestrator');
+                            } else {
+                                console.warn('Response received without content:', message);
+                            }
+
                             // Re-enable input and button
                             if (stopButton) {
                                 stopButton.style.display = 'none';
@@ -1695,17 +1722,24 @@ export class MultiAgentChatPanel {
                             break;
 
                         case 'complete':
-                            // Double-check processing state is reset
-                            isProcessing = false;
-                            updatePauseButtonState();
-                            updateActivityIndicator(false);
-                            removeThinkingMessage();
-                            removeProgressMessages();
-                            if (stopButton) {
-                                stopButton.style.display = 'none';
-                                sendButton.style.display = 'inline-block';
+                        case 'step_completed':  // LangGraph v5.0.0 sends 'step_completed' for intermediate steps
+                            // For step_completed, don't reset processing state yet
+                            if (message.type === 'step_completed' && message.result) {
+                                // Show intermediate result
+                                updateProgressMessage(message.agent || 'orchestrator', message.result);
+                            } else {
+                                // For 'complete', reset everything
+                                isProcessing = false;
+                                updatePauseButtonState();
+                                updateActivityIndicator(false);
+                                removeThinkingMessage();
+                                removeProgressMessages();
+                                if (stopButton) {
+                                    stopButton.style.display = 'none';
+                                    sendButton.style.display = 'inline-block';
+                                }
+                                if (messageInput) messageInput.disabled = false;
                             }
-                            if (messageInput) messageInput.disabled = false;
                             break;
 
                         case 'clearChat':

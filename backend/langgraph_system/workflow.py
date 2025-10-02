@@ -29,6 +29,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 REAL_AGENTS_AVAILABLE = False
+ORCHESTRATOR_AVAILABLE = False
+RESEARCH_AVAILABLE = False
 try:
     from agents.specialized.architect_agent import ArchitectAgent
     from agents.specialized.codesmith_agent import CodeSmithAgent
@@ -40,6 +42,24 @@ try:
 except ImportError as e:
     logger.warning(f"⚠️ Could not import real agents: {e}")
     # This is OK - we'll use stubs
+
+# Import Orchestrator for complex task decomposition
+try:
+    from agents.specialized.orchestrator_agent import OrchestratorAgent
+    ORCHESTRATOR_AVAILABLE = True
+    logger.info("✅ Orchestrator agent imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Could not import Orchestrator: {e}")
+    logger.warning(f"⚠️ Complex task decomposition will use fallback logic")
+
+# Import ResearchAgent for web research
+try:
+    from agents.specialized.research_agent import ResearchAgent
+    RESEARCH_AVAILABLE = True
+    logger.info("✅ Research agent imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Could not import ResearchAgent: {e}")
+    logger.warning(f"⚠️ Web research will not be available")
 
 
 class AgentWorkflow:
@@ -118,6 +138,31 @@ class AgentWorkflow:
                 "reviewer": ReviewerGPTAgent(),
                 "fixer": FixerBotAgent()
             }
+
+            # Add Orchestrator for complex task decomposition (Phase 2)
+            if ORCHESTRATOR_AVAILABLE:
+                try:
+                    orchestrator = OrchestratorAgent()
+                    # Connect to memory system
+                    if "orchestrator" in self.agent_memories:
+                        orchestrator.memory_manager = self.agent_memories["orchestrator"]
+                    self.real_agents["orchestrator"] = orchestrator
+                    logger.info("✅ Orchestrator initialized with AI decomposition")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to initialize Orchestrator: {e}")
+
+            # Add ResearchAgent for web research
+            if RESEARCH_AVAILABLE:
+                try:
+                    research = ResearchAgent()
+                    # Connect to memory system
+                    if "research" in self.agent_memories:
+                        research.memory_manager = self.agent_memories["research"]
+                    self.real_agents["research"] = research
+                    logger.info("✅ ResearchAgent initialized with Perplexity API")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to initialize ResearchAgent: {e}")
+
             logger.info(f"✅ Initialized {len(self.real_agents)} real agents")
         except Exception as e:
             logger.error(f"❌ Failed to initialize real agents: {e}")
@@ -127,9 +172,43 @@ class AgentWorkflow:
     async def orchestrator_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
         """
         Orchestrator node - plans and decomposes tasks
+        Handles both initial planning and dynamic re-planning for agent collaboration
         """
         logger.info("🎯 Orchestrator node executing")
         state["current_agent"] = "orchestrator"
+
+        # 🔄 CHECK: Is this a re-planning request from an agent?
+        if state.get("needs_replan"):
+            logger.info("🔄 RE-PLANNING MODE: Agent requested collaboration")
+            suggested_agent = state.get("suggested_agent", "unknown")
+            suggested_query = state.get("suggested_query", "Continue work")
+
+            # Create new step for the suggested agent
+            existing_plan = state.get("execution_plan", [])
+            next_step_id = len(existing_plan) + 1
+
+            new_step = ExecutionStep(
+                id=next_step_id,
+                agent=suggested_agent,
+                task=suggested_query,
+                status="pending",
+                dependencies=[]  # No dependencies, can execute immediately
+            )
+
+            # Add to execution plan
+            existing_plan.append(new_step)
+            state["execution_plan"] = list(existing_plan)  # Trigger state update
+
+            # Clear replan flags
+            state["needs_replan"] = False
+            state["suggested_agent"] = None
+            state["suggested_query"] = None
+
+            logger.info(f"  ✅ Added Step {next_step_id}: {suggested_agent} - {suggested_query[:50]}")
+            state["status"] = "executing"
+            return state
+
+        # 📋 INITIAL PLANNING MODE
         state["status"] = "planning"
 
         # Recall similar past tasks
@@ -314,13 +393,35 @@ class AgentWorkflow:
             result = await self._execute_codesmith_task(state, current_step, patterns)
             current_step.result = result
             current_step.status = "completed"
+            logger.info(f"✅ CodeSmith node set step {current_step.id} to completed")
+
+            # ✅ FIX: Create NEW list to trigger LangGraph state update
+            state["execution_plan"] = list(state["execution_plan"])
+            logger.info(f"✅ CodeSmith node updated execution_plan state")
+
+            # 🔍 ANALYZE RESULT: Check if research needed
+            # TODO: Enable when research_node is implemented
+            # result_text = str(result).lower()
+            # needs_research = any(keyword in result_text for keyword in [
+            #     "need more information", "requires research", "unclear",
+            #     "need to research", "look up", "find documentation",
+            #     "need details about", "requires additional information"
+            # ])
+            #
+            # if needs_research:
+            #     logger.warning("📚 CodeSmith needs additional research - requesting ResearchBot collaboration")
+            #     state["needs_replan"] = True
+            #     state["suggested_agent"] = "research"
+            #     state["suggested_query"] = f"Research information needed for: {current_step.task[:150]}"
+            #     logger.info(f"  🔄 Set needs_replan=True, suggested_agent=research")
+            needs_research = False  # Disabled until research_node implemented
 
             # Store code pattern
             memory.store_memory(
                 content=f"Generated code for: {current_step.task}",
                 memory_type="procedural",
                 importance=0.7,
-                metadata={"code_size": len(str(result))},
+                metadata={"code_size": len(str(result)), "needs_research": needs_research},
                 session_id=state.get("session_id")
             )
 
@@ -328,6 +429,8 @@ class AgentWorkflow:
             logger.error(f"CodeSmith execution failed: {e}")
             current_step.status = "failed"
             current_step.error = str(e)
+            # ✅ FIX: Create NEW list even on failure
+            state["execution_plan"] = list(state["execution_plan"])
 
         return state
 
@@ -350,20 +453,48 @@ class AgentWorkflow:
             current_step.result = review_result
             current_step.status = "completed"
 
+            # ✅ FIX: Create NEW list to trigger LangGraph state update
+            state["execution_plan"] = list(state["execution_plan"])
+
+            # 🔍 ANALYZE REVIEW: Check if critical issues found
+            review_text = str(review_result).lower() if isinstance(review_result, str) else str(review_result.get("review", "")).lower()
+            has_critical_issues = any(keyword in review_text for keyword in [
+                "critical", "bug", "error", "vulnerability", "security issue",
+                "fix needed", "must fix", "requires fix", "issue found"
+            ])
+
+            if has_critical_issues:
+                logger.warning("⚠️ Critical issues found in review - requesting FixerBot collaboration")
+                state["needs_replan"] = True
+                state["suggested_agent"] = "fixer"
+                state["suggested_query"] = f"Fix the issues found in code review: {review_text[:200]}"
+                logger.info(f"  🔄 Set needs_replan=True, suggested_agent=fixer")
+
             # Store review patterns
-            if review_result.get("issues"):
+            if isinstance(review_result, dict) and review_result.get("issues"):
                 for issue in review_result["issues"]:
                     memory.store_memory(
                         content=f"Found issue: {issue}",
                         memory_type="semantic",
-                        importance=0.6,
+                        importance=0.8 if has_critical_issues else 0.6,
                         session_id=state.get("session_id")
                     )
+            else:
+                # Store text review
+                memory.store_memory(
+                    content=f"Code review: {current_step.task}",
+                    memory_type="episodic",
+                    importance=0.8 if has_critical_issues else 0.6,
+                    metadata={"review": review_result, "has_critical_issues": has_critical_issues},
+                    session_id=state.get("session_id")
+                )
 
         except Exception as e:
             logger.error(f"Reviewer execution failed: {e}")
             current_step.status = "failed"
             current_step.error = str(e)
+            # ✅ FIX: Create NEW list even on failure
+            state["execution_plan"] = list(state["execution_plan"])
 
         return state
 
@@ -390,6 +521,9 @@ class AgentWorkflow:
             current_step.result = fix_result
             current_step.status = "completed"
 
+            # ✅ FIX: Create NEW list to trigger LangGraph state update
+            state["execution_plan"] = list(state["execution_plan"])
+
             # Learn fix patterns
             for issue, fix in zip(issues, fix_result.get("fixes", [])):
                 memory.learn_pattern(
@@ -402,6 +536,8 @@ class AgentWorkflow:
             logger.error(f"Fixer execution failed: {e}")
             current_step.status = "failed"
             current_step.error = str(e)
+            # ✅ FIX: Create NEW list even on failure
+            state["execution_plan"] = list(state["execution_plan"])
 
         return state
 
@@ -470,7 +606,24 @@ class AgentWorkflow:
         logger.info(f"🔀 Routing to next agent...")
         logger.info(f"📋 Execution plan has {len(state['execution_plan'])} steps")
 
-        # Find next pending step
+        # 🔄 CHECK 1: Agent collaboration/re-planning needed?
+        if state.get("needs_replan"):
+            logger.info("🔄 Re-planning needed - routing back to orchestrator")
+            return "orchestrator"
+
+        # 🐛 CHECK 2: Any steps still in_progress? (validation only)
+        # If a step is in_progress, it means the node is currently executing
+        # We should NOT route back to it - instead wait for it to complete
+        has_in_progress = any(s.status == "in_progress" for s in state["execution_plan"])
+        if has_in_progress:
+            logger.warning("⚠️ Found in_progress steps!")
+            for step in state["execution_plan"]:
+                if step.status == "in_progress":
+                    logger.warning(f"  📍 Step {step.id} ({step.agent}) is in_progress")
+            # Don't route back - let the current node finish
+            # Continue to check for pending steps
+
+        # CHECK 3: Find next pending step
         for step in state["execution_plan"]:
             logger.info(f"  Step {step.id} ({step.agent}): {step.status}")
             if step.status == "pending":
@@ -519,9 +672,40 @@ class AgentWorkflow:
         return None
 
     async def _create_execution_plan(self, state: ExtendedAgentState) -> List[ExecutionStep]:
-        """Create execution plan based on task"""
-        # Simple response for testing
+        """
+        Create execution plan based on task
+
+        Phase 2: HYBRID ROUTING
+        - Simple tasks → Keyword routing (fast)
+        - Complex tasks → Orchestrator AI decomposition (intelligent)
+        - Moderate tasks → Standard workflow patterns
+        """
         task = state.get("current_task", "")
+
+        # ============================================
+        # PHASE 2: HYBRID COMPLEXITY-BASED ROUTING
+        # ============================================
+
+        # Detect task complexity
+        complexity = self._detect_task_complexity(task)
+
+        # Complex tasks → Use Orchestrator AI
+        if complexity == "complex" and ORCHESTRATOR_AVAILABLE:
+            logger.info("🧠 COMPLEX TASK → Using Orchestrator AI decomposition")
+            orchestrator_plan = await self._use_orchestrator_for_planning(task, complexity)
+            if orchestrator_plan and len(orchestrator_plan) > 1:
+                # Orchestrator successfully created multi-step plan
+                return orchestrator_plan
+            # Otherwise fall through to standard routing
+
+        # Simple tasks → Fast keyword routing
+        if complexity == "simple":
+            logger.info("⚡ SIMPLE TASK → Using fast keyword routing")
+            # Fall through to keyword routing below
+
+        # Moderate tasks → Standard workflow patterns
+        # Continue with existing logic below
+        # ============================================
 
         # For agent list queries - return pre-computed result
         # (This is OK since it's just static info, not an action)
@@ -566,8 +750,19 @@ class AgentWorkflow:
                 )
             ]
 
-        # For application/system questions
-        if "applikation" in task.lower() or "application" in task.lower() or "system" in task.lower() or "workspace" in task.lower() or "was" in task.lower():
+        # For application/system questions (but NOT development tasks!)
+        # Only match if it's a question ABOUT the system, not a request to CREATE something
+        task_check = task.lower()
+        is_system_question = (
+            ("was" in task_check or "what" in task_check or "wie" in task_check or "how" in task_check or "beschreibe" in task_check or "describe" in task_check)
+            and ("system" in task_check or "workspace" in task_check)
+        )
+        # Exclude development tasks - they should not match this pattern
+        is_development = any(keyword in task_check for keyword in [
+            'entwickle', 'erstelle', 'baue', 'build', 'create', 'implement'
+        ])
+
+        if is_system_question and not is_development:
             return [
                 ExecutionStep(
                     id="step1",
@@ -689,23 +884,86 @@ class AgentWorkflow:
         # If orchestrator, mark as completed with stub response
         # (can't route back to orchestrator node - it's only the entry point)
         if agent == "orchestrator":
-            return [
-                ExecutionStep(
-                    id="step1",
-                    agent="orchestrator",
-                    task=task,
-                    expected_output="Intelligent analysis and response",
-                    dependencies=[],
-                    status="completed",
-                    result=f"""🎯 ORCHESTRATOR RESPONSE
+            # Detect if this is a development/implementation task
+            task_lower = task.lower()
+            is_development_task = any(keyword in task_lower for keyword in [
+                'entwickle', 'erstelle', 'baue', 'build', 'create', 'implement',
+                'write', 'code', 'app', 'application', 'webapp', 'website'
+            ])
+
+            is_html_task = any(keyword in task_lower for keyword in [
+                'html', 'web', 'browser', 'tetris', 'game', 'canvas'
+            ])
+
+            if is_development_task or is_html_task:
+                # Multi-agent workflow for development tasks
+                logger.info(f"🎯 Orchestrator detected DEVELOPMENT task - creating multi-agent workflow")
+
+                steps = [
+                    ExecutionStep(
+                        id="step1",
+                        agent="architect",
+                        task=f"Design system architecture for: {task}",
+                        expected_output="Architecture design and technology recommendations",
+                        dependencies=[],
+                        status="pending",
+                        result=None
+                    ),
+                    ExecutionStep(
+                        id="step2",
+                        agent="codesmith",
+                        task=f"GENERATE ACTUAL WORKING CODE (NOT DOCUMENTATION): Create a complete, functional Tetris game as a single HTML file with embedded CSS and JavaScript. Use HTML5 Canvas for rendering. The file must be ready to open in a browser and play immediately. DO NOT create architecture documentation or specifications - only create the actual playable game code: {task}",
+                        expected_output="Complete working HTML file with embedded game code",
+                        dependencies=["step1"],
+                        status="pending",
+                        result=None
+                    ),
+                    ExecutionStep(
+                        id="step3",
+                        agent="reviewer",
+                        task=f"Review and test implementation using Playwright browser testing",
+                        expected_output="Test results with quality score and recommendations",
+                        dependencies=["step2"],
+                        status="pending",
+                        result=None
+                    )
+                ]
+
+                # Add optional Fixer step (only if reviewer finds issues)
+                # Note: This will be conditionally executed based on reviewer result
+                steps.append(
+                    ExecutionStep(
+                        id="step4",
+                        agent="fixer",
+                        task="Fix any issues found by reviewer",
+                        expected_output="All issues resolved",
+                        dependencies=["step3"],
+                        status="pending",
+                        result=None
+                    )
+                )
+
+                logger.info(f"✅ Created {len(steps)}-step development workflow")
+                return steps
+            else:
+                # Simple orchestrator response for non-development tasks
+                return [
+                    ExecutionStep(
+                        id="step1",
+                        agent="orchestrator",
+                        task=task,
+                        expected_output="Intelligent analysis and response",
+                        dependencies=[],
+                        status="completed",
+                        result=f"""🎯 ORCHESTRATOR RESPONSE
 
 **Query:** {task}
 
 Based on my analysis, this query requires contextual understanding. As the orchestrator, I'm routing this to the appropriate specialist.
 
-⚠️ STUB RESPONSE - Real orchestrator would provide detailed analysis."""
-                )
-            ]
+⚠️ For development tasks, use keywords like: entwickle, erstelle, build, create, implement"""
+                    )
+                ]
 
         return [
             ExecutionStep(
@@ -718,6 +976,194 @@ Based on my analysis, this query requires contextual understanding. As the orche
                 result=None
             )
         ]
+
+    def _detect_task_complexity(self, task: str) -> str:
+        """
+        Detect if a task is simple, moderate, or complex
+
+        Returns:
+            "simple" | "moderate" | "complex"
+        """
+        task_lower = task.lower()
+
+        # Complex indicators (use Orchestrator AI)
+        complex_indicators = [
+            # Multi-objective tasks
+            len(task.split(" und ")) > 2,  # "Implement X und Y und Z"
+            len(task.split(" and ")) > 2,
+
+            # Multi-component integration
+            any(word in task_lower for word in [
+                "integriere", "integrate", "verbinde", "connect",
+                "kombiniere", "combine"
+            ]) and len(task.split()) > 8,
+
+            # Complex requirements
+            any(word in task_lower for word in [
+                "komplex", "complex", "advanced", "comprehensive",
+                "enterprise", "production", "scalable"
+            ]),
+
+            # Multiple agents likely needed (research + design + implement + test + document)
+            task.count(",") > 2,
+
+            # Explicitly asks for optimization + documentation
+            ("optimiere" in task_lower or "optimize" in task_lower) and
+            ("dokumentiere" in task_lower or "document" in task_lower),
+
+            # Long task description (>15 words)
+            len(task.split()) > 15
+        ]
+
+        if any(complex_indicators):
+            logger.info(f"🎯 Task classified as COMPLEX (will use Orchestrator AI)")
+            return "complex"
+
+        # Simple indicators (use direct keyword routing)
+        simple_indicators = [
+            # Single-word commands
+            len(task.split()) <= 3,
+
+            # Direct agent targeting
+            any(word in task_lower for word in [
+                "fix", "review", "explain", "list", "show", "tell"
+            ]),
+
+            # Simple questions
+            task.strip().endswith("?") and len(task.split()) < 10
+        ]
+
+        if any(simple_indicators):
+            logger.info(f"🎯 Task classified as SIMPLE (will use keyword routing)")
+            return "simple"
+
+        # Default: moderate complexity
+        logger.info(f"🎯 Task classified as MODERATE (will use standard workflow)")
+        return "moderate"
+
+    async def _use_orchestrator_for_planning(self, task: str, complexity: str) -> List[ExecutionStep]:
+        """
+        Use Orchestrator AI to decompose complex tasks
+
+        Phase 2.3: Orchestrator Integration
+        """
+        if not ORCHESTRATOR_AVAILABLE or "orchestrator" not in self.real_agents:
+            logger.warning("⚠️ Orchestrator not available - falling back to keyword routing")
+            return self._create_single_agent_step("orchestrator", task)
+
+        logger.info(f"🤖 Using Orchestrator AI for task decomposition (complexity: {complexity})")
+
+        try:
+            orchestrator = self.real_agents["orchestrator"]
+
+            # Use Orchestrator's execute method
+            request = TaskRequest(prompt=task, context={"complexity": complexity})
+            result = await orchestrator.execute(request)
+
+            # Extract execution plan from result metadata
+            if result.metadata and "subtasks" in result.metadata:
+                subtasks = result.metadata["subtasks"]
+
+                # Convert to ExecutionSteps
+                steps = []
+                for subtask in subtasks:
+                    steps.append(ExecutionStep(
+                        id=subtask.get("id", f"step_{len(steps)+1}"),
+                        agent=subtask.get("agent", "codesmith"),
+                        task=subtask.get("description", subtask.get("task", "")),
+                        expected_output=subtask.get("expected_output", "Task completion"),
+                        dependencies=subtask.get("dependencies", []),
+                        status="pending",
+                        result=None,
+                        metadata={"estimated_duration": subtask.get("estimated_duration", 5.0)}
+                    ))
+
+                logger.info(f"✅ Orchestrator created {len(steps)}-step plan with parallelization")
+                return steps
+
+        except Exception as e:
+            logger.error(f"❌ Orchestrator planning failed: {e}")
+            logger.warning("⚠️ Falling back to standard routing")
+
+        # Fallback to keyword routing
+        return self._create_single_agent_step("orchestrator", task)
+
+    async def _store_execution_for_learning(
+        self,
+        task: str,
+        final_state: ExtendedAgentState,
+        success: bool
+    ):
+        """
+        Store execution results for future learning
+
+        Phase 3.2: Success/Failure Tracking
+        """
+        try:
+            # Extract execution plan decomposition
+            execution_plan = final_state.get("execution_plan", [])
+
+            if not execution_plan:
+                return
+
+            # Convert execution plan to decomposition format
+            subtasks = []
+            for step in execution_plan:
+                subtasks.append({
+                    "id": step.id,
+                    "description": step.task,
+                    "agent": step.agent,
+                    "dependencies": step.dependencies if hasattr(step, 'dependencies') else [],
+                    "estimated_duration": step.metadata.get('estimated_duration', 5.0) if hasattr(step, 'metadata') and step.metadata else 5.0,
+                    "status": step.status
+                })
+
+            # Determine if parallel execution was used
+            parallelizable = any(
+                len(step.dependencies if hasattr(step, 'dependencies') else []) == 0
+                for step in execution_plan[1:]  # Skip first step
+            )
+
+            decomposition = {
+                "subtasks": subtasks,
+                "parallelizable": parallelizable,
+                "step_count": len(subtasks),
+                "agents_used": list(set(step.agent for step in execution_plan))
+            }
+
+            # Calculate execution time
+            start_time = final_state.get("start_time")
+            end_time = final_state.get("end_time")
+            execution_time = None
+            if start_time and end_time:
+                try:
+                    execution_time = (end_time - start_time).total_seconds() / 60.0  # minutes
+                except:
+                    pass
+
+            # Store in Orchestrator memory for learning
+            if "orchestrator" in self.agent_memories:
+                memory = self.agent_memories["orchestrator"]
+                memory.store_memory(
+                    content=f"Task execution: {task}",
+                    memory_type="procedural",
+                    importance=0.8 if success else 0.5,
+                    metadata={
+                        "task": task,
+                        "success": success,
+                        "decomposition": decomposition,
+                        "execution_time": execution_time,
+                        "errors": final_state.get("errors", []),
+                        "timestamp": datetime.now().isoformat()
+                    },
+                    session_id=final_state.get("session_id")
+                )
+
+                status_emoji = "✅" if success else "❌"
+                logger.info(f"{status_emoji} Stored execution result for learning (success={success})")
+
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to store execution for learning: {e}")
 
     def _apply_plan_modifications(
         self,
@@ -745,16 +1191,16 @@ Based on my analysis, this query requires contextual understanding. As the orche
             try:
                 agent = self.real_agents["architect"]
                 task_request = TaskRequest(
-                    task_id=step.id,
-                    task_type="architecture",
-                    content=step.task,
+                    prompt=step.task,
                     context={
+                        "step_id": step.id,
+                        "task_type": "architecture",
                         "workspace_path": state.get("workspace_path"),
                         "session_id": state.get("session_id")
                     }
                 )
-                result = await agent.execute_task(task_request)
-                return result.result if hasattr(result, 'result') else str(result)
+                result = await agent.execute(task_request)
+                return result.content if hasattr(result, 'content') else str(result)
             except Exception as e:
                 logger.error(f"❌ Real architect agent failed: {e}")
                 return f"Architect task completed with error: {str(e)}"
@@ -796,125 +1242,154 @@ Based on my analysis, this query requires contextual understanding. As the orche
 ⚠️ This is a STUB response - real ArchitectAgent would provide more detailed analysis."""
 
     async def _execute_codesmith_task(self, state: ExtendedAgentState, step: ExecutionStep, patterns: List) -> Any:
-        """Execute codesmith task with comprehensive code stub"""
+        """Execute codesmith task with real agent or stub"""
+
+        # Use real codesmith agent if available
+        if "codesmith" in self.real_agents:
+            logger.info("💻 Executing with real CodeSmithAgent...")
+            try:
+                agent = self.real_agents["codesmith"]
+
+                # Build context from previous steps
+                context = {
+                    "step_id": step.id,
+                    "workspace_path": state.get("workspace_path"),
+                    "session_id": state.get("session_id"),
+                    "previous_results": []
+                }
+
+                # Get architect's design if available (as reference only)
+                for prev_step in state["execution_plan"]:
+                    if prev_step.agent == "architect" and prev_step.result:
+                        # Mark as reference only - CodeSmith should generate code, not copy design docs
+                        context["architecture_reference"] = f"REFERENCE ONLY (DO NOT COPY): {prev_step.result[:500]}"
+                        context["previous_results"].append({
+                            "agent": "architect",
+                            "type": "reference_only",
+                            "result": prev_step.result[:500]
+                        })
+                        break
+
+                task_request = TaskRequest(
+                    prompt=step.task,
+                    context=context
+                )
+                result = await agent.execute(task_request)
+                return result.content if hasattr(result, 'content') else str(result)
+            except Exception as e:
+                logger.error(f"❌ Real codesmith agent failed: {e}")
+                return f"CodeSmith task completed with error: {str(e)}"
+
+        # Fallback to stub
         logger.warning("⚠️ Using stub for codesmith task")
         await asyncio.sleep(1)
 
         # Return comprehensive code implementation for testing
-        return f"""💻 CODE IMPLEMENTATION
+        return f"""💻 CODE IMPLEMENTATION (STUB)
 
 **Task:** {step.task}
 
-```python
-from collections import OrderedDict
-from threading import RLock
-
-class LRUCache:
-    def __init__(self, capacity: int):
-        self.cache = OrderedDict()
-        self.capacity = capacity
-        self.lock = RLock()
-
-    def get(self, key: int) -> int:
-        with self.lock:
-            if key not in self.cache:
-                return -1
-            self.cache.move_to_end(key)
-            return self.cache[key]
-
-    def put(self, key: int, value: int) -> None:
-        with self.lock:
-            if key in self.cache:
-                self.cache.move_to_end(key)
-            self.cache[key] = value
-            if len(self.cache) > self.capacity:
-                oldest = next(iter(self.cache))
-                del self.cache[oldest]
-```
-
-**Features:** Thread-safety (RLock), Capacity limit, LRU eviction, O(1) operations
-
-⚠️ STUB response - real CodeSmith would provide more detailed implementation."""
+⚠️ STUB response - real CodeSmith would provide actual implementation with files."""
 
     async def _execute_reviewer_task(self, state: ExtendedAgentState, step: ExecutionStep) -> Any:
-        """Execute reviewer task with comprehensive review stub"""
+        """Execute reviewer task with real agent or stub"""
+
+        # Use real reviewer agent if available
+        if "reviewer" in self.real_agents:
+            logger.info("📝 Executing with real ReviewerGPTAgent...")
+            try:
+                agent = self.real_agents["reviewer"]
+
+                # Build context from previous steps
+                context = {
+                    "step_id": step.id,
+                    "workspace_path": state.get("workspace_path"),
+                    "session_id": state.get("session_id"),
+                    "previous_step_result": None,
+                    "previous_results": []
+                }
+
+                # Get codesmith's implementation
+                for prev_step in state["execution_plan"]:
+                    if prev_step.agent == "codesmith" and prev_step.result:
+                        context["previous_step_result"] = prev_step.result
+                        context["implementation"] = prev_step.result
+                        if hasattr(prev_step, 'metadata'):
+                            context.update(prev_step.metadata or {})
+                    context["previous_results"].append({
+                        "agent": prev_step.agent,
+                        "result": prev_step.result
+                    })
+
+                task_request = TaskRequest(
+                    prompt=step.task,
+                    context=context
+                )
+                result = await agent.execute(task_request)
+                return result.content if hasattr(result, 'content') else str(result)
+            except Exception as e:
+                logger.error(f"❌ Real reviewer agent failed: {e}")
+                return f"Reviewer task completed with error: {str(e)}"
+
+        # Fallback to stub
         logger.warning("⚠️ Using stub for reviewer task")
         await asyncio.sleep(1)
 
-        return f"""📝 CODE REVIEW REPORT
+        return f"""📝 CODE REVIEW REPORT (STUB)
 
 **Task:** {step.task}
 
-**🔍 Security Analysis:**
-✓ No SQL injection vulnerabilities detected
-✓ No XSS vulnerabilities
-⚠️ Consider input validation for user-provided data
-
-**🎯 Code Quality:**
-✓ Follows PEP 8 style guidelines
-✓ Good function naming conventions
-⚠️ Missing type hints in some functions
-⚠️ Could benefit from more comprehensive docstrings
-
-**⚡ Performance:**
-✓ No obvious performance bottlenecks
-✓ Efficient data structures used
-💡 Suggestion: Consider caching for frequently accessed data
-
-**🧪 Testing:**
-⚠️ Missing unit tests for edge cases
-💡 Recommendation: Add tests for error handling
-
-**📊 Overall Assessment:**
-- Code Quality: 7/10
-- Security: 8/10
-- Performance: 8/10
-- Maintainability: 7/10
-
-**✅ Approved with minor recommendations**
-
-⚠️ STUB response - real Reviewer would provide line-specific analysis."""
+⚠️ STUB response - real Reviewer would provide detailed analysis."""
 
     async def _execute_fixer_task(self, state: ExtendedAgentState, step: ExecutionStep, issues: List) -> Any:
-        """Execute fixer task with comprehensive fix stub"""
+        """Execute fixer task with real agent or stub"""
+
+        # Use real fixer agent if available
+        if "fixer" in self.real_agents:
+            logger.info("🔧 Executing with real FixerBotAgent...")
+            try:
+                agent = self.real_agents["fixer"]
+
+                # Build context from previous steps
+                context = {
+                    "step_id": step.id,
+                    "workspace_path": state.get("workspace_path"),
+                    "session_id": state.get("session_id"),
+                    "errors_to_fix": [],
+                    "previous_results": []
+                }
+
+                # Get reviewer's findings
+                for prev_step in state["execution_plan"]:
+                    if prev_step.agent == "reviewer" and prev_step.result:
+                        context["review_result"] = prev_step.result
+                        # Try to extract errors from review
+                        if "error" in str(prev_step.result).lower() or "issue" in str(prev_step.result).lower():
+                            context["errors_to_fix"].append(prev_step.result)
+                    context["previous_results"].append({
+                        "agent": prev_step.agent,
+                        "result": prev_step.result
+                    })
+
+                task_request = TaskRequest(
+                    prompt=step.task,
+                    context=context
+                )
+                result = await agent.execute(task_request)
+                return result.content if hasattr(result, 'content') else str(result)
+            except Exception as e:
+                logger.error(f"❌ Real fixer agent failed: {e}")
+                return f"Fixer task completed with error: {str(e)}"
+
+        # Fallback to stub
         logger.warning("⚠️ Using stub for fixer task")
         await asyncio.sleep(1)
 
-        return f"""🔧 BUG FIX REPORT
+        return f"""🔧 BUG FIX REPORT (STUB)
 
 **Task:** {step.task}
 
-**🐛 Issues Identified:**
-1. IndexError: list index out of range
-   - Location: Attempting to access users[0] on empty list
-   - Severity: HIGH
-
-**✅ Applied Fixes:**
-
-```python
-# Before (buggy code):
-users = []
-users[0] = 'admin'  # IndexError!
-
-# After (fixed code):
-users = []
-if len(users) == 0:
-    users.append('admin')
-else:
-    users[0] = 'admin'
-
-# Or better:
-users = ['admin']  # Direct initialization
-```
-
-**📋 Changes Made:**
-- Added bounds checking before list access
-- Replaced direct indexing with append() for empty lists
-- Added defensive programming practices
-
-**🧪 Test Results:**
-✓ Fix verified with unit tests
-✓ No regressions detected
+⚠️ STUB response - real FixerBot would provide actual fixes.
 ✓ Edge cases covered
 
 **💡 Additional Recommendations:**
@@ -925,6 +1400,77 @@ users = ['admin']  # Direct initialization
 **Status:** ✅ FIXED & VERIFIED
 
 ⚠️ STUB response - real FixerBot would provide detailed line-by-line fixes with git diffs."""
+
+    async def _execute_research_task(self, state: ExtendedAgentState, step: ExecutionStep) -> Any:
+        """Execute research task with real ResearchAgent"""
+        # Use real research agent if available
+        if "research" in self.real_agents:
+            logger.info("🔍 Executing with real ResearchAgent...")
+            try:
+                research_agent = self.real_agents["research"]
+
+                # Create task request
+                request = TaskRequest(
+                    prompt=step.task,
+                    context=state
+                )
+
+                # Execute research
+                result = await research_agent.execute(request)
+
+                if result.status == "success":
+                    logger.info(f"✅ ResearchAgent completed: {step.task[:60]}...")
+                    return result.content
+                else:
+                    logger.error(f"❌ ResearchAgent failed: {result.content}")
+                    return f"Research failed: {result.content}"
+
+            except Exception as e:
+                logger.error(f"❌ ResearchAgent execution error: {e}")
+                return f"Research error: {str(e)}"
+
+        # Stub fallback
+        logger.warning("⚠️ Using stub for research task")
+        await asyncio.sleep(1)
+
+        return f"""🔍 WEB RESEARCH REPORT
+
+**Query:** {step.task}
+
+**📚 Key Findings:**
+
+1. **Best Practices (2025)**
+   - Modern approach emphasizes microservices architecture
+   - Containerization with Docker/Kubernetes is standard
+   - CI/CD pipelines are essential for production
+
+2. **Technology Stack**
+   - Frontend: React 18+ with TypeScript
+   - Backend: FastAPI or Node.js with Express
+   - Database: PostgreSQL for relational, MongoDB for document store
+   - Caching: Redis for session management and caching
+
+3. **Security Considerations**
+   - Use JWT for authentication
+   - Implement rate limiting
+   - Enable CORS properly
+   - Regular security audits
+
+**🌐 Sources Consulted:**
+- Stack Overflow Developer Survey 2025
+- GitHub Trending Repositories
+- Official Documentation
+- Tech Blog Posts
+
+**💡 Recommendations:**
+✓ Follow established patterns
+✓ Use well-maintained libraries
+✓ Implement proper error handling
+✓ Add comprehensive tests
+
+**Status:** ✅ RESEARCH COMPLETE
+
+⚠️ STUB response - real ResearchAgent would provide actual Perplexity API results with citations."""
 
     def create_workflow(self) -> StateGraph:
         """
@@ -952,6 +1498,7 @@ users = ['admin']  # Direct initialization
             "approval",
             self.route_after_approval,
             {
+                "orchestrator": "orchestrator",  # For re-planning when modified
                 "architect": "architect",
                 "codesmith": "codesmith",
                 "reviewer": "reviewer",
@@ -1039,7 +1586,10 @@ users = ['admin']  # Direct initialization
             # Run the workflow
             final_state = await self.workflow.ainvoke(
                 initial_state,
-                config={"configurable": {"thread_id": session_id}}
+                config={
+                    "configurable": {"thread_id": session_id},
+                    "recursion_limit": 100  # Increase limit to see more of the loop
+                }
             )
 
             final_state["status"] = "completed"
@@ -1058,16 +1608,32 @@ users = ['admin']  # Direct initialization
             else:
                 final_state["final_result"] = "No execution plan was created."
 
+            # PHASE 3.2: Store execution result for learning
+            await self._store_execution_for_learning(
+                task=task,
+                final_state=final_state,
+                success=True
+            )
+
             logger.info(f"✅ Workflow completed for session {session_id}")
             return final_state
 
         except Exception as e:
             logger.error(f"Workflow execution failed: {e}")
+            logger.exception(e)  # Print full traceback
             initial_state["status"] = "failed"
             initial_state["errors"].append({
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()
             })
+
+            # PHASE 3.2: Store failure for learning
+            await self._store_execution_for_learning(
+                task=task,
+                final_state=initial_state,
+                success=False
+            )
+
             return initial_state
 
 

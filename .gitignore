@@ -8,3 +8,4 @@ vscode-extension/package-lock.json
 *.vsix
 .ki_autoagent/
 backend_server.log
+agent_projects/

@@ -20,7 +20,7 @@ class ClaudeCodeConfig:
     model: str = "default"  # opus, sonnet, default
     temperature: float = 0.7
     max_tokens: int = 4000
-    output_format: str = "json"  # json or text
+    output_format: str = "text"  # json or text - use "text" for simple responses
 
 class ClaudeCodeService:
     """
@@ -104,7 +104,7 @@ class ClaudeCodeService:
             )
 
             # Send prompt and get response (increased timeout for complex requests)
-            timeout_seconds = 120  # Increased from 30 to 120 seconds
+            timeout_seconds = 300  # 5 minutes for complex code generation (Tetris, games, etc)
             logger.info(f"⏱️ Running Claude CLI with {timeout_seconds}s timeout...")
 
             stdout, stderr = await asyncio.wait_for(

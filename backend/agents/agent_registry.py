@@ -77,11 +77,18 @@ class AgentRegistry:
         # Initialize core agents
         await self.register_agent(OrchestratorAgentV2())
 
+        # Register specialized agents
+        try:
+            from .specialized.research_agent import ResearchAgent
+            await self.register_agent(ResearchAgent())
+            logger.info("✅ ResearchAgent registered")
+        except Exception as e:
+            logger.warning(f"⚠️  Could not register ResearchAgent: {e}")
+
         # TODO: Register other agents as they are ported
         # await self.register_agent(ArchitectAgent())
         # await self.register_agent(CodeSmithAgent())
         # await self.register_agent(OpusArbitratorAgent())
-        # await self.register_agent(ResearchAgent())
         # await self.register_agent(ReviewerAgent())
         # await self.register_agent(DocuAgent())
 

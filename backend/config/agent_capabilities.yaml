@@ -9,7 +9,17 @@ agents:
         - "./backend/**/*.py"
         - "./tests/**/*.py"
         - "./examples/**/*.py"
-    description: "Can write Python code files in backend and tests directories"
+        - "./vscode-extension/**/*.ts"
+        - "./vscode-extension/**/*.js"
+        - "./**/*.html"
+        - "./*.html"
+        - "./**/*.css"
+        - "./*.css"
+        - "./**/*.json"
+        - "./*.json"
+        - "./**/*.yaml"
+        - "./*.yaml"
+    description: "Can write code files in various languages and formats"
 
   ArchitectAgent:
     capabilities:

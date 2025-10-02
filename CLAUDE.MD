@@ -22,6 +22,24 @@ Die vollständige Dokumentation wurde in separate Dateien ausgelagert für besse
   - OpusArbitrator Konfliktlösung
   - Performance-Vergleiche
 
+### 🤝 Agent Collaboration System (NEW v5.1)
+- **[AGENT_COLLABORATION](.kiautoagent/docs/AGENT_COLLABORATION.md)** - Agenten-Zusammenarbeit
+  - Reviewer → Fixer → Reviewer Zyklus
+  - CodeSmith → Research Kollaboration
+  - Dynamische Workflow-Modifikation
+- **[ORCHESTRATOR_LOOPBACK](.kiautoagent/docs/ORCHESTRATOR_LOOPBACK.md)** - Loop-Back Pattern
+  - Re-Planning Mechanismus
+  - State Flag Management
+  - Routing Priority System
+- **[LANGGRAPH_WORKFLOW](.kiautoagent/docs/LANGGRAPH_WORKFLOW.md)** - LangGraph Integration
+  - State Management Deep Dive
+  - Conditional Routing Patterns
+  - Dynamic Step Addition
+- **[FIXES_SESSION_2025_10_02](.kiautoagent/docs/FIXES_SESSION_2025_10_02.md)** - Session Fixes
+  - Settings → .env Auto-Sync
+  - Workflow Completion Bug Fix
+  - Complete Collaboration System
+
 ---
 
 ## 🚀 Quick Start für Claude
