@@ -1120,7 +1120,14 @@ class AgentWorkflow:
         6: OPUS ARBITRATOR (if user approved)
         7: HUMAN (final)
         """
-        from backend.config.settings import Settings
+        try:
+            from config.settings import Settings
+        except ImportError:
+            # Fallback for different import contexts
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from config.settings import Settings
 
         collab_count = state.get("collaboration_count", 0)
         rf_cycles = state.get("reviewer_fixer_cycles", 0)

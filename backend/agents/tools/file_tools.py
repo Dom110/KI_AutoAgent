@@ -65,7 +65,11 @@ class FileSystemTools:
             Tuple of (is_valid, error_message)
         """
         # Convert to absolute path
-        abs_path = os.path.abspath(os.path.join(self.workspace_path, file_path))
+        # v5.2.3 BUG FIX #7: Handle both absolute and relative paths
+        if os.path.isabs(file_path):
+            abs_path = os.path.abspath(file_path)
+        else:
+            abs_path = os.path.abspath(os.path.join(self.workspace_path, file_path))
 
         # Check if path is within workspace
         try:
