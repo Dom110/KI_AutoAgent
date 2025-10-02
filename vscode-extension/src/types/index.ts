@@ -124,3 +124,69 @@ export interface ValidationWorkflow {
     agents: string[];
     autoFix: boolean;
 }
+
+// ============================================================================
+// v5.2.0: Architecture Proposal System - WebSocket Message Types
+// ============================================================================
+
+/**
+ * Architecture proposal structure
+ */
+export interface ArchitectureProposal {
+    summary: string;                  // High-level architecture overview
+    improvements: string;              // Suggested improvements based on research
+    tech_stack: string;                // Recommended technologies with justifications
+    structure: string;                 // Folder/module structure
+    risks: string;                     // Potential challenges and mitigations
+    research_insights: string;         // Key research findings
+}
+
+/**
+ * Message sent from backend when architecture proposal is ready
+ */
+export interface ArchitectureProposalMessage {
+    type: 'architecture_proposal' | 'architecture_proposal_revised';
+    proposal: ArchitectureProposal;
+    formatted_message: string;         // Markdown formatted for display
+    session_id: string;
+}
+
+/**
+ * Message sent from frontend to backend with user's decision
+ */
+export interface ArchitectureApprovalRequest {
+    type: 'architecture_approval';
+    session_id: string;
+    decision: 'approved' | 'rejected' | 'modified';
+    feedback?: string;                 // Optional user comments/changes
+}
+
+/**
+ * Response from backend after processing approval
+ */
+export interface ArchitectureApprovalResponse {
+    type: 'architectureApprovalProcessed';
+    session_id: string;
+    decision: 'approved' | 'rejected' | 'modified';
+    message: string;
+}
+
+/**
+ * Union type for all WebSocket messages
+ */
+export type WebSocketMessage =
+    | { type: 'connected'; session_id: string; client_id: string; version: string }
+    | { type: 'chat'; content: string }
+    | { type: 'response'; agent: string; content: string; metadata?: any }
+    | { type: 'agent_thinking'; agent: string; message: string }
+    | { type: 'step_completed'; agent: string; task: string; result: any }
+    | { type: 'error'; message: string; traceback?: string }
+    | { type: 'planFirstModeUpdated'; enabled: boolean }
+    | { type: 'setWorkspace'; workspace_path: string }
+    | ArchitectureProposalMessage
+    | ArchitectureApprovalRequest
+    | ArchitectureApprovalResponse;
+
+// ============================================================================
+// End of v5.2.0 Message Types
+// ============================================================================

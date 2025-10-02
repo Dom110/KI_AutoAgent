@@ -102,6 +102,13 @@ class ExtendedAgentState(TypedDict):
     suggested_agent: Optional[str]  # Agent to collaborate with
     suggested_query: Optional[str]  # Query for suggested agent
 
+    # v5.2.0: Architecture Proposal System
+    architecture_proposal: Optional[Dict[str, Any]]  # Draft proposal from Architect (summary, improvements, tech_stack, structure, risks, research_insights)
+    proposal_status: Literal["none", "pending", "approved", "rejected", "modified"]  # Proposal workflow status
+    user_feedback_on_proposal: Optional[str]  # User's comments/changes on proposal
+    needs_approval: bool  # Generic approval flag (replaces waiting_for_approval)
+    approval_type: Literal["none", "execution_plan", "architecture_proposal"]  # Type of approval needed
+
     # Error handling and debugging
     errors: List[Dict[str, Any]]
     debug_mode: bool
@@ -120,7 +127,7 @@ class ExtendedAgentState(TypedDict):
 
     # Final results
     final_result: Optional[Any]
-    status: Literal["initializing", "planning", "awaiting_approval", "executing", "completed", "failed"]
+    status: Literal["initializing", "planning", "awaiting_approval", "waiting_architecture_approval", "executing", "completed", "failed"]
 
 
 def create_initial_state(
@@ -181,6 +188,13 @@ def create_initial_state(
         needs_replan=False,
         suggested_agent=None,
         suggested_query=None,
+
+        # v5.2.0: Architecture Proposal System
+        architecture_proposal=None,
+        proposal_status="none",
+        user_feedback_on_proposal=None,
+        needs_approval=False,
+        approval_type="none",
 
         # Debugging
         errors=[],

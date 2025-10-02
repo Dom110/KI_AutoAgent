@@ -336,6 +336,77 @@ async def websocket_chat(websocket: WebSocket):
                         "success": success
                     })
 
+            elif message_type == "architecture_approval":
+                # v5.2.0: Handle architecture proposal approval
+                session_id = data.get("session_id")
+                decision = data.get("decision")  # "approved", "rejected", "modified"
+                feedback = data.get("feedback", "")
+
+                logger.info(f"📋 Architecture approval received: {decision} (session: {session_id})")
+
+                if not session_id:
+                    logger.error("❌ No session_id in architecture_approval message")
+                    await manager.send_json(client_id, {
+                        "type": "error",
+                        "message": "Missing session_id"
+                    })
+                    return
+
+                if decision not in ["approved", "rejected", "modified"]:
+                    logger.error(f"❌ Invalid decision: {decision}")
+                    await manager.send_json(client_id, {
+                        "type": "error",
+                        "message": f"Invalid decision: {decision}"
+                    })
+                    return
+
+                # Find the session (in active_sessions or workflow state)
+                # For now, update session state and resume workflow
+                if workflow_system and hasattr(workflow_system, 'active_workflows'):
+                    # Find the workflow state
+                    workflow_state = None
+                    for ws_session_id, ws_state in workflow_system.active_workflows.items():
+                        if ws_session_id == session_id:
+                            workflow_state = ws_state
+                            break
+
+                    if workflow_state:
+                        # Update proposal status
+                        workflow_state["proposal_status"] = decision
+                        workflow_state["user_feedback_on_proposal"] = feedback
+                        workflow_state["needs_approval"] = False
+                        workflow_state["waiting_for_approval"] = False
+
+                        logger.info(f"✅ Updated workflow state: proposal_status={decision}")
+
+                        # Resume workflow (trigger re-execution of architect_node)
+                        # The workflow will continue from approval_node → architect_node
+                        # Architecture node will detect the new proposal_status and act accordingly
+
+                        await manager.send_json(client_id, {
+                            "type": "architectureApprovalProcessed",
+                            "session_id": session_id,
+                            "decision": decision,
+                            "message": f"Architecture proposal {decision}"
+                        })
+
+                        # Note: Workflow resumption would need to be implemented in workflow_system
+                        # For now, this just updates the state. The workflow orchestration
+                        # should detect the change and continue execution.
+                        logger.info(f"📋 Architecture approval processed - workflow should resume")
+                    else:
+                        logger.error(f"❌ Workflow state not found for session {session_id}")
+                        await manager.send_json(client_id, {
+                            "type": "error",
+                            "message": f"Workflow not found for session {session_id}"
+                        })
+                else:
+                    logger.error("❌ workflow_system not available or missing active_workflows")
+                    await manager.send_json(client_id, {
+                        "type": "error",
+                        "message": "Workflow system not available"
+                    })
+
             elif message_type == "setWorkspace":
                 # Set workspace path
                 session["workspace_path"] = data.get("workspace_path")

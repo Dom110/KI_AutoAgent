@@ -126,6 +126,10 @@ export class MultiAgentChatPanel {
                     case 'debug':
                         this.handleDebugMessage(message);
                         break;
+                    case 'architecture_approval':
+                        // v5.2.0: Forward architecture approval to backend
+                        await this.handleArchitectureApproval(message);
+                        break;
                 }
             },
             null,
@@ -312,6 +316,37 @@ export class MultiAgentChatPanel {
             }
         });
 
+        // v5.2.0: Handle architecture proposal messages
+        this.backendClient.on('architecture_proposal', (message: any) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`📋 Architecture proposal received`);
+            this.sendMessage({
+                type: 'architecture_proposal',
+                proposal: message.proposal,
+                session_id: message.session_id,
+                formatted_message: message.formatted_message
+            });
+        });
+
+        this.backendClient.on('architecture_proposal_revised', (message: any) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`📋 Revised architecture proposal received`);
+            this.sendMessage({
+                type: 'architecture_proposal_revised',
+                proposal: message.proposal,
+                session_id: message.session_id,
+                formatted_message: message.formatted_message
+            });
+        });
+
+        this.backendClient.on('architectureApprovalProcessed', (message: any) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`✅ Architecture approval processed: ${message.decision}`);
+            this.sendMessage({
+                type: 'architectureApprovalProcessed',
+                session_id: message.session_id,
+                decision: message.decision,
+                message: message.message
+            });
+        });
+
         MultiAgentChatPanel.debugChannel.appendLine('✅ Backend handlers setup complete');
     }
 
@@ -442,6 +477,29 @@ export class MultiAgentChatPanel {
 
         // For now, just show count - full history implementation can be added later
         vscode.window.showInformationMessage(`Conversation has ${this._conversationHistory.length} messages`);
+    }
+
+    /**
+     * v5.2.0: Handle architecture proposal approval from user
+     */
+    private async handleArchitectureApproval(message: any) {
+        MultiAgentChatPanel.debugChannel.appendLine(`📋 Handling architecture approval: ${message.decision}`);
+
+        try {
+            // Forward approval to backend via WebSocket
+            await this.backendClient.send({
+                type: 'architecture_approval',
+                session_id: message.session_id,
+                decision: message.decision,
+                feedback: message.feedback || ''
+            });
+
+            MultiAgentChatPanel.debugChannel.appendLine(`✅ Architecture approval sent to backend: ${message.decision}`);
+
+        } catch (error) {
+            MultiAgentChatPanel.debugChannel.appendLine(`❌ Error sending architecture approval: ${error}`);
+            vscode.window.showErrorMessage(`Failed to send architecture approval: ${error}`);
+        }
     }
 
     private async handleLoadHistory(message: any) {
@@ -1777,6 +1835,53 @@ export class MultiAgentChatPanel {
                             }
                             if (messageInput) messageInput.disabled = false;
                             break;
+
+                        case 'architecture_proposal':
+                        case 'architecture_proposal_revised':
+                            // v5.2.0: Architecture Proposal System
+                            console.log('📋 Architecture proposal received:', message);
+
+                            // Remove any existing proposal cards
+                            const existingProposal = document.querySelector('.architecture-proposal-card');
+                            if (existingProposal) {
+                                existingProposal.remove();
+                            }
+
+                            // Create and display proposal card
+                            const proposalCard = createArchitectureProposalCard(
+                                message.proposal,
+                                message.session_id || '',
+                                message.type === 'architecture_proposal_revised'
+                            );
+                            messagesDiv.appendChild(proposalCard);
+                            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+                            // Disable input while waiting for decision
+                            if (messageInput) messageInput.disabled = true;
+                            if (sendButton) sendButton.style.display = 'none';
+                            break;
+
+                        case 'architectureApprovalProcessed':
+                            // v5.2.0: Approval was processed
+                            console.log('✅ Architecture approval processed:', message.decision);
+
+                            // Remove proposal card
+                            const proposalToRemove = document.querySelector('.architecture-proposal-card');
+                            if (proposalToRemove) {
+                                proposalToRemove.remove();
+                            }
+
+                            // Show confirmation message
+                            addMessage(
+                                \`Architecture proposal \${message.decision}. Continuing with implementation...\`,
+                                'system',
+                                'architect'
+                            );
+
+                            // Re-enable input
+                            if (messageInput) messageInput.disabled = false;
+                            if (sendButton) sendButton.style.display = 'inline-block';
+                            break;
                     }
                 });
 
@@ -1849,6 +1954,201 @@ export class MultiAgentChatPanel {
                     });
                     progressMessages.clear();
                 }
+
+                // ============================================================================
+                // v5.2.0: Architecture Proposal Card
+                // ============================================================================
+
+                function createArchitectureProposalCard(proposal, sessionId, isRevised) {
+                    const card = document.createElement('div');
+                    card.className = 'architecture-proposal-card message';
+                    card.style.cssText = \`
+                        background: var(--vscode-editor-background);
+                        border: 2px solid var(--vscode-focusBorder);
+                        border-radius: 8px;
+                        padding: 20px;
+                        margin: 16px 0;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                    \`;
+
+                    // Header
+                    const header = document.createElement('div');
+                    header.style.cssText = 'border-bottom: 1px solid var(--vscode-panel-border); padding-bottom: 12px; margin-bottom: 16px;';
+                    header.innerHTML = \`
+                        <h2 style="margin: 0; color: var(--vscode-foreground); font-size: 20px;">
+                            🏛️ Architecture Proposal \${isRevised ? '(Revised)' : ''}
+                        </h2>
+                        <p style="margin: 8px 0 0 0; color: var(--vscode-descriptionForeground); font-size: 13px;">
+                            Please review the proposed architecture and provide your decision
+                        </p>
+                    \`;
+                    card.appendChild(header);
+
+                    // Content sections
+                    const sections = [
+                        { title: '📊 Summary', content: proposal.summary, expanded: true },
+                        { title: '✨ Suggested Improvements', content: proposal.improvements, expanded: true },
+                        { title: '🛠️ Tech Stack', content: proposal.tech_stack, expanded: false },
+                        { title: '📁 Project Structure', content: proposal.structure, expanded: false },
+                        { title: '⚠️ Risks & Mitigations', content: proposal.risks, expanded: false },
+                        { title: '🔍 Research Insights', content: proposal.research_insights, expanded: false }
+                    ];
+
+                    sections.forEach((section, index) => {
+                        const sectionDiv = document.createElement('div');
+                        sectionDiv.style.cssText = 'margin-bottom: 16px;';
+
+                        const sectionHeader = document.createElement('div');
+                        sectionHeader.style.cssText = \`
+                            cursor: pointer;
+                            padding: 8px;
+                            background: var(--vscode-list-hoverBackground);
+                            border-radius: 4px;
+                            font-weight: 600;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                        \`;
+
+                        const titleSpan = document.createElement('span');
+                        titleSpan.textContent = section.title;
+                        sectionHeader.appendChild(titleSpan);
+
+                        const toggleIcon = document.createElement('span');
+                        toggleIcon.textContent = section.expanded ? '▼' : '▶';
+                        toggleIcon.style.cssText = 'font-size: 10px;';
+                        sectionHeader.appendChild(toggleIcon);
+
+                        const sectionContent = document.createElement('div');
+                        sectionContent.style.cssText = \`
+                            padding: 12px;
+                            margin-top: 8px;
+                            background: var(--vscode-editor-background);
+                            border-left: 3px solid var(--vscode-focusBorder);
+                            border-radius: 0 4px 4px 0;
+                            white-space: pre-wrap;
+                            display: \${section.expanded ? 'block' : 'none'};
+                        \`;
+                        sectionContent.innerHTML = formatContent(section.content || 'No information provided');
+
+                        sectionHeader.onclick = () => {
+                            const isExpanded = sectionContent.style.display !== 'none';
+                            sectionContent.style.display = isExpanded ? 'none' : 'block';
+                            toggleIcon.textContent = isExpanded ? '▶' : '▼';
+                        };
+
+                        sectionDiv.appendChild(sectionHeader);
+                        sectionDiv.appendChild(sectionContent);
+                        card.appendChild(sectionDiv);
+                    });
+
+                    // Feedback textarea (initially hidden)
+                    const feedbackSection = document.createElement('div');
+                    feedbackSection.style.cssText = 'margin: 16px 0; display: none;';
+                    feedbackSection.id = 'feedback-section';
+
+                    const feedbackLabel = document.createElement('label');
+                    feedbackLabel.textContent = 'Your feedback or requested changes:';
+                    feedbackLabel.style.cssText = 'display: block; margin-bottom: 8px; font-weight: 500;';
+
+                    const feedbackTextarea = document.createElement('textarea');
+                    feedbackTextarea.id = 'proposal-feedback';
+                    feedbackTextarea.placeholder = 'Describe what you would like to change...';
+                    feedbackTextarea.style.cssText = \`
+                        width: 100%;
+                        min-height: 80px;
+                        padding: 8px;
+                        background: var(--vscode-input-background);
+                        color: var(--vscode-input-foreground);
+                        border: 1px solid var(--vscode-input-border);
+                        border-radius: 4px;
+                        font-family: var(--vscode-font-family);
+                        resize: vertical;
+                    \`;
+
+                    feedbackSection.appendChild(feedbackLabel);
+                    feedbackSection.appendChild(feedbackTextarea);
+                    card.appendChild(feedbackSection);
+
+                    // Action buttons
+                    const buttonContainer = document.createElement('div');
+                    buttonContainer.style.cssText = 'display: flex; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--vscode-panel-border);';
+
+                    const approveBtn = createProposalButton('✅ Approve', '#28a745', () => {
+                        sendArchitectureApproval(sessionId, 'approved', '');
+                        card.style.opacity = '0.6';
+                        card.style.pointerEvents = 'none';
+                    });
+
+                    const modifyBtn = createProposalButton('✏️ Modify', '#ffc107', () => {
+                        const feedbackSection = card.querySelector('#feedback-section');
+                        if (feedbackSection.style.display === 'none') {
+                            feedbackSection.style.display = 'block';
+                            modifyBtn.textContent = '📤 Submit Changes';
+                        } else {
+                            const feedback = feedbackTextarea.value.trim();
+                            if (!feedback) {
+                                vscode.postMessage({
+                                    command: 'showError',
+                                    message: 'Please provide feedback for modifications'
+                                });
+                                return;
+                            }
+                            sendArchitectureApproval(sessionId, 'modified', feedback);
+                            card.style.opacity = '0.6';
+                            card.style.pointerEvents = 'none';
+                        }
+                    });
+
+                    const rejectBtn = createProposalButton('❌ Reject', '#dc3545', () => {
+                        if (confirm('Are you sure you want to reject this architecture proposal?')) {
+                            sendArchitectureApproval(sessionId, 'rejected', '');
+                            card.style.opacity = '0.6';
+                            card.style.pointerEvents = 'none';
+                        }
+                    });
+
+                    buttonContainer.appendChild(approveBtn);
+                    buttonContainer.appendChild(modifyBtn);
+                    buttonContainer.appendChild(rejectBtn);
+                    card.appendChild(buttonContainer);
+
+                    return card;
+                }
+
+                function createProposalButton(text, color, onClick) {
+                    const btn = document.createElement('button');
+                    btn.textContent = text;
+                    btn.style.cssText = \`
+                        flex: 1;
+                        padding: 10px 20px;
+                        background: \${color};
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: opacity 0.2s;
+                    \`;
+                    btn.onmouseover = () => btn.style.opacity = '0.8';
+                    btn.onmouseout = () => btn.style.opacity = '1';
+                    btn.onclick = onClick;
+                    return btn;
+                }
+
+                function sendArchitectureApproval(sessionId, decision, feedback) {
+                    console.log(\`📤 Sending architecture approval: \${decision}\`, { sessionId, feedback });
+                    vscode.postMessage({
+                        type: 'architecture_approval',
+                        session_id: sessionId,
+                        decision: decision,
+                        feedback: feedback
+                    });
+                }
+
+                // ============================================================================
+                // End of v5.2.0 Architecture Proposal Card
+                // ============================================================================
 
                 // Initialization overlay functions
                 function showInitializationOverlay() {

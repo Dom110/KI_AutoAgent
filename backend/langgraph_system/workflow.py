@@ -298,53 +298,92 @@ class AgentWorkflow:
 
     async def approval_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
         """
-        Approval node for Plan-First mode
+        Approval node for Plan-First mode and Architecture Proposals (v5.2.0)
+
+        Handles two types of approvals:
+        1. execution_plan approval (Plan-First mode)
+        2. architecture_proposal approval (v5.2.0)
         """
         logger.info("✅ Approval node executing")
 
-        if not state.get("plan_first_mode"):
-            # Auto-approve if not in Plan-First mode
-            logger.info("📌 Auto-approving (not in Plan-First mode)")
-            state["approval_status"] = "approved"
+        # ============================================================
+        # v5.2.0: Check approval type
+        # ============================================================
+        approval_type = state.get("approval_type", "execution_plan")
+
+        # CASE 1: Architecture Proposal Approval (v5.2.0)
+        if approval_type == "architecture_proposal":
+            logger.info("📋 Waiting for architecture proposal approval")
+
+            # Update status to indicate waiting for architecture approval
+            state["status"] = "waiting_architecture_approval"
+            state["waiting_for_approval"] = True
+
+            # The approval will come via WebSocket (handled in websocket_endpoint.py)
+            # When user approves/rejects/modifies, the workflow will resume
+            # For now, just mark that we're waiting
+            logger.info("⏸️  Architecture proposal sent - awaiting user decision")
+            return state
+
+        # CASE 2: Execution Plan Approval (existing Plan-First mode)
+        if approval_type == "execution_plan":
+            logger.info("📋 Execution plan approval flow")
+
+            if not state.get("plan_first_mode"):
+                # Auto-approve if not in Plan-First mode
+                logger.info("📌 Auto-approving (not in Plan-First mode)")
+                state["approval_status"] = "approved"
+                state["waiting_for_approval"] = False
+
+                # ✅ FIX: Set current_step_id to first pending step HERE (node can modify state)
+                for step in state["execution_plan"]:
+                    if step.status == "pending" and self._dependencies_met(step, state["execution_plan"]):
+                        step.status = "in_progress"
+                        state["current_step_id"] = step.id
+                        state["execution_plan"] = list(state["execution_plan"])  # Trigger state update
+                        logger.info(f"📍 Set current_step_id to: {step.id} for agent: {step.agent}")
+                        break
+
+                return state
+
+            # Request approval from user
+            request = await self.approval_manager.request_approval(
+                client_id=state["client_id"],
+                plan=state["execution_plan"],
+                metadata={
+                    "task": state["current_task"],
+                    "agent_count": len(set(step.agent for step in state["execution_plan"]))
+                }
+            )
+
+            state["approval_status"] = request.status
+            state["approval_feedback"] = request.feedback
             state["waiting_for_approval"] = False
 
-            # ✅ FIX: Set current_step_id to first pending step HERE (node can modify state)
-            for step in state["execution_plan"]:
-                if step.status == "pending" and self._dependencies_met(step, state["execution_plan"]):
-                    step.status = "in_progress"
-                    state["current_step_id"] = step.id
-                    state["execution_plan"] = list(state["execution_plan"])  # Trigger state update
-                    logger.info(f"📍 Set current_step_id to: {step.id} for agent: {step.agent}")
-                    break
+            if request.status == "modified" and request.modifications:
+                # Apply modifications to plan
+                state["execution_plan"] = self._apply_plan_modifications(
+                    state["execution_plan"],
+                    request.modifications
+                )
 
             return state
 
-        # Request approval from user
-        request = await self.approval_manager.request_approval(
-            client_id=state["client_id"],
-            plan=state["execution_plan"],
-            metadata={
-                "task": state["current_task"],
-                "agent_count": len(set(step.agent for step in state["execution_plan"]))
-            }
-        )
-
-        state["approval_status"] = request.status
-        state["approval_feedback"] = request.feedback
+        # FALLBACK: Unknown approval type
+        logger.warning(f"⚠️ Unknown approval_type: {approval_type}")
         state["waiting_for_approval"] = False
-
-        if request.status == "modified" and request.modifications:
-            # Apply modifications to plan
-            state["execution_plan"] = self._apply_plan_modifications(
-                state["execution_plan"],
-                request.modifications
-            )
-
         return state
 
     async def architect_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
         """
         Architect agent node - system design and architecture
+
+        v5.2.0: Now includes Architecture Proposal System
+        Flow:
+        1. Do research (existing behavior)
+        2. Create proposal and wait for user approval
+        3. If approved: finalize architecture
+        4. If rejected/modified: revise and re-submit
         """
         logger.info("🏗️ Architect node executing")
         state["current_agent"] = "architect"
@@ -365,17 +404,110 @@ class AgentWorkflow:
         similar = memory.recall_similar(current_step.task, k=5, memory_types=["semantic", "procedural"])
         state["recalled_memories"].extend(similar)
 
-        # Execute architecture task
         try:
-            # This would call the actual architect agent
+            # ============================================================
+            # v5.2.0: PHASE 1 - Check proposal status
+            # ============================================================
+            proposal_status = state.get("proposal_status", "none")
+
+            # CASE 1: Proposal approved → Finalize architecture
+            if proposal_status == "approved":
+                logger.info("✅ Proposal approved - finalizing architecture")
+                final_result = await self._finalize_architecture(state)
+                current_step.result = final_result
+                current_step.status = "completed"
+                state["execution_plan"] = list(state["execution_plan"])
+
+                # Store in memory
+                memory.store_memory(
+                    content=f"Approved architecture: {current_step.task}",
+                    memory_type="procedural",
+                    importance=0.9,
+                    metadata={"result": final_result, "user_approved": True},
+                    session_id=state.get("session_id")
+                )
+
+                logger.info("✅ Architecture finalized after approval")
+                return state
+
+            # CASE 2: Proposal rejected/modified → Revise
+            if proposal_status in ["rejected", "modified"]:
+                logger.info(f"✏️ Proposal {proposal_status} - revising based on feedback")
+                user_feedback = state.get("user_feedback_on_proposal", "")
+
+                revised_proposal = await self._revise_proposal(state, user_feedback)
+                state["architecture_proposal"] = revised_proposal
+                state["proposal_status"] = "pending"
+                state["needs_approval"] = True
+                state["approval_type"] = "architecture_proposal"
+
+                # Format for user
+                formatted_msg = self._format_proposal_for_user(revised_proposal)
+
+                # Send to user via WebSocket (will be handled by workflow orchestration)
+                state["messages"].append({
+                    "role": "assistant",
+                    "content": formatted_msg,
+                    "type": "architecture_proposal_revised",
+                    "proposal": revised_proposal
+                })
+
+                logger.info("📋 Revised proposal sent to user")
+                return state
+
+            # ============================================================
+            # v5.2.0: PHASE 2 - No proposal yet → Do research & create proposal
+            # ============================================================
+            if not state.get("architecture_proposal"):
+                logger.info("📋 No proposal exists - performing research and creating proposal")
+
+                # Step 1: Do research (existing behavior)
+                research_result = await self._execute_architect_task(state, current_step)
+                logger.info(f"🔍 Research completed: {research_result[:200]}...")
+
+                # Step 2: Create proposal based on research
+                proposal = await self._create_architecture_proposal(state, research_result)
+                state["architecture_proposal"] = proposal
+                state["proposal_status"] = "pending"
+                state["needs_approval"] = True
+                state["approval_type"] = "architecture_proposal"
+
+                # Step 3: Format for user
+                formatted_msg = self._format_proposal_for_user(proposal)
+
+                # Step 4: Send to user
+                state["messages"].append({
+                    "role": "assistant",
+                    "content": formatted_msg,
+                    "type": "architecture_proposal",
+                    "proposal": proposal
+                })
+
+                # Update step status to pending (waiting for approval)
+                current_step.status = "in_progress"
+                state["execution_plan"] = list(state["execution_plan"])
+
+                # Store research in memory
+                memory.store_memory(
+                    content=f"Architecture research: {current_step.task}",
+                    memory_type="procedural",
+                    importance=0.7,
+                    metadata={"research": research_result[:500], "proposal_created": True},
+                    session_id=state.get("session_id")
+                )
+
+                logger.info("📋 Architecture proposal created and sent to user")
+                return state
+
+            # ============================================================
+            # FALLBACK: Should not reach here
+            # ============================================================
+            logger.warning("⚠️ Unexpected architect_node state - falling back to old behavior")
             result = await self._execute_architect_task(state, current_step)
             current_step.result = result
             current_step.status = "completed"
-
-            # ✅ FIX: Create NEW list to trigger LangGraph state update
             state["execution_plan"] = list(state["execution_plan"])
 
-            # Store successful result in memory
             memory.store_memory(
                 content=f"Architecture design: {current_step.task}",
                 memory_type="procedural",
@@ -384,15 +516,8 @@ class AgentWorkflow:
                 session_id=state.get("session_id")
             )
 
-            # Learn from this execution
-            memory.learn_pattern(
-                pattern=current_step.task,
-                solution=result,
-                success=True
-            )
-
         except Exception as e:
-            logger.error(f"Architect execution failed: {e}")
+            logger.error(f"❌ Architect execution failed: {e}", exc_info=True)
             current_step.status = "failed"
             current_step.error = str(e)
             state["errors"].append({
@@ -400,7 +525,6 @@ class AgentWorkflow:
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()
             })
-            # ✅ FIX: Create NEW list even on failure
             state["execution_plan"] = list(state["execution_plan"])
 
         return state
@@ -1561,6 +1685,296 @@ Based on my analysis, this query requires contextual understanding. As the orche
 - CDN integration
 
 ⚠️ This is a STUB response - real ArchitectAgent would provide more detailed analysis."""
+
+    # ============================================================================
+    # v5.2.0: Architecture Proposal System - Helper Functions
+    # ============================================================================
+
+    async def _create_architecture_proposal(
+        self,
+        state: ExtendedAgentState,
+        research_results: str
+    ) -> Dict[str, Any]:
+        """
+        Create architecture proposal with improvements based on research
+
+        Args:
+            state: Current workflow state
+            research_results: Research findings from architect's initial analysis
+
+        Returns:
+            Dict with proposal sections: summary, improvements, tech_stack, structure, risks, research_insights
+        """
+        logger.info("📋 Creating architecture proposal...")
+
+        original_request = state.get("task_description", "")
+        current_step = self._get_current_step(state)
+        task = current_step.task if current_step else original_request
+
+        # Build prompt for architect to create proposal
+        prompt = f"""Based on your research, create a comprehensive ARCHITECTURE PROPOSAL for user approval.
+
+**Original User Request:**
+{original_request}
+
+**Architect Task:**
+{task}
+
+**Research Findings:**
+{research_results}
+
+Create a detailed proposal in JSON format with these sections:
+
+1. **summary**: High-level architecture overview (2-3 paragraphs)
+2. **improvements**: Suggested improvements to user's original idea based on research findings (bulleted list)
+3. **tech_stack**: Recommended technologies with justifications (including alternatives considered)
+4. **structure**: Folder/module structure with explanations
+5. **risks**: Potential challenges and mitigation strategies
+6. **research_insights**: Key findings from research that influenced design decisions
+
+**IMPORTANT:**
+- Be specific and actionable
+- Explain WHY each decision was made
+- Reference research findings that support decisions
+- Suggest improvements even if not explicitly requested
+- Consider scalability, maintainability, testability
+
+Return ONLY valid JSON with these exact keys."""
+
+        # Call architect agent to create proposal
+        if "architect" in self.real_agents:
+            try:
+                agent = self.real_agents["architect"]
+                task_request = TaskRequest(
+                    prompt=prompt,
+                    context={
+                        "task_type": "architecture_proposal",
+                        "workspace_path": state.get("workspace_path"),
+                        "session_id": state.get("session_id"),
+                        "research_results": research_results
+                    }
+                )
+                result = await agent.execute(task_request)
+                content = result.content if hasattr(result, 'content') else str(result)
+
+                # Try to parse JSON
+                import json
+                import re
+
+                # Extract JSON if wrapped in markdown code blocks
+                json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+                if json_match:
+                    content = json_match.group(1)
+
+                proposal = json.loads(content)
+
+                # Validate required keys
+                required_keys = ["summary", "improvements", "tech_stack", "structure", "risks", "research_insights"]
+                if not all(key in proposal for key in required_keys):
+                    raise ValueError(f"Missing required keys in proposal. Got: {list(proposal.keys())}")
+
+                logger.info("✅ Architecture proposal created successfully")
+                return proposal
+
+            except Exception as e:
+                logger.error(f"❌ Failed to create structured proposal: {e}")
+                logger.warning("⚠️ Falling back to text-based proposal")
+
+                # Fallback: Create basic structured proposal from text
+                return {
+                    "summary": f"Architecture for: {task}",
+                    "improvements": "- Research-backed design decisions\n- Scalable architecture\n- Best practices applied",
+                    "tech_stack": research_results[:500] if research_results else "Modern tech stack",
+                    "structure": "Standard modular architecture",
+                    "risks": "Standard implementation risks - will be addressed during development",
+                    "research_insights": research_results[:500] if research_results else "Based on research findings"
+                }
+
+        # Stub fallback if no real agent
+        logger.warning("⚠️ No real architect agent available - using stub proposal")
+        return {
+            "summary": f"Proposed architecture for: {task}",
+            "improvements": "- Modern best practices\n- Scalable design\n- Maintainable structure",
+            "tech_stack": "Modern technology stack based on requirements",
+            "structure": "Modular architecture with clear separation of concerns",
+            "risks": "Implementation complexity, integration challenges",
+            "research_insights": "Based on industry best practices and research"
+        }
+
+    def _format_proposal_for_user(self, proposal: Dict[str, Any]) -> str:
+        """
+        Format architecture proposal for user display (markdown)
+
+        Args:
+            proposal: Proposal dict from _create_architecture_proposal
+
+        Returns:
+            Formatted markdown string for display
+        """
+        return f"""
+# 🏛️ Architecture Proposal
+
+## 📊 Summary
+{proposal.get('summary', 'No summary available')}
+
+## ✨ Suggested Improvements
+*(Based on research findings)*
+
+{proposal.get('improvements', 'No improvements suggested')}
+
+## 🛠️ Recommended Tech Stack
+{proposal.get('tech_stack', 'No tech stack specified')}
+
+## 📁 Project Structure
+{proposal.get('structure', 'No structure defined')}
+
+## ⚠️ Risks & Mitigations
+{proposal.get('risks', 'No risks identified')}
+
+## 🔍 Research Insights
+{proposal.get('research_insights', 'No research insights available')}
+
+---
+**Please review this architecture proposal and choose:**
+- ✅ **Approve** - Proceed with this design
+- ✏️ **Modify** - Request changes (provide feedback)
+- ❌ **Reject** - Start over with different approach
+"""
+
+    async def _finalize_architecture(self, state: ExtendedAgentState) -> str:
+        """
+        Finalize architecture design after proposal approval
+
+        Args:
+            state: Current workflow state with approved proposal
+
+        Returns:
+            Finalized architecture document
+        """
+        logger.info("✅ Finalizing approved architecture...")
+
+        proposal = state.get("architecture_proposal", {})
+        user_feedback = state.get("user_feedback_on_proposal", "")
+
+        # Build final architecture document
+        final_doc = f"""# 🏗️ FINALIZED ARCHITECTURE
+
+## Status
+✅ **APPROVED BY USER**
+
+{f"## User Feedback{chr(10)}{user_feedback}{chr(10)}" if user_feedback else ""}
+
+## Architecture Summary
+{proposal.get('summary', '')}
+
+## Technology Stack
+{proposal.get('tech_stack', '')}
+
+## Project Structure
+{proposal.get('structure', '')}
+
+## Risk Management
+{proposal.get('risks', '')}
+
+## Implementation Notes
+Based on research insights:
+{proposal.get('research_insights', '')}
+
+---
+**Next Steps:**
+1. CodeSmith will implement the core structure
+2. Components will be developed according to this architecture
+3. Reviewer will validate implementation matches design
+"""
+
+        logger.info("✅ Architecture finalized")
+        return final_doc
+
+    async def _revise_proposal(
+        self,
+        state: ExtendedAgentState,
+        user_feedback: str
+    ) -> Dict[str, Any]:
+        """
+        Revise architecture proposal based on user feedback
+
+        Args:
+            state: Current workflow state
+            user_feedback: User's comments/requested changes
+
+        Returns:
+            Revised proposal dict
+        """
+        logger.info(f"✏️ Revising proposal based on feedback: {user_feedback[:100]}...")
+
+        original_proposal = state.get("architecture_proposal", {})
+        original_request = state.get("task_description", "")
+
+        # Build revision prompt
+        prompt = f"""Revise the architecture proposal based on user feedback.
+
+**Original Proposal:**
+{json.dumps(original_proposal, indent=2)}
+
+**User Feedback:**
+{user_feedback}
+
+**Original Request:**
+{original_request}
+
+Create a REVISED proposal that addresses the user's feedback while maintaining the original goals.
+
+Return ONLY valid JSON with the same structure: summary, improvements, tech_stack, structure, risks, research_insights.
+
+**Important:**
+- Address ALL points in user feedback
+- Explain what changed and why
+- Maintain coherence with original research
+"""
+
+        # Call architect agent to revise
+        if "architect" in self.real_agents:
+            try:
+                agent = self.real_agents["architect"]
+                task_request = TaskRequest(
+                    prompt=prompt,
+                    context={
+                        "task_type": "proposal_revision",
+                        "workspace_path": state.get("workspace_path"),
+                        "session_id": state.get("session_id"),
+                        "user_feedback": user_feedback
+                    }
+                )
+                result = await agent.execute(task_request)
+                content = result.content if hasattr(result, 'content') else str(result)
+
+                # Parse JSON
+                import json
+                import re
+                json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+                if json_match:
+                    content = json_match.group(1)
+
+                revised_proposal = json.loads(content)
+                logger.info("✅ Proposal revised successfully")
+                return revised_proposal
+
+            except Exception as e:
+                logger.error(f"❌ Failed to revise proposal: {e}")
+                logger.warning("⚠️ Returning original proposal with feedback note")
+
+                # Fallback: Add feedback note to original
+                original_proposal["improvements"] = f"USER FEEDBACK: {user_feedback}\n\n" + original_proposal.get("improvements", "")
+                return original_proposal
+
+        # Stub fallback
+        logger.warning("⚠️ No real architect agent - returning original with note")
+        original_proposal["improvements"] = f"**User requested:** {user_feedback}\n\n" + original_proposal.get("improvements", "")
+        return original_proposal
+
+    # ============================================================================
+    # End of v5.2.0 Helper Functions
+    # ============================================================================
 
     async def _execute_codesmith_task(self, state: ExtendedAgentState, step: ExecutionStep, patterns: List) -> Any:
         """Execute codesmith task with real agent or stub"""
