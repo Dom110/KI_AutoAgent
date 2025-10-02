@@ -16,6 +16,18 @@ export interface ModelConfig {
         fast: string;
         reasoning: string;
     };
+    descriptions?: Array<{
+        id: string;
+        name: string;
+        tier: string;
+        bestFor: string;
+        pros: string[];
+        cons: string[];
+        costPerMToken: {
+            input: number;
+            output: number;
+        };
+    }>;
 }
 
 export class ModelSettingsManager {
@@ -143,7 +155,7 @@ export class ModelSettingsManager {
         // Add recommended badge
         if (modelData.recommended) {
             const recommendedIds = Object.values(modelData.recommended);
-            items.forEach(item => {
+            items.forEach((item: { label: string; description: string; detail: string; model: string }) => {
                 if (recommendedIds.includes(item.model)) {
                     item.label = `⭐ ${item.label} (Recommended)`;
                 }
@@ -159,7 +171,7 @@ export class ModelSettingsManager {
             matchOnDetail: true
         });
 
-        return selected?.model;
+        return selected ? (selected as any).model : undefined;
     }
 
     /**

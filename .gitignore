@@ -9,3 +9,11 @@ vscode-extension/package-lock.json
 .ki_autoagent/
 backend_server.log
 agent_projects/
+
+# Database files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3

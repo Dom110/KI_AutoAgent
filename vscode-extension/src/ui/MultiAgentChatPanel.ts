@@ -487,11 +487,14 @@ export class MultiAgentChatPanel {
 
         try {
             // Forward approval to backend via WebSocket
-            await this.backendClient.send({
-                type: 'architecture_approval',
-                session_id: message.session_id,
-                decision: message.decision,
-                feedback: message.feedback || ''
+            await this.backendClient.sendMessage({
+                type: 'command' as any,
+                content: 'architecture_approval',
+                metadata: {
+                    session_id: message.session_id,
+                    decision: message.decision,
+                    feedback: message.feedback || ''
+                }
             });
 
             MultiAgentChatPanel.debugChannel.appendLine(`✅ Architecture approval sent to backend: ${message.decision}`);
