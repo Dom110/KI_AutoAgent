@@ -20,7 +20,14 @@ class GitCheckpointManager:
     - Checkpoint diffing
     """
 
-    def __init__(self):
+    def __init__(self, project_path: Optional[str] = None):
+        """
+        Initialize git checkpoint manager
+
+        Args:
+            project_path: Optional project path for git operations
+        """
+        self.project_path = project_path
         self._checkpoints: List[Dict[str, Any]] = []
         logger.info("📦 GitCheckpointManager initialized (stub implementation)")
 
