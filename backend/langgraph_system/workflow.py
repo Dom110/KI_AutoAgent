@@ -182,6 +182,45 @@ class AgentWorkflow:
             logger.info("🔄 RE-PLANNING MODE: Agent requested collaboration")
             suggested_agent = state.get("suggested_agent", "unknown")
             suggested_query = state.get("suggested_query", "Continue work")
+            current_agent = state.get("current_agent", "unknown")
+
+            # 📊 TRACK COLLABORATION (v5.1.0: Information-First Escalation)
+            collab_count = state.get("collaboration_count", 0) + 1
+            state["collaboration_count"] = collab_count
+
+            # Track agent sequence pattern
+            last_agents = list(state.get("last_collaboration_agents", []))
+            last_agents.append(current_agent)
+            last_agents.append(suggested_agent)
+            state["last_collaboration_agents"] = last_agents[-10:]  # Keep last 10
+
+            # Track Reviewer↔Fixer specific cycles
+            if current_agent == "reviewer" and suggested_agent == "fixer":
+                rf_cycles = state.get("reviewer_fixer_cycles", 0) + 1
+                state["reviewer_fixer_cycles"] = rf_cycles
+
+            # Log detailed collaboration history
+            history = list(state.get("collaboration_history", []))
+            history.append({
+                "from": current_agent,
+                "to": suggested_agent,
+                "query": suggested_query[:100],
+                "count": collab_count,
+                "timestamp": datetime.now().isoformat()
+            })
+            state["collaboration_history"] = history
+
+            logger.info(f"📊 Collaboration #{collab_count}: {current_agent} → {suggested_agent}")
+            logger.info(f"📊 Reviewer↔Fixer cycles: {state.get('reviewer_fixer_cycles', 0)}")
+
+            # 🚨 CHECK ESCALATION NEEDED (v5.1.0)
+            escalation_result = self._check_escalation_needed(state, suggested_agent, suggested_query)
+            if escalation_result["escalate"]:
+                # Override suggested agent based on escalation logic
+                suggested_agent = escalation_result["new_agent"]
+                suggested_query = escalation_result["new_query"]
+                state["escalation_level"] = escalation_result["level"]
+                logger.warning(f"⚠️ ESCALATION LEVEL {escalation_result['level']}: {escalation_result['reason']}")
 
             # Create new step for the suggested agent
             existing_plan = state.get("execution_plan", [])
@@ -541,13 +580,136 @@ class AgentWorkflow:
 
         return state
 
+    async def research_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
+        """
+        Research agent node - information gathering using Perplexity
+        v5.1.0: Key part of information-first escalation
+        """
+        logger.info("🔍 Research node executing")
+        state["current_agent"] = "research"
+
+        current_step = self._get_current_step(state)
+        if not current_step:
+            return state
+
+        try:
+            # Get research query from task
+            research_query = current_step.task
+
+            # Execute research using ResearchAgent
+            if RESEARCH_AVAILABLE and "research" in self.real_agents:
+                research_agent = self.real_agents["research"]
+
+                task_request = TaskRequest(
+                    prompt=research_query,
+                    context={"session_id": state["session_id"]}
+                )
+
+                result = await research_agent.execute(task_request)
+                research_result = result.content
+
+                logger.info(f"✅ Research completed: {len(research_result)} characters")
+            else:
+                # Fallback if research not available
+                logger.warning("⚠️ ResearchAgent not available - using placeholder")
+                research_result = f"Research placeholder for: {research_query}"
+
+            # Store result
+            current_step.result = research_result
+            current_step.status = "completed"
+            state["execution_plan"] = list(state["execution_plan"])
+
+            # Track research in information_gathered
+            info_gathered = list(state.get("information_gathered", []))
+            info_gathered.append({
+                "level": state.get("escalation_level", 0),
+                "query": research_query,
+                "result": research_result,
+                "summary": research_result[:200],
+                "timestamp": datetime.now().isoformat()
+            })
+            state["information_gathered"] = info_gathered
+
+            logger.info(f"📚 Information gathered: {len(info_gathered)} total research results")
+
+        except Exception as e:
+            logger.error(f"Research execution failed: {e}")
+            current_step.status = "failed"
+            current_step.error = str(e)
+            state["execution_plan"] = list(state["execution_plan"])
+
+        return state
+
+    async def fixer_gpt_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
+        """
+        Alternative Fixer node using GPT (v5.1.0)
+        Provides fresh perspective when Claude FixerBot fails
+        """
+        logger.info("🔧🔄 FixerGPT node executing (ALTERNATIVE FIXER)")
+        state["current_agent"] = "fixer_gpt"
+
+        current_step = self._get_current_step(state)
+        if not current_step:
+            return state
+
+        try:
+            # Import FixerGPTAgent
+            from agents.specialized.fixer_gpt_agent import FixerGPTAgent
+
+            # Get context for alternative fixer
+            previous_attempts = [
+                h for h in state.get("collaboration_history", [])
+                if h.get("to") in ["fixer", "fixer_gpt"]
+            ]
+            research_results = state.get("information_gathered", [])
+
+            # Initialize FixerGPT
+            fixer_gpt = FixerGPTAgent()
+
+            # Execute with full context
+            task_request = TaskRequest(
+                prompt=current_step.task,
+                context={
+                    "previous_attempts": previous_attempts,
+                    "research_results": research_results,
+                    "issue": current_step.task,
+                    "session_id": state["session_id"],
+                    "workspace_path": state["workspace_path"]
+                }
+            )
+
+            result = await fixer_gpt.execute(task_request)
+            fix_result = result.content
+
+            logger.info(f"✅ FixerGPT completed: {len(fix_result)} characters")
+
+            # Store result
+            current_step.result = fix_result
+            current_step.status = "completed"
+            state["execution_plan"] = list(state["execution_plan"])
+
+            # Request re-review
+            state["needs_replan"] = True
+            state["suggested_agent"] = "reviewer"
+            state["suggested_query"] = f"Re-review after FixerGPT fix: {fix_result[:100]}"
+
+            logger.info("🔄 Requesting re-review after FixerGPT")
+
+        except Exception as e:
+            logger.error(f"FixerGPT execution failed: {e}")
+            current_step.status = "failed"
+            current_step.error = str(e)
+            state["execution_plan"] = list(state["execution_plan"])
+
+        return state
+
     def route_after_approval(self, state: ExtendedAgentState) -> str:
         """
         Route after approval node - intelligently routes to first pending agent
         Validates that the agent has a workflow node, fallback to orchestrator if not
         """
         # Available workflow nodes (agents with implemented nodes)
-        AVAILABLE_NODES = {"orchestrator", "architect", "codesmith", "reviewer", "fixer"}
+        AVAILABLE_NODES = {"orchestrator", "architect", "codesmith", "reviewer", "fixer", "research", "fixer_gpt"}
 
         status = state.get("approval_status")
         logger.info(f"🔀 Route after approval - Status: {status}")
@@ -601,7 +763,7 @@ class AgentWorkflow:
         Validates that the agent has a workflow node, fallback to orchestrator if not
         """
         # Available workflow nodes (agents with implemented nodes)
-        AVAILABLE_NODES = {"orchestrator", "architect", "codesmith", "reviewer", "fixer"}
+        AVAILABLE_NODES = {"orchestrator", "architect", "codesmith", "reviewer", "fixer", "research", "fixer_gpt"}
 
         logger.info(f"🔀 Routing to next agent...")
         logger.info(f"📋 Execution plan has {len(state['execution_plan'])} steps")
@@ -670,6 +832,165 @@ class AgentWorkflow:
             if step.agent == agent and step.status == "completed":
                 return step
         return None
+
+    def _check_escalation_needed(
+        self,
+        state: ExtendedAgentState,
+        suggested_agent: str,
+        suggested_query: str
+    ) -> Dict[str, Any]:
+        """
+        v5.1.0: Information-First Escalation System
+
+        Check if escalation is needed based on collaboration count.
+        Returns escalation decision with new agent/query if needed.
+
+        Levels:
+        0-1: Normal retries (1-4 iterations)
+        2: BROAD research (5-6 iterations)
+        3: TARGETED research (7-8 iterations)
+        4: ALTERNATIVE approach (9-10 iterations)
+        4.5: ALTERNATIVE FIXER KI (11-12 iterations)
+        5: USER QUESTION (13+ iterations)
+        6: OPUS ARBITRATOR (if user approved)
+        7: HUMAN (final)
+        """
+        from backend.config.settings import Settings
+
+        collab_count = state.get("collaboration_count", 0)
+        rf_cycles = state.get("reviewer_fixer_cycles", 0)
+        last_agents = state.get("last_collaboration_agents", [])
+
+        # Check for Reviewer↔Fixer loop pattern
+        is_rf_loop = (
+            suggested_agent in ["reviewer", "fixer"] and
+            len(last_agents) >= 4 and
+            (last_agents[-4:] == ["reviewer", "fixer", "reviewer", "fixer"] or
+             last_agents[-4:] == ["fixer", "reviewer", "fixer", "reviewer"])
+        )
+
+        # LEVEL 0-1: Normal retries (1-4 iterations)
+        if collab_count <= 4:
+            return {
+                "escalate": False,
+                "level": 0,
+                "new_agent": suggested_agent,
+                "new_query": suggested_query,
+                "reason": "Normal operation"
+            }
+
+        # LEVEL 2: BROAD research (5-6 iterations)
+        if 5 <= collab_count <= 6 and is_rf_loop:
+            research_query = f"""Research how to solve this type of issue:
+
+Issue: {suggested_query[:300]}
+
+Find:
+1. Best practices for this issue type
+2. Common solutions with code examples
+3. Official documentation references
+4. Known pitfalls to avoid
+
+Focus on practical, working solutions."""
+
+            return {
+                "escalate": True,
+                "level": 2,
+                "new_agent": "research",
+                "new_query": research_query,
+                "reason": "Broad information gathering - general best practices"
+            }
+
+        # LEVEL 3: TARGETED research (7-8 iterations)
+        if 7 <= collab_count <= 8 and rf_cycles >= 3:
+            # Get error details from history
+            history = state.get("collaboration_history", [])
+            failed_fixes = [h for h in history if h.get("to") == "fixer"][-3:]
+
+            research_query = f"""Deep-dive research for SPECIFIC solution:
+
+Problem: {suggested_query[:200]}
+
+Previous failed attempts:
+{chr(10).join(f"- Attempt {i+1}: {h.get('query', 'unknown')[:80]}..." for i, h in enumerate(failed_fixes))}
+
+Find SPECIFICALLY:
+1. Solutions for this EXACT error/issue
+2. GitHub issues or Stack Overflow with this problem
+3. Working code examples for THIS specific case
+4. Version-specific fixes or migrations"""
+
+            return {
+                "escalate": True,
+                "level": 3,
+                "new_agent": "research",
+                "new_query": research_query,
+                "reason": "Targeted information gathering - specific solutions"
+            }
+
+        # LEVEL 4: ALTERNATIVE approach (9-10 iterations)
+        if 9 <= collab_count <= 10 and rf_cycles >= 4:
+            research_query = f"""DIAGNOSTIC research - Is current approach correct?
+
+Current approach (failing): {suggested_query[:200]}
+
+Research:
+1. Is this implementation approach fundamentally correct?
+2. What alternative approaches exist for this problem?
+3. Are there known issues with the current approach?
+4. What do experts/docs recommend for this scenario?
+5. Should we re-implement with different architecture?"""
+
+            return {
+                "escalate": True,
+                "level": 4,
+                "new_agent": "research",
+                "new_query": research_query,
+                "reason": "Alternative approach research - rethink strategy"
+            }
+
+        # LEVEL 4.5: ALTERNATIVE FIXER KI (11-12 iterations)
+        if 11 <= collab_count <= 12:
+            # Check if alternative fixer enabled
+            if not Settings.ALTERNATIVE_FIXER_ENABLED:
+                logger.info("⚠️ Alternative Fixer disabled - skipping to next level")
+                collab_count = 13  # Force to Level 5
+
+            # Check if we already tried alternative fixer
+            tried_fixer_gpt = any(
+                h.get("to") == "fixer_gpt"
+                for h in state.get("collaboration_history", [])
+            )
+
+            if not tried_fixer_gpt and Settings.ALTERNATIVE_FIXER_ENABLED:
+                return {
+                    "escalate": True,
+                    "level": 4.5,
+                    "new_agent": "fixer_gpt",
+                    "new_query": f"Fix with alternative AI perspective: {suggested_query}",
+                    "reason": f"Alternative Fixer KI ({Settings.ALTERNATIVE_FIXER_MODEL}) - fresh perspective"
+                }
+
+        # LEVEL 5: Safety net - max iterations
+        max_iterations = getattr(Settings, 'LANGGRAPH_MAX_ITERATIONS', 20)
+        if collab_count >= max_iterations:
+            logger.error(f"🚨 SAFETY STOP: {collab_count} collaborations exceeds max {max_iterations}")
+            return {
+                "escalate": True,
+                "level": 7,
+                "new_agent": "end",
+                "new_query": f"Exceeded maximum iterations ({max_iterations})",
+                "reason": "Safety net - preventing infinite loop"
+            }
+
+        # DEFAULT: No escalation
+        return {
+            "escalate": False,
+            "level": 0,
+            "new_agent": suggested_agent,
+            "new_query": suggested_query,
+            "reason": "Normal operation"
+        }
 
     async def _create_execution_plan(self, state: ExtendedAgentState) -> List[ExecutionStep]:
         """
@@ -1485,6 +1806,8 @@ Based on my analysis, this query requires contextual understanding. As the orche
         workflow.add_node("codesmith", self.codesmith_node)
         workflow.add_node("reviewer", self.reviewer_node)
         workflow.add_node("fixer", self.fixer_node)
+        workflow.add_node("research", self.research_node)  # v5.1.0
+        workflow.add_node("fixer_gpt", self.fixer_gpt_node)  # v5.1.0
 
         # Set entry point
         workflow.set_entry_point("orchestrator")
@@ -1503,21 +1826,26 @@ Based on my analysis, this query requires contextual understanding. As the orche
                 "codesmith": "codesmith",
                 "reviewer": "reviewer",
                 "fixer": "fixer",
+                "research": "research",  # v5.1.0
+                "fixer_gpt": "fixer_gpt",  # v5.1.0
                 "end": END
             }
         )
 
         # Dynamic routing based on execution plan
         # Each agent (except orchestrator) can route to next agent or end
-        for agent in ["architect", "codesmith", "reviewer", "fixer"]:
+        for agent in ["architect", "codesmith", "reviewer", "fixer", "research", "fixer_gpt"]:
             workflow.add_conditional_edges(
                 agent,
                 self.route_to_next_agent,
                 {
+                    "orchestrator": "orchestrator",  # v5.1.0: Re-planning support
                     "architect": "architect",
                     "codesmith": "codesmith",
                     "reviewer": "reviewer",
                     "fixer": "fixer",
+                    "research": "research",  # v5.1.0
+                    "fixer_gpt": "fixer_gpt",  # v5.1.0
                     "end": END
                 }
             )
