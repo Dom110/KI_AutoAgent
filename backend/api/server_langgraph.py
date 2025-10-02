@@ -371,18 +371,16 @@ async def websocket_chat(websocket: WebSocket):
                             break
 
                     if workflow_state:
-                        # Update proposal status
+                        # Update proposal status in the stored state
                         workflow_state["proposal_status"] = decision
                         workflow_state["user_feedback_on_proposal"] = feedback
                         workflow_state["needs_approval"] = False
                         workflow_state["waiting_for_approval"] = False
+                        workflow_state["status"] = "executing"  # Resume execution
 
                         logger.info(f"✅ Updated workflow state: proposal_status={decision}")
 
-                        # Resume workflow (trigger re-execution of architect_node)
-                        # The workflow will continue from approval_node → architect_node
-                        # Architecture node will detect the new proposal_status and act accordingly
-
+                        # Send acknowledgment to client
                         await manager.send_json(client_id, {
                             "type": "architectureApprovalProcessed",
                             "session_id": session_id,
@@ -390,10 +388,43 @@ async def websocket_chat(websocket: WebSocket):
                             "message": f"Architecture proposal {decision}"
                         })
 
-                        # Note: Workflow resumption would need to be implemented in workflow_system
-                        # For now, this just updates the state. The workflow orchestration
-                        # should detect the change and continue execution.
-                        logger.info(f"📋 Architecture approval processed - workflow should resume")
+                        # Resume workflow by calling execute() again with the updated state
+                        logger.info(f"🔄 Resuming workflow with updated state...")
+                        try:
+                            # Get the session to access workspace_path
+                            session_obj = active_sessions.get(client_id, {})
+
+                            # Resume workflow from the updated state
+                            final_state = await workflow_system.workflow.ainvoke(
+                                workflow_state,
+                                config={
+                                    "configurable": {"thread_id": session_id},
+                                    "recursion_limit": 100
+                                }
+                            )
+
+                            # Update the stored state
+                            workflow_system.active_workflows[session_id] = final_state
+
+                            # Send completion message
+                            await manager.send_json(client_id, {
+                                "type": "response",
+                                "agent": "orchestrator",
+                                "content": final_state.get("final_result", "Workflow completed after approval"),
+                                "metadata": {
+                                    "status": final_state.get("status"),
+                                    "completion_time": datetime.now().isoformat()
+                                }
+                            })
+
+                            logger.info(f"✅ Workflow resumed and completed for session {session_id}")
+
+                        except Exception as e:
+                            logger.error(f"❌ Error resuming workflow: {e}", exc_info=True)
+                            await manager.send_json(client_id, {
+                                "type": "error",
+                                "message": f"Failed to resume workflow: {str(e)}"
+                            })
                     else:
                         logger.error(f"❌ Workflow state not found for session {session_id}")
                         await manager.send_json(client_id, {

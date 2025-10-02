@@ -319,16 +319,45 @@ class AgentWorkflow:
 
         # CASE 1: Architecture Proposal Approval (v5.2.0)
         if approval_type == "architecture_proposal":
-            logger.info("📋 Waiting for architecture proposal approval")
+            proposal_status = state.get("proposal_status")
 
-            # Update status to indicate waiting for architecture approval
-            state["status"] = "waiting_architecture_approval"
-            state["waiting_for_approval"] = True
+            if proposal_status == "pending":
+                # First time seeing proposal - wait for user approval
+                logger.info("📋 Architecture proposal pending - workflow will pause here")
+                state["status"] = "waiting_architecture_approval"
+                state["waiting_for_approval"] = True
+                logger.info("⏸️  Workflow pausing - user must approve via WebSocket")
+                # Don't change proposal_status - leave as "pending"
+                return state
 
-            # The approval will come via WebSocket (handled in websocket_endpoint.py)
-            # When user approves/rejects/modifies, the workflow will resume
-            # For now, just mark that we're waiting
-            logger.info("⏸️  Architecture proposal sent - awaiting user decision")
+            elif proposal_status == "approved":
+                # User approved - continue workflow
+                logger.info("✅ Architecture proposal approved - continuing workflow")
+                state["needs_approval"] = False
+                state["waiting_for_approval"] = False
+                state["approval_status"] = "approved"
+                state["approval_type"] = "none"  # Reset for next approvals
+                return state
+
+            elif proposal_status == "rejected":
+                # User rejected - end workflow
+                logger.info("❌ Architecture proposal rejected - ending workflow")
+                state["needs_approval"] = False
+                state["waiting_for_approval"] = False
+                state["approval_status"] = "rejected"
+                state["status"] = "failed"
+                return state
+
+            elif proposal_status == "modified":
+                # User requested changes - route back to architect for revision
+                logger.info("🔄 Architecture proposal needs modifications")
+                state["needs_approval"] = True
+                state["waiting_for_approval"] = False
+                state["approval_status"] = "modified"
+                return state
+
+            # Fallback - shouldn't reach here
+            logger.warning(f"⚠️  Unexpected proposal_status: {proposal_status}")
             return state
 
         # CASE 2: Execution Plan Approval (existing Plan-First mode)
@@ -450,13 +479,22 @@ class AgentWorkflow:
                 # Format for user
                 formatted_msg = self._format_proposal_for_user(revised_proposal)
 
-                # Send to user via WebSocket (will be handled by workflow orchestration)
+                # Send to user
                 state["messages"].append({
                     "role": "assistant",
                     "content": formatted_msg,
                     "type": "architecture_proposal_revised",
                     "proposal": revised_proposal
                 })
+
+                # Send via WebSocket
+                if self.websocket_manager:
+                    await self.websocket_manager.send_json(state["client_id"], {
+                        "type": "architecture_proposal_revised",
+                        "proposal": revised_proposal,
+                        "formatted_message": formatted_msg,
+                        "session_id": state.get("session_id")
+                    })
 
                 logger.info("📋 Revised proposal sent to user")
                 return state
@@ -488,6 +526,15 @@ class AgentWorkflow:
                     "type": "architecture_proposal",
                     "proposal": proposal
                 })
+
+                # Send via WebSocket
+                if self.websocket_manager:
+                    await self.websocket_manager.send_json(state["client_id"], {
+                        "type": "architecture_proposal",
+                        "proposal": proposal,
+                        "formatted_message": formatted_msg,
+                        "session_id": state.get("session_id")
+                    })
 
                 # Update step status to pending (waiting for approval)
                 current_step.status = "in_progress"
@@ -841,6 +888,11 @@ class AgentWorkflow:
         # Available workflow nodes (agents with implemented nodes)
         AVAILABLE_NODES = {"orchestrator", "architect", "codesmith", "reviewer", "fixer", "research", "fixer_gpt"}
 
+        # v5.2.0: Check if waiting for architecture approval
+        if state.get("status") == "waiting_architecture_approval":
+            logger.info("⏸️  Workflow waiting for architecture approval - routing to END")
+            return "end"
+
         status = state.get("approval_status")
         logger.info(f"🔀 Route after approval - Status: {status}")
         logger.info(f"📋 Execution plan has {len(state['execution_plan'])} steps:")
@@ -886,6 +938,35 @@ class AgentWorkflow:
         else:
             logger.info("🛑 Routing to END")
             return "end"
+
+    def route_from_architect(self, state: ExtendedAgentState) -> str:
+        """
+        v5.2.0: Special routing for architect node
+        Routes to approval_node if architecture proposal was just created
+        Otherwise uses standard route_to_next_agent logic
+        """
+        # Check if we just created an architecture proposal that needs approval
+        if state.get("needs_approval") and state.get("approval_type") == "architecture_proposal":
+            proposal_status = state.get("proposal_status")
+
+            if proposal_status == "pending":
+                # Just created proposal - route to approval node
+                logger.info("🏛️ Architecture proposal created - routing to approval node")
+                return "approval"
+            elif proposal_status == "approved":
+                # Proposal was approved - mark step as completed and continue
+                logger.info("✅ Architecture proposal approved - marking step complete")
+                for step in state["execution_plan"]:
+                    if step.agent == "architect" and step.status == "in_progress":
+                        step.status = "completed"
+                        step.result = "Architecture proposal approved by user"
+                        state["execution_plan"] = list(state["execution_plan"])
+                        break
+                # Continue with standard routing
+                return self.route_to_next_agent(state)
+
+        # Standard routing for non-proposal cases
+        return self.route_to_next_agent(state)
 
     def route_to_next_agent(self, state: ExtendedAgentState) -> str:
         """
@@ -1278,8 +1359,9 @@ Research:
         action_patterns = {
             'reviewer': ['review', 'analyse', 'analyze', 'prüfe', 'check', 'validiere', 'validate'],
             'fixer': ['fix', 'fixe', 'behebe', 'repair', 'löse', 'solve'],
-            'codesmith': ['implement', 'implementiere', 'write', 'schreibe', 'create code', 'erstelle code',
-                         'generate code', 'create a', 'write a', 'implement a'],
+            'codesmith': ['implement', 'implementiere', 'write', 'schreibe', 'erstelle', 'create', 'baue', 'build',
+                         'create code', 'erstelle code', 'generate code', 'create a', 'write a', 'implement a',
+                         'build a', 'baue eine', 'erstelle eine', 'develop', 'entwickle'],
             'performance': ['optimize', 'optimiere', 'speed up', 'improve performance', 'make faster'],
             'architect': ['design architecture', 'design system', 'design microservice', 'create architecture'],
             'docbot': ['document', 'dokumentiere', 'write documentation', 'create readme'],
@@ -1415,6 +1497,58 @@ Based on my analysis, this query requires contextual understanding. As the orche
 ⚠️ For development tasks, use keywords like: entwickle, erstelle, build, create, implement"""
                     )
                 ]
+
+        # v5.2.1: If codesmith is targeted for an app/game/website task,
+        # create full development workflow (architect → codesmith → reviewer → fixer)
+        if agent == "codesmith":
+            task_lower = task.lower()
+            is_app_task = any(keyword in task_lower for keyword in [
+                'app', 'application', 'webapp', 'website', 'web', 'game',
+                'spiel', 'tool', 'utility', 'portal', 'dashboard', 'interface'
+            ])
+
+            if is_app_task:
+                logger.info(f"🎯 CodeSmith detected APP/GAME task - creating multi-agent development workflow")
+                steps = [
+                    ExecutionStep(
+                        id="step1",
+                        agent="architect",
+                        task=f"Design system architecture for: {task}",
+                        expected_output="Architecture design and technology recommendations",
+                        dependencies=[],
+                        status="pending",
+                        result=None
+                    ),
+                    ExecutionStep(
+                        id="step2",
+                        agent="codesmith",
+                        task=f"{task}",
+                        expected_output="Complete working implementation",
+                        dependencies=["step1"],
+                        status="pending",
+                        result=None
+                    ),
+                    ExecutionStep(
+                        id="step3",
+                        agent="reviewer",
+                        task=f"Review and test implementation",
+                        expected_output="Test results with quality score and recommendations",
+                        dependencies=["step2"],
+                        status="pending",
+                        result=None
+                    ),
+                    ExecutionStep(
+                        id="step4",
+                        agent="fixer",
+                        task="Fix any issues found by reviewer",
+                        expected_output="All issues resolved",
+                        dependencies=["step3"],
+                        status="pending",
+                        result=None
+                    )
+                ]
+                logger.info(f"✅ Created {len(steps)}-step development workflow")
+                return steps
 
         return [
             ExecutionStep(
@@ -2254,7 +2388,24 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
 
         # Dynamic routing based on execution plan
         # Each agent (except orchestrator) can route to next agent or end
-        for agent in ["architect", "codesmith", "reviewer", "fixer", "research", "fixer_gpt"]:
+        # v5.2.0: Architect has special routing for architecture proposals
+        workflow.add_conditional_edges(
+            "architect",
+            self.route_from_architect,
+            {
+                "approval": "approval",  # v5.2.0: Route to approval for architecture proposal
+                "orchestrator": "orchestrator",
+                "architect": "architect",
+                "codesmith": "codesmith",
+                "reviewer": "reviewer",
+                "fixer": "fixer",
+                "research": "research",
+                "fixer_gpt": "fixer_gpt",
+                "end": END
+            }
+        )
+
+        for agent in ["codesmith", "reviewer", "fixer", "research", "fixer_gpt"]:
             workflow.add_conditional_edges(
                 agent,
                 self.route_to_next_agent,
@@ -2339,6 +2490,16 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     "recursion_limit": 100  # Increase limit to see more of the loop
                 }
             )
+
+            # v5.2.0: Check if workflow is waiting for architecture approval
+            if final_state.get("status") == "waiting_architecture_approval":
+                # Store state for resumption after approval
+                if not hasattr(self, 'active_workflows'):
+                    self.active_workflows = {}
+                self.active_workflows[session_id] = final_state
+                logger.info(f"⏸️  Workflow paused - stored state for session {session_id}")
+                logger.info(f"📋 Waiting for architecture proposal approval via WebSocket")
+                return final_state
 
             final_state["status"] = "completed"
             final_state["end_time"] = datetime.now()
