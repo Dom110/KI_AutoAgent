@@ -217,6 +217,26 @@ async def validate_settings():
     if Settings.AGENT_MAX_RETRIES < 1:
         errors.append("agents.maxRetries must be >= 1")
 
+    # Alternative Fixer validations (v5.1.0)
+    if Settings.ALTERNATIVE_FIXER_ENABLED:
+        valid_models = ["gpt-4o", "gpt-5", "gpt-5-mini", "claude-opus-4", "claude-sonnet-4"]
+        if Settings.ALTERNATIVE_FIXER_MODEL not in valid_models:
+            errors.append(f"alternativeFixer.model must be one of: {', '.join(valid_models)}")
+
+        # Warn if using same model as primary fixer
+        if Settings.ALTERNATIVE_FIXER_MODEL == "claude-sonnet-4":
+            warnings.append("alternativeFixer.model is same as primary fixer (Claude Sonnet) - no benefit!")
+
+        # Validate trigger iteration
+        if Settings.ALTERNATIVE_FIXER_TRIGGER_ITERATION < 5:
+            warnings.append("alternativeFixer.triggerAfterIterations < 5 may trigger too early (before research)")
+        if Settings.ALTERNATIVE_FIXER_TRIGGER_ITERATION > 15:
+            warnings.append("alternativeFixer.triggerAfterIterations > 15 may be too late (after many failures)")
+
+        # Validate temperature
+        if not (0.0 <= Settings.ALTERNATIVE_FIXER_TEMPERATURE <= 1.0):
+            errors.append("alternativeFixer.temperature must be between 0.0 and 1.0")
+
     # Routing validations
     if Settings.ROUTING_STRATEGY not in ["keyword", "confidence", "hybrid"]:
         errors.append(f"routing.strategy must be one of: keyword, confidence, hybrid")

@@ -91,6 +91,17 @@ class ExtendedAgentState(TypedDict):
     shared_context: Dict[str, Any]
     agent_states: Dict[str, Dict[str, Any]]  # Individual agent states
 
+    # v5.1.0: Information-First Escalation System
+    collaboration_count: int  # Total collaborations in this workflow
+    reviewer_fixer_cycles: int  # Specific Reviewer↔Fixer cycles
+    last_collaboration_agents: List[str]  # Track pattern [reviewer, fixer, reviewer, fixer]
+    escalation_level: int  # 0=normal, 1=retry, 2=broad research, 3=targeted, 4=alternative approach, 4.5=alt fixer, 5=user, 6=opus, 7=human
+    collaboration_history: List[Dict[str, Any]]  # Detailed history with timestamps
+    information_gathered: List[Dict[str, Any]]  # Research results
+    needs_replan: bool  # Agent requests collaboration/re-planning
+    suggested_agent: Optional[str]  # Agent to collaborate with
+    suggested_query: Optional[str]  # Query for suggested agent
+
     # Error handling and debugging
     errors: List[Dict[str, Any]]
     debug_mode: bool
@@ -159,6 +170,17 @@ def create_initial_state(
         agent_communications=[],
         shared_context={},
         agent_states={},
+
+        # v5.1.0: Information-First Escalation
+        collaboration_count=0,
+        reviewer_fixer_cycles=0,
+        last_collaboration_agents=[],
+        escalation_level=0,
+        collaboration_history=[],
+        information_gathered=[],
+        needs_replan=False,
+        suggested_agent=None,
+        suggested_query=None,
 
         # Debugging
         errors=[],

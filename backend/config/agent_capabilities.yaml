@@ -41,6 +41,18 @@ agents:
         - "./vscode-extension/**/*.js"
     description: "Can fix code in any supported language"
 
+  FixerGPT:
+    capabilities:
+      file_write: true
+      allowed_paths:
+        - "./backend/**/*.py"
+        - "./vscode-extension/**/*.ts"
+        - "./vscode-extension/**/*.js"
+        - "./**/*.html"
+        - "./**/*.css"
+        - "./**/*.json"
+    description: "Alternative fixer using GPT (v5.1.0) - same permissions as FixerBot"
+
   DocuBot:
     capabilities:
       file_write: true

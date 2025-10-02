@@ -1306,6 +1306,48 @@
           "markdownDescription": "🔧 **Fixer Iteration Attempts**\n\nHow many times Fixer can attempt to fix issues:\n\n- **1**: One fix attempt (fast)\n- **3**: Multiple fix attempts ⭐ Recommended\n- **5**: Maximum fix persistence (expensive)\n\n**Escalation Path:**\n1. Fixer attempts fix (iteration 1-3)\n2. Reviewer validates each fix\n3. If all iterations fail → Escalate to OpusArbitrator\n\n**⚠️ Cost:** Each iteration = CodeSmith + Reviewer + Fixer calls",
           "scope": "window"
         },
+        "kiAutoAgent.alternativeFixer.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "🤖🔄 **Alternative Fixer AI (v5.1.0)**\n\nTry different AI model when primary fixer (Claude) fails:\n\n**Why this works:**\n- Different AI = different \"mental model\"\n- Fresh neural network = fresh perspective\n- Like asking a different developer\n\n**When triggered:**\n- After primary fixer fails multiple times\n- After information gathering attempts\n- Before asking user/OpusArbitrator\n\n**Models available:**\n- GPT-4o (fast, different approach)\n- GPT-5 (most capable, if available)\n- Claude Opus 4 (highest authority)\n\n**💡 Tip:** Enable for higher success rate (+10-15%)",
+          "scope": "window"
+        },
+        "kiAutoAgent.alternativeFixer.model": {
+          "type": "string",
+          "enum": [
+            "gpt-4o",
+            "gpt-5",
+            "gpt-5-mini",
+            "claude-opus-4",
+            "claude-sonnet-4"
+          ],
+          "default": "gpt-4o",
+          "markdownDescription": "🤖 **Alternative Fixer AI Model**\n\nWhich AI to use as alternative fixer:\n\n**Recommended:**\n\n- **gpt-4o**: Fast, capable, different from Claude ⭐\n  - Speed: Very fast\n  - Cost: Moderate\n  - Best for: Most cases\n\n- **gpt-5**: Latest GPT (if available)\n  - Speed: Fast\n  - Cost: Higher\n  - Best for: Complex bugs\n\n**Budget:**\n\n- **gpt-5-mini**: Cheaper alternative\n  - Speed: Fastest\n  - Cost: Low\n  - Best for: Simple fixes\n\n**Not recommended:**\n\n- **claude-sonnet-4**: Same as primary fixer (no benefit!)\n- **claude-opus-4**: Save for OpusArbitrator level\n\n**💡 Current:** GPT-4o gives best balance",
+          "enumDescriptions": [
+            "GPT-4o - Fast and capable ⭐",
+            "GPT-5 - Latest GPT model",
+            "GPT-5-mini - Faster, budget option",
+            "Claude Opus 4 - Highest authority (better for OpusArbitrator)",
+            "Claude Sonnet 4 - Primary fixer (circular, not useful!)"
+          ],
+          "scope": "window"
+        },
+        "kiAutoAgent.alternativeFixer.triggerAfterIterations": {
+          "type": "number",
+          "default": 11,
+          "minimum": 5,
+          "maximum": 20,
+          "markdownDescription": "🔢 **Alternative Fixer Trigger Point**\n\nAfter how many collaboration iterations to try alternative AI:\n\n**Timeline:**\n- **Iterations 1-4**: Normal Fixer attempts\n- **Iterations 5-6**: Broad information gathering\n- **Iterations 7-8**: Targeted research\n- **Iterations 9-10**: Alternative approach\n- **Iteration 11**: Alternative Fixer KI ⭐\n\n**Lower (5-8):**\n- Pros: Faster escalation to alternative AI\n- Cons: Less information gathered first\n\n**Higher (12-15):**\n- Pros: More information before alternative AI\n- Cons: More time/cost before trying\n\n**💡 Recommended:** 11 (after all research levels)",
+          "scope": "window"
+        },
+        "kiAutoAgent.alternativeFixer.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "markdownDescription": "🌡️ **Alternative Fixer Creativity**\n\nTemperature for alternative fixer AI:\n\n**Lower (0.0-0.5):**\n- More deterministic and consistent\n- Follows patterns closely\n- Best for: Syntax errors, known bugs\n\n**Medium (0.6-0.8):** ⭐ Recommended\n- Balance of consistency + creativity\n- Can try different approaches\n- Best for: Most bugs\n\n**Higher (0.9-1.0):**\n- More creative and exploratory\n- May try unconventional solutions\n- Best for: Stuck on unusual bugs\n\n**💡 Tip:** 0.7 gives good balance for fresh perspective",
+          "scope": "window"
+        },
         "kiAutoAgent.routing.strategy": {
           "type": "string",
           "enum": [

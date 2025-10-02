@@ -32,6 +32,7 @@ class AgentType(Enum):
     DOCUBOT = "docubot"
     TRADESTRAT = "tradestrat"
     FIXER = "fixer"
+    FIXER_GPT = "fixer_gpt"  # v5.1.0: Alternative fixer using GPT
     PERFORMANCE = "performance_bot"
 
 @dataclass
@@ -84,6 +85,14 @@ class AgentRegistry:
             logger.info("✅ ResearchAgent registered")
         except Exception as e:
             logger.warning(f"⚠️  Could not register ResearchAgent: {e}")
+
+        # Register FixerGPT (v5.1.0: Alternative fixer)
+        try:
+            from .specialized.fixer_gpt_agent import FixerGPTAgent
+            await self.register_agent(FixerGPTAgent())
+            logger.info("✅ FixerGPTAgent registered")
+        except Exception as e:
+            logger.warning(f"⚠️  Could not register FixerGPTAgent: {e}")
 
         # TODO: Register other agents as they are ported
         # await self.register_agent(ArchitectAgent())

@@ -76,6 +76,17 @@ This applies to ALL answers, explanations, error messages, and outputs.
     AGENT_FIXER_ITERATIONS = 3  # How many fix attempts before escalating
 
     # ========================================
+    # Alternative Fixer KI Settings (v5.1.0)
+    # ========================================
+    ALTERNATIVE_FIXER_ENABLED = True  # Enable alternative fixer AI when primary fails
+    ALTERNATIVE_FIXER_MODEL = "gpt-4o"  # gpt-4o, gpt-5, gpt-5-mini, claude-opus-4
+    ALTERNATIVE_FIXER_PROVIDER = "openai"  # Auto-detected from model
+    ALTERNATIVE_FIXER_TRIGGER_ITERATION = 11  # Trigger after N collaborations
+    ALTERNATIVE_FIXER_TEMPERATURE = 0.7  # Creativity level (0.0-1.0)
+    ALTERNATIVE_FIXER_MAX_TOKENS = 4096  # Max response length
+    ALTERNATIVE_FIXER_TIMEOUT = 120  # Timeout in seconds
+
+    # ========================================
     # Routing & Orchestration Settings
     # ========================================
     ROUTING_STRATEGY = "hybrid"  # keyword, confidence, hybrid
@@ -156,6 +167,18 @@ This applies to ALL answers, explanations, error messages, and outputs.
         if 'agents.fixerIterations' in vscode_settings:
             cls.AGENT_FIXER_ITERATIONS = vscode_settings['agents.fixerIterations']
 
+        # Alternative Fixer Settings (v5.1.0)
+        if 'alternativeFixer.enabled' in vscode_settings:
+            cls.ALTERNATIVE_FIXER_ENABLED = vscode_settings['alternativeFixer.enabled']
+        if 'alternativeFixer.model' in vscode_settings:
+            cls.ALTERNATIVE_FIXER_MODEL = vscode_settings['alternativeFixer.model']
+            # Auto-detect provider from model
+            cls.ALTERNATIVE_FIXER_PROVIDER = cls._auto_detect_provider(cls.ALTERNATIVE_FIXER_MODEL)
+        if 'alternativeFixer.triggerAfterIterations' in vscode_settings:
+            cls.ALTERNATIVE_FIXER_TRIGGER_ITERATION = vscode_settings['alternativeFixer.triggerAfterIterations']
+        if 'alternativeFixer.temperature' in vscode_settings:
+            cls.ALTERNATIVE_FIXER_TEMPERATURE = vscode_settings['alternativeFixer.temperature']
+
         # Routing Settings
         if 'routing.strategy' in vscode_settings:
             cls.ROUTING_STRATEGY = vscode_settings['routing.strategy']
@@ -203,6 +226,28 @@ This applies to ALL answers, explanations, error messages, and outputs.
             cls.COST_PREFER_CHEAPER_MODELS = vscode_settings['cost.preferCheaperModels']
 
     @classmethod
+    def _auto_detect_provider(cls, model: str) -> str:
+        """
+        Auto-detect provider from model name
+
+        Args:
+            model: Model name (e.g., gpt-4o, claude-opus-4)
+
+        Returns:
+            Provider name (openai, anthropic, google)
+        """
+        model_lower = model.lower()
+        if model_lower.startswith("gpt-"):
+            return "openai"
+        elif model_lower.startswith("claude-"):
+            return "anthropic"
+        elif model_lower.startswith("gemini-"):
+            return "google"
+        else:
+            # Default to openai for unknown models
+            return "openai"
+
+    @classmethod
     def to_dict(cls) -> dict:
         """
         Export all v5.0 settings as dictionary.
@@ -225,6 +270,16 @@ This applies to ALL answers, explanations, error messages, and outputs.
                 "maxRetries": cls.AGENT_MAX_RETRIES,
                 "reviewerIterations": cls.AGENT_REVIEWER_ITERATIONS,
                 "fixerIterations": cls.AGENT_FIXER_ITERATIONS,
+            },
+            # Alternative Fixer (v5.1.0)
+            "alternativeFixer": {
+                "enabled": cls.ALTERNATIVE_FIXER_ENABLED,
+                "model": cls.ALTERNATIVE_FIXER_MODEL,
+                "provider": cls.ALTERNATIVE_FIXER_PROVIDER,
+                "triggerAfterIterations": cls.ALTERNATIVE_FIXER_TRIGGER_ITERATION,
+                "temperature": cls.ALTERNATIVE_FIXER_TEMPERATURE,
+                "maxTokens": cls.ALTERNATIVE_FIXER_MAX_TOKENS,
+                "timeout": cls.ALTERNATIVE_FIXER_TIMEOUT,
             },
             # Routing
             "routing": {
