@@ -28,7 +28,14 @@ class PauseHandler:
     - Resume validation
     """
 
-    def __init__(self):
+    def __init__(self, project_path: Optional[str] = None):
+        """
+        Initialize pause handler
+
+        Args:
+            project_path: Optional project path for context
+        """
+        self.project_path = project_path
         self._paused_tasks: Dict[str, Dict[str, Any]] = {}
         logger.info("📦 PauseHandler initialized (stub implementation)")
 

@@ -223,19 +223,22 @@ class BaseAgent(ABC):
     def _load_instructions(self) -> str:
         """Load agent instructions from file if available"""
         if self.config.instructions_path:
-            # Try multiple path resolutions including .ki_autoagent
+            # Try multiple path resolutions including both .kiautoagent and .ki_autoagent
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            possible_paths = [
-                self.config.instructions_path,  # As provided
-                os.path.join(os.getcwd(), self.config.instructions_path),  # From CWD
-                os.path.join(project_root, self.config.instructions_path),  # From project root
-                # Also try without .ki_autoagent prefix for backward compatibility
-                self.config.instructions_path.replace('.ki_autoagent/', '') if self.config.instructions_path.startswith('.ki_autoagent/') else None,
-                os.path.join(os.getcwd(), self.config.instructions_path.replace('.ki_autoagent/', '')) if self.config.instructions_path.startswith('.ki_autoagent/') else None,
-                os.path.join(project_root, self.config.instructions_path.replace('.ki_autoagent/', '')) if self.config.instructions_path.startswith('.ki_autoagent/') else None,
-            ]
-            # Remove None values
-            possible_paths = [p for p in possible_paths if p is not None]
+
+            # Try both .kiautoagent (new) and .ki_autoagent (legacy) variants
+            path_variants = [self.config.instructions_path]
+            if self.config.instructions_path.startswith('.ki_autoagent/'):
+                # Convert .ki_autoagent to .kiautoagent
+                path_variants.append(self.config.instructions_path.replace('.ki_autoagent/', '.kiautoagent/'))
+
+            possible_paths = []
+            for path_variant in path_variants:
+                possible_paths.extend([
+                    path_variant,  # As provided
+                    os.path.join(os.getcwd(), path_variant),  # From CWD
+                    os.path.join(project_root, path_variant),  # From project root
+                ])
 
             for path in possible_paths:
                 if os.path.exists(path):

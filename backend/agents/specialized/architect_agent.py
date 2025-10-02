@@ -745,7 +745,7 @@ class ArchitectAgent(ChatAgent):
         """
         try:
             # Stop file watcher if running
-            if self.file_watcher:
+            if hasattr(self, 'file_watcher') and self.file_watcher:
                 self.file_watcher.stop()
                 logger.info("✅ File watcher stopped")
         except Exception as e:

@@ -18,14 +18,18 @@ class SmartFileWatcher:
     Uses file modification times (mtime) for change detection
     """
 
-    def __init__(self, project_root: str):
+    def __init__(self, project_root: str, cache=None, debounce_seconds: int = 5):
         """
         Initialize file watcher
 
         Args:
             project_root: Root directory to watch
+            cache: Optional cache instance to invalidate on changes
+            debounce_seconds: Debounce interval for change detection
         """
         self.project_root = Path(project_root)
+        self.cache = cache
+        self.debounce_seconds = debounce_seconds
         self._watched_files: Dict[Path, float] = {}  # path -> mtime
         self._callbacks: Dict[Path, Set[Callable]] = {}  # path -> callbacks
         self._running = False
@@ -147,6 +151,20 @@ class SmartFileWatcher:
         if not path.is_absolute():
             path = self.project_root / path
         return path.resolve()
+
+    def start(self) -> None:
+        """
+        Start file watching (non-blocking)
+        Sets running flag but doesn't start continuous monitoring
+        Call check_changes() manually or use start_monitoring() for continuous mode
+        """
+        self._running = True
+        logger.info(f"👁️  File watcher started (call check_changes() to check for updates)")
+
+    def stop(self) -> None:
+        """Stop file watching"""
+        self._running = False
+        logger.info("👁️  File watcher stopped")
 
     def start_monitoring(self, interval_seconds: int = 5) -> None:
         """
