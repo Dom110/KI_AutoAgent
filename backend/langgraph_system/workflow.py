@@ -270,6 +270,12 @@ class AgentWorkflow:
         plan = await self._create_execution_plan(state)
         state["execution_plan"] = plan
 
+        # Set approval type for execution plan (default for non-architecture proposals)
+        # This will be overridden to "architecture_proposal" by architect_node if needed
+        if not state.get("approval_type") or state.get("approval_type") == "none":
+            state["approval_type"] = "execution_plan"
+            logger.info("📋 Set approval_type to 'execution_plan' (default)")
+
         # DON'T mark as completed here - let the agent nodes execute
         # We want the workflow to actually call the agent nodes
         # even for simple queries
