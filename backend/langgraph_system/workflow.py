@@ -98,6 +98,10 @@ class AgentWorkflow:
         self.real_agents = {}
         self._init_real_agents()
 
+        # Initialize active workflows tracking (v5.3.1 bugfix)
+        # This allows architecture approval to be processed correctly
+        self.active_workflows = {}
+
         # Initialize workflow
         self.workflow = None
         self.checkpointer = None
