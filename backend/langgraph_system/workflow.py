@@ -1638,8 +1638,10 @@ Research:
         # Only match if it's a question ABOUT the system, not a request to CREATE something
         task_check = task.lower()
         is_system_question = (
-            ("was" in task_check or "what" in task_check or "wie" in task_check or "how" in task_check or "beschreibe" in task_check or "describe" in task_check)
-            and ("system" in task_check or "workspace" in task_check)
+            ("was" in task_check or "what" in task_check or "wie" in task_check or "how" in task_check or
+             "beschreibe" in task_check or "describe" in task_check or
+             "zeige" in task_check or "show" in task_check or "details" in task_check)
+            and ("system" in task_check or "workspace" in task_check or "projekt" in task_check or "project" in task_check or "autoagent" in task_check)
         )
         # Exclude development tasks - they should not match this pattern
         is_development = any(keyword in task_check for keyword in [
@@ -1655,7 +1657,7 @@ Research:
                     expected_output="System description",
                     dependencies=[],
                     status="completed",  # ← FIX: Mark as completed since we have the result
-                    result="KI AutoAgent v5.0.0 - Multi-Agent AI Development System\n\nDies ist ein fortschrittliches Multi-Agent-System für die Softwareentwicklung:\n\n🏗️ ARCHITEKTUR:\n• VS Code Extension (TypeScript) - User Interface\n• Python Backend mit LangGraph (Port 8001)\n• WebSocket-basierte Kommunikation\n• 10 spezialisierte KI-Agenten\n\n🤖 HAUPT-FEATURES:\n• Agent-to-Agent Kommunikation\n• Plan-First Mode mit Approval\n• Persistent Memory\n• Dynamic Workflow Modification\n• Automatische Code-Analyse\n\n💡 VERWENDUNG:\nDas System hilft bei der Entwicklung von Software durch intelligente Agenten, die zusammenarbeiten um Code zu generieren, zu reviewen und zu optimieren."
+                    result="KI AutoAgent v5.5.0 - Multi-Agent AI Development System mit Self-Diagnosis\n\nDies ist ein fortschrittliches Multi-Agent-System für die Softwareentwicklung:\n\n🏗️ ARCHITEKTUR:\n• VS Code Extension (TypeScript) - User Interface\n• Python Backend mit LangGraph (Port 8001)\n• WebSocket-basierte Kommunikation\n• 10 spezialisierte KI-Agenten\n• Self-Diagnosis System für automatische Fehlererkennung\n\n🤖 HAUPT-FEATURES:\n• Agent-to-Agent Kommunikation\n• Plan-First Mode mit Approval\n• Persistent Memory\n• Dynamic Workflow Modification\n• Pre-Execution Validation (v5.5.0)\n• Automatische Fehlerbehebung\n• Internet-basierte Anti-Pattern Erkennung\n\n🔍 SELF-DIAGNOSIS (NEU v5.5.0):\n• 8 Invarianten-Regeln die immer gelten müssen\n• 9 bekannte Anti-Patterns aus Internet-Recherche\n• 3-Pass Validierungssystem vor Ausführung\n• Automatische Reparatur kritischer Fehler\n• Real-Time Health Monitoring\n\n💡 VERWENDUNG:\nDas System hilft bei der Entwicklung von Software durch intelligente Agenten, die zusammenarbeiten um Code zu generieren, zu reviewen und zu optimieren. Neu: Das System kann jetzt seine eigenen Fehler erkennen und beheben BEVOR sie zu Problemen führen!"
                 )
             ]
 
