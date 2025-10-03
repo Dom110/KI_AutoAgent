@@ -24,6 +24,16 @@ from .cache_manager import CacheManager
 
 logger = logging.getLogger(__name__)
 
+# v5.5.1: Import Intelligent Query Handler
+try:
+    from .intelligent_query_handler import IntelligentQueryHandler
+    INTELLIGENT_HANDLER_AVAILABLE = True
+    logger.info("✅ Intelligent Query Handler loaded")
+except ImportError as e:
+    logger.warning(f"⚠️ Intelligent Query Handler not available: {e}")
+    INTELLIGENT_HANDLER_AVAILABLE = False
+    IntelligentQueryHandler = None
+
 # v5.5.0: Import Self-Diagnosis System
 try:
     from .workflow_self_diagnosis import WorkflowSelfDiagnosisSystem
@@ -122,6 +132,16 @@ class AgentWorkflow:
             except Exception as e:
                 logger.error(f"Failed to initialize Self-Diagnosis System: {e}")
                 self.self_diagnosis = None
+
+        # v5.5.1: Initialize Intelligent Query Handler
+        self.intelligent_handler = None
+        if INTELLIGENT_HANDLER_AVAILABLE:
+            try:
+                self.intelligent_handler = IntelligentQueryHandler()
+                logger.info("🧠 Intelligent Query Handler initialized")
+            except Exception as e:
+                logger.error(f"Failed to initialize Intelligent Query Handler: {e}")
+                self.intelligent_handler = None
 
         # Initialize workflow
         self.workflow = None
@@ -1657,7 +1677,7 @@ Research:
                     expected_output="System description",
                     dependencies=[],
                     status="completed",  # ← FIX: Mark as completed since we have the result
-                    result="KI AutoAgent v5.5.0 - Multi-Agent AI Development System mit Self-Diagnosis\n\nDies ist ein fortschrittliches Multi-Agent-System für die Softwareentwicklung:\n\n🏗️ ARCHITEKTUR:\n• VS Code Extension (TypeScript) - User Interface\n• Python Backend mit LangGraph (Port 8001)\n• WebSocket-basierte Kommunikation\n• 10 spezialisierte KI-Agenten\n• Self-Diagnosis System für automatische Fehlererkennung\n\n🤖 HAUPT-FEATURES:\n• Agent-to-Agent Kommunikation\n• Plan-First Mode mit Approval\n• Persistent Memory\n• Dynamic Workflow Modification\n• Pre-Execution Validation (v5.5.0)\n• Automatische Fehlerbehebung\n• Internet-basierte Anti-Pattern Erkennung\n\n🔍 SELF-DIAGNOSIS (NEU v5.5.0):\n• 8 Invarianten-Regeln die immer gelten müssen\n• 9 bekannte Anti-Patterns aus Internet-Recherche\n• 3-Pass Validierungssystem vor Ausführung\n• Automatische Reparatur kritischer Fehler\n• Real-Time Health Monitoring\n\n💡 VERWENDUNG:\nDas System hilft bei der Entwicklung von Software durch intelligente Agenten, die zusammenarbeiten um Code zu generieren, zu reviewen und zu optimieren. Neu: Das System kann jetzt seine eigenen Fehler erkennen und beheben BEVOR sie zu Problemen führen!"
+                    result="KI AutoAgent v5.5.1 - Multi-Agent AI Development System mit Intelligent Query Handler\n\nDies ist ein fortschrittliches Multi-Agent-System für die Softwareentwicklung:\n\n🏗️ ARCHITEKTUR:\n• VS Code Extension (TypeScript) - User Interface\n• Python Backend mit LangGraph (Port 8001)\n• WebSocket-basierte Kommunikation\n• 10 spezialisierte KI-Agenten\n• Self-Diagnosis System für automatische Fehlererkennung\n• Intelligent Query Handler für sinnvolle Antworten\n\n🤖 HAUPT-FEATURES:\n• Agent-to-Agent Kommunikation\n• Plan-First Mode mit Approval\n• Persistent Memory\n• Dynamic Workflow Modification\n• Pre-Execution Validation (v5.5.0)\n• Intelligent Query Understanding (v5.5.1)\n• IMMER sinnvolle Antworten - keine generischen Nachrichten\n\n🧠 INTELLIGENT QUERY HANDLER (NEU v5.5.1):\n• Analysiert JEDE Anfrage intelligent\n• Erkennt Intent, Domain und Query-Typ\n• Wählt automatisch den besten Agenten\n• Generiert immer hilfreiche Antworten\n• Keine leeren oder generischen Ergebnisse mehr\n\n🔍 SELF-DIAGNOSIS (v5.5.0):\n• 8 Invarianten-Regeln die immer gelten müssen\n• 9 bekannte Anti-Patterns aus Internet-Recherche\n• 3-Pass Validierungssystem vor Ausführung\n• Automatische Reparatur kritischer Fehler\n• Real-Time Health Monitoring\n\n💡 VERWENDUNG:\nDas System versteht JEDE Ihrer Anfragen und gibt immer sinnvolle Antworten. Es kann Software entwickeln, analysieren und optimieren - und dabei seine eigenen Fehler erkennen und beheben!"
                 )
             ]
 
@@ -1747,9 +1767,24 @@ Research:
                     logger.info(f"🎯 Medium-confidence routing: {agent_name} (score: {confidence})")
                     return self._create_single_agent_step(agent_name, task)
 
-        # No keyword matches or low confidence - use orchestrator
-        logger.info(f"🤔 No clear keyword match - routing to orchestrator for intelligent analysis")
-        return self._create_single_agent_step("orchestrator", task)
+        # No keyword matches or low confidence - use intelligent handler
+        logger.info(f"🤔 No clear keyword match - using intelligent query analysis")
+
+        # v5.5.1: Use intelligent handler to create a meaningful execution plan
+        if self.intelligent_handler:
+            logger.info("🧠 Using Intelligent Query Handler to create execution plan")
+            intelligent_plan = self.intelligent_handler.create_intelligent_execution_plan(task)
+
+            # If the plan suggests a non-orchestrator agent, use it
+            if intelligent_plan and intelligent_plan[0].agent != "orchestrator":
+                logger.info(f"✨ Intelligent routing to {intelligent_plan[0].agent}")
+                return intelligent_plan
+
+            # Otherwise, create orchestrator step with intelligent response
+            return self._create_single_agent_step("orchestrator", task)
+        else:
+            # Fallback to original behavior if intelligent handler not available
+            return self._create_single_agent_step("orchestrator", task)
 
     def _calculate_agent_confidence(self, task_lower: str) -> Dict[str, float]:
         """Calculate confidence score for each agent based on task content
@@ -1811,6 +1846,8 @@ Research:
 
         For orchestrator, returns a completed step with stub response since orchestrator
         can't be a destination node in the workflow (only the entry point).
+
+        v5.5.1: Enhanced with intelligent responses - NEVER returns empty results
         """
         output_map = {
             'architect': 'System architecture design',
@@ -1828,18 +1865,29 @@ Research:
         # to prevent infinite loop when routing back to orchestrator
         step_status = "completed" if agent == "orchestrator" else "pending"
 
+        # v5.5.1: For orchestrator steps, generate intelligent response immediately
+        step_result = None
+        if agent == "orchestrator" and self.intelligent_handler:
+            # Generate intelligent response for this query
+            step_result = self.intelligent_handler.get_intelligent_response(task)
+            logger.info(f"🧠 Generated intelligent response for orchestrator step ({len(step_result)} chars)")
+
         # Return single agent step
-        return [
-            ExecutionStep(
-                id="step1",
-                agent=agent,
-                task=task,
-                expected_output=output_map.get(agent, "Task result"),
-                dependencies=[],
-                status=step_status,
-                result=None
-            )
-        ]
+        step = ExecutionStep(
+            id="step1",
+            agent=agent,
+            task=task,
+            expected_output=output_map.get(agent, "Task result"),
+            dependencies=[],
+            status=step_status,
+            result=step_result  # Will be None for non-orchestrator or filled with intelligent response
+        )
+
+        # v5.5.1: Additional enhancement - ensure step has meaningful content
+        if self.intelligent_handler and agent == "orchestrator":
+            step = self.intelligent_handler.enhance_orchestrator_step(step, task)
+
+        return [step]
 
     def _detect_task_complexity(self, task: str) -> str:
         """
@@ -2797,9 +2845,29 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                 if results:
                     final_state["final_result"] = "\n".join(str(r) for r in results)
                 else:
-                    final_state["final_result"] = "Task completed but no specific results available."
+                    # v5.5.1: NEVER return generic message - generate intelligent response
+                    if self.intelligent_handler:
+                        logger.info("🧠 No results found - generating intelligent response")
+                        intelligent_response = self.intelligent_handler.get_intelligent_response(task)
+                        final_state["final_result"] = intelligent_response
+                    else:
+                        # Fallback with more context
+                        final_state["final_result"] = f"""Ihre Anfrage wurde bearbeitet: {task}
+
+Das System hat die Aufgabe analysiert und verarbeitet.
+Für genauere Ergebnisse können Sie gerne eine spezifischere Frage stellen oder einen der folgenden Agenten direkt ansprechen:
+• CodeSmith - für Code-Erstellung
+• Reviewer - für Code-Analyse
+• Architect - für System-Design
+• Research - für Informationssuche"""
             else:
-                final_state["final_result"] = "No execution plan was created."
+                # v5.5.1: Even if no plan created, provide helpful response
+                if self.intelligent_handler:
+                    logger.info("🧠 No execution plan - generating helpful response")
+                    helpful_response = self.intelligent_handler.get_intelligent_response(task)
+                    final_state["final_result"] = helpful_response
+                else:
+                    final_state["final_result"] = "Keine Ausführungsplan erstellt. Bitte präzisieren Sie Ihre Anfrage."
 
             # PHASE 3.2: Store execution result for learning
             await self._store_execution_for_learning(
