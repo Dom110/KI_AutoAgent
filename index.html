@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KI AutoAgent Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 KI AutoAgent Dashboard</h1>
+        <div class="connection-status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat">
+            <span class="stat-label">Active Agents:</span>
+            <span class="stat-value" id="activeAgents">0</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Total Tasks:</span>
+            <span class="stat-value" id="totalTasks">0</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Success Rate:</span>
+            <span class="stat-value" id="successRate">0%</span>
+        </div>
+        <div class="stat">
+            <span class="stat-label">Uptime:</span>
+            <span class="stat-value" id="uptime">00:00:00</span>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar">
+            <h2>Agents</h2>
+            <div class="agent-list" id="agentList">
+                <!-- Agents will be populated dynamically -->
+            </div>
+
+            <h2 style="margin-top: 2rem;">Performance</h2>
+            <div style="margin-top: 1rem;">
+                <canvas id="performanceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chat-container">
+            <div class="messages-container" id="messagesContainer">
+                <div class="message system">
+                    <div class="message-content">System initialized. Waiting for connection...</div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea
+                        id="messageInput"
+                        placeholder="Type your message or task..."
+                        rows="2"
+                    ></textarea>
+                    <button id="sendButton" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const AGENTS = [
+            { name: 'Orchestrator', model: 'GPT-5', status: 'idle' },
+            { name: 'Architect', model: 'GPT-4o', status: 'idle' },
+            { name: 'CodeSmith', model: 'Claude 4.1 Sonnet', status: 'idle' },
+            { name: 'Reviewer', model: 'GPT-5-mini', status: 'idle' },
+            { name: 'Fixer', model: 'Claude 4.1 Sonnet', status: 'idle' },
+            { name: 'DocBot', model: 'GPT-4o', status: 'idle' },
+            { name: 'Research', model: 'Perplexity', status: 'idle' },
+            { name: 'TradeStrat', model: 'Claude 4.1 Sonnet', status: 'idle' },
+            { name: 'OpusArbitrator', model: 'Claude Opus 4.1', status: 'idle' },
+            { name: 'Performance', model: 'GPT-4o', status: 'idle' }
+        ];
+
+        let ws = null;
+        let startTime = Date.now();
+        let performanceChart = null;
+
+        // Initialize performance chart
+        function initChart() {
+            const ctx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Tasks/min',
+                        data: [],
+                        borderColor: '#4a9eff',
+                        backgroundColor: 'rgba(74, 158, 255, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#e0e0e0' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#a0a0a0' },
+                            grid: { color: '#404558' }
+                        },
+                        x: {
+                            ticks: { color: '#a0a0a0' },
+                            grid: { color: '#404558' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update chart with new data
+        function updateChart(value) {
+            const now = new Date().toLocaleTimeString();
+            performanceChart.data.labels.push(now);
+            performanceChart.data.datasets[0].data.push(value);
+
+            if (performanceChart.data.labels.length > 10) {
+                performanceChart.data.labels.shift();
+                performanceChart.data.datasets[0].data.shift();
+            }
+
+            performanceChart.update();
+        }
+
+        // Initialize agents in sidebar
+        function initAgents() {
+            const agentList = document.getElementById('agentList');
+            agentList.innerHTML = '';
+
+            AGENTS.forEach((agent, index) => {
+                const card = document.createElement('div');
+                card.className = 'agent-card';
+                card.id = `agent-${index}`;
+                card.innerHTML = `
+                    <div class="agent-name">${agent.name}</div>
+                    <div class="agent-model">${agent.model}</div>
+                    <div class="agent-status">${agent.status}</div>
+                `;
+                agentList.appendChild(card);
+            });
+        }
+
+        // Update agent status
+        function updateAgentStatus(agentName, status) {
+            const index = AGENTS.findIndex(a => a.name === agentName);
+            if (index !== -1) {
+                AGENTS[index].status = status;
+                const card = document.getElementById(`agent-${index}`);
+                if (card) {
+                    const statusEl = card.querySelector('.agent-status');
+                    statusEl.textContent = status;
+
+                    if (status === 'active') {
+                        card.classList.add('active');
+                    } else {
+                        card.classList.remove('active');
+                    }
+                }
+            }
+
+            // Update active agents count
+            const activeCount = AGENTS.filter(a => a.status === 'active').length;
+            document.getElementById('activeAgents').textContent = activeCount;
+        }
+
+        // Connect to WebSocket
+        function connectWebSocket() {
+            ws = new WebSocket('ws://localhost:8001/ws/chat');
+
+            ws.onopen = () => {
+                updateConnectionStatus(true);
+                addMessage('System', 'Connected to KI AutoAgent backend', 'system');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateConnectionStatus(false);
+            };
+
+            ws.onclose = () => {
+                updateConnectionStatus(false);
+                addMessage('System', 'Disconnected. Retrying in 5 seconds...', 'system');
+                setTimeout(connectWebSocket, 5000);
+            };
+        }
+
+        // Handle WebSocket messages
+        function handleWebSocketMessage(data) {
+            if (data.type === 'agent_message') {
+                addMessage(data.agent || 'Agent', data.message, 'agent');
+                if (data.agent) {
+                    updateAgentStatus(data.agent, 'active');
+                    setTimeout(() => updateAgentStatus(data.agent, 'idle'), 3000);
+                }
+            } else if (data.type === 'system') {
+                addMessage('System', data.message, 'system');
+            } else if (data.type === 'stats') {
+                updateStats(data.stats);
+            } else {
+                addMessage(data.agent || 'System', data.message || JSON.stringify(data), 'agent');
+            }
+
+            // Update performance chart
+            updateChart(Math.random() * 10);
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = 'Connected';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        // Update stats
+        function updateStats(stats) {
+            if (stats.totalTasks !== undefined) {
+                document.getElementById('totalTasks').textContent = stats.totalTasks;
+            }
+            if (stats.successRate !== undefined) {
+                document.getElementById('successRate').textContent = stats.successRate + '%';
+            }
+        }
+
+        // Add message to chat
+        function addMessage(sender, content, type = 'agent') {
+            const container = document.getElementById('messagesContainer');
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+
+            message.innerHTML = `
+                ${type !== 'system' ? `<div class="message-header">${sender}</div>` : ''}
+                <div class="message-content">${content}</div>
+            `;
+
+            container.appendChild(message);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Send message
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+
+            if (!message) return;
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addMessage('System', 'Not connected to server', 'system');
+                return;
+            }
+
+            addMessage('You', message, 'user');
+
+            ws.send(JSON.stringify({
+                type: 'user_message',
+                message: message,
+                timestamp: new Date().toISOString()
+            }));
+
+            input.value = '';
+
+            // Update task count
+            const currentTasks = parseInt(document.getElementById('totalTasks').textContent);
+            document.getElementById('totalTasks').textContent = currentTasks + 1;
+        }
+
+        // Handle Enter key in textarea
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('messageInput');
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Update uptime every second
+            setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const hours = Math.floor(elapsed / 3600000);
+                const minutes = Math.floor((elapsed % 3600000) / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                document.getElementById('uptime').textContent =
+                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }, 1000);
+        });
+
+        // Initialize on load
+        window.onload = () => {
+            initAgents();
+            initChart();
+            connectWebSocket();
+        };
+    </script>
+</body>
+</html>

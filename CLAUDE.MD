@@ -91,6 +91,35 @@ Die vollständige Dokumentation wurde in separate Dateien ausgelagert für besse
 
 ---
 
+## 📁 TEST-REGELN: Alle Tests im agent_projects Ordner
+
+### Grundprinzip
+**ALLE Test-Dateien und generierten Apps MÜSSEN im `agent_projects/` Ordner erstellt werden!**
+
+### ✅ RICHTIGE Orte:
+- `/Users/dominikfoert/git/KI_AutoAgent/agent_projects/test_*.py` - Test-Skripte
+- `/Users/dominikfoert/git/KI_AutoAgent/agent_projects/*/` - Generierte Apps
+- `/Users/dominikfoert/git/KI_AutoAgent/agent_projects/*.log` - Test-Logs
+
+### ❌ FALSCHE Orte:
+- `/Users/dominikfoert/git/KI_AutoAgent/*.html` - KEINE HTML-Dateien im Hauptordner
+- `/Users/dominikfoert/git/KI_AutoAgent/test_*.py` - KEINE Tests im Hauptordner
+- `/Users/dominikfoert/git/KI_AutoAgent/generate.html` - KEINE generierten Dateien im Hauptordner
+
+### 🧹 Cleanup-Regel:
+Vor jedem neuen Test:
+```bash
+rm -rf /Users/dominikfoert/git/KI_AutoAgent/agent_projects/[test_dir]
+```
+
+### 📝 KI Agent Output:
+Wenn der KI Agent eine App generiert, IMMER mit Pfad-Angabe:
+```
+"Create app in agent_projects/my_app/ directory"
+```
+
+---
+
 ## 🚨 DEBUGGING-REGELN: "Es funktioniert" ist KEIN Beweis
 
 ### Grundprinzip

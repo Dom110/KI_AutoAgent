@@ -535,6 +535,23 @@ class AgentWorkflow:
             state["status"] = "executing"
             return state
 
+        # 🔄 CHECK: Are we resuming from approval?
+        if state.get("resume_from_approval"):
+            logger.info("✅ RESUMING FROM APPROVAL - Skipping planning, using existing execution plan")
+            logger.info(f"📋 Existing execution plan has {len(state.get('execution_plan', []))} steps")
+
+            # Clear the resume flag
+            state["resume_from_approval"] = False
+
+            # Log the execution plan status
+            if state.get("execution_plan"):
+                for i, step in enumerate(state["execution_plan"][:5]):  # First 5 steps
+                    logger.info(f"   Step {i+1}: {step.agent} - {step.status} - {step.task[:50]}...")
+
+            # Set status to executing
+            state["status"] = "executing"
+            return state
+
         # 📋 INITIAL PLANNING MODE
         state["status"] = "planning"
 
@@ -888,11 +905,10 @@ class AgentWorkflow:
                         state["waiting_for_chat_approval"] = True
 
                         # Store in active workflows for later retrieval
-                        if hasattr(self.websocket_manager, 'active_workflows'):
-                            if not hasattr(self.websocket_manager, 'active_workflows'):
-                                self.websocket_manager.active_workflows = {}
-                            self.websocket_manager.active_workflows[state.get("session_id")] = state
-                            logger.info(f"📝 WebSocket DEBUG: Stored state in websocket_manager.active_workflows")
+                        if not hasattr(self.websocket_manager, 'active_workflows'):
+                            self.websocket_manager.active_workflows = {}
+                        self.websocket_manager.active_workflows[state.get("session_id")] = state
+                        logger.info(f"📝 WebSocket DEBUG: Stored state in websocket_manager.active_workflows for session: {state.get('session_id')}")
                     except Exception as e:
                         logger.error(f"❌ WebSocket DEBUG: Failed to send proposal: {e}")
                         import traceback

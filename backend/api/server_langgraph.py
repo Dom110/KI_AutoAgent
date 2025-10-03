@@ -129,6 +129,9 @@ async def lifespan(app: FastAPI):
             memory_db_path="agent_memories.db"
         )
 
+        # Initialize active workflows storage
+        workflow_system.active_workflows = {}
+
         if workflow_system is None:
             logger.error("❌ CRITICAL: create_agent_workflow returned None!")
             raise RuntimeError("Failed to create workflow system")
@@ -483,18 +486,34 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
     session_id = session["session_id"]
     logger.info(f"🔌 WebSocket DEBUG: Checking for approval state - session_id: {session_id}")
 
+    # Check multiple places for the workflow state
+    workflow_state = {}
+
     # First check the WebSocket manager's active_workflows
     if manager and hasattr(manager, 'active_workflows'):
         logger.info(f"🔌 WebSocket DEBUG: Found manager.active_workflows with {len(getattr(manager, 'active_workflows', {}))} sessions")
         workflow_state = manager.active_workflows.get(session_id, {})
         if workflow_state.get("waiting_for_chat_approval"):
             logger.info(f"📋 Chat approval detected in manager for session {session_id}")
+
     # Then check workflow_system's active_workflows
-    elif workflow_system and hasattr(workflow_system, 'active_workflows'):
-        logger.info(f"🔌 WebSocket DEBUG: Found workflow_system.active_workflows with {len(workflow_system.active_workflows)} sessions")
-        workflow_state = workflow_system.active_workflows.get(session_id, {})
-    else:
-        logger.info(f"🔌 WebSocket DEBUG: No active_workflows found in manager or workflow_system")
+    if not workflow_state.get("waiting_for_chat_approval"):
+        if workflow_system and hasattr(workflow_system, 'active_workflows'):
+            logger.info(f"🔌 WebSocket DEBUG: Found workflow_system.active_workflows with {len(workflow_system.active_workflows)} sessions")
+            workflow_state = workflow_system.active_workflows.get(session_id, {})
+            if workflow_state.get("waiting_for_chat_approval"):
+                logger.info(f"📋 Chat approval detected in workflow_system for session {session_id}")
+
+        # Also check workflow_system.workflow.active_workflows
+        if not workflow_state.get("waiting_for_chat_approval"):
+            if workflow_system and hasattr(workflow_system, 'workflow') and hasattr(workflow_system.workflow, 'active_workflows'):
+                logger.info(f"🔌 WebSocket DEBUG: Found workflow_system.workflow.active_workflows with {len(workflow_system.workflow.active_workflows)} sessions")
+                workflow_state = workflow_system.workflow.active_workflows.get(session_id, {})
+                if workflow_state.get("waiting_for_chat_approval"):
+                    logger.info(f"📋 Chat approval detected in workflow_system.workflow for session {session_id}")
+
+    if not workflow_state:
+        logger.info(f"🔌 WebSocket DEBUG: No workflow state found for session {session_id}")
         workflow_state = {}
 
     # Check if waiting for chat-based approval
@@ -523,8 +542,15 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
             "content": f"📋 Architecture {decision}. {'Continuing workflow...' if decision == 'approved' else 'Stopping workflow.'}"
         })
 
-        # Process the approval like architecture_approval message
-        approval_input = {
+        # Process the approval - MERGE with existing state!
+        logger.info(f"🔌 DEBUG: workflow_state has {len(workflow_state)} keys")
+        logger.info(f"🔌 DEBUG: execution_plan in state: {'execution_plan' in workflow_state}")
+
+        # Start with the existing workflow state to preserve execution_plan
+        approval_input = workflow_state.copy() if workflow_state else {}
+
+        # Update with approval decision
+        approval_input.update({
             "proposal_status": decision,
             "user_feedback_on_proposal": feedback,
             "status": "executing" if decision == "approved" else "failed",
@@ -532,7 +558,16 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
             "waiting_for_approval": False,
             "waiting_for_chat_approval": False,
             "resume_from_approval": True
-        }
+        })
+
+        # Debug log the execution plan
+        if "execution_plan" in approval_input:
+            plan = approval_input["execution_plan"]
+            logger.info(f"🔌 DEBUG: execution_plan has {len(plan)} steps")
+            for i, step in enumerate(plan[:3]):  # First 3 steps
+                logger.info(f"   Step {i+1}: {step.agent} - {step.status}")
+        else:
+            logger.warning("⚠️ DEBUG: No execution_plan in approval_input!")
 
         logger.info(f"🔄 Resuming workflow with {decision} decision...")
 
