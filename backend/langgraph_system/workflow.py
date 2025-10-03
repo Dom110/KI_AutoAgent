@@ -12,7 +12,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.memory import MemorySaver
 
-from .state import ExtendedAgentState, create_initial_state, ExecutionStep
+from .state import ExtendedAgentState, create_initial_state, ExecutionStep, TaskLedger, ProgressLedger
 from .extensions import (
     ToolRegistry,
     ApprovalManager,
@@ -178,6 +178,209 @@ class AgentWorkflow:
             logger.exception(e)
             self.real_agents = {}
 
+    # =================== v5.4.3: Enhanced Workflow Management ===================
+
+    def create_task_ledger(self, task: str, steps: List[ExecutionStep]) -> TaskLedger:
+        """
+        v5.4.3: Create a Task Ledger for tracking task decomposition
+        """
+        now = datetime.now()
+        completion_criteria = self.extract_success_criteria(task)
+
+        # Estimate duration based on step count and agent types
+        estimated_duration = 0
+        for step in steps:
+            # Rough estimates per agent type
+            agent_durations = {
+                "orchestrator": 5,
+                "architect": 120,
+                "codesmith": 180,
+                "reviewer": 60,
+                "fixer": 120,
+                "research": 90,
+                "docbot": 60,
+                "performance": 90,
+                "tradestrat": 60
+            }
+            estimated_duration += agent_durations.get(step.agent, 60)
+
+        return TaskLedger(
+            original_task=task,
+            decomposed_steps=steps,
+            completion_criteria=completion_criteria,
+            progress_summary="Task decomposition complete, ready for execution",
+            created_at=now,
+            last_updated=now,
+            total_estimated_duration=estimated_duration
+        )
+
+    def extract_success_criteria(self, task: str) -> List[str]:
+        """
+        v5.4.3: Extract success criteria from task description
+        """
+        criteria = []
+
+        # Common success patterns
+        if any(word in task.lower() for word in ["fix", "repair", "solve"]):
+            criteria.append("Issue resolved and verified")
+        if any(word in task.lower() for word in ["implement", "create", "build"]):
+            criteria.append("Feature implemented and tested")
+        if any(word in task.lower() for word in ["optimize", "improve", "speed up"]):
+            criteria.append("Performance improved and measured")
+        if any(word in task.lower() for word in ["review", "analyze", "check"]):
+            criteria.append("Analysis complete with findings documented")
+        if any(word in task.lower() for word in ["document", "write", "explain"]):
+            criteria.append("Documentation complete and clear")
+
+        # Default if no specific criteria found
+        if not criteria:
+            criteria.append("Task completed successfully")
+
+        return criteria
+
+    def create_progress_ledger(self, steps: List[ExecutionStep]) -> ProgressLedger:
+        """
+        v5.4.3: Create a Progress Ledger for tracking workflow progress
+        """
+        ledger = ProgressLedger(
+            total_steps=len(steps),
+            completed_steps=0,
+            failed_steps=0,
+            in_progress_steps=0,
+            blocked_steps=0,
+            current_phase="planning",
+            estimated_completion=None,
+            overall_progress_percentage=0.0
+        )
+        ledger.update_from_steps(steps)
+        return ledger
+
+    async def check_and_handle_timeouts(self, state: ExtendedAgentState) -> ExtendedAgentState:
+        """
+        v5.4.3: Check for timed-out steps and handle retries
+        """
+        steps_modified = False
+
+        for step in state["execution_plan"]:
+            # Check timeout for in_progress steps
+            if step.status == "in_progress" and step.is_timeout():
+                logger.warning(f"⏱️ Step {step.id} ({step.agent}) timed out after {step.timeout_seconds}s")
+
+                # Record the attempt
+                step.attempts.append({
+                    "attempt": step.retry_count + 1,
+                    "status": "timeout",
+                    "duration": step.timeout_seconds,
+                    "timestamp": datetime.now().isoformat()
+                })
+
+                # Check if can retry
+                if step.can_retry():
+                    delay = step.get_retry_delay()
+                    logger.info(f"🔄 Retrying step {step.id} after {delay}s delay (attempt {step.retry_count + 1}/{step.max_retries})")
+                    step.status = "pending"  # Reset to pending for retry
+                    step.retry_count += 1
+                    step.started_at = None
+                    steps_modified = True
+
+                    # Add retry message
+                    state["messages"].append({
+                        "role": "system",
+                        "content": f"Step {step.id} timed out. Retrying (attempt {step.retry_count}/{step.max_retries})"
+                    })
+                else:
+                    # Max retries reached, mark as failed
+                    logger.error(f"❌ Step {step.id} failed after {step.max_retries} retries")
+                    step.status = "failed"
+                    step.error = f"Timeout after {step.max_retries} attempts"
+                    step.end_time = datetime.now()
+                    steps_modified = True
+
+        if steps_modified:
+            state["execution_plan"] = list(state["execution_plan"])  # Trigger state update
+
+        return state
+
+    def identify_parallel_groups(self, steps: List[ExecutionStep]) -> Dict[str, List[ExecutionStep]]:
+        """
+        v5.4.3: Identify steps that can run in parallel
+        Groups steps with no dependencies on each other
+        """
+        parallel_groups = {}
+        group_counter = 0
+
+        # Track which steps are processed
+        processed = set()
+
+        for step in steps:
+            if step.id in processed:
+                continue
+
+            # Find all steps that can run in parallel with this one
+            parallel_candidates = [step]
+
+            for other in steps:
+                if other.id == step.id or other.id in processed:
+                    continue
+
+                # Check if they have no dependencies on each other
+                if not self._has_dependency_conflict(step, other, steps):
+                    parallel_candidates.append(other)
+                    processed.add(other.id)
+
+            # Create parallel group if more than one step
+            if len(parallel_candidates) > 1:
+                group_id = f"parallel_group_{group_counter}"
+                parallel_groups[group_id] = parallel_candidates
+                group_counter += 1
+
+                # Mark steps with parallel group
+                for s in parallel_candidates:
+                    s.can_run_parallel = True
+                    s.parallel_group = group_id
+
+            processed.add(step.id)
+
+        return parallel_groups
+
+    def _has_dependency_conflict(self, step1: ExecutionStep, step2: ExecutionStep, all_steps: List[ExecutionStep]) -> bool:
+        """
+        Check if two steps have dependency conflicts preventing parallel execution
+        """
+        # Direct dependency check
+        if step1.id in step2.dependencies or step2.id in step1.dependencies:
+            return True
+
+        # Transitive dependency check (simplified)
+        step1_deps = self._get_all_dependencies(step1, all_steps)
+        step2_deps = self._get_all_dependencies(step2, all_steps)
+
+        # Check if either depends on the other transitively
+        if step1.id in step2_deps or step2.id in step1_deps:
+            return True
+
+        return False
+
+    def _get_all_dependencies(self, step: ExecutionStep, all_steps: List[ExecutionStep]) -> set:
+        """
+        Get all transitive dependencies of a step
+        """
+        deps = set(step.dependencies)
+        to_process = list(step.dependencies)
+
+        while to_process:
+            dep_id = to_process.pop()
+            dep_step = next((s for s in all_steps if s.id == dep_id), None)
+            if dep_step:
+                for sub_dep in dep_step.dependencies:
+                    if sub_dep not in deps:
+                        deps.add(sub_dep)
+                        to_process.append(sub_dep)
+
+        return deps
+
+    # =================== End v5.4.3 Enhancements ===================
+
     async def orchestrator_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
         """
         Orchestrator node - plans and decomposes tasks
@@ -278,6 +481,26 @@ class AgentWorkflow:
         # Create execution plan
         plan = await self._create_execution_plan(state)
         state["execution_plan"] = plan
+
+        # v5.4.3: Create Task Ledger for tracking
+        if state["messages"]:
+            original_task = state["messages"][-1]["content"]
+            task_ledger = self.create_task_ledger(original_task, plan)
+            state["task_ledger"] = task_ledger
+            logger.info(f"📖 Created Task Ledger with {len(task_ledger.completion_criteria)} success criteria")
+
+        # v5.4.3: Create Progress Ledger
+        progress_ledger = self.create_progress_ledger(plan)
+        state["progress_ledger"] = progress_ledger
+        logger.info(f"📊 Created Progress Ledger - {progress_ledger.total_steps} total steps")
+
+        # v5.4.3: Identify parallel execution opportunities
+        parallel_groups = self.identify_parallel_groups(plan)
+        if parallel_groups:
+            logger.info(f"⚡ Identified {len(parallel_groups)} parallel execution groups")
+            for group_id, steps in parallel_groups.items():
+                step_ids = [s.id for s in steps]
+                logger.info(f"   {group_id}: Steps {step_ids} can run in parallel")
 
         # Set default approval type to none
         # This will be overridden to "architecture_proposal" by architect_node if needed
@@ -990,6 +1213,15 @@ class AgentWorkflow:
         logger.info(f"🔀 Routing to next agent...")
         logger.info(f"📋 Execution plan has {len(state['execution_plan'])} steps")
 
+        # v5.4.3: Check for timeouts first
+        asyncio.create_task(self.check_and_handle_timeouts(state))
+
+        # v5.4.3: Update progress ledger
+        if state.get("progress_ledger"):
+            state["progress_ledger"].update_from_steps(state["execution_plan"])
+            progress = state["progress_ledger"]
+            logger.info(f"📊 Progress: {progress.completed_steps}/{progress.total_steps} ({progress.overall_progress_percentage:.1f}%)")
+
         # 🔄 CHECK 1: Agent collaboration/re-planning needed?
         if state.get("needs_replan"):
             logger.info("🔄 Re-planning needed - routing back to orchestrator")
@@ -1023,6 +1255,9 @@ class AgentWorkflow:
                         # Continue to check for next step
                         continue
                     step.status = "in_progress"
+                    # v5.4.3: Track execution start time for timeout management
+                    step.started_at = datetime.now()
+                    step.start_time = datetime.now()  # Also set start_time for compatibility
                     state["current_step_id"] = step.id
                     logger.info(f"✅ Routing to {agent} for step {step.id}")
                     return agent

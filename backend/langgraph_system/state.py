@@ -35,22 +35,117 @@ class MemoryEntry:
 
 @dataclass
 class ExecutionStep:
-    """Single execution step in the plan"""
+    """
+    Single execution step in the plan
+    v5.4.3: Enhanced with timeout, retry, and parallel execution support
+    """
     id: str
     agent: str
     task: str
     expected_output: str = ""  # Default to empty string for checkpoint deserialization
     dependencies: List[str] = None  # Default to empty list
-    status: Literal["pending", "in_progress", "completed", "failed"] = "pending"
+    status: Literal["pending", "in_progress", "completed", "failed", "blocked", "cancelled", "timeout"] = "pending"
     result: Optional[Any] = None
     error: Optional[str] = None
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
 
+    # v5.4.3: Timeout Management
+    timeout_seconds: int = 300  # 5 minutes default
+    started_at: Optional[datetime] = None  # Track actual execution start
+
+    # v5.4.3: Retry Mechanism
+    retry_count: int = 0
+    max_retries: int = 3
+    retry_delay_seconds: int = 5  # Exponential backoff base
+
+    # v5.4.3: Parallel Execution Support
+    can_run_parallel: bool = False
+    parallel_group: Optional[str] = None  # Group ID for parallel execution
+
+    # v5.4.3: Enhanced Tracking
+    attempts: List[Dict[str, Any]] = None  # History of execution attempts
+    completion_percentage: float = 0.0  # Progress tracking
+
     def __post_init__(self):
         """Initialize mutable defaults"""
         if self.dependencies is None:
             self.dependencies = []
+        if self.attempts is None:
+            self.attempts = []
+
+    def is_timeout(self) -> bool:
+        """Check if step has timed out"""
+        if self.started_at and self.status == "in_progress":
+            elapsed = (datetime.now() - self.started_at).total_seconds()
+            return elapsed > self.timeout_seconds
+        return False
+
+    def can_retry(self) -> bool:
+        """Check if step can be retried"""
+        return self.retry_count < self.max_retries and self.status in ["failed", "timeout"]
+
+    def get_retry_delay(self) -> int:
+        """Calculate exponential backoff delay"""
+        return self.retry_delay_seconds * (2 ** self.retry_count)
+
+
+@dataclass
+class TaskLedger:
+    """
+    v5.4.3: Task Ledger for Orchestrator Planning
+    Tracks original task, decomposed steps, and completion criteria
+    """
+    original_task: str
+    decomposed_steps: List[ExecutionStep]
+    completion_criteria: List[str]
+    progress_summary: str
+    created_at: datetime
+    last_updated: datetime
+    total_estimated_duration: int = 0  # seconds
+    actual_duration: int = 0  # seconds
+    success_metrics: Dict[str, Any] = None
+
+    def __post_init__(self):
+        """Initialize defaults"""
+        if self.success_metrics is None:
+            self.success_metrics = {}
+
+
+@dataclass
+class ProgressLedger:
+    """
+    v5.4.3: Progress tracking for workflow execution
+    Provides real-time visibility into workflow progress
+    """
+    total_steps: int
+    completed_steps: int
+    failed_steps: int
+    in_progress_steps: int
+    blocked_steps: int
+    current_phase: str  # e.g., "planning", "execution", "validation"
+    estimated_completion: Optional[datetime]
+    overall_progress_percentage: float
+    bottlenecks: List[str] = None  # Identified bottlenecks
+    performance_metrics: Dict[str, float] = None
+
+    def __post_init__(self):
+        """Initialize defaults"""
+        if self.bottlenecks is None:
+            self.bottlenecks = []
+        if self.performance_metrics is None:
+            self.performance_metrics = {}
+
+    def update_from_steps(self, steps: List[ExecutionStep]):
+        """Update progress from execution steps"""
+        self.total_steps = len(steps)
+        self.completed_steps = sum(1 for s in steps if s.status == "completed")
+        self.failed_steps = sum(1 for s in steps if s.status == "failed")
+        self.in_progress_steps = sum(1 for s in steps if s.status == "in_progress")
+        self.blocked_steps = sum(1 for s in steps if s.status == "blocked")
+
+        if self.total_steps > 0:
+            self.overall_progress_percentage = (self.completed_steps / self.total_steps) * 100
 
 
 class ExtendedAgentState(TypedDict):
@@ -73,6 +168,10 @@ class ExtendedAgentState(TypedDict):
     execution_plan: List[ExecutionStep]
     current_step_id: Optional[str]
     execution_mode: Literal["sequential", "parallel"]
+
+    # v5.4.3: Task and Progress Ledgers
+    task_ledger: Optional[TaskLedger]
+    progress_ledger: Optional[ProgressLedger]
 
     # Plan-First and approval
     plan_first_mode: bool
