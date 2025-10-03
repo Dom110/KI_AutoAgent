@@ -1,13 +1,13 @@
 """
 KI AutoAgent Backend Version Information
 
-Version 5.4.3 - Enhanced Workflow Management & Self-Diagnosis
+Version 5.5.0 - Complete Self-Diagnosis and Pre-Execution Validation System
 """
 
 # Version numbers - Single source of truth
-__version__ = "5.4.3"
-__version_info__ = (5, 4, 3)
-__release_tag__ = "v5.4.3-stable-remote"
+__version__ = "5.5.0"
+__version_info__ = (5, 5, 0)
+__release_tag__ = "v5.5.0-stable-remote"
 __release_date__ = "2025-10-03"
 __author__ = "KI AutoAgent Team"
 __description__ = "Cognitive AI Development Platform with Self-Understanding Capabilities"

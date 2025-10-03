@@ -24,6 +24,16 @@ from .cache_manager import CacheManager
 
 logger = logging.getLogger(__name__)
 
+# v5.5.0: Import Self-Diagnosis System
+try:
+    from .workflow_self_diagnosis import WorkflowSelfDiagnosisSystem
+    SELF_DIAGNOSIS_AVAILABLE = True
+    logger.info("✅ Self-Diagnosis System loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Self-Diagnosis System not available: {e}")
+    SELF_DIAGNOSIS_AVAILABLE = False
+    WorkflowSelfDiagnosisSystem = None
+
 # Import real agents
 import sys
 import os
@@ -102,6 +112,16 @@ class AgentWorkflow:
         # Initialize active workflows tracking (v5.3.1 bugfix)
         # This allows architecture approval to be processed correctly
         self.active_workflows = {}
+
+        # v5.5.0: Initialize Self-Diagnosis System
+        self.self_diagnosis = None
+        if SELF_DIAGNOSIS_AVAILABLE:
+            try:
+                self.self_diagnosis = WorkflowSelfDiagnosisSystem()
+                logger.info("🏥 Self-Diagnosis System initialized")
+            except Exception as e:
+                logger.error(f"Failed to initialize Self-Diagnosis System: {e}")
+                self.self_diagnosis = None
 
         # Initialize workflow
         self.workflow = None
@@ -501,6 +521,52 @@ class AgentWorkflow:
             for group_id, steps in parallel_groups.items():
                 step_ids = [s.id for s in steps]
                 logger.info(f"   {group_id}: Steps {step_ids} can run in parallel")
+
+        # v5.5.0: COMPREHENSIVE PRE-EXECUTION VALIDATION
+        if self.self_diagnosis:
+            logger.info("🔍 Running Pre-Execution Validation (v5.5.0)")
+            try:
+                # Run comprehensive validation with auto-fix
+                is_safe, validated_state = await self.self_diagnosis.pre_execution_check(
+                    state,
+                    auto_fix=True  # Allow automatic fixes for critical issues
+                )
+
+                if not is_safe:
+                    logger.error("❌ Pre-Execution Validation FAILED - Plan is NOT safe to execute")
+
+                    # Add error message to state
+                    state["messages"].append({
+                        "role": "system",
+                        "content": "⚠️ Pre-execution validation failed. The execution plan has critical issues that need review. Please check the logs for details."
+                    })
+
+                    # Mark workflow as failed
+                    state["status"] = "validation_failed"
+
+                    # Create a simple fallback plan
+                    fallback_step = ExecutionStep(
+                        id="fallback_1",
+                        agent="orchestrator",
+                        task="Validation failed - please review and fix the issues",
+                        status="completed",
+                        result="Pre-execution validation detected critical issues. Manual intervention required."
+                    )
+                    state["execution_plan"] = [fallback_step]
+
+                    logger.error("🔄 Created fallback plan due to validation failure")
+                    return state
+                else:
+                    logger.info("✅ Pre-Execution Validation PASSED - Plan is safe to execute")
+                    # Use the validated (potentially fixed) state
+                    state = validated_state
+
+            except Exception as e:
+                logger.error(f"Error during pre-execution validation: {e}")
+                # Continue without validation on error
+                logger.warning("⚠️ Continuing without validation due to error")
+        else:
+            logger.warning("⚠️ Self-Diagnosis System not available - skipping validation")
 
         # Set default approval type to none
         # This will be overridden to "architecture_proposal" by architect_node if needed
@@ -1221,6 +1287,21 @@ class AgentWorkflow:
             state["progress_ledger"].update_from_steps(state["execution_plan"])
             progress = state["progress_ledger"]
             logger.info(f"📊 Progress: {progress.completed_steps}/{progress.total_steps} ({progress.overall_progress_percentage:.1f}%)")
+
+        # v5.5.0: Real-time health monitoring
+        if self.self_diagnosis and state.get("collaboration_count", 0) % 5 == 0:
+            # Check health every 5 collaborations
+            async def run_health_check():
+                try:
+                    health_report = await self.self_diagnosis.real_time_monitoring(state)
+                    if health_report["overall_health"] in ["CRITICAL", "UNHEALTHY"]:
+                        logger.error(f"🚨 Workflow health is {health_report['overall_health']}")
+                        logger.error(f"   Risk factors: {health_report.get('recommendations', [])}")
+                except Exception as e:
+                    logger.warning(f"Health monitoring error: {e}")
+
+            # Run health check in background
+            asyncio.create_task(run_health_check())
 
         # 🔄 CHECK 1: Agent collaboration/re-planning needed?
         if state.get("needs_replan"):
