@@ -103,6 +103,42 @@ except ImportError as e:
     logger.warning(f"⚠️ Could not import ResearchAgent: {e}")
     logger.warning(f"⚠️ Web research will not be available")
 
+# Import DocuBotAgent for documentation generation
+try:
+    from agents.specialized.docubot_agent import DocuBotAgent
+    DOCBOT_AVAILABLE = True
+    logger.info("✅ DocuBot agent imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Could not import DocuBotAgent: {e}")
+    logger.warning(f"⚠️ Documentation generation will use stub")
+
+# Import PerformanceBot for performance optimization
+try:
+    from agents.specialized.performance_bot import PerformanceBot
+    PERFORMANCE_AVAILABLE = True
+    logger.info("✅ Performance agent imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Could not import PerformanceBot: {e}")
+    logger.warning(f"⚠️ Performance optimization will use stub")
+
+# Import TradeStratAgent for trading strategies
+try:
+    from agents.specialized.tradestrat_agent import TradeStratAgent
+    TRADESTRAT_AVAILABLE = True
+    logger.info("✅ TradeStrat agent imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Could not import TradeStratAgent: {e}")
+    logger.warning(f"⚠️ Trading strategies will use stub")
+
+# Import OpusArbitratorAgent for conflict resolution
+try:
+    from agents.specialized.opus_arbitrator_agent import OpusArbitratorAgent
+    OPUS_AVAILABLE = True
+    logger.info("✅ OpusArbitrator agent imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Could not import OpusArbitratorAgent: {e}")
+    logger.warning(f"⚠️ Conflict resolution will use stub")
+
 
 class AgentWorkflow:
     """
@@ -247,6 +283,50 @@ class AgentWorkflow:
                     logger.info("✅ ResearchAgent initialized with Perplexity API")
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to initialize ResearchAgent: {e}")
+
+            # Add DocuBotAgent for documentation
+            if DOCBOT_AVAILABLE:
+                try:
+                    docbot = DocuBotAgent()
+                    if "docbot" in self.agent_memories:
+                        docbot.memory_manager = self.agent_memories["docbot"]
+                    self.real_agents["docbot"] = docbot
+                    logger.info("✅ DocuBotAgent initialized")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to initialize DocuBotAgent: {e}")
+
+            # Add PerformanceBot for optimization
+            if PERFORMANCE_AVAILABLE:
+                try:
+                    performance = PerformanceBot()
+                    if "performance" in self.agent_memories:
+                        performance.memory_manager = self.agent_memories["performance"]
+                    self.real_agents["performance"] = performance
+                    logger.info("✅ PerformanceBot initialized")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to initialize PerformanceBot: {e}")
+
+            # Add TradeStratAgent for trading strategies
+            if TRADESTRAT_AVAILABLE:
+                try:
+                    tradestrat = TradeStratAgent()
+                    if "tradestrat" in self.agent_memories:
+                        tradestrat.memory_manager = self.agent_memories["tradestrat"]
+                    self.real_agents["tradestrat"] = tradestrat
+                    logger.info("✅ TradeStratAgent initialized")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to initialize TradeStratAgent: {e}")
+
+            # Add OpusArbitratorAgent for conflict resolution
+            if OPUS_AVAILABLE:
+                try:
+                    opus = OpusArbitratorAgent()
+                    if "opus_arbitrator" in self.agent_memories:
+                        opus.memory_manager = self.agent_memories["opus_arbitrator"]
+                    self.real_agents["opus_arbitrator"] = opus
+                    logger.info("✅ OpusArbitratorAgent initialized")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to initialize OpusArbitratorAgent: {e}")
 
             logger.info(f"✅ Initialized {len(self.real_agents)} real agents")
         except Exception as e:
@@ -1310,13 +1390,318 @@ class AgentWorkflow:
 
         return state
 
+    async def docbot_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
+        """
+        DocBot node - generates documentation
+        """
+        logger.info("📚 DocBot node executing")
+        state["current_agent"] = "docbot"
+
+        # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
+        current_step = next(
+            (s for s in state["execution_plan"] if s.agent == "docbot" and s.status == "in_progress"),
+            None
+        )
+        if not current_step:
+            logger.error("❌ No in_progress docbot step found!")
+            return state
+
+        logger.info(f"📚 Executing step {current_step.id}: {current_step.task[:100]}...")
+
+        try:
+            # Check if real agent is available
+            if "docbot" in self.real_agents:
+                agent = self.real_agents["docbot"]
+
+                # Get context from previous steps
+                code_context = []
+                for step in state["execution_plan"]:
+                    if step.status == "completed" and step.agent in ["codesmith", "fixer", "fixer_gpt"]:
+                        code_context.append(step.result)
+
+                # Create task request
+                task_request = TaskRequest(
+                    prompt=current_step.task,
+                    context={
+                        "code_context": code_context,
+                        "session_id": state["session_id"],
+                        "workspace_path": state["workspace_path"],
+                        "collaboration_history": state.get("collaboration_history", [])
+                    }
+                )
+
+                # Execute documentation generation
+                result = await agent.execute(task_request)
+                doc_result = result.content
+
+                logger.info(f"✅ DocBot completed: {len(doc_result)} characters")
+
+                # Store result
+                current_step.result = doc_result
+                current_step.status = "completed"
+                state["execution_plan"] = list(state["execution_plan"])
+
+                # Add to collaboration history
+                state["collaboration_history"].append({
+                    "from": "docbot",
+                    "to": current_step.dependencies[0] if current_step.dependencies else "orchestrator",
+                    "message": doc_result,
+                    "timestamp": datetime.now().isoformat()
+                })
+            else:
+                # Fallback to stub
+                logger.warning("⚠️ DocBot agent not available - using stub")
+                current_step.result = "📚 Documentation stub: Would generate comprehensive docs here"
+                current_step.status = "completed"
+                state["execution_plan"] = list(state["execution_plan"])
+
+        except Exception as e:
+            logger.error(f"DocBot execution failed: {e}")
+            current_step.status = "failed"
+            current_step.error = str(e)
+            state["execution_plan"] = list(state["execution_plan"])
+
+        return state
+
+    async def performance_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
+        """
+        Performance node - optimizes code performance
+        """
+        logger.info("⚡ Performance node executing")
+        state["current_agent"] = "performance"
+
+        # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
+        current_step = next(
+            (s for s in state["execution_plan"] if s.agent == "performance" and s.status == "in_progress"),
+            None
+        )
+        if not current_step:
+            logger.error("❌ No in_progress performance step found!")
+            return state
+
+        logger.info(f"⚡ Executing step {current_step.id}: {current_step.task[:100]}...")
+
+        try:
+            # Check if real agent is available
+            if "performance" in self.real_agents:
+                agent = self.real_agents["performance"]
+
+                # Get code to optimize
+                code_to_optimize = []
+                for step in state["execution_plan"]:
+                    if step.status == "completed" and step.agent in ["codesmith", "fixer", "fixer_gpt"]:
+                        code_to_optimize.append(step.result)
+
+                # Create task request
+                task_request = TaskRequest(
+                    prompt=current_step.task,
+                    context={
+                        "code_to_optimize": code_to_optimize,
+                        "session_id": state["session_id"],
+                        "workspace_path": state["workspace_path"],
+                        "performance_metrics": state.get("performance_metrics", {})
+                    }
+                )
+
+                # Execute performance optimization
+                result = await agent.execute(task_request)
+                perf_result = result.content
+
+                logger.info(f"✅ Performance optimization completed: {len(perf_result)} characters")
+
+                # Store result
+                current_step.result = perf_result
+                current_step.status = "completed"
+                state["execution_plan"] = list(state["execution_plan"])
+
+                # Add to collaboration history
+                state["collaboration_history"].append({
+                    "from": "performance",
+                    "to": current_step.dependencies[0] if current_step.dependencies else "orchestrator",
+                    "message": perf_result,
+                    "timestamp": datetime.now().isoformat()
+                })
+            else:
+                # Fallback to stub
+                logger.warning("⚠️ Performance agent not available - using stub")
+                current_step.result = "⚡ Performance stub: Would optimize performance here"
+                current_step.status = "completed"
+                state["execution_plan"] = list(state["execution_plan"])
+
+        except Exception as e:
+            logger.error(f"Performance optimization failed: {e}")
+            current_step.status = "failed"
+            current_step.error = str(e)
+            state["execution_plan"] = list(state["execution_plan"])
+
+        return state
+
+    async def tradestrat_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
+        """
+        TradeStrat node - develops trading strategies
+        """
+        logger.info("📈 TradeStrat node executing")
+        state["current_agent"] = "tradestrat"
+
+        # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
+        current_step = next(
+            (s for s in state["execution_plan"] if s.agent == "tradestrat" and s.status == "in_progress"),
+            None
+        )
+        if not current_step:
+            logger.error("❌ No in_progress tradestrat step found!")
+            return state
+
+        logger.info(f"📈 Executing step {current_step.id}: {current_step.task[:100]}...")
+
+        try:
+            # Check if real agent is available
+            if "tradestrat" in self.real_agents:
+                agent = self.real_agents["tradestrat"]
+
+                # Get market data and research results
+                research_results = state.get("information_gathered", [])
+                market_context = {
+                    "research": research_results,
+                    "requirements": current_step.task
+                }
+
+                # Create task request
+                task_request = TaskRequest(
+                    prompt=current_step.task,
+                    context={
+                        "market_context": market_context,
+                        "session_id": state["session_id"],
+                        "workspace_path": state["workspace_path"],
+                        "trading_parameters": state.get("trading_parameters", {})
+                    }
+                )
+
+                # Execute strategy development
+                result = await agent.execute(task_request)
+                strategy_result = result.content
+
+                logger.info(f"✅ Trading strategy developed: {len(strategy_result)} characters")
+
+                # Store result
+                current_step.result = strategy_result
+                current_step.status = "completed"
+                state["execution_plan"] = list(state["execution_plan"])
+
+                # Add to collaboration history
+                state["collaboration_history"].append({
+                    "from": "tradestrat",
+                    "to": current_step.dependencies[0] if current_step.dependencies else "orchestrator",
+                    "message": strategy_result,
+                    "timestamp": datetime.now().isoformat()
+                })
+            else:
+                # Fallback to stub
+                logger.warning("⚠️ TradeStrat agent not available - using stub")
+                current_step.result = "📈 Trading strategy stub: Would develop strategy here"
+                current_step.status = "completed"
+                state["execution_plan"] = list(state["execution_plan"])
+
+        except Exception as e:
+            logger.error(f"Trading strategy development failed: {e}")
+            current_step.status = "failed"
+            current_step.error = str(e)
+            state["execution_plan"] = list(state["execution_plan"])
+
+        return state
+
+    async def opus_arbitrator_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
+        """
+        OpusArbitrator node - resolves conflicts between agents
+        """
+        logger.info("⚖️ OpusArbitrator node executing")
+        state["current_agent"] = "opus_arbitrator"
+
+        # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
+        current_step = next(
+            (s for s in state["execution_plan"] if s.agent == "opus_arbitrator" and s.status == "in_progress"),
+            None
+        )
+        if not current_step:
+            logger.error("❌ No in_progress opus_arbitrator step found!")
+            return state
+
+        logger.info(f"⚖️ Executing step {current_step.id}: {current_step.task[:100]}...")
+
+        try:
+            # Check if real agent is available
+            if "opus_arbitrator" in self.real_agents:
+                agent = self.real_agents["opus_arbitrator"]
+
+                # Gather all conflicting opinions
+                conflicts = []
+                for hist in state.get("collaboration_history", [])[-10:]:  # Last 10 interactions
+                    if hist.get("from") in ["reviewer", "fixer", "architect", "codesmith"]:
+                        conflicts.append({
+                            "agent": hist["from"],
+                            "opinion": hist["message"][:500]  # First 500 chars
+                        })
+
+                # Create task request
+                task_request = TaskRequest(
+                    prompt=current_step.task,
+                    context={
+                        "conflicts": conflicts,
+                        "session_id": state["session_id"],
+                        "workspace_path": state["workspace_path"],
+                        "escalation_level": state.get("escalation_level", 0),
+                        "collaboration_count": state.get("collaboration_count", 0)
+                    }
+                )
+
+                # Execute arbitration
+                result = await agent.execute(task_request)
+                arbitration_result = result.content
+
+                logger.info(f"✅ Arbitration completed: {len(arbitration_result)} characters")
+
+                # Store result
+                current_step.result = arbitration_result
+                current_step.status = "completed"
+                state["execution_plan"] = list(state["execution_plan"])
+
+                # Add to collaboration history
+                state["collaboration_history"].append({
+                    "from": "opus_arbitrator",
+                    "to": "orchestrator",  # Usually goes back to orchestrator for re-planning
+                    "message": arbitration_result,
+                    "timestamp": datetime.now().isoformat()
+                })
+
+                # Set re-planning flag based on arbitration result
+                if "REPLAN" in arbitration_result or "REDESIGN" in arbitration_result:
+                    state["needs_replan"] = True
+                    state["replan_reason"] = "OpusArbitrator recommended re-planning"
+            else:
+                # Fallback to stub
+                logger.warning("⚠️ OpusArbitrator agent not available - using stub")
+                current_step.result = "⚖️ Arbitration stub: Would resolve conflicts here"
+                current_step.status = "completed"
+                state["execution_plan"] = list(state["execution_plan"])
+
+        except Exception as e:
+            logger.error(f"Arbitration failed: {e}")
+            current_step.status = "failed"
+            current_step.error = str(e)
+            state["execution_plan"] = list(state["execution_plan"])
+
+        return state
+
     async def route_after_approval(self, state: ExtendedAgentState) -> str:
         """
         Route after approval node - intelligently routes to first pending agent
         Validates that the agent has a workflow node, fallback to orchestrator if not
         """
         # Available workflow nodes (agents with implemented nodes)
-        AVAILABLE_NODES = {"orchestrator", "architect", "codesmith", "reviewer", "fixer", "research", "fixer_gpt"}
+        AVAILABLE_NODES = {
+            "orchestrator", "architect", "codesmith", "reviewer", "fixer",
+            "research", "fixer_gpt", "docbot", "performance", "tradestrat", "opus_arbitrator"
+        }
 
         # v5.2.0: Check if waiting for architecture approval
         if state.get("status") == "waiting_architecture_approval":
@@ -1405,7 +1790,10 @@ class AgentWorkflow:
         v5.5.3: Made async to support background tasks
         """
         # Available workflow nodes (agents with implemented nodes)
-        AVAILABLE_NODES = {"orchestrator", "architect", "codesmith", "reviewer", "fixer", "research", "fixer_gpt"}
+        AVAILABLE_NODES = {
+            "orchestrator", "architect", "codesmith", "reviewer", "fixer",
+            "research", "fixer_gpt", "docbot", "performance", "tradestrat", "opus_arbitrator"
+        }
 
         logger.info(f"🔀 Routing to next agent...")
         logger.info(f"📋 Execution plan has {len(state['execution_plan'])} steps")
@@ -2933,6 +3321,10 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
         workflow.add_node("fixer", self.fixer_node)
         workflow.add_node("research", self.research_node)  # v5.1.0
         workflow.add_node("fixer_gpt", self.fixer_gpt_node)  # v5.1.0
+        workflow.add_node("docbot", self.docbot_node)  # v5.7.0
+        workflow.add_node("performance", self.performance_node)  # v5.7.0
+        workflow.add_node("tradestrat", self.tradestrat_node)  # v5.7.0
+        workflow.add_node("opus_arbitrator", self.opus_arbitrator_node)  # v5.7.0
 
         # Set entry point
         workflow.set_entry_point("orchestrator")
@@ -2953,6 +3345,10 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                 "fixer": "fixer",
                 "research": "research",  # v5.1.0
                 "fixer_gpt": "fixer_gpt",  # v5.1.0
+                "docbot": "docbot",  # v5.7.0
+                "performance": "performance",  # v5.7.0
+                "tradestrat": "tradestrat",  # v5.7.0
+                "opus_arbitrator": "opus_arbitrator",  # v5.7.0
                 "end": END
             }
         )
@@ -2972,11 +3368,15 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                 "fixer": "fixer",
                 "research": "research",
                 "fixer_gpt": "fixer_gpt",
+                "docbot": "docbot",  # v5.7.0
+                "performance": "performance",  # v5.7.0
+                "tradestrat": "tradestrat",  # v5.7.0
+                "opus_arbitrator": "opus_arbitrator",  # v5.7.0
                 "end": END
             }
         )
 
-        for agent in ["codesmith", "reviewer", "fixer", "research", "fixer_gpt"]:
+        for agent in ["codesmith", "reviewer", "fixer", "research", "fixer_gpt", "docbot", "performance", "tradestrat", "opus_arbitrator"]:
             workflow.add_conditional_edges(
                 agent,
                 self.route_to_next_agent,
@@ -2988,6 +3388,10 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     "fixer": "fixer",
                     "research": "research",  # v5.1.0
                     "fixer_gpt": "fixer_gpt",  # v5.1.0
+                    "docbot": "docbot",  # v5.7.0
+                    "performance": "performance",  # v5.7.0
+                    "tradestrat": "tradestrat",  # v5.7.0
+                    "opus_arbitrator": "opus_arbitrator",  # v5.7.0
                     "end": END
                 }
             )

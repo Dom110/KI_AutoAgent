@@ -4,320 +4,290 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KI AutoAgent Dashboard</title>
-    <link rel="stylesheet" href="dashboard.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+    </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🤖 KI AutoAgent Dashboard</h1>
-        <div class="connection-status">
-            <div class="status-dot" id="statusDot"></div>
-            <span id="statusText">Connecting...</span>
-        </div>
-    </div>
+    <div class="dashboard">
+        <header>
+            <h1>🤖 KI AutoAgent Dashboard</h1>
+            <p class="subtitle">Real-time Agent Performance Monitoring</p>
+        </header>
 
-    <div class="stats-bar">
-        <div class="stat">
-            <span class="stat-label">Active Agents:</span>
-            <span class="stat-value" id="activeAgents">0</span>
-        </div>
-        <div class="stat">
-            <span class="stat-label">Total Tasks:</span>
-            <span class="stat-value" id="totalTasks">0</span>
-        </div>
-        <div class="stat">
-            <span class="stat-label">Success Rate:</span>
-            <span class="stat-value" id="successRate">0%</span>
-        </div>
-        <div class="stat">
-            <span class="stat-label">Uptime:</span>
-            <span class="stat-value" id="uptime">00:00:00</span>
-        </div>
-    </div>
-
-    <div class="main-container">
-        <div class="sidebar">
-            <h2>Agents</h2>
-            <div class="agent-list" id="agentList">
-                <!-- Agents will be populated dynamically -->
-            </div>
-
-            <h2 style="margin-top: 2rem;">Performance</h2>
-            <div style="margin-top: 1rem;">
-                <canvas id="performanceChart"></canvas>
-            </div>
-        </div>
-
-        <div class="chat-container">
-            <div class="messages-container" id="messagesContainer">
-                <div class="message system">
-                    <div class="message-content">System initialized. Waiting for connection...</div>
+        <div class="grid">
+            <div class="card">
+                <h2>Agent Activity</h2>
+                <div class="chart-container">
+                    <canvas id="activityChart"></canvas>
                 </div>
             </div>
 
-            <div class="input-container">
-                <div class="input-wrapper">
-                    <textarea
-                        id="messageInput"
-                        placeholder="Type your message or task..."
-                        rows="2"
-                    ></textarea>
-                    <button id="sendButton" onclick="sendMessage()">Send</button>
+            <div class="card">
+                <h2>Task Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="taskChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card full-width">
+                <h2>Performance Over Time</h2>
+                <div class="chart-container" style="height: 400px;">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Agent Success Rate</h2>
+                <div class="chart-container">
+                    <canvas id="successChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>System Stats</h2>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value">10</div>
+                        <div class="stat-label">Active Agents</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">247</div>
+                        <div class="stat-label">Tasks Completed</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">94%</div>
+                        <div class="stat-label">Success Rate</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">15</div>
+                        <div class="stat-label">Active Tasks</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const AGENTS = [
-            { name: 'Orchestrator', model: 'GPT-5', status: 'idle' },
-            { name: 'Architect', model: 'GPT-4o', status: 'idle' },
-            { name: 'CodeSmith', model: 'Claude 4.1 Sonnet', status: 'idle' },
-            { name: 'Reviewer', model: 'GPT-5-mini', status: 'idle' },
-            { name: 'Fixer', model: 'Claude 4.1 Sonnet', status: 'idle' },
-            { name: 'DocBot', model: 'GPT-4o', status: 'idle' },
-            { name: 'Research', model: 'Perplexity', status: 'idle' },
-            { name: 'TradeStrat', model: 'Claude 4.1 Sonnet', status: 'idle' },
-            { name: 'OpusArbitrator', model: 'Claude Opus 4.1', status: 'idle' },
-            { name: 'Performance', model: 'GPT-4o', status: 'idle' }
-        ];
+        const chartColors = {
+            primary: '#667eea',
+            secondary: '#764ba2',
+            success: '#48bb78',
+            warning: '#ecc94b',
+            danger: '#f56565',
+            info: '#4299e1'
+        };
 
-        let ws = null;
-        let startTime = Date.now();
-        let performanceChart = null;
-
-        // Initialize performance chart
-        function initChart() {
-            const ctx = document.getElementById('performanceChart').getContext('2d');
-            performanceChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Tasks/min',
-                        data: [],
-                        borderColor: '#4a9eff',
-                        backgroundColor: 'rgba(74, 158, 255, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
+        // Activity Chart (Bar)
+        const activityCtx = document.getElementById('activityChart').getContext('2d');
+        new Chart(activityCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Orchestrator', 'CodeSmith', 'Reviewer', 'Fixer', 'Research', 'DocBot'],
+                datasets: [{
+                    label: 'Tasks Handled',
+                    data: [45, 62, 38, 29, 18, 25],
+                    backgroundColor: chartColors.primary,
+                    borderColor: chartColors.secondary,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: {
-                            labels: { color: '#e0e0e0' }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { color: '#a0a0a0' },
-                            grid: { color: '#404558' }
-                        },
-                        x: {
-                            ticks: { color: '#a0a0a0' },
-                            grid: { color: '#404558' }
-                        }
-                    }
-                }
-            });
-        }
-
-        // Update chart with new data
-        function updateChart(value) {
-            const now = new Date().toLocaleTimeString();
-            performanceChart.data.labels.push(now);
-            performanceChart.data.datasets[0].data.push(value);
-
-            if (performanceChart.data.labels.length > 10) {
-                performanceChart.data.labels.shift();
-                performanceChart.data.datasets[0].data.shift();
-            }
-
-            performanceChart.update();
-        }
-
-        // Initialize agents in sidebar
-        function initAgents() {
-            const agentList = document.getElementById('agentList');
-            agentList.innerHTML = '';
-
-            AGENTS.forEach((agent, index) => {
-                const card = document.createElement('div');
-                card.className = 'agent-card';
-                card.id = `agent-${index}`;
-                card.innerHTML = `
-                    <div class="agent-name">${agent.name}</div>
-                    <div class="agent-model">${agent.model}</div>
-                    <div class="agent-status">${agent.status}</div>
-                `;
-                agentList.appendChild(card);
-            });
-        }
-
-        // Update agent status
-        function updateAgentStatus(agentName, status) {
-            const index = AGENTS.findIndex(a => a.name === agentName);
-            if (index !== -1) {
-                AGENTS[index].status = status;
-                const card = document.getElementById(`agent-${index}`);
-                if (card) {
-                    const statusEl = card.querySelector('.agent-status');
-                    statusEl.textContent = status;
-
-                    if (status === 'active') {
-                        card.classList.add('active');
-                    } else {
-                        card.classList.remove('active');
-                    }
+                scales: {
+                    y: { beginAtZero: true }
                 }
             }
-
-            // Update active agents count
-            const activeCount = AGENTS.filter(a => a.status === 'active').length;
-            document.getElementById('activeAgents').textContent = activeCount;
-        }
-
-        // Connect to WebSocket
-        function connectWebSocket() {
-            ws = new WebSocket('ws://localhost:8001/ws/chat');
-
-            ws.onopen = () => {
-                updateConnectionStatus(true);
-                addMessage('System', 'Connected to KI AutoAgent backend', 'system');
-            };
-
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                handleWebSocketMessage(data);
-            };
-
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                updateConnectionStatus(false);
-            };
-
-            ws.onclose = () => {
-                updateConnectionStatus(false);
-                addMessage('System', 'Disconnected. Retrying in 5 seconds...', 'system');
-                setTimeout(connectWebSocket, 5000);
-            };
-        }
-
-        // Handle WebSocket messages
-        function handleWebSocketMessage(data) {
-            if (data.type === 'agent_message') {
-                addMessage(data.agent || 'Agent', data.message, 'agent');
-                if (data.agent) {
-                    updateAgentStatus(data.agent, 'active');
-                    setTimeout(() => updateAgentStatus(data.agent, 'idle'), 3000);
-                }
-            } else if (data.type === 'system') {
-                addMessage('System', data.message, 'system');
-            } else if (data.type === 'stats') {
-                updateStats(data.stats);
-            } else {
-                addMessage(data.agent || 'System', data.message || JSON.stringify(data), 'agent');
-            }
-
-            // Update performance chart
-            updateChart(Math.random() * 10);
-        }
-
-        // Update connection status
-        function updateConnectionStatus(connected) {
-            const dot = document.getElementById('statusDot');
-            const text = document.getElementById('statusText');
-
-            if (connected) {
-                dot.classList.add('connected');
-                text.textContent = 'Connected';
-            } else {
-                dot.classList.remove('connected');
-                text.textContent = 'Disconnected';
-            }
-        }
-
-        // Update stats
-        function updateStats(stats) {
-            if (stats.totalTasks !== undefined) {
-                document.getElementById('totalTasks').textContent = stats.totalTasks;
-            }
-            if (stats.successRate !== undefined) {
-                document.getElementById('successRate').textContent = stats.successRate + '%';
-            }
-        }
-
-        // Add message to chat
-        function addMessage(sender, content, type = 'agent') {
-            const container = document.getElementById('messagesContainer');
-            const message = document.createElement('div');
-            message.className = `message ${type}`;
-
-            message.innerHTML = `
-                ${type !== 'system' ? `<div class="message-header">${sender}</div>` : ''}
-                <div class="message-content">${content}</div>
-            `;
-
-            container.appendChild(message);
-            container.scrollTop = container.scrollHeight;
-        }
-
-        // Send message
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
-
-            if (!message) return;
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                addMessage('System', 'Not connected to server', 'system');
-                return;
-            }
-
-            addMessage('You', message, 'user');
-
-            ws.send(JSON.stringify({
-                type: 'user_message',
-                message: message,
-                timestamp: new Date().toISOString()
-            }));
-
-            input.value = '';
-
-            // Update task count
-            const currentTasks = parseInt(document.getElementById('totalTasks').textContent);
-            document.getElementById('totalTasks').textContent = currentTasks + 1;
-        }
-
-        // Handle Enter key in textarea
-        document.addEventListener('DOMContentLoaded', () => {
-            const input = document.getElementById('messageInput');
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
-
-            // Update uptime every second
-            setInterval(() => {
-                const elapsed = Date.now() - startTime;
-                const hours = Math.floor(elapsed / 3600000);
-                const minutes = Math.floor((elapsed % 3600000) / 60000);
-                const seconds = Math.floor((elapsed % 60000) / 1000);
-                document.getElementById('uptime').textContent =
-                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-            }, 1000);
         });
 
-        // Initialize on load
-        window.onload = () => {
-            initAgents();
-            initChart();
-            connectWebSocket();
-        };
+        // Task Distribution (Doughnut)
+        const taskCtx = document.getElementById('taskChart').getContext('2d');
+        new Chart(taskCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Code Generation', 'Review', 'Bug Fixing', 'Research', 'Documentation'],
+                datasets: [{
+                    data: [35, 20, 18, 15, 12],
+                    backgroundColor: [
+                        chartColors.primary,
+                        chartColors.success,
+                        chartColors.warning,
+                        chartColors.info,
+                        chartColors.secondary
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+
+        // Performance Over Time (Line)
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        new Chart(performanceCtx, {
+            type: 'line',
+            data: {
+                labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '23:59'],
+                datasets: [{
+                    label: 'Tasks Completed',
+                    data: [12, 19, 28, 45, 62, 78, 89],
+                    borderColor: chartColors.primary,
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: 'Success Rate %',
+                    data: [88, 92, 94, 96, 95, 94, 94],
+                    borderColor: chartColors.success,
+                    backgroundColor: 'rgba(72, 187, 120, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        // Success Rate (Polar Area)
+        const successCtx = document.getElementById('successChart').getContext('2d');
+        new Chart(successCtx, {
+            type: 'polarArea',
+            data: {
+                labels: ['CodeSmith', 'Reviewer', 'Fixer', 'Orchestrator', 'Research'],
+                datasets: [{
+                    data: [98, 95, 92, 97, 89],
+                    backgroundColor: [
+                        'rgba(102, 126, 234, 0.7)',
+                        'rgba(72, 187, 120, 0.7)',
+                        'rgba(236, 201, 75, 0.7)',
+                        'rgba(66, 153, 225, 0.7)',
+                        'rgba(118, 75, 162, 0.7)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
     </script>
 </body>
 </html>

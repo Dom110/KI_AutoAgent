@@ -1,0 +1,395 @@
+INFO:__main__:🔍 DEBUG: Starting LangGraph server v5.6.0 on port 8001
+INFO:__main__:🔍 DEBUG: This is the ACTIVE server for v5.6.0-ai-routing-dashboard
+INFO:__main__:🔍 DEBUG: WebSocket endpoint: ws://localhost:8001/ws/chat
+INFO:__main__:✅ Models API endpoint registered at /api/models
+INFO:__main__:✅ Settings API endpoint registered at /api/settings
+INFO:__main__:⚠️  KI Agent already running on port 8001
+INFO:__main__:🔄 Attempting graceful shutdown...
+INFO:__main__:✅ Gracefully shut down server on port 8001
+INFO:__main__:✅ Previous instance shut down successfully
+INFO:__main__:🚀 Starting server on port 8001
+INFO:uvicorn.error:Started server process [43052]
+INFO:uvicorn.error:Waiting for application startup.
+INFO:__main__:================================================================================
+INFO:__main__:🚀 Starting KI AutoAgent LangGraph Backend v5.6.0...
+INFO:__main__:🔍 DEBUG: Initializing LangGraph StateGraph workflow system
+INFO:__main__:🔍 DEBUG: Using port 8001 (NOT 8000)
+INFO:__main__:📦 Creating agent workflow...
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for orchestrator
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for architect
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for codesmith
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for reviewer
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for fixer
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for docbot
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for research
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for tradestrat
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for opus_arbitrator
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for performance
+INFO:langgraph_system.workflow:🤖 Initializing real agent instances...
+INFO:config.capabilities_loader:✅ Loaded capabilities for 11 agents
+INFO:agents.base.base_agent:✅ Loaded instructions for ArchitectAgent from .kiautoagent/instructions/architect-v2-instructions.md
+INFO:agents.base.base_agent:🤖 🏗️ ArchitectAgent initialized (Model: gpt-4o-2024-11-20)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:agents.specialized.architect_agent:🏗️ Initializing ArchitectAgent with path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:🏗️ Initializing ProjectCache with path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.project_cache:📦 ProjectCache initialized: /Users/dominikfoert/git/KI_AutoAgent/.kiautoagent/cache
+INFO:services.code_search:🔍 LightweightCodeSearch initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:agents.specialized.architect_agent:✅ Code indexing tools initialized
+INFO:agents.specialized.architect_agent:✅ Analysis tools initialized: Semgrep, Vulture, Radon, CallGraph, Layers
+INFO:services.diagram_service:📊 DiagramService initialized
+INFO:agents.base.base_agent:✅ Loaded instructions for CodeSmithAgent from .kiautoagent/instructions/codesmith-v2-instructions.md
+INFO:agents.base.base_agent:🤖 💻 CodeSmithAgent initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:services.diagram_service:📊 DiagramService initialized
+INFO:agents.base.base_agent:✅ Loaded instructions for ReviewerGPT from .kiautoagent/instructions/reviewergpt-instructions.md
+INFO:agents.base.base_agent:🤖 🔍 ReviewerGPT initialized (Model: gpt-4o-mini-2024-07-18)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-mini-2024-07-18
+INFO:agents.base.base_agent:✅ Loaded instructions for FixerBot from .kiautoagent/instructions/fixerbot-instructions.md
+INFO:agents.base.base_agent:🤖 🔧 FixerBot initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:agents.base.base_agent:🤖 🎯 OrchestratorAgent initialized (Model: gpt-4o-2024-11-20)
+INFO:langgraph_system.workflow:✅ Orchestrator initialized with AI decomposition
+INFO:agents.base.base_agent:✅ Loaded instructions for ResearchBot from .kiautoagent/instructions/research-instructions.md
+INFO:agents.base.base_agent:🤖 🔍 ResearchBot initialized (Model: sonar)
+INFO:utils.perplexity_service:✅ PerplexityService initialized with model: sonar
+INFO:agents.specialized.research_agent:✅ ResearchAgent initialized with Perplexity API
+INFO:langgraph_system.workflow:✅ ResearchAgent initialized with Perplexity API
+WARNING:agents.base.base_agent:Instructions file not found for DocuBot. Tried: ['.ki_autoagent/instructions/docubot-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/.ki_autoagent/instructions/docubot-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/docubot-instructions.md', '.kiautoagent/instructions/docubot-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/.kiautoagent/instructions/docubot-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/docubot-instructions.md']
+INFO:agents.base.base_agent:🤖 📝 DocuBot initialized (Model: gpt-4o-2024-11-20)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:langgraph_system.workflow:✅ DocuBotAgent initialized
+WARNING:agents.base.base_agent:Instructions file not found for PerformanceBot. Tried: ['.ki_autoagent/instructions/performance-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/.ki_autoagent/instructions/performance-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/performance-instructions.md', '.kiautoagent/instructions/performance-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/.kiautoagent/instructions/performance-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/performance-instructions.md']
+INFO:agents.base.base_agent:🤖 ⚡ PerformanceBot initialized (Model: gpt-4o-2024-11-20)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:langgraph_system.workflow:✅ PerformanceBot initialized
+WARNING:agents.base.base_agent:Instructions file not found for TradeStrat. Tried: ['.ki_autoagent/instructions/tradestrat-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/.ki_autoagent/instructions/tradestrat-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/tradestrat-instructions.md', '.kiautoagent/instructions/tradestrat-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/.kiautoagent/instructions/tradestrat-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/tradestrat-instructions.md']
+INFO:agents.base.base_agent:🤖 📈 TradeStrat initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:langgraph_system.workflow:✅ TradeStratAgent initialized
+WARNING:agents.base.base_agent:Instructions file not found for OpusArbitrator. Tried: ['.ki_autoagent/instructions/opus-arbitrator-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/.ki_autoagent/instructions/opus-arbitrator-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/opus-arbitrator-instructions.md', '.kiautoagent/instructions/opus-arbitrator-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/.kiautoagent/instructions/opus-arbitrator-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/opus-arbitrator-instructions.md']
+INFO:agents.base.base_agent:🤖 ⚖️ OpusArbitrator initialized (Model: claude-opus-4-1-20250805)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:langgraph_system.workflow:✅ OpusArbitratorAgent initialized
+INFO:langgraph_system.workflow:✅ Initialized 10 real agents
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Workflow Self-Diagnosis System v5.5.0 initialized
+INFO:langgraph_system.workflow:🏥 Self-Diagnosis System initialized
+INFO:langgraph_system.workflow:🧠 Intelligent Query Handler initialized
+INFO:langgraph_system.workflow:🛡️ Safe Orchestrator Executor initialized (v5.5.2)
+INFO:langgraph_system.workflow:✅ Using MemorySaver for workflow checkpointing
+INFO:langgraph_system.workflow:✅ Workflow compiled with checkpointer support
+INFO:__main__:✅ LangGraph workflow system initialized
+INFO:__main__:✅ workflow_system type: AgentWorkflow
+INFO:__main__:🔧 Tool registry initialized with 0 tools
+INFO:__main__:✅ Approval manager initialized
+INFO:__main__:================================================================================
+INFO:__main__:🎉 STARTUP COMPLETE - Ready to accept connections!
+INFO:__main__:================================================================================
+INFO:uvicorn.error:Application startup complete.
+INFO:uvicorn.error:Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
+INFO:uvicorn.error:127.0.0.1:55507 - "WebSocket /ws/chat" [accepted]
+INFO:__main__:✅ Client client_198a6777 connected
+INFO:__main__:🔍 DEBUG: New client connected: client_198a6777
+INFO:__main__:🔌 WebSocket DEBUG: Attempting to send to client_198a6777, websocket state: WebSocketState.CONNECTED
+INFO:uvicorn.error:connection open
+INFO:__main__:✅ WebSocket DEBUG: Successfully sent message to client_198a6777
+INFO:__main__:🔍 DEBUG: Welcome message sent to client_198a6777
+INFO:__main__:🔍 DEBUG: Received chat from client_198a6777
+INFO:__main__:🔍 DEBUG: Using LangGraph v5.6.0 - Port 8001
+INFO:__main__:🔍 DEBUG: Message data keys: ['session_id', 'content', 'user_id', 'workspace_path']
+INFO:__main__:🔍 DEBUG: Chat message content: Create a simple trading strategy documentation with performance analysis...
+INFO:__main__:📌 Using client-provided session_id: stub_test_230540
+INFO:__main__:🔌 WebSocket DEBUG: Checking for approval state - session_id: stub_test_230540
+INFO:__main__:🔌 WebSocket DEBUG: Found workflow_system.active_workflows with 0 sessions
+INFO:__main__:🔌 WebSocket DEBUG: No workflow state found for session stub_test_230540
+INFO:__main__:✅ workflow_system available: AgentWorkflow
+INFO:__main__:🔍 DEBUG: Starting LangGraph workflow for: Create a simple trading strategy documentation with performance analysis...
+INFO:__main__:🔍 DEBUG: Session state - plan_first_mode: False, workspace: None
+INFO:__main__:🔍 DEBUG: Plan-First mode: False
+INFO:__main__:🔌 WebSocket DEBUG: Attempting to send to client_198a6777, websocket state: WebSocketState.CONNECTED
+INFO:__main__:✅ WebSocket DEBUG: Successfully sent message to client_198a6777
+INFO:__main__:🔍 DEBUG: Executing LangGraph workflow
+INFO:__main__:🔍 DEBUG: Session ID: stub_test_230540
+INFO:__main__:🔍 DEBUG: Workspace: None
+INFO:langgraph_system.workflow:🎯 Orchestrator node executing
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:🧠 DIRECT AI ROUTING → Using Orchestrator for all tasks
+INFO:langgraph_system.workflow:🤖 Using Orchestrator AI for task decomposition (complexity: complex)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:agents.specialized.orchestrator_agent:🧠 Found 3 similar tasks in memory
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.orchestrator_agent:✅ AI decomposition: 6 tasks, 70.0min estimated
+INFO:agents.specialized.orchestrator_agent:💡 Reasoning: The task involves designing, implementing, and documenting a trading strategy with performance analysis. The design (task_1) must come first, followed by implementation (task_2). Code review (task_3) and bug fixing (task_4) depend on the implementation. Performance analysis (task_5) can run in parallel with code review and bug fixing since it only depends on the implementation. Documentation (task_6) requires the design, implementation, and performance analysis to be completed, making it the final step. Tasks are parallelized where possible to optimize execution time.
+WARNING:agents.specialized.orchestrator_agent:⚠️ Memory storage failed (non-critical): 'PersistentAgentMemory' object has no attribute 'store'
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: tradestrat - Design a simple trading strategy, including entry,...
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: codesmith - Implement the designed trading strategy in code....
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: reviewer - Review the implemented trading strategy code for c...
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: fixer - Fix any bugs or issues identified during the code ...
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: performance - Analyze the performance of the trading strategy us...
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: docbot - Document the trading strategy, including its desig...
+INFO:langgraph_system.workflow:✅ Orchestrator created 6-step plan with parallelization
+INFO:langgraph_system.workflow:📖 Created Task Ledger with 2 success criteria
+INFO:langgraph_system.workflow:📊 Created Progress Ledger - 6 total steps
+INFO:langgraph_system.workflow:⚡ Identified 1 parallel execution groups
+INFO:langgraph_system.workflow:   parallel_group_0: Steps ['task_3', 'task_5', 'task_6'] can run in parallel
+INFO:langgraph_system.workflow:🔍 Running Pre-Execution Validation (v5.5.0)
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🚀 COMPREHENSIVE PRE-EXECUTION VALIDATION
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🔍 Starting Pre-Execution Validation
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 1/3
+WARNING:langgraph_system.workflow_self_diagnosis:Agent performance may not be suited for task: Analyze the performance of the trading strategy us
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 2 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 2/3
+WARNING:langgraph_system.workflow_self_diagnosis:Agent performance may not be suited for task: Analyze the performance of the trading strategy us
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 2 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 3/3
+WARNING:langgraph_system.workflow_self_diagnosis:Agent performance may not be suited for task: Analyze the performance of the trading strategy us
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 2 issues
+INFO:langgraph_system.workflow_self_diagnosis:✅ Pre-Execution Validation PASSED
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+WARNING:langgraph_system.workflow_self_diagnosis:Agent performance may not be suited for task: Analyze the performance of the trading strategy us
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 73.79%
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:📊 PRE-EXECUTION VALIDATION SUMMARY
+INFO:langgraph_system.workflow_self_diagnosis:  Validation: PASS
+INFO:langgraph_system.workflow_self_diagnosis:  Risk Score: 0.00%
+INFO:langgraph_system.workflow_self_diagnosis:  Health: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:  Decision: SAFE TO EXECUTE
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow:✅ Pre-Execution Validation PASSED - Plan is safe to execute
+INFO:langgraph_system.workflow:📋 Orchestrator created 6-step execution plan
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Checking execution plan with 6 steps
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Step task_1: agent=tradestrat, status=pending
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Found first pending step: tradestrat
+INFO:langgraph_system.workflow:📌 Auto-approving - no architecture proposal needed
+INFO:langgraph_system.workflow:📍 Set current_step_id to: task_1 for agent: tradestrat
+INFO:langgraph_system.workflow:🔀 Route after approval - Status: approved
+INFO:langgraph_system.workflow:📋 Execution plan has 6 steps:
+INFO:langgraph_system.workflow:   Step 1: agent=tradestrat, status=in_progress, task=Design a simple trading strategy, including entry,...
+INFO:langgraph_system.workflow:   Step 2: agent=codesmith, status=pending, task=Implement the designed trading strategy in code....
+INFO:langgraph_system.workflow:   Step 3: agent=reviewer, status=pending, task=Review the implemented trading strategy code for c...
+INFO:langgraph_system.workflow:   Step 4: agent=fixer, status=pending, task=Fix any bugs or issues identified during the code ...
+INFO:langgraph_system.workflow:   Step 5: agent=performance, status=pending, task=Analyze the performance of the trading strategy us...
+INFO:langgraph_system.workflow:   Step 6: agent=docbot, status=pending, task=Document the trading strategy, including its desig...
+INFO:langgraph_system.workflow:✅ Routing to in_progress agent: tradestrat (step_id: task_1)
+INFO:langgraph_system.workflow:📈 TradeStrat node executing
+INFO:langgraph_system.workflow:📈 Executing step task_1: Design a simple trading strategy, including entry, exit, and risk management rules....
+INFO:utils.claude_code_service:⏱️ Running Claude CLI with 300s timeout...
+INFO:langgraph_system.workflow:✅ Trading strategy developed: 3826 characters
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 6 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/6 (16.7%)
+INFO:langgraph_system.workflow:  Step task_1 (tradestrat): completed
+INFO:langgraph_system.workflow:  Step task_2 (codesmith): pending
+INFO:langgraph_system.workflow:✅ Routing to codesmith for step task_2
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+WARNING:langgraph_system.workflow_self_diagnosis:Agent performance may not be suited for task: Analyze the performance of the trading strategy us
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 77.05%
+INFO:langgraph_system.workflow:💻 CodeSmith node executing
+INFO:langgraph_system.workflow:💻 Executing step task_2: Implement the designed trading strategy in code....
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:💻 Executing with real CodeSmithAgent...
+INFO:agents.specialized.codesmith_agent:✅ Workspace validation: Found vscode-extension/src/ui/MultiAgentChatPanel.ts
+INFO:utils.claude_code_service:⏱️ Running Claude CLI with 300s timeout...
+INFO:agents.specialized.codesmith_agent:🧠 AI detected: Implementation request → Will create files
+INFO:utils.claude_code_service:⏱️ Running Claude CLI with 300s timeout...
+INFO:agents.specialized.codesmith_agent:🧠 AI determined file path: /Users/dominikfoert/git/KI_AutoAgent/trading_strategy.py
+INFO:agents.specialized.codesmith_agent:✅ ASIMOV RULE 1 CHECK PASSED: /Users/dominikfoert/git/KI_AutoAgent/trading_strategy.py
+INFO:agents.specialized.codesmith_agent:📝 CodeSmithAgent creating ACTUAL FILE at: /Users/dominikfoert/git/KI_AutoAgent/trading_strategy.py
+INFO:agents.specialized.codesmith_agent:🔧 implement_code_to_file called
+INFO:agents.specialized.codesmith_agent:  📁 Target file: /Users/dominikfoert/git/KI_AutoAgent/trading_strategy.py
+INFO:agents.specialized.codesmith_agent:  📝 Spec length: 48 characters
+INFO:agents.specialized.codesmith_agent:⚡ Generating code with AI...
+INFO:agents.specialized.codesmith_agent:📝 Using simplified implementation (no codebase analysis)
+INFO:utils.claude_code_service:⏱️ Running Claude CLI with 300s timeout...
+INFO:uvicorn.error:connection closed
+INFO:agents.specialized.codesmith_agent:✅ Code generated: 449 characters
+INFO:agents.specialized.codesmith_agent:📝 Writing code to file: /Users/dominikfoert/git/KI_AutoAgent/trading_strategy.py
+INFO:agents.tools.file_tools:✅ CodeSmithAgent write /Users/dominikfoert/git/KI_AutoAgent/trading_strategy.py
+INFO:agents.base.base_agent:✅ CodeSmithAgent successfully wrote to /Users/dominikfoert/git/KI_AutoAgent/trading_strategy.py
+INFO:agents.specialized.codesmith_agent:✅ CodeSmithAgent successfully implemented code to /Users/dominikfoert/git/KI_AutoAgent/trading_strategy.py
+WARNING:agents.specialized.codesmith_agent:⚠️ Shared context update failed (non-critical): 'SharedContextManager' object has no attribute 'update_context'
+INFO:langgraph_system.workflow:💾 Stored CodeSmith metadata: ['file_created', 'lines', 'execution_time']
+INFO:langgraph_system.workflow:✅ CodeSmith node set step task_2 to completed
+INFO:langgraph_system.workflow:✅ CodeSmith node updated execution_plan state
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 6 steps
+INFO:langgraph_system.workflow:📊 Progress: 2/6 (33.3%)
+INFO:langgraph_system.workflow:  Step task_1 (tradestrat): completed
+INFO:langgraph_system.workflow:  Step task_2 (codesmith): completed
+INFO:langgraph_system.workflow:  Step task_3 (reviewer): pending
+INFO:langgraph_system.workflow:✅ Routing to reviewer for step task_3
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+WARNING:langgraph_system.workflow_self_diagnosis:Agent performance may not be suited for task: Analyze the performance of the trading strategy us
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 80.31%
+INFO:langgraph_system.workflow:🔎 Reviewer node executing
+INFO:langgraph_system.workflow:🔎 Executing step task_3: Review the implemented trading strategy code for correctness and adherence to the design....
+INFO:langgraph_system.workflow:📝 Executing with real ReviewerGPTAgent...
+INFO:langgraph_system.workflow:📦 Passing CodeSmith metadata to Reviewer: ['file_created', 'lines', 'execution_time']
+INFO:agents.specialized.reviewer_gpt_agent:📝 Using AI-powered code review
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+WARNING:langgraph_system.workflow:⚠️ Critical issues found in review - requesting FixerBot collaboration
+INFO:langgraph_system.workflow:  🔄 Set needs_replan=True, suggested_agent=fixer
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 6 steps
+INFO:langgraph_system.workflow:📊 Progress: 3/6 (50.0%)
+INFO:langgraph_system.workflow:🔄 Re-planning needed - routing back to orchestrator
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+WARNING:langgraph_system.workflow_self_diagnosis:Agent performance may not be suited for task: Analyze the performance of the trading strategy us
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 83.48%
+INFO:langgraph_system.workflow:🎯 Orchestrator node executing
+INFO:langgraph_system.workflow:🔄 RE-PLANNING MODE: Agent requested collaboration
+INFO:langgraph_system.workflow:📊 Collaboration #1: orchestrator → fixer
+INFO:langgraph_system.workflow:📊 Reviewer↔Fixer cycles: 0
+INFO:langgraph_system.workflow:  ✅ Added Step 7: fixer - Fix the issues found in code review: to provide a 
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Checking execution plan with 7 steps
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Step task_1: agent=tradestrat, status=completed
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Step task_2: agent=codesmith, status=completed
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Step task_3: agent=reviewer, status=completed
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Step task_4: agent=fixer, status=pending
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Found first pending step: fixer
+INFO:langgraph_system.workflow:📌 Auto-approving - no architecture proposal needed
+INFO:langgraph_system.workflow:📍 Set current_step_id to: task_4 for agent: fixer
+INFO:langgraph_system.workflow:🔀 Route after approval - Status: approved
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps:
+INFO:langgraph_system.workflow:   Step 1: agent=tradestrat, status=completed, task=Design a simple trading strategy, including entry,...
+INFO:langgraph_system.workflow:   Step 2: agent=codesmith, status=completed, task=Implement the designed trading strategy in code....
+INFO:langgraph_system.workflow:   Step 3: agent=reviewer, status=completed, task=Review the implemented trading strategy code for c...
+INFO:langgraph_system.workflow:   Step 4: agent=fixer, status=in_progress, task=Fix any bugs or issues identified during the code ...
+INFO:langgraph_system.workflow:   Step 5: agent=performance, status=pending, task=Analyze the performance of the trading strategy us...
+INFO:langgraph_system.workflow:   Step 6: agent=docbot, status=pending, task=Document the trading strategy, including its desig...
+INFO:langgraph_system.workflow:   Step 7: agent=fixer, status=pending, task=Fix the issues found in code review: to provide a ...
+INFO:langgraph_system.workflow:✅ Routing to in_progress agent: fixer (step_id: task_4)
+INFO:langgraph_system.workflow:🔧 Fixer node executing
+INFO:langgraph_system.workflow:🔧 Executing step task_4: Fix any bugs or issues identified during the code review....
+INFO:langgraph_system.workflow:🔧 Executing with real FixerBotAgent...
+INFO:agents.specialized.fixerbot_agent:🔧 FixerBot executing: Fix any bugs or issues identified during the code review....
+INFO:agents.specialized.fixerbot_agent:📝 No specific errors found - performing general code review
+INFO:utils.claude_code_service:⏱️ Running Claude CLI with 300s timeout...
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 4/7 (57.1%)
+INFO:langgraph_system.workflow:  Step task_1 (tradestrat): completed
+INFO:langgraph_system.workflow:  Step task_2 (codesmith): completed
+INFO:langgraph_system.workflow:  Step task_3 (reviewer): completed
+INFO:langgraph_system.workflow:  Step task_4 (fixer): completed
+INFO:langgraph_system.workflow:  Step task_5 (performance): pending
+INFO:langgraph_system.workflow:✅ Routing to performance for step task_5
+INFO:langgraph_system.workflow:⚡ Performance node executing
+INFO:langgraph_system.workflow:⚡ Executing step task_5: Analyze the performance of the trading strategy using backtesting and generate performance metrics....
+INFO:langgraph_system.workflow:✅ Performance optimization completed: 66 characters
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 5/7 (71.4%)
+INFO:langgraph_system.workflow:  Step task_1 (tradestrat): completed
+INFO:langgraph_system.workflow:  Step task_2 (codesmith): completed
+INFO:langgraph_system.workflow:  Step task_3 (reviewer): completed
+INFO:langgraph_system.workflow:  Step task_4 (fixer): completed
+INFO:langgraph_system.workflow:  Step task_5 (performance): completed
+INFO:langgraph_system.workflow:  Step task_6 (docbot): pending
+INFO:langgraph_system.workflow:✅ Routing to docbot for step task_6
+INFO:langgraph_system.workflow:📚 DocBot node executing
+INFO:langgraph_system.workflow:📚 Executing step task_6: Document the trading strategy, including its design, implementation, and performance analysis....
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:✅ DocBot completed: 6394 characters
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 6/7 (85.7%)
+INFO:langgraph_system.workflow:  Step task_1 (tradestrat): completed
+INFO:langgraph_system.workflow:  Step task_2 (codesmith): completed
+INFO:langgraph_system.workflow:  Step task_3 (reviewer): completed
+INFO:langgraph_system.workflow:  Step task_4 (fixer): completed
+INFO:langgraph_system.workflow:  Step task_5 (performance): completed
+INFO:langgraph_system.workflow:  Step task_6 (docbot): completed
+INFO:langgraph_system.workflow:  Step 7 (fixer): pending
+INFO:langgraph_system.workflow:✅ Routing to fixer for step 7
+INFO:langgraph_system.workflow:🔧 Fixer node executing
+INFO:langgraph_system.workflow:🔧 Executing step 7: Fix the issues found in code review: to provide a thorough review, i would need to see the actual tr...
+INFO:langgraph_system.workflow:🔧 Executing with real FixerBotAgent...
+INFO:agents.specialized.fixerbot_agent:🔧 FixerBot executing: Fix the issues found in code review: to provide a thorough review, i would need to see the actual tr...
+INFO:agents.specialized.fixerbot_agent:📝 No specific errors found - performing general code review
+INFO:utils.claude_code_service:⏱️ Running Claude CLI with 300s timeout...
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 7/7 (100.0%)
+INFO:langgraph_system.workflow:  Step task_1 (tradestrat): completed
+INFO:langgraph_system.workflow:  Step task_2 (codesmith): completed
+INFO:langgraph_system.workflow:  Step task_3 (reviewer): completed
+INFO:langgraph_system.workflow:  Step task_4 (fixer): completed
+INFO:langgraph_system.workflow:  Step task_5 (performance): completed
+INFO:langgraph_system.workflow:  Step task_6 (docbot): completed
+INFO:langgraph_system.workflow:  Step 7 (fixer): completed
+INFO:langgraph_system.workflow:🏁 All steps complete - routing to END
+INFO:langgraph_system.workflow:✅ Stored execution result for learning (success=True)
+INFO:langgraph_system.workflow:✅ Workflow completed for session stub_test_230540
+INFO:__main__:🔌 WebSocket DEBUG: Attempting to send to client_198a6777, websocket state: WebSocketState.CONNECTED
+ERROR:__main__:Error sending to client_198a6777: 
+ERROR:__main__:Traceback: Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/venv/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_impl.py", line 332, in asgi_send
+    await self.send(data)  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dominikfoert/git/KI_AutoAgent/venv/lib/python3.13/site-packages/websockets/legacy/protocol.py", line 635, in send
+    await self.ensure_open()
+  File "/Users/dominikfoert/git/KI_AutoAgent/venv/lib/python3.13/site-packages/websockets/legacy/protocol.py", line 944, in ensure_open
+    raise self.connection_closed_exc()
+websockets.exceptions.ConnectionClosedOK: received 1000 (OK); then sent 1000 (OK)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/venv/lib/python3.13/site-packages/starlette/websockets.py", line 86, in send
+    await self._send(message)
+  File "/Users/dominikfoert/git/KI_AutoAgent/venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 39, in sender
+    await send(message)
+  File "/Users/dominikfoert/git/KI_AutoAgent/venv/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_impl.py", line 345, in asgi_send
+    raise ClientDisconnected from exc
+uvicorn.protocols.utils.ClientDisconnected
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/api/server_langgraph.py", line 83, in send_json
+    await websocket.send_json(data)
+  File "/Users/dominikfoert/git/KI_AutoAgent/venv/lib/python3.13/site-packages/starlette/websockets.py", line 176, in send_json
+    await self.send({"type": "websocket.send", "text": text})
+  File "/Users/dominikfoert/git/KI_AutoAgent/venv/lib/python3.13/site-packages/starlette/websockets.py", line 89, in send
+    raise WebSocketDisconnect(code=1006)
+starlette.websockets.WebSocketDisconnect
+
+INFO:__main__:❌ Client client_198a6777 disconnected
+ERROR:__main__:❌ WebSocket DEBUG: Client client_198a6777 not in active_connections!
+ERROR:__main__:❌ WebSocket DEBUG: Client client_198a6777 not in active_connections!
+ERROR:__main__:❌ WebSocket DEBUG: Client client_198a6777 not in active_connections!
+ERROR:__main__:❌ WebSocket DEBUG: Client client_198a6777 not in active_connections!
+ERROR:__main__:❌ WebSocket DEBUG: Client client_198a6777 not in active_connections!
+ERROR:__main__:❌ WebSocket DEBUG: Client client_198a6777 not in active_connections!
+ERROR:__main__:❌ WebSocket DEBUG: Client client_198a6777 not in active_connections!
+ERROR:__main__:Error in WebSocket handler: WebSocket is not connected. Need to call "accept" first.
