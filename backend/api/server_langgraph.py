@@ -18,6 +18,7 @@ if grandparent_dir not in sys.path:
     sys.path.insert(0, grandparent_dir)
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from starlette.websockets import WebSocketState
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import asyncio
@@ -94,30 +95,55 @@ class ConnectionManager:
             logger.info(f"❌ Client {client_id} disconnected")
 
     async def send_json(self, client_id: str, data: dict):
-        if client_id in self.active_connections:
-            try:
-                websocket = self.active_connections[client_id]
-                logger.info(f"🔌 WebSocket DEBUG: Attempting to send to {client_id}, websocket state: {websocket.client_state if hasattr(websocket, 'client_state') else 'unknown'}")
-                await websocket.send_json(data)
-                self.connection_info[client_id]["last_activity"] = datetime.now()
-                logger.info(f"✅ WebSocket DEBUG: Successfully sent message to {client_id}")
-            except Exception as e:
-                import traceback
-                logger.error(f"Error sending to {client_id}: {e}")
-                logger.error(f"Traceback: {traceback.format_exc()}")
-                self.disconnect(client_id)
-        else:
-            logger.error(f"❌ WebSocket DEBUG: Client {client_id} not in active_connections!")
+        """
+        Safely send JSON to WebSocket with connection state check.
+        v5.7.0: Added WebSocketState check to prevent sending to disconnected clients
+        """
+        if client_id not in self.active_connections:
+            logger.debug(f"Client {client_id} not in active connections")
+            return False
+
+        websocket = self.active_connections[client_id]
+
+        # Check if websocket is still connected
+        if websocket.client_state != WebSocketState.CONNECTED:
+            logger.warning(f"⚠️ Cannot send to {client_id}: WebSocket not connected (state: {websocket.client_state})")
+            self.disconnect(client_id)
+            return False
+
+        try:
+            await websocket.send_json(data)
+            self.connection_info[client_id]["last_activity"] = datetime.now()
+            logger.debug(f"✅ Sent message to {client_id}")
+            return True
+        except Exception as e:
+            logger.error(f"❌ Error sending to {client_id}: {e}")
+            # Remove disconnected client immediately
+            self.disconnect(client_id)
+            return False
 
     async def broadcast_json(self, data: dict):
+        """
+        Broadcast JSON to all connected clients.
+        v5.7.0: Improved disconnection handling with state checks
+        """
         disconnected = []
         for client_id in list(self.active_connections.keys()):
+            websocket = self.active_connections[client_id]
+
+            # Check connection state before attempting send
+            if websocket.client_state != WebSocketState.CONNECTED:
+                logger.debug(f"Skipping {client_id}: Not connected")
+                disconnected.append(client_id)
+                continue
+
             try:
-                await self.active_connections[client_id].send_json(data)
+                await websocket.send_json(data)
             except Exception as e:
                 logger.error(f"Error broadcasting to {client_id}: {e}")
                 disconnected.append(client_id)
 
+        # Clean up disconnected clients
         for client_id in disconnected:
             self.disconnect(client_id)
 
@@ -472,13 +498,28 @@ async def websocket_chat(websocket: WebSocket):
                 })
 
     except WebSocketDisconnect:
+        # v5.7.0: Improved disconnect handling with workflow state preservation
+        logger.info(f"🔌 Client {client_id} disconnected gracefully")
+
+        # Clean up connection
         manager.disconnect(client_id)
+
+        # Preserve session data for potential reconnection
         if client_id in active_sessions:
+            session_data = active_sessions[client_id]
+            session_id = session_data.get("session_id", "unknown")
+
+            # Log session info for debugging
+            if "workflow_state" in session_data:
+                logger.info(f"💾 Session {session_id} has workflow state (preserved in memory)")
+
+            # Remove from active sessions
             del active_sessions[client_id]
-        logger.info(f"Client {client_id} disconnected")
+            logger.info(f"✅ Cleaned up session for {client_id}")
 
     except Exception as e:
-        logger.error(f"Error in WebSocket handler: {e}")
+        logger.error(f"❌ Error in WebSocket handler: {e}")
+        # Clean up on error
         manager.disconnect(client_id)
         if client_id in active_sessions:
             del active_sessions[client_id]

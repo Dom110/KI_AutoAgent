@@ -77,6 +77,37 @@ Die vollständige Dokumentation wurde in separate Dateien ausgelagert für besse
 - **Frontend**: VS Code Extension
 - **WebSocket**: ws://localhost:8001/ws/chat
 
+### ⚠️ Server Management - WICHTIG!
+
+**NIEMALS `kill -9` verwenden!** Der Server muss graceful beendet werden!
+
+#### ✅ RICHTIGE Methode (Graceful Shutdown):
+```bash
+# Methode 1: Über API (EMPFOHLEN)
+curl -X POST http://localhost:8001/shutdown
+
+# Methode 2: Python Script
+python -c "import requests; requests.post('http://localhost:8001/shutdown')"
+
+# Methode 3: SIGTERM (graceful)
+kill $(lsof -ti :8001)
+```
+
+#### ❌ FALSCHE Methode:
+```bash
+# NIEMALS verwenden - unterbricht Workflows und korruptiert State!
+kill -9 $(lsof -ti :8001)  # ❌ FALSCH!
+lsof -ti :8001 | xargs kill -9  # ❌ FALSCH!
+pkill -9 -f "server_langgraph"  # ❌ FALSCH!
+```
+
+#### Warum Graceful Shutdown wichtig ist:
+- **Workflow State**: Aktive Workflows werden sauber beendet
+- **WebSocket Verbindungen**: Clients werden ordnungsgemäß benachrichtigt
+- **Checkpoints**: Workflow-State wird korrekt gespeichert
+- **Ressourcen**: Datenbankverbindungen, File Handles werden freigegeben
+- **Logs**: Finale Logs werden geschrieben
+
 ### Agenten (10 total)
 1. **Orchestrator** (GPT-5) - Task Decomposition
 2. **Architect** (GPT-4o) - System Design

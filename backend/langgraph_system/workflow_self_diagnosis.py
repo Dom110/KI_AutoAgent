@@ -381,16 +381,21 @@ class WorkflowInvariants:
         return True
 
     def _check_agent_capabilities(self, state: ExtendedAgentState) -> bool:
-        """Check agents are assigned appropriate tasks"""
+        """
+        Check agents are assigned appropriate tasks.
+        v5.7.0: Enhanced with agent suggestions and added new agents
+        """
         agent_capabilities = {
-            "orchestrator": ["plan", "decompose", "route"],
-            "architect": ["design", "architecture", "propose"],
-            "codesmith": ["implement", "code", "create", "build"],
-            "reviewer": ["review", "analyze", "check", "validate"],
-            "fixer": ["fix", "repair", "resolve", "debug"],
-            "research": ["search", "research", "find", "investigate"],
-            "docbot": ["document", "explain", "describe", "write"],
-            "performance": ["optimize", "speed", "improve", "benchmark"]
+            "orchestrator": ["plan", "decompose", "route", "coordinate"],
+            "architect": ["design", "architecture", "propose", "structure"],
+            "codesmith": ["implement", "code", "create", "build", "generate"],
+            "reviewer": ["review", "analyze", "check", "validate", "test"],
+            "fixer": ["fix", "repair", "resolve", "debug", "correct"],
+            "research": ["search", "research", "find", "investigate", "analyze"],
+            "docbot": ["document", "explain", "describe", "write", "readme", "comment"],
+            "performance": ["optimize", "speed", "improve", "benchmark", "faster", "efficient"],
+            "tradestrat": ["trading", "strategy", "backtest", "market", "portfolio", "risk"],
+            "opus_arbitrator": ["conflict", "decide", "arbitrate", "resolve", "choose", "final"]
         }
 
         for step in state.get("execution_plan", []):
@@ -401,10 +406,41 @@ class WorkflowInvariants:
                 capabilities = agent_capabilities[agent]
                 # Check if task matches any capability
                 if not any(cap in task_lower for cap in capabilities):
-                    logger.warning(f"Agent {agent} may not be suited for task: {step.task[:50]}")
+                    # Suggest better suited agent
+                    suggestion = self._suggest_better_agent(agent, task_lower, agent_capabilities)
+                    if suggestion:
+                        logger.warning(
+                            f"⚠️ Agent '{agent}' may not be optimal for task: {step.task[:50]}...\n"
+                            f"   💡 Suggestion: Consider using '{suggestion}' instead"
+                        )
+                    else:
+                        logger.warning(f"⚠️ Agent '{agent}' may not be suited for task: {step.task[:50]}")
                     # Not a hard failure, just warning
 
         return True
+
+    def _suggest_better_agent(self, current_agent: str, task: str, agent_capabilities: dict) -> Optional[str]:
+        """
+        Suggest better suited agent based on task keywords.
+        v5.7.0: New method for intelligent agent suggestions
+        """
+        # Don't suggest if already using the agent
+        best_match = None
+        best_score = 0
+
+        for agent, capabilities in agent_capabilities.items():
+            if agent == current_agent:
+                continue
+
+            # Count how many capability keywords match the task
+            matches = sum(1 for cap in capabilities if cap in task)
+
+            if matches > best_score:
+                best_score = matches
+                best_match = agent
+
+        # Only suggest if we found at least one match
+        return best_match if best_score > 0 else None
 
 
 # =================== PRE-EXECUTION VALIDATION ===================

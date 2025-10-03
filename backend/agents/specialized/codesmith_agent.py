@@ -2090,17 +2090,16 @@ Filename:"""
 
                 # Track in shared context if available
                 # v5.5.3: Wrap in try/except to not corrupt successful result
+                # v5.7.0: Fixed - use update() method instead of non-existent update_context()
                 if self.shared_context:
                     try:
-                        await self.shared_context.update_context(
-                            self.config.agent_id,
-                            "last_implementation",
-                            {
+                        self.shared_context.update({
+                            f"{self.config.agent_id}_last_implementation": {
                                 "file": file_path,
                                 "spec": spec[:200],
                                 "timestamp": datetime.now().isoformat()
                             }
-                        )
+                        })
                     except Exception as ctx_error:
                         logger.warning(f"⚠️ Shared context update failed (non-critical): {ctx_error}")
 
