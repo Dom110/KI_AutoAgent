@@ -3,6 +3,20 @@ KI AutoAgent Backend Server with LangGraph Integration
 FastAPI with WebSocket support for LangGraph workflow
 """
 
+import sys
+import os
+
+# Add parent directories to path FIRST, before any other imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+grandparent_dir = os.path.dirname(parent_dir)
+
+# Add both backend dir and project root to path
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+if grandparent_dir not in sys.path:
+    sys.path.insert(0, grandparent_dir)
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -13,11 +27,6 @@ import uuid
 from typing import Dict, Any, Optional, Set
 from datetime import datetime
 import uvicorn
-import sys
-import os
-
-# Add parent directory to path for imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import LangGraph system
 from langgraph_system import (
@@ -30,15 +39,24 @@ from langgraph_system import (
 )
 
 # Import Models Endpoint
-from .models_endpoint import router as models_router
+try:
+    from .models_endpoint import router as models_router
+except ImportError:
+    try:
+        from api.models_endpoint import router as models_router
+    except ImportError:
+        from backend.api.models_endpoint import router as models_router
 
 # Import Settings Endpoint
-from .settings_endpoint import router as settings_router
+try:
+    from .settings_endpoint import router as settings_router
+except ImportError:
+    try:
+        from api.settings_endpoint import router as settings_router
+    except ImportError:
+        from backend.api.settings_endpoint import router as settings_router
 
 # Import version information
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from __version__ import __version__, __version_display__, __release_tag__
 
 # Configure logging with detailed format

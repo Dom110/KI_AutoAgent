@@ -393,3 +393,9 @@ ERROR:__main__:❌ WebSocket DEBUG: Client client_198a6777 not in active_connect
 ERROR:__main__:❌ WebSocket DEBUG: Client client_198a6777 not in active_connections!
 ERROR:__main__:❌ WebSocket DEBUG: Client client_198a6777 not in active_connections!
 ERROR:__main__:Error in WebSocket handler: WebSocket is not connected. Need to call "accept" first.
+INFO:uvicorn.access:127.0.0.1:55697 - "GET / HTTP/1.1" 404
+INFO:uvicorn.error:Shutting down
+INFO:uvicorn.error:Waiting for application shutdown.
+INFO:__main__:👋 Shutting down KI AutoAgent Backend...
+INFO:uvicorn.error:Application shutdown complete.
+INFO:uvicorn.error:Finished server process [43052]
