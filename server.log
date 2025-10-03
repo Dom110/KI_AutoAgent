@@ -1,0 +1,84 @@
+INFO:api.server_langgraph:🔍 DEBUG: Starting LangGraph server v5.5.3 on port 8001
+INFO:api.server_langgraph:🔍 DEBUG: This is the ACTIVE server for v5.5.3-stable-type-safety
+INFO:api.server_langgraph:🔍 DEBUG: WebSocket endpoint: ws://localhost:8001/ws/chat
+INFO:api.server_langgraph:✅ Models API endpoint registered at /api/models
+INFO:api.server_langgraph:✅ Settings API endpoint registered at /api/settings
+INFO:     Started server process [17034]
+INFO:     Waiting for application startup.
+INFO:api.server_langgraph:================================================================================
+INFO:api.server_langgraph:🚀 Starting KI AutoAgent LangGraph Backend v5.5.3...
+INFO:api.server_langgraph:🔍 DEBUG: Initializing LangGraph StateGraph workflow system
+INFO:api.server_langgraph:🔍 DEBUG: Using port 8001 (NOT 8000)
+INFO:api.server_langgraph:📦 Creating agent workflow...
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for orchestrator
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for architect
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for codesmith
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for reviewer
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for fixer
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for docbot
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for research
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for tradestrat
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for opus_arbitrator
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for performance
+INFO:langgraph_system.workflow:🤖 Initializing real agent instances...
+INFO:config.capabilities_loader:✅ Loaded capabilities for 11 agents
+WARNING:agents.base.base_agent:Instructions file not found for ArchitectAgent. Tried: ['.ki_autoagent/instructions/architect-v2-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/architect-v2-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/architect-v2-instructions.md', '.kiautoagent/instructions/architect-v2-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/architect-v2-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/architect-v2-instructions.md']
+INFO:agents.base.base_agent:🤖 🏗️ ArchitectAgent initialized (Model: gpt-4o-2024-11-20)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:agents.specialized.architect_agent:🏗️ Initializing ArchitectAgent with path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:🏗️ Initializing ProjectCache with path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.project_cache:📦 ProjectCache initialized: /Users/dominikfoert/git/KI_AutoAgent/.kiautoagent/cache
+INFO:services.code_search:🔍 LightweightCodeSearch initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:agents.specialized.architect_agent:✅ Code indexing tools initialized
+INFO:agents.specialized.architect_agent:✅ Analysis tools initialized: Semgrep, Vulture, Radon, CallGraph, Layers
+INFO:services.diagram_service:📊 DiagramService initialized
+WARNING:agents.base.base_agent:Instructions file not found for CodeSmithAgent. Tried: ['.ki_autoagent/instructions/codesmith-v2-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/codesmith-v2-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/codesmith-v2-instructions.md', '.kiautoagent/instructions/codesmith-v2-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/codesmith-v2-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/codesmith-v2-instructions.md']
+INFO:agents.base.base_agent:🤖 💻 CodeSmithAgent initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:services.diagram_service:📊 DiagramService initialized
+WARNING:agents.base.base_agent:Instructions file not found for ReviewerGPT. Tried: ['.ki_autoagent/instructions/reviewergpt-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/reviewergpt-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/reviewergpt-instructions.md', '.kiautoagent/instructions/reviewergpt-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/reviewergpt-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/reviewergpt-instructions.md']
+INFO:agents.base.base_agent:🤖 🔍 ReviewerGPT initialized (Model: gpt-4o-mini-2024-07-18)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-mini-2024-07-18
+WARNING:agents.base.base_agent:Instructions file not found for FixerBot. Tried: ['.ki_autoagent/instructions/fixerbot-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/fixerbot-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/fixerbot-instructions.md', '.kiautoagent/instructions/fixerbot-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/fixerbot-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/fixerbot-instructions.md']
+INFO:agents.base.base_agent:🤖 🔧 FixerBot initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:agents.base.base_agent:🤖 🎯 OrchestratorAgent initialized (Model: gpt-4o-2024-11-20)
+INFO:langgraph_system.workflow:✅ Orchestrator initialized with AI decomposition
+WARNING:agents.base.base_agent:Instructions file not found for ResearchBot. Tried: ['.ki_autoagent/instructions/research-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/research-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.ki_autoagent/instructions/research-instructions.md', '.kiautoagent/instructions/research-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/research-instructions.md', '/Users/dominikfoert/git/KI_AutoAgent/backend/.kiautoagent/instructions/research-instructions.md']
+INFO:agents.base.base_agent:🤖 🔍 ResearchBot initialized (Model: sonar)
+INFO:utils.perplexity_service:✅ PerplexityService initialized with model: sonar
+INFO:agents.specialized.research_agent:✅ ResearchAgent initialized with Perplexity API
+INFO:langgraph_system.workflow:✅ ResearchAgent initialized with Perplexity API
+INFO:langgraph_system.workflow:✅ Initialized 6 real agents
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Workflow Self-Diagnosis System v5.5.0 initialized
+INFO:langgraph_system.workflow:🏥 Self-Diagnosis System initialized
+INFO:langgraph_system.workflow:🧠 Intelligent Query Handler initialized
+INFO:langgraph_system.workflow:🛡️ Safe Orchestrator Executor initialized (v5.5.2)
+INFO:langgraph_system.workflow:✅ Using MemorySaver for workflow checkpointing
+INFO:langgraph_system.workflow:✅ Workflow compiled with checkpointer support
+INFO:api.server_langgraph:✅ LangGraph workflow system initialized
+INFO:api.server_langgraph:✅ workflow_system type: AgentWorkflow
+INFO:api.server_langgraph:🔧 Tool registry initialized with 0 tools
+INFO:api.server_langgraph:✅ Approval manager initialized
+INFO:api.server_langgraph:================================================================================
+INFO:api.server_langgraph:🎉 STARTUP COMPLETE - Ready to accept connections!
+INFO:api.server_langgraph:================================================================================
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)

@@ -30,12 +30,15 @@ from langgraph_system import (
 )
 
 # Import Models Endpoint
-from models_endpoint import router as models_router
+from .models_endpoint import router as models_router
 
 # Import Settings Endpoint
-from settings_endpoint import router as settings_router
+from .settings_endpoint import router as settings_router
 
 # Import version information
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from __version__ import __version__, __version_display__, __release_tag__
 
 # Configure logging with detailed format
