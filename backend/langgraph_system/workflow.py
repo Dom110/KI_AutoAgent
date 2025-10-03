@@ -1647,46 +1647,10 @@ Research:
                 logger.error(f"Safe executor failed: {e}, falling back to standard routing")
 
         # ============================================
-        # PHASE 2: HYBRID COMPLEXITY-BASED ROUTING
+        # PHASE 2: AI-BASED ROUTING (Fast routing disabled)
         # ============================================
-
-        # Detect task complexity
-        complexity = self._detect_task_complexity(task)
-
-        # Complex tasks → Use Orchestrator AI (with safety checks)
-        if complexity == "complex" and ORCHESTRATOR_AVAILABLE:
-            logger.info("🧠 COMPLEX TASK → Using Orchestrator AI decomposition")
-
-            # v5.5.2: If safe executor is available, use it for complex tasks
-            if self.safe_executor:
-                success, result, message = await self.safe_executor.execute_safely(
-                    task,
-                    state,
-                    lambda q, s: self._use_orchestrator_for_planning(q, complexity),
-                    timeout=30
-                )
-                if success and result:
-                    if isinstance(result, list):
-                        return result  # Direct execution plan
-                    elif isinstance(result, dict) and "steps" in result:
-                        return result["steps"]  # Wrapped execution plan
-                logger.warning(f"Safe orchestrator execution failed: {message}")
-            else:
-                # Fallback to direct orchestrator call
-                orchestrator_plan = await self._use_orchestrator_for_planning(task, complexity)
-                if orchestrator_plan and len(orchestrator_plan) > 1:
-                    # Orchestrator successfully created multi-step plan
-                    return orchestrator_plan
-            # Otherwise fall through to standard routing
-
-        # Simple tasks → Fast keyword routing
-        if complexity == "simple":
-            logger.info("⚡ SIMPLE TASK → Using fast keyword routing")
-            # Fall through to keyword routing below
-
-        # Moderate tasks → Standard workflow patterns
-        # Continue with existing logic below
-        # ============================================
+        # Complexity detection removed - all tasks go through AI
+        # This ensures consistent, intelligent routing without keyword matching
 
         # v5.5.2: Check for problematic queries that need special handling
         if self.query_classifier:
@@ -1739,6 +1703,32 @@ Research:
                         status="completed",
                         result=response
                     )]
+
+        # ============================================
+        # SKIP FAST ROUTING - GO DIRECTLY TO AI
+        # ============================================
+        # User requested: "Nur hierfür deaktivieren" (fast routing for simple tasks)
+        # We keep SafeExecutor and QueryClassifier but skip keyword-based routing
+
+        if ORCHESTRATOR_AVAILABLE:
+            logger.info("🧠 DIRECT AI ROUTING → Using Orchestrator for all tasks")
+            # Always treat as "complex" since we want full AI analysis
+            orchestrator_plan = await self._use_orchestrator_for_planning(task, "complex")
+            if orchestrator_plan and len(orchestrator_plan) > 0:
+                return orchestrator_plan
+
+        # Fallback to intelligent handler
+        if self.intelligent_handler:
+            logger.info("🧠 Using Intelligent Query Handler")
+            return self.intelligent_handler.create_intelligent_execution_plan(task)
+
+        # Ultimate fallback
+        return self._create_single_agent_step("orchestrator", task)
+
+        # ============================================
+        # DEACTIVATED FAST ROUTING BELOW (preserved for reference)
+        # ============================================
+        return []  # This return prevents execution of code below
 
         # For agent list queries - return pre-computed result
         # (This is OK since it's just static info, not an action)
@@ -2116,7 +2106,9 @@ Research:
                         dependencies=subtask.get("dependencies", []),
                         status="pending",
                         result=None,
-                        metadata={"estimated_duration": subtask.get("estimated_duration", 5.0)}
+                        # Removed metadata field as ExecutionStep doesn't support it
+                        # Could use timeout_seconds for duration if needed
+                        timeout_seconds=int(subtask.get("estimated_duration", 5.0) * 60) if subtask.get("estimated_duration") else 300
                     ))
 
                 logger.info(f"✅ Orchestrator created {len(steps)}-step plan with parallelization")
@@ -2124,9 +2116,56 @@ Research:
 
         except Exception as e:
             logger.error(f"❌ Orchestrator planning failed: {e}")
-            logger.warning("⚠️ Falling back to standard routing")
+            logger.warning("⚠️ Falling back to default development workflow")
 
-        # Fallback to keyword routing
+        # Fallback: For development tasks, create default multi-agent workflow
+        task_lower = task.lower()
+        if any(keyword in task_lower for keyword in ['create', 'build', 'develop', 'app', 'web', 'calculator']):
+            logger.info("🏗️ Creating default development workflow (architect → codesmith → reviewer → fixer)")
+            return [
+                ExecutionStep(
+                    id="step1",
+                    agent="architect",
+                    task=f"Design system architecture for: {task}",
+                    expected_output="Architecture design",
+                    dependencies=[],
+                    status="pending",
+                    result=None
+                ),
+                ExecutionStep(
+                    id="step2",
+                    agent="codesmith",
+                    task=f"Implement the code for: {task}",
+                    expected_output="Working code implementation",
+                    dependencies=["step1"],
+                    status="pending",
+                    result=None
+                ),
+                ExecutionStep(
+                    id="step3",
+                    agent="reviewer",
+                    task="Review and test the implementation",
+                    expected_output="Code review and test results",
+                    dependencies=["step2"],
+                    status="pending",
+                    result=None
+                ),
+                ExecutionStep(
+                    id="step4",
+                    agent="fixer",
+                    task="Fix any issues found by reviewer",
+                    expected_output="All issues resolved",
+                    dependencies=["step3"],
+                    status="pending",
+                    result=None
+                )
+            ]
+
+        # For non-development tasks, use intelligent handler
+        if self.intelligent_handler:
+            return self.intelligent_handler.create_intelligent_execution_plan(task)
+
+        # Ultimate fallback
         return self._create_single_agent_step("orchestrator", task)
 
     async def _store_execution_for_learning(

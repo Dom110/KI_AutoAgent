@@ -327,6 +327,43 @@ class PersistentAgentMemory:
 
         return memories
 
+    async def search(
+        self,
+        query: str,
+        memory_type: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        k: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Search for similar memories (compatibility wrapper for OrchestratorAgent)
+
+        Args:
+            query: Query string
+            memory_type: Optional memory type filter
+            agent_id: Optional agent ID filter (unused, for compatibility)
+            k: Number of results to return
+
+        Returns:
+            List of dictionaries with memory information
+        """
+        # Call the existing recall_similar method
+        memory_types = [memory_type] if memory_type else None
+        memories = self.recall_similar(query, k=k, memory_types=memory_types)
+
+        # Convert MemoryEntry objects to dicts for compatibility
+        results = []
+        for memory in memories:
+            results.append({
+                "content": memory.content,
+                "type": memory.memory_type,
+                "importance": memory.importance,
+                "metadata": memory.metadata,
+                "timestamp": memory.timestamp.isoformat() if memory.timestamp else None,
+                "complexity": memory.metadata.get("complexity", "moderate") if memory.metadata else "moderate"
+            })
+
+        return results
+
     def learn_pattern(
         self,
         pattern: str,

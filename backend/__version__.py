@@ -1,13 +1,13 @@
 """
 KI AutoAgent Backend Version Information
 
-Version 5.5.3 - Multi-Agent Type Safety & Metadata Passing Fixes
+Version 5.6.0 - AI-Only Routing & Dashboard Generation
 """
 
 # Version numbers - Single source of truth
-__version__ = "5.5.3"
-__version_info__ = (5, 5, 3)
-__release_tag__ = "v5.5.3-stable-type-safety"
+__version__ = "5.6.0"
+__version_info__ = (5, 6, 0)
+__release_tag__ = "v5.6.0-ai-routing-dashboard"
 __release_date__ = "2025-10-03"
 __author__ = "KI AutoAgent Team"
 __description__ = "Cognitive AI Development Platform with Self-Understanding Capabilities"
