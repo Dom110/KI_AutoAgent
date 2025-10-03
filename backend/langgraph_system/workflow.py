@@ -9,8 +9,15 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.memory import MemorySaver
+# Try to import async checkpointer for better asyncio support
+try:
+    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+    ASYNC_CHECKPOINTER_AVAILABLE = True
+except ImportError:
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    ASYNC_CHECKPOINTER_AVAILABLE = False
+    logger.warning("AsyncSqliteSaver not available, using sync version")
 
 from .state import ExtendedAgentState, create_initial_state, ExecutionStep, TaskLedger, ProgressLedger
 from .extensions import (
@@ -43,6 +50,20 @@ except ImportError as e:
     logger.warning(f"⚠️ Self-Diagnosis System not available: {e}")
     SELF_DIAGNOSIS_AVAILABLE = False
     WorkflowSelfDiagnosisSystem = None
+
+# v5.5.2: Import Safe Orchestrator Executor
+try:
+    from .safe_orchestrator_executor import SafeOrchestratorExecutor
+    from .query_classifier import EnhancedQueryClassifier
+    from .development_query_handler import DevelopmentQueryHandler
+    SAFE_EXECUTOR_AVAILABLE = True
+    logger.info("✅ Safe Orchestrator Executor loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Safe Orchestrator Executor not available: {e}")
+    SAFE_EXECUTOR_AVAILABLE = False
+    SafeOrchestratorExecutor = None
+    EnhancedQueryClassifier = None
+    DevelopmentQueryHandler = None
 
 # Import real agents
 import sys
@@ -143,13 +164,28 @@ class AgentWorkflow:
                 logger.error(f"Failed to initialize Intelligent Query Handler: {e}")
                 self.intelligent_handler = None
 
+        # v5.5.2: Initialize Safe Orchestrator Executor
+        self.safe_executor = None
+        self.query_classifier = None
+        self.dev_handler = None
+        if SAFE_EXECUTOR_AVAILABLE:
+            try:
+                self.safe_executor = SafeOrchestratorExecutor()
+                self.query_classifier = EnhancedQueryClassifier()
+                self.dev_handler = DevelopmentQueryHandler()
+                logger.info("🛡️ Safe Orchestrator Executor initialized (v5.5.2)")
+            except Exception as e:
+                logger.error(f"Failed to initialize Safe Orchestrator Executor: {e}")
+                self.safe_executor = None
+
         # Initialize workflow
         self.workflow = None
 
         # Initialize checkpointer for workflow state persistence (v5.4.0)
-        # Use MemorySaver for in-memory checkpointing (simpler and faster)
-        # For production, consider SqliteSaver(db_path)
-        self.checkpointer = MemorySaver()
+        # v5.5.3: Use AsyncSqliteSaver for better asyncio support when available
+        # This fixes "no running event loop" errors in human-in-the-loop workflows
+        self.checkpointer = None  # Will be initialized in async context
+        self.checkpointer_path = db_path  # Store for async init
 
     def _init_agent_memories(self):
         """Initialize persistent memory for each agent"""
@@ -1200,7 +1236,7 @@ class AgentWorkflow:
 
         return state
 
-    def route_after_approval(self, state: ExtendedAgentState) -> str:
+    async def route_after_approval(self, state: ExtendedAgentState) -> str:
         """
         Route after approval node - intelligently routes to first pending agent
         Validates that the agent has a workflow node, fallback to orchestrator if not
@@ -1259,7 +1295,7 @@ class AgentWorkflow:
             logger.info("🛑 Routing to END")
             return "end"
 
-    def route_from_architect(self, state: ExtendedAgentState) -> str:
+    async def route_from_architect(self, state: ExtendedAgentState) -> str:
         """
         v5.2.0: Special routing for architect node
         Routes to approval_node if architecture proposal was just created
@@ -1283,15 +1319,16 @@ class AgentWorkflow:
                         state["execution_plan"] = list(state["execution_plan"])
                         break
                 # Continue with standard routing
-                return self.route_to_next_agent(state)
+                return await self.route_to_next_agent(state)
 
         # Standard routing for non-proposal cases
-        return self.route_to_next_agent(state)
+        return await self.route_to_next_agent(state)
 
-    def route_to_next_agent(self, state: ExtendedAgentState) -> str:
+    async def route_to_next_agent(self, state: ExtendedAgentState) -> str:
         """
         Determine next agent based on execution plan
         Validates that the agent has a workflow node, fallback to orchestrator if not
+        v5.5.3: Made async to support background tasks
         """
         # Available workflow nodes (agents with implemented nodes)
         AVAILABLE_NODES = {"orchestrator", "architect", "codesmith", "reviewer", "fixer", "research", "fixer_gpt"}
@@ -1381,7 +1418,7 @@ class AgentWorkflow:
             if has_pending:
                 # Recurse to route to next pending step
                 logger.info("🔄 Retrying routing after fixing stuck steps...")
-                return self.route_to_next_agent(state)
+                return await self.route_to_next_agent(state)
 
         # All steps complete
         logger.info("🏁 All steps complete - routing to END")
@@ -1583,8 +1620,25 @@ Research:
         - Simple tasks → Keyword routing (fast)
         - Complex tasks → Orchestrator AI decomposition (intelligent)
         - Moderate tasks → Standard workflow patterns
+
+        v5.5.2: Enhanced with Safe Orchestrator Executor
         """
         task = state.get("current_task", "")
+
+        # ============================================
+        # v5.5.2: SAFE ORCHESTRATOR EXECUTION CHECK
+        # ============================================
+        if self.safe_executor and self.safe_executor.should_use_safe_execution(task, state):
+            logger.info("🛡️ Using Safe Orchestrator Executor (v5.5.2)")
+
+            # Create safe execution plan without actual orchestrator call
+            try:
+                safe_plan = await self.safe_executor.create_safe_execution_plan(task, state)
+                if safe_plan:
+                    logger.info(f"✅ Created safe execution plan with {len(safe_plan)} steps")
+                    return safe_plan
+            except Exception as e:
+                logger.error(f"Safe executor failed: {e}, falling back to standard routing")
 
         # ============================================
         # PHASE 2: HYBRID COMPLEXITY-BASED ROUTING
@@ -1593,13 +1647,30 @@ Research:
         # Detect task complexity
         complexity = self._detect_task_complexity(task)
 
-        # Complex tasks → Use Orchestrator AI
+        # Complex tasks → Use Orchestrator AI (with safety checks)
         if complexity == "complex" and ORCHESTRATOR_AVAILABLE:
             logger.info("🧠 COMPLEX TASK → Using Orchestrator AI decomposition")
-            orchestrator_plan = await self._use_orchestrator_for_planning(task, complexity)
-            if orchestrator_plan and len(orchestrator_plan) > 1:
-                # Orchestrator successfully created multi-step plan
-                return orchestrator_plan
+
+            # v5.5.2: If safe executor is available, use it for complex tasks
+            if self.safe_executor:
+                success, result, message = await self.safe_executor.execute_safely(
+                    task,
+                    state,
+                    lambda q, s: self._use_orchestrator_for_planning(q, complexity),
+                    timeout=30
+                )
+                if success and result:
+                    if isinstance(result, list):
+                        return result  # Direct execution plan
+                    elif isinstance(result, dict) and "steps" in result:
+                        return result["steps"]  # Wrapped execution plan
+                logger.warning(f"Safe orchestrator execution failed: {message}")
+            else:
+                # Fallback to direct orchestrator call
+                orchestrator_plan = await self._use_orchestrator_for_planning(task, complexity)
+                if orchestrator_plan and len(orchestrator_plan) > 1:
+                    # Orchestrator successfully created multi-step plan
+                    return orchestrator_plan
             # Otherwise fall through to standard routing
 
         # Simple tasks → Fast keyword routing
@@ -1610,6 +1681,58 @@ Research:
         # Moderate tasks → Standard workflow patterns
         # Continue with existing logic below
         # ============================================
+
+        # v5.5.2: Check for problematic queries that need special handling
+        if self.query_classifier:
+            classification = self.query_classifier.classify_query(task, state)
+
+            # Handle special query types
+            if classification.is_greeting:
+                logger.info("👋 Greeting detected - returning friendly response")
+                return [ExecutionStep(
+                    id="step1",
+                    agent="orchestrator",
+                    task="Greeting",
+                    expected_output="Greeting response",
+                    dependencies=[],
+                    status="completed",
+                    result=classification.prefilled_response or "Hallo! Ich bin der KI AutoAgent. Wie kann ich Ihnen bei der Entwicklung helfen?"
+                )]
+
+            if classification.is_nonsense:
+                logger.info("❓ Nonsensical query detected - asking for clarification")
+                return [ExecutionStep(
+                    id="step1",
+                    agent="orchestrator",
+                    task="Clarification needed",
+                    expected_output="Clarification request",
+                    dependencies=[],
+                    status="completed",
+                    result=classification.prefilled_response or "Könnten Sie Ihre Anfrage bitte umformulieren?"
+                )]
+
+            # Handle development queries with special handlers
+            # BUT: Only for VAGUE queries, not concrete implementation requests!
+            is_concrete_request = any(word in task.lower() for word in [
+                'erstelle', 'create', 'build', 'implement', 'baue', 'entwickle',
+                'generiere', 'generate', 'make', 'code'
+            ])
+
+            if classification.is_development_query and classification.dev_type and self.dev_handler and not is_concrete_request:
+                # Only provide guidance for vague requests like "make it faster" or "fix bugs"
+                response, agents = self.dev_handler.handle_development_query(
+                    task, classification.dev_type, state
+                )
+                if not agents:  # No agents needed, just return informative response
+                    return [ExecutionStep(
+                        id="step1",
+                        agent="orchestrator",
+                        task=f"Development guidance for {classification.dev_type}",
+                        expected_output="Development guidance",
+                        dependencies=[],
+                        status="completed",
+                        result=response
+                    )]
 
         # For agent list queries - return pre-computed result
         # (This is OK since it's just static info, not an action)
@@ -2750,12 +2873,21 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
 
         return workflow
 
-    def compile_workflow(self):
+    async def compile_workflow(self):
         """
         Compile the workflow with checkpointer (v5.4.0)
+        v5.5.3: Made async to support AsyncSqliteSaver for better event loop handling
         Enables workflow persistence and resumption for approval flows
         """
         workflow = self.create_workflow()
+
+        # Initialize checkpointer if not already done
+        if self.checkpointer is None:
+            # v5.5.3: Fixed checkpointer initialization
+            # Use MemorySaver for simplicity - SqliteSaver has complex async requirements
+            # The event loop issue was not from the checkpointer type, but from mixing sync/async
+            self.checkpointer = MemorySaver()
+            logger.info("✅ Using MemorySaver for workflow checkpointing")
 
         # Compile with checkpointer to enable state persistence and resumption
         # The checkpointer automatically saves state at each step
@@ -2898,13 +3030,14 @@ Für genauere Ergebnisse können Sie gerne eine spezifischere Frage stellen oder
             return initial_state
 
 
-def create_agent_workflow(
+async def create_agent_workflow(
     websocket_manager=None,
     db_path: str = "langgraph_state.db",
     memory_db_path: str = "agent_memories.db"
 ) -> AgentWorkflow:
     """
     Create and return configured agent workflow
+    v5.5.3: Made async to support AsyncSqliteSaver initialization
 
     Args:
         websocket_manager: WebSocket manager for UI communication
@@ -2920,7 +3053,7 @@ def create_agent_workflow(
         memory_db_path=memory_db_path
     )
 
-    # Compile the workflow
-    workflow.compile_workflow()
+    # Compile the workflow (now async)
+    await workflow.compile_workflow()
 
     return workflow

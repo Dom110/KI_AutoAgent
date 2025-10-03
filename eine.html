@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tetris</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .game-container {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .main-game {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        canvas {
+            border: 3px solid #fff;
+            border-radius: 5px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        .info-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            color: white;
+        }
+        .info-box {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 150px;
+        }
+        .info-box h3 {
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .info-box .value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        #nextCanvas {
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .controls {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .controls h3 {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px 50px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+        }
+        .game-over h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        .game-over button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .game-over button:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="main-game">
+            <canvas id="gameCanvas" width="300" height="600"></canvas>
+        </div>
+        <div class="info-panel">
+            <div class="info-box">
+                <h3>Score</h3>
+                <div class="value" id="score">0</div>
+            </div>
+            <div class="info-box">
+                <h3>Level</h3>
+                <div class="value" id="level">1</div>
+            </div>
+            <div class="info-box">
+                <h3>Lines</h3>
+                <div class="value" id="lines">0</div>
+            </div>
+            <div class="info-box">
+                <h3>Nächster</h3>
+                <canvas id="nextCanvas" width="120" height="120"></canvas>
+            </div>
+            <div class="controls">
+                <h3>Steuerung</h3>
+                <div>← → Bewegen</div>
+                <div>↓ Schneller</div>
+                <div>↑ Drehen</div>
+                <div>Leertaste Fallen</div>
+                <div>P Pause</div>
+            </div>
+        </div>
+    </div>
+    <div class="game-over" id="gameOver">
+        <h2>Game Over!</h2>
+        <div>Finaler Score: <span id="finalScore">0</span></div>
+        <button onclick="restartGame()">Neu starten</button>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const nextCanvas = document.getElementById('nextCanvas');
+        const nextCtx = nextCanvas.getContext('2d');
+        const BLOCK_SIZE = 30;
+        const ROWS = 20;
+        const COLS = 10;
+        const COLORS = [
+            '#000000',
+            '#00f0f0',
+            '#0000f0',
+            '#f0a000',
+            '#f0f000',
+            '#00f000',
+            '#a000f0',
+            '#f00000'
+        ];
+        const SHAPES = [
+            [[1,1,1,1]],
+            [[1,1],[1,1]],
+            [[1,1,1],[0,1,0]],
+            [[1,1,1],[1,0,0]],
+            [[1,1,1],[0,0,1]],
+            [[1,1,0],[0,1,1]],
+            [[0,1,1],[1,1,0]]
+        ];
+        let board = Array(ROWS).fill(null).map(() => Array(COLS).fill(0));
+        let score = 0;
+        let level = 1;
+        let lines = 0;
+        let currentPiece = null;
+        let nextPiece = null;
+        let gameInterval = null;
+        let isPaused = false;
+        let gameOver = false;
+        let dropCounter = 0;
+        let dropInterval = 1000;
+        let lastTime = 0;
+        function createPiece() {
+            const type = Math.floor(Math.random() * SHAPES.length);
+            return {
+                shape: SHAPES[type],
+                color: type + 1,
+                x: Math.floor(COLS / 2) - Math.floor(SHAPES[type][0].length / 2),
+                y: 0
+            };
+        }
+        function drawBlock(x, y, color, context = ctx, blockSize = BLOCK_SIZE) {
+            context.fillStyle = COLORS[color];
+            context.fillRect(x * blockSize, y * blockSize, blockSize, blockSize);
+            context.strokeStyle = '#000';
+            context.lineWidth = 2;
+            context.strokeRect(x * blockSize, y * blockSize, blockSize, blockSize);
+            context.fillStyle = 'rgba(255,255,255,0.3)';
+            context.fillRect(x * blockSize + 2, y * blockSize + 2, blockSize / 2, blockSize / 2);
+        }
+        function drawBoard() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (board[y][x]) {
+                        drawBlock(x, y, board[y][x]);
+                    }
+                }
+            }
+        }
+        function drawPiece(piece, context = ctx, offsetX = 0, offsetY = 0, blockSize = BLOCK_SIZE) {
+            piece.shape.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value) {
+                        drawBlock(piece.x + x + offsetX, piece.y + y + offsetY, piece.color, context, blockSize);
+                    }
+                });
+            });
+        }
+        function drawNextPiece() {
+            nextCtx.fillStyle = 'rgba(0,0,0,0.5)';
+            nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+            if (nextPiece) {
+                const tempPiece = { ...nextPiece, x: 0, y: 0 };
+                const width = nextPiece.shape[0].length;
+                const height = nextPiece.shape.length;
+                const offsetX = (4 - width) / 2;
+                const offsetY = (4 - height) / 2;
+                tempPiece.x = offsetX;
+                tempPiece.y = offsetY;
+                drawPiece(tempPiece, nextCtx, 0, 0, 30);
+            }
+        }
+        function collides(piece, offsetX = 0, offsetY = 0) {
+            return piece.shape.some((row, y) => {
+                return row.some((value, x) => {
+                    if (value) {
+                        const newX = piece.x + x + offsetX;
+                        const newY = piece.y + y + offsetY;
+                        return newX < 0 || newX >= COL

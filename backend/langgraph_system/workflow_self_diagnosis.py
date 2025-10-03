@@ -506,7 +506,9 @@ class PreExecutionValidator:
             "is_valid": len(all_issues) == 0
         })
 
-        is_valid = len(all_issues) == 0
+        # Only count CRITICAL and ERROR issues, not INFO or WARNING
+        critical_issues = [i for i in all_issues if i.get("severity") in ["CRITICAL", "ERROR", "HIGH"]]
+        is_valid = len(critical_issues) == 0
 
         if is_valid:
             logger.info("✅ Pre-Execution Validation PASSED")

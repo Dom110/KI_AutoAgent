@@ -1,13 +1,13 @@
 """
 KI AutoAgent Backend Version Information
 
-Version 5.5.1 - Intelligent Query Handler - ALWAYS Meaningful Responses
+Version 5.5.2 - Safe Orchestrator Executor with 20-Query Classification System
 """
 
 # Version numbers - Single source of truth
-__version__ = "5.5.1"
-__version_info__ = (5, 5, 1)
-__release_tag__ = "v5.5.1-stable-remote"
+__version__ = "5.5.2"
+__version_info__ = (5, 5, 2)
+__release_tag__ = "v5.5.2-stable-safe-executor"
 __release_date__ = "2025-10-03"
 __author__ = "KI AutoAgent Team"
 __description__ = "Cognitive AI Development Platform with Self-Understanding Capabilities"

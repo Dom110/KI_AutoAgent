@@ -112,7 +112,7 @@ async def lifespan(app: FastAPI):
 
         # Initialize LangGraph workflow system
         logger.info("📦 Creating agent workflow...")
-        workflow_system = create_agent_workflow(
+        workflow_system = await create_agent_workflow(
             websocket_manager=manager,
             db_path="langgraph_state.db",
             memory_db_path="agent_memories.db"
@@ -357,28 +357,28 @@ async def websocket_chat(websocket: WebSocket):
                         })
 
                         # Update checkpoint with approval decision
-                        logger.info(f"🔄 Updating checkpoint with approval decision: {decision}")
+                        logger.info(f"🔄 Processing approval decision: {decision}")
                         try:
                             config = {"configurable": {"thread_id": session_id}}
 
-                            # Update state in checkpoint (this is the critical fix!)
-                            workflow_system.workflow.update_state(
-                                config=config,
-                                values={
-                                    "proposal_status": decision,
-                                    "user_feedback_on_proposal": feedback,
-                                    "status": "executing" if decision == "approved" else "failed",
-                                    "needs_approval": False,
-                                    "waiting_for_approval": False
-                                }
-                            )
+                            # v5.5.3: Alternative approach - pass approval decision as input to resume
+                            # Instead of updating state and resuming with None,
+                            # we pass the approval data directly to the workflow
+                            approval_input = {
+                                "proposal_status": decision,
+                                "user_feedback_on_proposal": feedback,
+                                "status": "executing" if decision == "approved" else "failed",
+                                "needs_approval": False,
+                                "waiting_for_approval": False,
+                                "resume_from_approval": True  # Signal that this is a resume
+                            }
 
-                            logger.info(f"✅ Checkpoint updated with proposal_status={decision}")
+                            logger.info(f"📋 Passing approval decision to workflow: {decision}")
 
-                            # Resume workflow from checkpoint (NO input - this is critical!)
-                            logger.info(f"🔄 Resuming workflow from checkpoint...")
+                            # Resume workflow with the approval input
+                            logger.info(f"🔄 Resuming workflow with approval input...")
                             final_state = await workflow_system.workflow.ainvoke(
-                                None,  # ← NO input! Resume from checkpoint
+                                approval_input,  # Pass approval as input instead of None
                                 config=config
                             )
 
@@ -455,6 +455,11 @@ async def websocket_chat(websocket: WebSocket):
 async def handle_chat_message(client_id: str, data: dict, session: dict):
     """Handle chat messages using LangGraph workflow"""
     content = data.get("content") or data.get("message") or ""
+
+    # Use client-provided session_id if available, otherwise use server-generated
+    if "session_id" in data and data["session_id"]:
+        session["session_id"] = data["session_id"]
+        logger.info(f"📌 Using client-provided session_id: {session['session_id']}")
 
     if not content:
         await manager.send_json(client_id, {
@@ -579,20 +584,70 @@ async def add_workflow_edge(source: str, target: str):
     else:
         raise HTTPException(status_code=400, detail="Failed to add edge")
 
+@app.post("/shutdown")
+async def shutdown():
+    """Gracefully shut down the server"""
+    logger.info("📤 Received shutdown request - initiating graceful shutdown...")
+    asyncio.create_task(shutdown_server())
+    return {"status": "success", "message": "Shutdown initiated"}
+
+async def shutdown_server():
+    """Perform graceful shutdown"""
+    await asyncio.sleep(0.5)  # Give time for response to be sent
+    logger.info("👋 Gracefully shutting down KI AutoAgent Backend...")
+    os._exit(0)
+
 
 def main():
     """Main entry point"""
-    # Find available port ({__version_display__} uses 8001)
-    port = 8001
-    for p in range(8001, 8010):
-        import socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex(('127.0.0.1', p))
-        sock.close()
-        if result != 0:
-            port = p
-            break
+    import socket
+    import requests
+    import time
 
+    # Check if KI Agent is already running
+    def check_server_running(port):
+        """Check if server is running on port"""
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        result = sock.connect_ex(('127.0.0.1', port))
+        sock.close()
+        return result == 0
+
+    def graceful_shutdown(port):
+        """Attempt graceful shutdown of running server"""
+        try:
+            # Try to send shutdown signal via HTTP
+            response = requests.post(f"http://127.0.0.1:{port}/shutdown", timeout=2)
+            if response.status_code == 200:
+                logger.info(f"✅ Gracefully shut down server on port {port}")
+                time.sleep(1)  # Give it time to shut down
+                return True
+        except:
+            pass
+        return False
+
+    # Primary port for KI Agent
+    primary_port = 8001
+
+    # Check if server is already running
+    if check_server_running(primary_port):
+        logger.info(f"⚠️  KI Agent already running on port {primary_port}")
+        logger.info("🔄 Attempting graceful shutdown...")
+
+        if graceful_shutdown(primary_port):
+            logger.info("✅ Previous instance shut down successfully")
+        else:
+            logger.warning("⚠️  Could not gracefully shut down. Using fallback port.")
+            # Find alternative port if graceful shutdown failed
+            for p in range(8002, 8010):
+                if not check_server_running(p):
+                    primary_port = p
+                    logger.info(f"📍 Using fallback port {primary_port}")
+                    break
+            else:
+                logger.error("❌ No available ports found (8001-8009 all in use)")
+                sys.exit(1)
+
+    port = primary_port
     logger.info(f"🚀 Starting server on port {port}")
 
     # Run the server

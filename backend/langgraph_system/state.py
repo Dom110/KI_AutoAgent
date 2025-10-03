@@ -213,6 +213,14 @@ class ExtendedAgentState(TypedDict):
     needs_approval: bool  # Generic approval flag (replaces waiting_for_approval)
     approval_type: Literal["none", "execution_plan", "architecture_proposal"]  # Type of approval needed
 
+    # v5.5.2: Safe Orchestrator Execution
+    safe_execution_enabled: bool  # Whether safe execution is active
+    query_classification: Optional[Dict[str, Any]]  # Classification results for current query
+    execution_depth: int  # Current depth in orchestrator execution chain
+    execution_history: List[Dict[str, Any]]  # History of safe execution attempts
+    blocked_queries: List[str]  # Queries that were blocked for safety
+    safety_score: float  # Current safety score (0-1)
+
     # Error handling and debugging
     errors: List[Dict[str, Any]]
     debug_mode: bool
@@ -301,6 +309,14 @@ def create_initial_state(
         needs_approval=False,
         approval_type="none",
 
+        # v5.5.2: Safe Orchestrator Execution
+        safe_execution_enabled=True,  # Enabled by default
+        query_classification=None,
+        execution_depth=0,
+        execution_history=[],
+        blocked_queries=[],
+        safety_score=1.0,  # Start with perfect safety
+
         # Debugging
         errors=[],
         debug_mode=debug_mode,
@@ -321,3 +337,7 @@ def create_initial_state(
         final_result=None,
         status="initializing"
     )
+
+
+# v5.5.2: Alias for compatibility
+WorkflowState = ExtendedAgentState

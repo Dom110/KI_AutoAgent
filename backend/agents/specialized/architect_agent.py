@@ -654,11 +654,11 @@ class ArchitectAgent(ChatAgent):
             return
 
         if cache_type:
-            await self.project_cache.invalidate(cache_type)
+            self.project_cache.invalidate(cache_type)
             logger.info(f"♻️ Invalidated {cache_type} cache")
         else:
             # Invalidate all cache types
-            await self.project_cache.clear_all()
+            self.project_cache.clear_all()
             logger.info("♻️ Invalidated all caches")
 
         # Clear in-memory cache as well
@@ -703,35 +703,35 @@ class ArchitectAgent(ChatAgent):
             logger.info("📂 Refreshing code index...")
             await self._send_progress(client_id, "📂 Re-indexing code changes...", manager)
             if self.project_cache:
-                await self.project_cache.invalidate('code_index')
+                self.project_cache.invalidate('code_index')
             # Re-index code
             async def progress_callback(msg: str):
                 await self._send_progress(client_id, msg, manager)
             code_index = await self.code_indexer.build_full_index(workspace_path, progress_callback, 'incremental')
             if self.project_cache:
-                await self.project_cache.set('code_index', code_index)
+                self.project_cache.set('code_index', code_index)
 
         if 'security' in components:
             logger.info("🔒 Refreshing security analysis...")
             await self._send_progress(client_id, "🔒 Re-running security analysis...", manager)
             if self.project_cache:
-                await self.project_cache.invalidate('security_analysis')
+                self.project_cache.invalidate('security_analysis')
 
         if 'metrics' in components:
             logger.info("📊 Refreshing code metrics...")
             await self._send_progress(client_id, "📊 Recalculating code metrics...", manager)
             if self.project_cache:
-                await self.project_cache.invalidate('metrics')
+                self.project_cache.invalidate('metrics')
 
         if 'diagrams' in components:
             logger.info("📊 Refreshing diagrams...")
             await self._send_progress(client_id, "📊 Regenerating diagrams...", manager)
             if self.project_cache:
-                await self.project_cache.invalidate('diagrams')
+                self.project_cache.invalidate('diagrams')
 
         # Invalidate the main system knowledge to force rebuild on next access
         if self.project_cache:
-            await self.project_cache.invalidate('system_knowledge')
+            self.project_cache.invalidate('system_knowledge')
         self.system_knowledge = None
 
         await self._send_progress(client_id, "✅ Cache refreshed after implementation", manager)
@@ -984,7 +984,7 @@ networks:
 
         # Try to get from permanent cache first
         if self.project_cache:
-            cached_knowledge = await self.project_cache.get('system_knowledge')
+            cached_knowledge = self.project_cache.get('system_knowledge')
             if cached_knowledge:
                 logger.info("✅ Using cached system knowledge from Redis (permanent cache)")
                 await self._send_progress(client_id, "📦 Using cached system analysis (permanent cache)", manager)
@@ -1009,13 +1009,13 @@ networks:
         # Check if we have cached code index
         code_index = None
         if self.project_cache:
-            code_index = await self.project_cache.get('code_index')
+            code_index = self.project_cache.get('code_index')
 
         if not code_index:
             code_index = await self.code_indexer.build_full_index(root_path, progress_callback, request_type)
             # Store in permanent cache
             if self.project_cache:
-                await self.project_cache.set('code_index', code_index)
+                self.project_cache.set('code_index', code_index)
 
         # Phase 2: Security and quality analysis
         logger.info("Phase 2: Running security and quality analysis")
@@ -1027,50 +1027,50 @@ networks:
         metrics = None
 
         if self.project_cache:
-            security_analysis = await self.project_cache.get('security_analysis')
-            dead_code = await self.project_cache.get('dead_code')
-            metrics = await self.project_cache.get('metrics')
+            security_analysis = self.project_cache.get('security_analysis')
+            dead_code = self.project_cache.get('dead_code')
+            metrics = self.project_cache.get('metrics')
 
         if not security_analysis:
             await self._send_progress(client_id, "🔒 Phase 2a: Scanning for security vulnerabilities...", manager)
             security_analysis = await self.semgrep.run_analysis(root_path, progress_callback=progress_callback)
             if self.project_cache:
-                await self.project_cache.set('security_analysis', security_analysis)
+                self.project_cache.set('security_analysis', security_analysis)
 
         if not dead_code:
             await self._send_progress(client_id, "🧹 Phase 2b: Finding dead code...", manager)
             dead_code = await self.vulture.find_dead_code(root_path, progress_callback=progress_callback)
             if self.project_cache:
-                await self.project_cache.set('dead_code', dead_code)
+                self.project_cache.set('dead_code', dead_code)
 
         if not metrics:
             await self._send_progress(client_id, "📊 Phase 2c: Calculating code metrics...", manager)
             metrics = await self.metrics.calculate_all_metrics(root_path, progress_callback=progress_callback)
             if self.project_cache:
-                await self.project_cache.set('metrics', metrics)
+                self.project_cache.set('metrics', metrics)
 
         # Phase 2d: Build Function Call Graph (NEW - v5.0)
         call_graph = None
         if self.project_cache:
-            call_graph = await self.project_cache.get('function_call_graph')
+            call_graph = self.project_cache.get('function_call_graph')
 
         if not call_graph and self.call_graph_analyzer:
             await self._send_progress(client_id, "📞 Phase 2d: Building function call graph...", manager)
             call_graph = await self.call_graph_analyzer.build_call_graph(code_index)
             if self.project_cache:
-                await self.project_cache.set('function_call_graph', call_graph)
+                self.project_cache.set('function_call_graph', call_graph)
             logger.info(f"✅ Call graph built: {call_graph['metrics']['total_functions']} functions, {call_graph['metrics']['total_calls']} calls")
 
         # Phase 2e: Analyze System Layers (NEW - v5.0)
         system_layers = None
         if self.project_cache:
-            system_layers = await self.project_cache.get('system_layers')
+            system_layers = self.project_cache.get('system_layers')
 
         if not system_layers and self.layer_analyzer:
             await self._send_progress(client_id, "🏗️ Phase 2e: Analyzing system layers...", manager)
             system_layers = await self.layer_analyzer.detect_system_layers(code_index)
             if self.project_cache:
-                await self.project_cache.set('system_layers', system_layers)
+                self.project_cache.set('system_layers', system_layers)
             logger.info(f"✅ System layers analyzed: Quality score = {system_layers['quality_score']:.2f}, Violations = {len(system_layers['violations'])}")
 
         # Phase 3: Generate visualizations
@@ -1079,21 +1079,21 @@ networks:
 
         diagrams = None
         if self.project_cache:
-            diagrams = await self.project_cache.get('diagrams')
+            diagrams = self.project_cache.get('diagrams')
 
         if not diagrams:
             diagrams = {
-                'system_context': await self.diagram_service.generate_architecture_diagram(code_index, 'context'),
-                'container': await self.diagram_service.generate_architecture_diagram(code_index, 'container'),
-                'component': await self.diagram_service.generate_architecture_diagram(code_index, 'component'),
-                'dependency_graph': await self.diagram_service.generate_dependency_graph(
+                'system_context': self.diagram_service.generate_architecture_diagram(code_index, 'context'),
+                'container': self.diagram_service.generate_architecture_diagram(code_index, 'container'),
+                'component': self.diagram_service.generate_architecture_diagram(code_index, 'component'),
+                'dependency_graph': self.diagram_service.generate_dependency_graph(
                     code_index.get('import_graph', {})
                 ),
-                'sequence': await self.diagram_service.generate_sequence_diagram({}),
-                'state': await self.diagram_service.generate_state_diagram({})
+                'sequence': self.diagram_service.generate_sequence_diagram({}),
+                'state': self.diagram_service.generate_state_diagram({})
             }
             if self.project_cache:
-                await self.project_cache.set('diagrams', diagrams)
+                self.project_cache.set('diagrams', diagrams)
 
         # Store system knowledge
         self.system_knowledge = {
@@ -1109,7 +1109,7 @@ networks:
 
         # Store complete knowledge in permanent cache
         if self.project_cache:
-            await self.project_cache.set('system_knowledge', self.system_knowledge)
+            self.project_cache.set('system_knowledge', self.system_knowledge)
             logger.info("✅ System knowledge stored in permanent Redis cache")
 
         # Index functions for search
@@ -1258,7 +1258,7 @@ networks:
                 'code': '''# Optimize cache invalidation in architect_agent.py
 # Instead of invalidating all cache on file change:
 if file_changed in ['.py', '.js', '.ts']:
-    await self.project_cache.invalidate('code_index', [file_changed])
+    self.project_cache.invalidate('code_index', [file_changed])
     # Don't invalidate metrics, security, etc unless needed
 '''
             })
@@ -1381,7 +1381,7 @@ if message_type == "stop":
             await self.understand_system('.', None, 'architecture flowchart')
 
         # Generate comprehensive flowchart
-        flowchart = await self.diagram_service.generate_architecture_diagram(
+        flowchart = self.diagram_service.generate_architecture_diagram(
             self.system_knowledge['code_index'],
             'component'
         )

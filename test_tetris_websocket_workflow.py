@@ -169,7 +169,10 @@ class TetrisWorkflowTest:
                             agent = data.get("agent", "unknown")
                             content = data.get("content", "")
                             print(f"   📝 Response from {agent}:")
-                            print(f"      {content[:200]}...")
+                            if content:
+                                print(f"      {str(content)[:200]}...")
+                            else:
+                                print(f"      (empty response)")
 
                             # Check if this is final response
                             metadata = data.get("metadata", {})
@@ -210,6 +213,8 @@ class TetrisWorkflowTest:
                     except Exception as e:
                         print()
                         print(f"❌ Error receiving message: {e}")
+                        import traceback
+                        traceback.print_exc()
                         print()
                         break
 

@@ -1,6 +1,7 @@
 """
-Intelligent Query Handler v5.5.1
+Intelligent Query Handler v5.5.2
 Ensures EVERY query gets a meaningful response
+Enhanced integration with Safe Orchestrator Executor
 """
 
 import logging
@@ -354,3 +355,77 @@ Der {analysis.suggested_agent} Agent wird sich um Ihre Anfrage kümmern.
             logger.info(f"✨ Enhanced orchestrator step with intelligent response ({len(intelligent_response)} chars)")
 
         return step
+
+    def integrate_with_classification(self, classification: Dict[str, Any]) -> str:
+        """
+        v5.5.2: Integrate with Safe Executor's classification system
+        Returns appropriate response based on classification
+        """
+        # Check for prefilled response
+        if classification.get("prefilled_response"):
+            return classification["prefilled_response"]
+
+        # Map classification to appropriate response
+        if classification.get("is_greeting"):
+            return self.fallback_responses["greeting"]
+
+        if classification.get("is_nonsense"):
+            return self.fallback_responses["unclear"]
+
+        if classification.get("is_development_query"):
+            dev_type = classification.get("dev_type")
+            if dev_type:
+                # Return specific development guidance
+                return self._get_development_guidance(dev_type)
+
+        # Default to intelligent response
+        suggested_action = classification.get("suggested_action", "")
+        if suggested_action == "direct_response":
+            return self.fallback_responses["capabilities"]
+
+        # Fallback
+        return self.fallback_responses["general_help"]
+
+    def _get_development_guidance(self, dev_type: str) -> str:
+        """
+        v5.5.2: Get specific guidance for development query types
+        """
+        dev_responses = {
+            "performance": """🎯 Performance-Optimierung
+
+Für Performance-Verbesserungen benötige ich:
+• Aktuelle Performance-Metriken
+• Identifizierte Engpässe
+• Ziel-Performance
+
+Führen Sie ein Profiling durch oder teilen Sie mir spezifische langsame Bereiche mit.""",
+
+            "bug": """🐛 Bug-Analyse
+
+Bitte teilen Sie mir mit:
+• Fehlermeldung oder Symptome
+• Schritte zur Reproduktion
+• Erwartetes vs. tatsächliches Verhalten
+
+Mit diesen Details kann ich effektiv helfen.""",
+
+            "refactoring": """♻️ Code Refactoring
+
+Für Refactoring benötige ich:
+• Den zu refaktorierenden Code oder Dateipfad
+• Gewünschte Verbesserungen
+• Qualitätsziele
+
+Zeigen Sie mir den Code, den ich verbessern soll.""",
+
+            "testing": """🧪 Test-Erstellung
+
+Für Tests benötige ich:
+• Zu testende Komponente/Funktion
+• Test-Art (Unit, Integration, E2E)
+• Spezielle Test-Szenarien
+
+Welche Funktionalität soll getestet werden?"""
+        }
+
+        return dev_responses.get(dev_type, self.fallback_responses["general_help"])

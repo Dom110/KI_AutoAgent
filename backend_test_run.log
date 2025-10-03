@@ -1,0 +1,457 @@
+INFO:__main__:🔍 DEBUG: Starting LangGraph server v5.5.2 on port 8001
+INFO:__main__:🔍 DEBUG: This is the ACTIVE server for v5.5.2-stable-safe-executor
+INFO:__main__:🔍 DEBUG: WebSocket endpoint: ws://localhost:8001/ws/chat
+INFO:__main__:✅ Models API endpoint registered at /api/models
+INFO:__main__:✅ Settings API endpoint registered at /api/settings
+INFO:__main__:🚀 Starting server on port 8001
+INFO:uvicorn.error:Started server process [95145]
+INFO:uvicorn.error:Waiting for application startup.
+INFO:__main__:================================================================================
+INFO:__main__:🚀 Starting KI AutoAgent LangGraph Backend v5.5.2...
+INFO:__main__:🔍 DEBUG: Initializing LangGraph StateGraph workflow system
+INFO:__main__:🔍 DEBUG: Using port 8001 (NOT 8000)
+INFO:__main__:📦 Creating agent workflow...
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for orchestrator
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for architect
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for codesmith
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for reviewer
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for fixer
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for docbot
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for research
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for tradestrat
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for opus_arbitrator
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for performance
+INFO:langgraph_system.workflow:🤖 Initializing real agent instances...
+INFO:config.capabilities_loader:✅ Loaded capabilities for 11 agents
+INFO:agents.base.base_agent:✅ Loaded instructions for ArchitectAgent from .kiautoagent/instructions/architect-v2-instructions.md
+INFO:agents.base.base_agent:🤖 🏗️ ArchitectAgent initialized (Model: gpt-4o-2024-11-20)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:agents.specialized.architect_agent:🏗️ Initializing ArchitectAgent with path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:🏗️ Initializing ProjectCache with path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.project_cache:📦 ProjectCache initialized: /Users/dominikfoert/git/KI_AutoAgent/.kiautoagent/cache
+INFO:services.code_search:🔍 LightweightCodeSearch initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:agents.specialized.architect_agent:✅ Code indexing tools initialized
+INFO:agents.specialized.architect_agent:✅ Analysis tools initialized: Semgrep, Vulture, Radon, CallGraph, Layers
+INFO:services.diagram_service:📊 DiagramService initialized
+INFO:agents.base.base_agent:✅ Loaded instructions for CodeSmithAgent from .kiautoagent/instructions/codesmith-v2-instructions.md
+INFO:agents.base.base_agent:🤖 💻 CodeSmithAgent initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:services.diagram_service:📊 DiagramService initialized
+INFO:agents.base.base_agent:✅ Loaded instructions for ReviewerGPT from .kiautoagent/instructions/reviewergpt-instructions.md
+INFO:agents.base.base_agent:🤖 🔍 ReviewerGPT initialized (Model: gpt-4o-mini-2024-07-18)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-mini-2024-07-18
+INFO:agents.base.base_agent:✅ Loaded instructions for FixerBot from .kiautoagent/instructions/fixerbot-instructions.md
+INFO:agents.base.base_agent:🤖 🔧 FixerBot initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:agents.base.base_agent:🤖 🎯 OrchestratorAgent initialized (Model: gpt-4o-2024-11-20)
+INFO:langgraph_system.workflow:✅ Orchestrator initialized with AI decomposition
+INFO:agents.base.base_agent:✅ Loaded instructions for ResearchBot from .kiautoagent/instructions/research-instructions.md
+INFO:agents.base.base_agent:🤖 🔍 ResearchBot initialized (Model: sonar)
+INFO:utils.perplexity_service:✅ PerplexityService initialized with model: sonar
+INFO:agents.specialized.research_agent:✅ ResearchAgent initialized with Perplexity API
+INFO:langgraph_system.workflow:✅ ResearchAgent initialized with Perplexity API
+INFO:langgraph_system.workflow:✅ Initialized 6 real agents
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Workflow Self-Diagnosis System v5.5.0 initialized
+INFO:langgraph_system.workflow:🏥 Self-Diagnosis System initialized
+INFO:langgraph_system.workflow:🧠 Intelligent Query Handler initialized
+INFO:langgraph_system.workflow:🛡️ Safe Orchestrator Executor initialized (v5.5.2)
+INFO:langgraph_system.workflow:✅ Workflow compiled with checkpointer support
+INFO:__main__:✅ LangGraph workflow system initialized
+INFO:__main__:✅ workflow_system type: AgentWorkflow
+INFO:__main__:🔧 Tool registry initialized with 0 tools
+INFO:__main__:✅ Approval manager initialized
+INFO:__main__:================================================================================
+INFO:__main__:🎉 STARTUP COMPLETE - Ready to accept connections!
+INFO:__main__:================================================================================
+INFO:uvicorn.error:Application startup complete.
+INFO:uvicorn.error:Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
+INFO:uvicorn.error:127.0.0.1:56082 - "WebSocket /ws/chat" [accepted]
+INFO:__main__:✅ Client client_ed0e3d4d connected
+INFO:__main__:🔍 DEBUG: New client connected: client_ed0e3d4d
+INFO:uvicorn.error:connection open
+INFO:__main__:🔍 DEBUG: Welcome message sent to client_ed0e3d4d
+INFO:__main__:🔍 DEBUG: Received chat from client_ed0e3d4d
+INFO:__main__:🔍 DEBUG: Using LangGraph v5.5.2 - Port 8001
+INFO:__main__:🔍 DEBUG: Message data keys: ['type', 'content', 'session_id']
+INFO:__main__:🔍 DEBUG: Chat message content: Erstelle eine komplexe Whiteboard Web-App mit Canvas zum Zeichnen, Farbauswahl, Pinselgrößen, Undo/R...
+INFO:__main__:📌 Using client-provided session_id: test_153652
+INFO:__main__:✅ workflow_system available: AgentWorkflow
+INFO:__main__:🔍 DEBUG: Starting LangGraph workflow for: Erstelle eine komplexe Whiteboard Web-App mit Canvas zum Zeichnen, Farbauswahl, Pinselgrößen, Undo/R...
+INFO:__main__:🔍 DEBUG: Session state - plan_first_mode: False, workspace: None
+INFO:__main__:🔍 DEBUG: Plan-First mode: False
+INFO:__main__:🔍 DEBUG: Executing LangGraph workflow
+INFO:__main__:🔍 DEBUG: Session ID: test_153652
+INFO:__main__:🔍 DEBUG: Workspace: None
+INFO:langgraph_system.workflow:🎯 Orchestrator node executing
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:🎯 Task classified as COMPLEX (will use Orchestrator AI)
+INFO:langgraph_system.workflow:🧠 COMPLEX TASK → Using Orchestrator AI decomposition
+WARNING:langgraph_system.workflow:Safe orchestrator execution failed: 🚀 **Feature-Implementierung: Anforderungen definieren**
+
+Um Ihr Feature zu implementieren, benötige ich:
+
+**1. Feature-Beschreibung:**
+- Was soll das Feature tun?
+- Wer sind die Nutzer?
+- Welches Problem löst es?
+
+**2. Technische Anforderungen:**
+```yaml
+Feature-Name: [Name]
+Typ: [API/UI/Backend/Service]
+Technologien: [Python/TypeScript/etc.]
+Abhängigkeiten: [Externe Services/Libraries]
+```
+
+**3. Akzeptanzkriterien:**
+- [ ] Kriterium 1
+- [ ] Kriterium 2
+- [ ] Kriterium 3
+
+**Beispiel-Anfragen:**
+- "Implementiere eine REST API für Benutzerverwaltung mit FastAPI"
+- "Erstelle ein Login-System mit JWT-Authentication"
+- "Baue eine Datei-Upload-Funktion mit Progress-Bar"
+
+**Standard-Features (wählen Sie eines):**
+1. 🔐 Authentication System
+2. 📊 Dashboard/Analytics
+3. 🔍 Such-Funktionalität
+4. 📧 Email-Integration
+5. 💳 Payment Processing
+6. 📁 File Management
+7. 👥 User Management
+8. 🔔 Notification System
+
+Welches Feature möchten Sie implementieren?
+INFO:langgraph_system.workflow:🏗️ DEVELOPMENT TASK detected - creating multi-agent workflow (architect → codesmith → reviewer → fixer)
+INFO:langgraph_system.workflow:✅ Created 4-step development workflow
+INFO:langgraph_system.workflow:📖 Created Task Ledger with 1 success criteria
+INFO:langgraph_system.workflow:📊 Created Progress Ledger - 4 total steps
+INFO:langgraph_system.workflow:🔍 Running Pre-Execution Validation (v5.5.0)
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🚀 COMPREHENSIVE PRE-EXECUTION VALIDATION
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🔍 Starting Pre-Execution Validation
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 1/3
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 1 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 1 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 2/3
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 1 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 1 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 3/3
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 1 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 1 issues
+INFO:langgraph_system.workflow_self_diagnosis:✅ Pre-Execution Validation PASSED
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 74.19%
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:📊 PRE-EXECUTION VALIDATION SUMMARY
+INFO:langgraph_system.workflow_self_diagnosis:  Validation: PASS
+INFO:langgraph_system.workflow_self_diagnosis:  Risk Score: 0.00%
+INFO:langgraph_system.workflow_self_diagnosis:  Health: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:  Decision: SAFE TO EXECUTE
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow:✅ Pre-Execution Validation PASSED - Plan is safe to execute
+INFO:langgraph_system.workflow:📋 Orchestrator created 4-step execution plan
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:📌 Auto-approving - no architecture proposal
+INFO:langgraph_system.workflow:📍 Set current_step_id to: step1 for agent: architect
+INFO:langgraph_system.workflow:🔀 Route after approval - Status: approved
+INFO:langgraph_system.workflow:📋 Execution plan has 4 steps:
+INFO:langgraph_system.workflow:   Step 1: agent=architect, status=in_progress, task=Design system architecture for: Erstelle eine komp...
+INFO:langgraph_system.workflow:   Step 2: agent=codesmith, status=pending, task=GENERATE ACTUAL WORKING CODE (NOT DOCUMENTATION): ...
+INFO:langgraph_system.workflow:   Step 3: agent=reviewer, status=pending, task=Review and test implementation...
+INFO:langgraph_system.workflow:   Step 4: agent=fixer, status=pending, task=Fix any issues found by reviewer...
+INFO:langgraph_system.workflow:✅ Routing to in_progress agent: architect (step_id: step1)
+INFO:langgraph_system.workflow:🏗️ Architect node executing
+INFO:langgraph_system.workflow:🔍 Architect: current_step_id=step1, current_step=ExecutionStep(id='step1', agent='architect', task='Design system architecture for: Erstelle eine komplexe Whiteboard Web-App mit Canvas zum Zeichnen, Farbauswahl, Pinselgrößen, Undo/Redo und Export als PNG', expected_output='Architecture design and technology recommendations', dependencies=[], status='in_progress', result=None, error=None, start_time=None, end_time=None, timeout_seconds=300, started_at=None, retry_count=0, max_retries=3, retry_delay_seconds=5, can_run_parallel=False, parallel_group=None, attempts=[], completion_percentage=0.0)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:📋 No proposal exists - performing research and creating proposal
+INFO:langgraph_system.workflow:🏗️ Executing with real ArchitectAgent...
+INFO:agents.specialized.architect_agent:📂 Using workspace path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:🔄 Updating file watcher from None to /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher stopped
+INFO:services.project_cache:📦 ProjectCache initialized: /Users/dominikfoert/git/KI_AutoAgent/.kiautoagent/cache
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ ProjectCache updated with workspace path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:🔍 Received prompt: 'Design system architecture for: Erstelle eine komplexe Whiteboard Web-App mit Canvas zum Zeichnen, Farbauswahl, Pinselgrößen, Undo/Redo und Export als PNG'
+INFO:agents.specialized.architect_agent:🔍 Prompt lower: 'design system architecture for: erstelle eine komplexe whiteboard web-app mit canvas zum zeichnen, farbauswahl, pinselgrößen, undo/redo und export als png'
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:uvicorn.error:connection closed
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:🔍 Research completed: # 🏗️ System Architecture Design
+
+## Project: web_app
+
+**Architecture Type**: serverless
+
+
+## 📦 Components
+
+### Frontend
+- **Type**: UI
+- **Technology**: React/Next.js
+- **Responsibility**: User interf...
+INFO:langgraph_system.workflow:📋 Creating architecture proposal...
+INFO:agents.specialized.architect_agent:📂 Using workspace path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:🔄 Updating file watcher from None to /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher stopped
+INFO:services.project_cache:📦 ProjectCache initialized: /Users/dominikfoert/git/KI_AutoAgent/.kiautoagent/cache
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ ProjectCache updated with workspace path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:🔍 Received prompt: 'Based on your research, create a comprehensive ARCHITECTURE PROPOSAL for user approval.
+
+**Original User Request:**
+
+
+**Architect Task:**
+Design system architecture for: Erstelle eine komplexe Whiteboard Web-App mit Canvas zum Zeichnen, Farbauswahl, Pinselgrößen, Undo/Redo und Export als PNG
+
+**Research Findings:**
+# 🏗️ System Architecture Design
+
+## Project: web_app
+
+**Architecture Type**: serverless
+
+
+## 📦 Components
+
+### Frontend
+- **Type**: UI
+- **Technology**: React/Next.js
+- **Responsibility**: User interface
+
+### Backend API
+- **Type**: API
+- **Technology**: Python/FastAPI
+- **Responsibility**: Business logic and data management
+
+### Database
+- **Type**: Storage
+- **Technology**: PostgreSQL
+- **Responsibility**: Data persistence
+
+
+## 🛠️ Technology Stack
+
+- Javascript
+- Typescript
+- React
+- Postgresql
+- Redis
+- Docker
+- Kubernetes
+- Aws
+- Azure
+
+## 📐 Design Patterns
+
+- MVC
+- OBSERVER
+- STRATEGY
+- CQRS
+- EVENT SOURCING
+
+## 🔄 Data Flow
+
+- **Type**: REST API
+- **Protocol**: HTTPS
+
+
+## 🚀 Deployment
+
+- **Platform**: Cloud
+- **Containerization**: Docker
+
+
+## 📈 Scalability
+
+Horizontal scaling with load balancer
+
+
+## 🔒 Security Considerations
+
+OAuth2, HTTPS, rate limiting, input validation
+
+
+---
+
+*Generated by ArchitectAgent (GPT-5)*
+
+Create a detailed proposal in JSON format with these sections:
+
+1. **summary**: High-level architecture overview (2-3 paragraphs)
+2. **improvements**: Suggested improvements to user's original idea based on research findings (bulleted list)
+3. **tech_stack**: Recommended technologies with justifications (including alternatives considered)
+4. **structure**: Folder/module structure with explanations
+5. **risks**: Potential challenges and mitigation strategies
+6. **research_insights**: Key findings from research that influenced design decisions
+
+**IMPORTANT:**
+- Be specific and actionable
+- Explain WHY each decision was made
+- Reference research findings that support decisions
+- Suggest improvements even if not explicitly requested
+- Consider scalability, maintainability, testability
+
+Return ONLY valid JSON with these exact keys.'
+INFO:agents.specialized.architect_agent:🔍 Prompt lower: 'based on your research, create a comprehensive architecture proposal for user approval.
+
+**original user request:**
+
+
+**architect task:**
+design system architecture for: erstelle eine komplexe whiteboard web-app mit canvas zum zeichnen, farbauswahl, pinselgrößen, undo/redo und export als png
+
+**research findings:**
+# 🏗️ system architecture design
+
+## project: web_app
+
+**architecture type**: serverless
+
+
+## 📦 components
+
+### frontend
+- **type**: ui
+- **technology**: react/next.js
+- **responsibility**: user interface
+
+### backend api
+- **type**: api
+- **technology**: python/fastapi
+- **responsibility**: business logic and data management
+
+### database
+- **type**: storage
+- **technology**: postgresql
+- **responsibility**: data persistence
+
+
+## 🛠️ technology stack
+
+- javascript
+- typescript
+- react
+- postgresql
+- redis
+- docker
+- kubernetes
+- aws
+- azure
+
+## 📐 design patterns
+
+- mvc
+- observer
+- strategy
+- cqrs
+- event sourcing
+
+## 🔄 data flow
+
+- **type**: rest api
+- **protocol**: https
+
+
+## 🚀 deployment
+
+- **platform**: cloud
+- **containerization**: docker
+
+
+## 📈 scalability
+
+horizontal scaling with load balancer
+
+
+## 🔒 security considerations
+
+oauth2, https, rate limiting, input validation
+
+
+---
+
+*generated by architectagent (gpt-5)*
+
+create a detailed proposal in json format with these sections:
+
+1. **summary**: high-level architecture overview (2-3 paragraphs)
+2. **improvements**: suggested improvements to user's original idea based on research findings (bulleted list)
+3. **tech_stack**: recommended technologies with justifications (including alternatives considered)
+4. **structure**: folder/module structure with explanations
+5. **risks**: potential challenges and mitigation strategies
+6. **research_insights**: key findings from research that influenced design decisions
+
+**important:**
+- be specific and actionable
+- explain why each decision was made
+- reference research findings that support decisions
+- suggest improvements even if not explicitly requested
+- consider scalability, maintainability, testability
+
+return only valid json with these exact keys.'
+INFO:agents.specialized.architect_agent:🔍 Using understand_system() to analyze workspace...
+INFO:agents.specialized.architect_agent:🔍 INDEXING_AVAILABLE = True, self.code_indexer = True
+INFO:agents.specialized.architect_agent:✅ Taking indexing path with understand_system()
+INFO:agents.specialized.architect_agent:Building comprehensive system understanding...
+INFO:agents.specialized.architect_agent:Request type detected: infrastructure
+INFO:agents.specialized.architect_agent:Phase 1: Indexing codebase with AST parsing
+INFO:agents.specialized.architect_agent:Phase 2: Running security and quality analysis
+INFO:agents.specialized.architect_agent:Phase 3: Generating architecture diagrams
+WARNING:services.diagram_service:Format context not supported for architecture diagrams, using Mermaid
+ERROR:agents.specialized.architect_agent:Architecture design failed: 'str' object has no attribute 'get'
+ERROR:agents.specialized.architect_agent:Traceback: Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/agents/specialized/architect_agent.py", line 289, in execute
+    system_analysis = await self.understand_system(workspace_path, client_id, request.prompt, manager)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/agents/specialized/architect_agent.py", line 1086, in understand_system
+    'system_context': await self.diagram_service.generate_architecture_diagram(code_index, 'context'),
+                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/services/diagram_service.py", line 123, in generate_architecture_diagram
+    return self._generate_mermaid_architecture(components)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/services/diagram_service.py", line 215, in _generate_mermaid_architecture
+    comp_id = comp.get('id', comp.get('name', '').replace(' ', '_'))
+              ^^^^^^^^
+AttributeError: 'str' object has no attribute 'get'
+
+ERROR:langgraph_system.workflow:❌ Failed to create structured proposal: Expecting value: line 1 column 1 (char 0)
+WARNING:langgraph_system.workflow:⚠️ Falling back to text-based proposal
+ERROR:__main__:Error sending to client_ed0e3d4d: 
+INFO:__main__:❌ Client client_ed0e3d4d disconnected
+INFO:langgraph_system.workflow:📋 Architecture proposal created and sent to user
+INFO:langgraph_system.workflow:🏛️ Architecture proposal created - routing to approval node
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:📋 Architecture proposal pending - workflow will pause here
+INFO:langgraph_system.workflow:⏸️  Workflow pausing - user must approve via WebSocket
+INFO:langgraph_system.workflow:⏸️  Workflow waiting for architecture approval - routing to END
+INFO:langgraph_system.workflow:⏸️  Workflow paused - stored state for session test_153652
+INFO:langgraph_system.workflow:📋 Waiting for architecture proposal approval via WebSocket
+ERROR:__main__:Error in WebSocket handler: WebSocket is not connected. Need to call "accept" first.
+INFO:__main__:📤 Received shutdown request - initiating graceful shutdown...
+INFO:uvicorn.access:127.0.0.1:56164 - "POST /shutdown HTTP/1.1" 200
+INFO:__main__:👋 Gracefully shutting down KI AutoAgent Backend...
