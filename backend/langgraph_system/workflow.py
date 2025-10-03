@@ -1506,6 +1506,10 @@ Research:
             'orchestrator': 'Intelligent task analysis and routing'
         }
 
+        # FIX v5.4.2: Orchestrator can't be a destination node, mark as completed
+        # to prevent infinite loop when routing back to orchestrator
+        step_status = "completed" if agent == "orchestrator" else "pending"
+
         # Return single agent step
         return [
             ExecutionStep(
@@ -1514,7 +1518,7 @@ Research:
                 task=task,
                 expected_output=output_map.get(agent, "Task result"),
                 dependencies=[],
-                status="pending",
+                status=step_status,
                 result=None
             )
         ]
