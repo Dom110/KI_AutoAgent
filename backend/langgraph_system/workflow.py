@@ -705,19 +705,41 @@ class AgentWorkflow:
             logger.warning(f"⚠️  Unexpected proposal_status: {proposal_status}")
             return state
 
-        # No approval needed - auto-approve and set first step to in_progress
-        logger.info("📌 Auto-approving - no architecture proposal")
-        state["approval_status"] = "approved"
-        state["waiting_for_approval"] = False
-
-        # Set first pending step to in_progress
-        for step in state["execution_plan"]:
+        # Check if first step is architect - if so, let it create proposal
+        first_step = None
+        execution_plan = state.get("execution_plan", [])
+        logger.info(f"🔌 WebSocket DEBUG: Checking execution plan with {len(execution_plan)} steps")
+        for step in execution_plan:
+            logger.info(f"🔌 WebSocket DEBUG: Step {step.id}: agent={step.agent}, status={step.status}")
             if step.status == "pending" and self._dependencies_met(step, state["execution_plan"]):
-                step.status = "in_progress"
-                state["current_step_id"] = step.id
-                state["execution_plan"] = list(state["execution_plan"])
-                logger.info(f"📍 Set current_step_id to: {step.id} for agent: {step.agent}")
+                first_step = step
+                logger.info(f"🔌 WebSocket DEBUG: Found first pending step: {step.agent}")
                 break
+
+        if first_step and first_step.agent == "architect":
+            # Don't auto-approve - let architect create proposal first
+            logger.info("🏗️ First step is architect - allowing proposal creation")
+            logger.info(f"🔌 WebSocket DEBUG: Architect will create proposal for client_id: {state.get('client_id')}")
+            logger.info(f"🔌 WebSocket DEBUG: Current session_id: {state.get('session_id')}")
+            logger.info(f"🔌 WebSocket DEBUG: WebSocket manager available: {self.websocket_manager is not None}")
+            state["approval_status"] = "approved"  # Allow workflow to continue to architect
+            state["waiting_for_approval"] = False
+            first_step.status = "in_progress"
+            state["current_step_id"] = first_step.id
+            state["execution_plan"] = list(state["execution_plan"])
+            logger.info(f"📍 Set current_step_id to: {first_step.id} for agent: architect")
+        else:
+            # No architecture proposal needed - auto-approve
+            logger.info("📌 Auto-approving - no architecture proposal needed")
+            state["approval_status"] = "approved"
+            state["waiting_for_approval"] = False
+
+            # Set first pending step to in_progress
+            if first_step:
+                first_step.status = "in_progress"
+                state["current_step_id"] = first_step.id
+                state["execution_plan"] = list(state["execution_plan"])
+                logger.info(f"📍 Set current_step_id to: {first_step.id} for agent: {first_step.agent}")
 
         return state
 
@@ -839,14 +861,44 @@ class AgentWorkflow:
                     "proposal": proposal
                 })
 
-                # Send via WebSocket
+                # Send as regular chat message so user sees it
                 if self.websocket_manager:
-                    await self.websocket_manager.send_json(state["client_id"], {
-                        "type": "architecture_proposal",
-                        "proposal": proposal,
-                        "formatted_message": formatted_msg,
-                        "session_id": state.get("session_id")
-                    })
+                    logger.info(f"🔌 WebSocket DEBUG: Sending architecture proposal to client_id: {state.get('client_id')}")
+                    logger.info(f"🔌 WebSocket DEBUG: Session ID: {state.get('session_id')}")
+                    logger.info(f"🔌 WebSocket DEBUG: Proposal size: {len(str(proposal))} chars")
+
+                    # Send as agent response that appears in chat
+                    message_to_send = {
+                        "type": "agent_response",
+                        "agent": "architect",
+                        "content": formatted_msg + "\n\n📋 **Please reply with:** 'approve', 'reject', or provide feedback",
+                        "session_id": state.get("session_id"),
+                        "metadata": {
+                            "waiting_for_approval": True,
+                            "approval_type": "architecture_proposal",
+                            "proposal": proposal
+                        }
+                    }
+
+                    try:
+                        await self.websocket_manager.send_json(state["client_id"], message_to_send)
+                        logger.info("✅ WebSocket DEBUG: Architecture proposal sent successfully")
+
+                        # Mark in state that we're waiting for chat approval
+                        state["waiting_for_chat_approval"] = True
+
+                        # Store in active workflows for later retrieval
+                        if hasattr(self.websocket_manager, 'active_workflows'):
+                            if not hasattr(self.websocket_manager, 'active_workflows'):
+                                self.websocket_manager.active_workflows = {}
+                            self.websocket_manager.active_workflows[state.get("session_id")] = state
+                            logger.info(f"📝 WebSocket DEBUG: Stored state in websocket_manager.active_workflows")
+                    except Exception as e:
+                        logger.error(f"❌ WebSocket DEBUG: Failed to send proposal: {e}")
+                        import traceback
+                        logger.error(f"📍 Traceback: {traceback.format_exc()}")
+                else:
+                    logger.warning("⚠️ WebSocket DEBUG: No websocket_manager available!")
 
                 # Update step status to pending (waiting for approval)
                 current_step.status = "in_progress"

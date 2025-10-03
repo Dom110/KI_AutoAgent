@@ -78,11 +78,18 @@ class ConnectionManager:
     async def send_json(self, client_id: str, data: dict):
         if client_id in self.active_connections:
             try:
-                await self.active_connections[client_id].send_json(data)
+                websocket = self.active_connections[client_id]
+                logger.info(f"🔌 WebSocket DEBUG: Attempting to send to {client_id}, websocket state: {websocket.client_state if hasattr(websocket, 'client_state') else 'unknown'}")
+                await websocket.send_json(data)
                 self.connection_info[client_id]["last_activity"] = datetime.now()
+                logger.info(f"✅ WebSocket DEBUG: Successfully sent message to {client_id}")
             except Exception as e:
+                import traceback
                 logger.error(f"Error sending to {client_id}: {e}")
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 self.disconnect(client_id)
+        else:
+            logger.error(f"❌ WebSocket DEBUG: Client {client_id} not in active_connections!")
 
     async def broadcast_json(self, data: dict):
         disconnected = []
@@ -115,6 +122,7 @@ async def lifespan(app: FastAPI):
 
         # Initialize LangGraph workflow system
         logger.info("📦 Creating agent workflow...")
+        global workflow_system
         workflow_system = await create_agent_workflow(
             websocket_manager=manager,
             db_path="langgraph_state.db",
@@ -470,6 +478,93 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
             "message": "Empty message received"
         })
         return
+
+    # Check if workflow is waiting for architecture approval
+    session_id = session["session_id"]
+    logger.info(f"🔌 WebSocket DEBUG: Checking for approval state - session_id: {session_id}")
+
+    # First check the WebSocket manager's active_workflows
+    if manager and hasattr(manager, 'active_workflows'):
+        logger.info(f"🔌 WebSocket DEBUG: Found manager.active_workflows with {len(getattr(manager, 'active_workflows', {}))} sessions")
+        workflow_state = manager.active_workflows.get(session_id, {})
+        if workflow_state.get("waiting_for_chat_approval"):
+            logger.info(f"📋 Chat approval detected in manager for session {session_id}")
+    # Then check workflow_system's active_workflows
+    elif workflow_system and hasattr(workflow_system, 'active_workflows'):
+        logger.info(f"🔌 WebSocket DEBUG: Found workflow_system.active_workflows with {len(workflow_system.active_workflows)} sessions")
+        workflow_state = workflow_system.active_workflows.get(session_id, {})
+    else:
+        logger.info(f"🔌 WebSocket DEBUG: No active_workflows found in manager or workflow_system")
+        workflow_state = {}
+
+    # Check if waiting for chat-based approval
+    if workflow_state.get("waiting_for_chat_approval"):
+        logger.info(f"📋 Chat approval detected for session {session_id}")
+
+        # Parse user response as approval decision
+        content_lower = content.lower().strip()
+
+        if "approve" in content_lower or "yes" in content_lower or "ok" in content_lower or "proceed" in content_lower:
+            decision = "approved"
+            feedback = content if len(content) > 10 else "Approved via chat"
+        elif "reject" in content_lower or "no" in content_lower or "stop" in content_lower:
+            decision = "rejected"
+            feedback = content if len(content) > 10 else "Rejected via chat"
+        else:
+            decision = "modified"
+            feedback = content  # User's feedback for modification
+
+        logger.info(f"📋 User decision: {decision} - '{content}'")
+
+        # Send approval acknowledgment
+        await manager.send_json(client_id, {
+            "type": "agent_response",
+            "agent": "system",
+            "content": f"📋 Architecture {decision}. {'Continuing workflow...' if decision == 'approved' else 'Stopping workflow.'}"
+        })
+
+        # Process the approval like architecture_approval message
+        approval_input = {
+            "proposal_status": decision,
+            "user_feedback_on_proposal": feedback,
+            "status": "executing" if decision == "approved" else "failed",
+            "needs_approval": False,
+            "waiting_for_approval": False,
+            "waiting_for_chat_approval": False,
+            "resume_from_approval": True
+        }
+
+        logger.info(f"🔄 Resuming workflow with {decision} decision...")
+
+        try:
+            config = {"configurable": {"thread_id": session_id}}
+            final_state = await workflow_system.workflow.ainvoke(
+                approval_input,
+                config=config
+            )
+
+            # Update stored state
+            workflow_system.active_workflows[session_id] = final_state
+
+            # Send completion message
+            await manager.send_json(client_id, {
+                "type": "response",
+                "agent": "orchestrator",
+                "content": final_state.get("final_result", "Workflow completed after approval"),
+                "metadata": {
+                    "status": final_state.get("status"),
+                    "approval_processed": True
+                }
+            })
+
+            return  # Don't continue with normal chat processing
+        except Exception as e:
+            logger.error(f"Error processing chat approval: {e}")
+            await manager.send_json(client_id, {
+                "type": "error",
+                "message": f"Error processing approval: {str(e)}"
+            })
+            return
 
     if not workflow_system:
         logger.error("❌ CRITICAL: workflow_system is None! Server may not have initialized correctly.")
