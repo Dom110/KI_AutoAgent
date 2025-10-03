@@ -2089,16 +2089,20 @@ Filename:"""
                 result['lines'] = len(code.split('\n'))
 
                 # Track in shared context if available
+                # v5.5.3: Wrap in try/except to not corrupt successful result
                 if self.shared_context:
-                    await self.shared_context.update_context(
-                        self.config.agent_id,
-                        "last_implementation",
-                        {
-                            "file": file_path,
-                            "spec": spec[:200],
-                            "timestamp": datetime.now().isoformat()
-                        }
-                    )
+                    try:
+                        await self.shared_context.update_context(
+                            self.config.agent_id,
+                            "last_implementation",
+                            {
+                                "file": file_path,
+                                "spec": spec[:200],
+                                "timestamp": datetime.now().isoformat()
+                            }
+                        )
+                    except Exception as ctx_error:
+                        logger.warning(f"⚠️ Shared context update failed (non-critical): {ctx_error}")
 
             return result
 

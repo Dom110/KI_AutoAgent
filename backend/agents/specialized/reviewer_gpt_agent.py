@@ -79,16 +79,32 @@ class ReviewerGPTAgent(ChatAgent):
             previous_result = context.get('previous_step_result')
             html_file = None
 
+            # v5.5.3: Handle both string and dict previous_result
             if previous_result:
-                # Extract file path from CodeSmith result
-                metadata = previous_result.get('metadata', {})
-                files_created = metadata.get('files_created', [])
+                # Try to extract from metadata if available in context
+                if 'metadata' in context and isinstance(context['metadata'], dict):
+                    metadata = context['metadata']
+                    # Check both 'files_created' (plural) and 'file_created' (singular)
+                    files_created = metadata.get('files_created', [])
+                    if not files_created and 'file_created' in metadata:
+                        # Convert singular to list
+                        files_created = [metadata['file_created']]
 
-                # Find HTML file
-                for file_path in files_created:
-                    if file_path.endswith('.html'):
-                        html_file = file_path
-                        break
+                    for file_path in files_created:
+                        if file_path.endswith('.html'):
+                            html_file = file_path
+                            logger.info(f"📄 Found HTML file in metadata: {html_file}")
+                            break
+
+                # Fallback: Parse from string result if it's a string
+                if not html_file and isinstance(previous_result, str):
+                    # Look for .html file paths in the result text
+                    import re
+                    html_matches = re.findall(r'([^\s]+\.html)', previous_result)
+                    if html_matches:
+                        # Use the first .html file found
+                        html_file = html_matches[0]
+                        logger.info(f"📄 Found HTML file in result text: {html_file}")
 
             # Use Playwright testing if this is HTML app
             if (is_html_task or contains_test_keyword) and html_file:

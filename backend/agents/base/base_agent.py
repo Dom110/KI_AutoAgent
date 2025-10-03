@@ -482,20 +482,24 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         result.execution_time = execution_time
 
         # Store in memory
+        # v5.5.3: Wrap in try/except to prevent corrupting results
         if self.memory_manager:
-            await self.memory_manager.store(
-                agent_id=self.config.agent_id,
-                content={
-                    "task": request.prompt,
-                    "result": result.content[:2000],
-                    "status": result.status
-                },
-                memory_type=MemoryType.EPISODIC,
-                metadata={
-                    "importance": 0.7 if result.status == "success" else 0.5,
-                    "tags": ["task_result", self.config.agent_id]
-                }
-            )
+            try:
+                from core.memory_manager import MemoryType
+                # Use correct signature: store(memory_type, data)
+                self.memory_manager.store(
+                    MemoryType.WORKING,
+                    {
+                        "agent": self.config.agent_id,
+                        "task": request.prompt,
+                        "result": result.content[:2000],
+                        "status": result.status,
+                        "importance": 0.7 if result.status == "success" else 0.5,
+                        "tags": ["task_result", self.config.agent_id]
+                    }
+                )
+            except Exception as mem_error:
+                logger.warning(f"⚠️ Memory storage failed (non-critical): {mem_error}")
 
             # Store successful patterns
             if result.status == "success" and "code" in result.content.lower():
@@ -676,17 +680,23 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             if result.get('status') == 'success':
                 logger.info(f"✅ {self.name} successfully wrote to {file_path}")
                 # Track in memory if available
+                # v5.5.3: Wrap memory storage in try/except to not corrupt the result
                 if self.memory_manager:
-                    await self.memory_manager.store(
-                        content={
-                            "action": "file_write",
-                            "path": file_path,
-                            "size": result.get('size', 0),
-                            "timestamp": datetime.now().isoformat()
-                        },
-                        memory_type="procedural",
-                        agent_id=self.config.agent_id
-                    )
+                    try:
+                        from core.memory_manager import MemoryType
+                        # Use correct signature: store(memory_type, data)
+                        self.memory_manager.store(
+                            MemoryType.WORKING,
+                            {
+                                "action": "file_write",
+                                "path": file_path,
+                                "size": result.get('size', 0),
+                                "agent": self.config.agent_id,
+                                "timestamp": datetime.now().isoformat()
+                            }
+                        )
+                    except Exception as mem_error:
+                        logger.warning(f"⚠️ Memory storage failed (non-critical): {mem_error}")
             else:
                 logger.error(f"❌ {self.name} failed to write to {file_path}: {result.get('error')}")
 

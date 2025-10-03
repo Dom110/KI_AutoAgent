@@ -229,13 +229,21 @@ class OrchestratorAgent(ChatAgent):
         self.decomposition_cache[cache_key] = decomposition
 
         # Store in memory for learning
+        # v5.5.3: Fix memory_manager.store() signature
         if self.memory_manager:
-            await self.memory_manager.store({
-                'task': task,
-                'complexity': complexity,
-                'decomposition': decomposition,
-                'timestamp': datetime.now().isoformat()
-            })
+            try:
+                from core.memory_manager import MemoryType
+                self.memory_manager.store(
+                    MemoryType.WORKING,
+                    {
+                        'task': task,
+                        'complexity': complexity,
+                        'decomposition': decomposition,
+                        'timestamp': datetime.now().isoformat()
+                    }
+                )
+            except Exception as mem_error:
+                logger.warning(f"⚠️ Memory storage failed (non-critical): {mem_error}")
 
         return decomposition
 

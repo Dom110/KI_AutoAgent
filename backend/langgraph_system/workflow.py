@@ -1083,7 +1083,13 @@ class AgentWorkflow:
             state["execution_plan"] = list(state["execution_plan"])
 
             # Learn fix patterns
-            for issue, fix in zip(issues, fix_result.get("fixes", [])):
+            # v5.5.3: Handle both dict and string fix_result
+            fixes = []
+            if isinstance(fix_result, dict):
+                fixes = fix_result.get("fixes", [])
+            # If fix_result is a string, skip pattern learning (no structured fixes to learn from)
+
+            for issue, fix in zip(issues, fixes):
                 memory.learn_pattern(
                     pattern=issue,
                     solution=fix,
@@ -2600,6 +2606,12 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     context=context
                 )
                 result = await agent.execute(task_request)
+
+                # v5.5.3: Store metadata in step for later use by Reviewer
+                if hasattr(result, 'metadata') and hasattr(step, '__dict__'):
+                    step.metadata = result.metadata
+                    logger.info(f"💾 Stored CodeSmith metadata: {list(result.metadata.keys())}")
+
                 return result.content if hasattr(result, 'content') else str(result)
             except Exception as e:
                 logger.error(f"❌ Real codesmith agent failed: {e}")
@@ -2639,8 +2651,10 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     if prev_step.agent == "codesmith" and prev_step.result:
                         context["previous_step_result"] = prev_step.result
                         context["implementation"] = prev_step.result
-                        if hasattr(prev_step, 'metadata'):
-                            context.update(prev_step.metadata or {})
+                        # v5.5.3: Pass metadata separately for Reviewer to access
+                        if hasattr(prev_step, 'metadata') and prev_step.metadata:
+                            context["metadata"] = prev_step.metadata
+                            logger.info(f"📦 Passing CodeSmith metadata to Reviewer: {list(prev_step.metadata.keys())}")
                     context["previous_results"].append({
                         "agent": prev_step.agent,
                         "result": prev_step.result
