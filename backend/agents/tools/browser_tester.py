@@ -235,7 +235,8 @@ class BrowserTester:
             'errors': [],
             'warnings': [],
             'screenshots': [],
-            'test_results': []
+            'test_results': [],
+            'metrics': {}  # v5.5.3: Add metrics for consistency with test_tetris_app
         }
 
         try:
@@ -246,7 +247,10 @@ class BrowserTester:
             url = f"http://localhost:{port}/{filename}"
 
             # Navigate to page
+            load_start = asyncio.get_event_loop().time()
             await self.page.goto(url, wait_until='networkidle')
+            load_time = (asyncio.get_event_loop().time() - load_start) * 1000
+            result['metrics']['load_time_ms'] = int(load_time)
 
             # Take initial screenshot
             screenshot_path = '/tmp/app_initial.png'
@@ -256,6 +260,10 @@ class BrowserTester:
             # Listen for JS errors
             js_errors = []
             self.page.on('pageerror', lambda err: js_errors.append(str(err)))
+
+            # Check for common HTML elements
+            canvas = await self.page.query_selector('canvas')
+            result['metrics']['canvas_found'] = canvas is not None
 
             # Execute test scenarios
             if test_scenarios:
@@ -270,9 +278,14 @@ class BrowserTester:
                     except Exception as e:
                         result['errors'].append(f"Scenario {i+1} exception: {str(e)}")
 
+                result['metrics']['controls_tested'] = len(result['test_results']) > 0
+
             # Check for JS errors
             if js_errors:
                 result['errors'].extend([f"JS Error: {err}" for err in js_errors])
+                result['metrics']['no_js_errors'] = False
+            else:
+                result['metrics']['no_js_errors'] = True
 
             # Final screenshot
             screenshot_path = '/tmp/app_final.png'
