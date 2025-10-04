@@ -1,0 +1,55 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 Testing Dashboard App Creation - v5.8.2 Generic CodeSmith
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📡 Connecting to: ws://localhost:8001/ws/chat
+📂 Workspace: /Users/dominikfoert/TestApp
+
+✅ WebSocket connected!
+📨 Welcome: connected
+📤 Sent init with workspace: /Users/dominikfoert/TestApp
+✅ Initialized: initialized
+🎫 Session ID: 18202a86-0adb-458b-a63b-6ca1b3786f81
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📨 SENDING REQUEST:
+   Create a Dashboard App with React and Chart.js
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🤔 orchestrator: ...
+🤔 architect: ...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⏸️  ARCHITECTURE PROPOSAL (Approval Required)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+From: architect
+Content: 
+# 🏛️ Architecture Proposal
+
+## 📊 Summary
+Architecture for: Design the architecture for the dashboard app, including component structure and data flow.
+
+## ✨ Suggested Improvements
+*(Based on research findings)*
+
+- Research-backed design decisions
+- Scalable architecture
+- Best practices applied
+
+##...
+Proposal: {'summary': 'Architecture for: Design the architecture for the dashboard app, including component structure and data flow.', 'improvements': '- Research-backed design decisions\n- Scalable architectur...
+Session ID: 18202a86-0adb-458b-a63b-6ca1b3786f81
+
+✅ AUTO-APPROVED (test mode)
+
+🤔 codesmith: ...
+🤔 codesmith: ...
+
+⏱️  Timeout waiting for response
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 TEST SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⏱️  Duration: 251.08s
+📨 Messages received: 10
+🤖 Agent responses: 0
+

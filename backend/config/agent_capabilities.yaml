@@ -12,6 +12,14 @@ agents:
         - "./*.py"  # Allow Python files in root directory
         - "./vscode-extension/**/*.ts"
         - "./vscode-extension/**/*.js"
+        - "./**/*.ts"  # TypeScript files anywhere
+        - "./*.ts"
+        - "./**/*.tsx"  # React TypeScript files anywhere
+        - "./*.tsx"
+        - "./**/*.jsx"  # React JavaScript files anywhere
+        - "./*.jsx"
+        - "./**/*.js"  # JavaScript files anywhere
+        - "./*.js"
         - "./**/*.html"
         - "./*.html"
         - "./**/*.css"
@@ -20,6 +28,12 @@ agents:
         - "./*.json"
         - "./**/*.yaml"
         - "./*.yaml"
+        - "./**/*.md"  # Markdown files (README, docs)
+        - "./*.md"
+        - "./Dockerfile"  # Docker files
+        - "./**/Dockerfile"
+        - "./docker-compose.yml"  # Docker compose
+        - "./**/*.env.example"  # Environment examples
     description: "Can write code files in various languages and formats"
 
   ArchitectAgent:

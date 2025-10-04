@@ -39,9 +39,10 @@ class FileSystemTools:
         Args:
             workspace_path: Base workspace path for operations
         """
-        self.workspace_path = workspace_path or os.getcwd()
+        # v5.8.1: Normalize workspace path to absolute, resolved path
+        self.workspace_path = str(Path(workspace_path or os.getcwd()).resolve())
         self.audit_log: List[FileOperation] = []
-        self.backup_dir = os.path.join(self.workspace_path, '.ki_autoagent', 'backups')
+        self.backup_dir = os.path.join(self.workspace_path, '.ki_autoagent_ws', 'backups')
 
         # Create backup directory if it doesn't exist
         os.makedirs(self.backup_dir, exist_ok=True)
@@ -64,22 +65,23 @@ class FileSystemTools:
         Returns:
             Tuple of (is_valid, error_message)
         """
-        # Convert to absolute path
-        # v5.2.3 BUG FIX #7: Handle both absolute and relative paths
+        # v5.8.1: Convert to absolute, resolved paths (handles symlinks correctly)
+        workspace_resolved = Path(self.workspace_path).resolve()
+
         if os.path.isabs(file_path):
-            abs_path = os.path.abspath(file_path)
+            abs_path = Path(file_path).resolve()
         else:
-            abs_path = os.path.abspath(os.path.join(self.workspace_path, file_path))
+            abs_path = (Path(self.workspace_path) / file_path).resolve()
 
         # Check if path is within workspace
         try:
-            Path(abs_path).relative_to(self.workspace_path)
+            abs_path.relative_to(workspace_resolved)
         except ValueError:
-            return False, f"Path {file_path} is outside workspace"
+            return False, f"Path {file_path} is outside workspace {self.workspace_path}"
 
         # Check against protected system paths
         for protected in self.protected_paths:
-            if abs_path.startswith(protected):
+            if str(abs_path).startswith(protected):
                 return False, f"Path {file_path} is in protected system directory"
 
         # Check against agent's allowed paths if specified
@@ -89,11 +91,11 @@ class FileSystemTools:
             path_allowed = False
             # Get relative path from workspace for pattern matching
             try:
-                rel_path = Path(abs_path).relative_to(self.workspace_path)
+                rel_path = abs_path.relative_to(workspace_resolved)
                 rel_path_str = str(rel_path)
             except ValueError:
                 # Path is outside workspace
-                return False, f"Path {file_path} is outside workspace"
+                return False, f"Path {file_path} is outside workspace {self.workspace_path}"
 
             for pattern in allowed_paths:
                 # Remove leading ./ if present for cleaner matching
@@ -145,7 +147,7 @@ class FileSystemTools:
         self.audit_log.append(operation)
 
         # Also log to file
-        audit_file = os.path.join(self.workspace_path, '.ki_autoagent', 'file_operations.log')
+        audit_file = os.path.join(self.workspace_path, '.ki_autoagent_ws', 'file_operations.log')
         os.makedirs(os.path.dirname(audit_file), exist_ok=True)
 
         with open(audit_file, 'a') as f:
@@ -197,7 +199,11 @@ class FileSystemTools:
                 "path": path
             }
 
-        abs_path = os.path.abspath(os.path.join(self.workspace_path, path))
+        # v5.8.1: Use resolved path like in validation
+        if os.path.isabs(path):
+            abs_path = str(Path(path).resolve())
+        else:
+            abs_path = str((Path(self.workspace_path) / path).resolve())
 
         # Create parent directories if needed
         if create_dirs:
@@ -271,7 +277,11 @@ class FileSystemTools:
         Returns:
             Dict with status and details
         """
-        abs_path = os.path.abspath(os.path.join(self.workspace_path, path))
+        # v5.8.1: Use resolved path
+        if os.path.isabs(path):
+            abs_path = str(Path(path).resolve())
+        else:
+            abs_path = str((Path(self.workspace_path) / path).resolve())
 
         # Check if file exists
         if os.path.exists(abs_path) and not overwrite:
@@ -314,7 +324,11 @@ class FileSystemTools:
         Returns:
             Dict with status and details
         """
-        abs_path = os.path.abspath(os.path.join(self.workspace_path, path))
+        # v5.8.1: Use resolved path
+        if os.path.isabs(path):
+            abs_path = str(Path(path).resolve())
+        else:
+            abs_path = str((Path(self.workspace_path) / path).resolve())
 
         # Check if file exists
         if not os.path.exists(abs_path):
@@ -416,7 +430,11 @@ class FileSystemTools:
         Returns:
             Dict with status and content
         """
-        abs_path = os.path.abspath(os.path.join(self.workspace_path, path))
+        # v5.8.1: Use resolved path
+        if os.path.isabs(path):
+            abs_path = str(Path(path).resolve())
+        else:
+            abs_path = str((Path(self.workspace_path) / path).resolve())
 
         if not os.path.exists(abs_path):
             return {

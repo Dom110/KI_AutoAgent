@@ -164,149 +164,160 @@ class CodeSmithAgent(ChatAgent):
 
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
-        Execute code generation task - ENHANCED to create actual files
+        🆕 v5.8.2: Generic Code Generator - Creates ANY type of application
+
+        NO hardcoded assumptions about KI_AutoAgent or any specific project.
+        Uses AI to understand user intent and generates complete, working applications.
         """
         start_time = datetime.now()
-        files_created = []
+
+        # v5.8.1: Store current request for workspace context (BaseAgent needs this!)
+        self._current_request = request
 
         try:
-            # 🔍 Validate workspace context first
-            workspace_context = self._validate_workspace_context()
-            if workspace_context['project'] != 'KI_AutoAgent':
-                logger.warning(f"⚠️ Unexpected project context: {workspace_context['project']}")
-
-            # 🧠 INTELLIGENT FILE CREATION DETECTION - No keywords, pure AI understanding
             prompt = request.prompt
             workspace_path = request.context.get('workspace_path', os.getcwd())
-            prompt_lower = prompt.lower()  # Still needed for infrastructure check
 
-            # Check for button implementation request first (special case)
-            if 'button' in prompt_lower and ('orchestrator' in prompt_lower or 'plan' in prompt_lower):
-                logger.info("🎯 Button implementation request detected")
-                result = await self.handle_button_implementation(request, workspace_path)
+            logger.info(f"🚀 CodeSmith executing: {prompt[:100]}...")
+            logger.info(f"📂 Workspace: {workspace_path}")
 
-                # Check for hallucinations
-                if self._check_for_hallucination(result.content):
-                    logger.error("🚨 Hallucination in button implementation detected!")
-                    return TaskResult(
-                        status="error",
-                        content="Error: Agent confused about project context. This is KI_AutoAgent, not JD Edwards!",
-                        agent=self.config.agent_id,
-                        execution_time=(datetime.now() - start_time).total_seconds()
+            # STEP 1: AI analyzes what user wants to create
+            # Raises ValueError if unclear - NO fallback to 'generic'
+            project_spec = await self._analyze_user_request(prompt)
+
+            # STEP 2: AI plans which files to create
+            files_plan = await self._plan_project_files(
+                project_spec=project_spec,
+                workspace_path=workspace_path,
+                user_prompt=prompt
+            )
+
+            # STEP 3: Generate and write each file
+            files_created = []
+            files_failed = []
+
+            for file_spec in files_plan:
+                file_path = file_spec['path']
+
+                try:
+                    # Generate file content with AI
+                    content = await self._generate_file_content(
+                        file_spec=file_spec,
+                        project_spec=project_spec,
+                        user_prompt=prompt
                     )
 
-                return result
+                    # Write file to workspace
+                    full_path = os.path.join(workspace_path, file_path)
+                    os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
-            # Check if this is a cache update request
-            if any(word in prompt_lower for word in ['cache', 'update', 'refresh', 'reload', 'extern']):
-                logger.info("🔄 Cache update request detected")
-                cache_results = await self.update_caches_for_external_changes(workspace_path)
-
-                execution_time = (datetime.now() - start_time).total_seconds()
-
-                message = f"✅ Cache update completed!\n\n"
-                message += f"**Cleared caches:** {', '.join(cache_results['caches_cleared']) or 'None'}\n"
-                message += f"**Rebuilt caches:** {', '.join(cache_results['caches_rebuilt']) or 'None'}\n"
-
-                if cache_results['errors']:
-                    message += f"\n⚠️ **Errors:** {', '.join(cache_results['errors'])}"
-
-                return TaskResult(
-                    status="success",
-                    content=message,
-                    agent=self.config.agent_id,
-                    metadata={
-                        "cache_update": True,
-                        "results": cache_results,
-                        "execution_time": execution_time
-                    },
-                    execution_time=execution_time
-                )
-
-            # Use AI to understand if this is an implementation request
-            should_create_files = await self._ai_detect_implementation_request(prompt)
-
-            # Handle infrastructure implementation specifically
-            if any(word in prompt_lower for word in ['redis', 'docker', 'cache', 'infrastructure', 'config']):
-                files_created = await self.implement_infrastructure(request, workspace_path)
-
-                # Refresh cache after infrastructure implementation
-                await self._refresh_cache_if_needed(files_created, request)
-
-                execution_time = (datetime.now() - start_time).total_seconds()
-
-                return TaskResult(
-                    status="success",
-                    content=f"Created {len(files_created)} infrastructure files:\n" + "\n".join(f"- {f}" for f in files_created),
-                    agent=self.config.agent_id,
-                    metadata={
-                        "files_created": files_created,
-                        "type": "infrastructure",
-                        "execution_time": execution_time
-                    },
-                    execution_time=execution_time
-                )
-
-            # If this is a file creation task, use implement_code_to_file
-            if should_create_files:
-                # 🧠 Use AI to determine the appropriate file path
-                file_path = await self._ai_determine_file_path(request.prompt, workspace_path)
-
-                # 🚫 ASIMOV RULE 1 CHECK - No fallbacks allowed!
-                self._enforce_asimov_rule_1(file_path)
-
-                # USE THE FILE WRITING METHOD!
-                logger.info(f"📝 CodeSmithAgent creating ACTUAL FILE at: {file_path}")
-                result = await self.implement_code_to_file(
-                    spec=request.prompt,
-                    file_path=file_path
-                )
-
-                if result.get('status') == 'success':
-                    execution_time = (datetime.now() - start_time).total_seconds()
-                    return TaskResult(
-                        status="success",
-                        content=f"✅ Created file: {file_path}\n"
-                                f"Lines written: {result.get('lines', 0)}\n"
-                                f"Size: {result.get('size', 0)} bytes",
-                        agent=self.config.agent_id,
-                        metadata={
-                            "file_created": file_path,
-                            "lines": result.get('lines', 0),
-                            "execution_time": execution_time
-                        },
-                        execution_time=execution_time
-                    )
-                else:
-                    return TaskResult(
-                        status="error",
-                        content=f"Failed to create file: {result.get('error')}",
-                        agent=self.config.agent_id,
-                        execution_time=(datetime.now() - start_time).total_seconds()
+                    # Use write_implementation for proper validation and permissions
+                    result = await self.write_implementation(
+                        file_path=file_path,
+                        content=content,
+                        create_dirs=True
                     )
 
-            # 🚫 ASIMOV RULE 1: NO FALLBACKS!
-            # If we reach here, it means the task doesn't require file creation
-            # Return a clear message explaining what the agent understood
+                    if result.get('status') == 'success':
+                        files_created.append(file_path)
+                        logger.info(f"✅ Created: {file_path}")
+                    else:
+                        files_failed.append({
+                            'path': file_path,
+                            'error': result.get('error', 'Unknown error')
+                        })
+                        logger.error(f"❌ Failed to create {file_path}: {result.get('error')}")
+
+                except Exception as e:
+                    files_failed.append({
+                        'path': file_path,
+                        'error': str(e)
+                    })
+                    logger.error(f"❌ Exception creating {file_path}: {e}")
+
+            # STEP 4: Return results
             execution_time = (datetime.now() - start_time).total_seconds()
+
+            if not files_created and files_failed:
+                # All files failed
+                error_details = "\n".join(
+                    f"- {f['path']}: {f['error']}" for f in files_failed[:5]
+                )
+                return TaskResult(
+                    status="error",
+                    content=f"❌ Failed to create project files:\n{error_details}",
+                    agent=self.config.agent_id,
+                    execution_time=execution_time,
+                    metadata={
+                        "project_type": project_spec['project_type'],
+                        "files_failed": files_failed
+                    }
+                )
+
+            # Build success message
+            message = f"✅ Created {project_spec['project_type']} project using {project_spec['framework'] or project_spec['language']}\n\n"
+            message += f"**Files created ({len(files_created)}):**\n"
+
+            # Group files by type for better presentation
+            file_types = {}
+            for file_path in files_created:
+                file_type = next(
+                    (f['type'] for f in files_plan if f['path'] == file_path),
+                    'other'
+                )
+                if file_type not in file_types:
+                    file_types[file_type] = []
+                file_types[file_type].append(file_path)
+
+            for file_type, paths in sorted(file_types.items()):
+                message += f"\n**{file_type.capitalize()}:**\n"
+                for path in paths:
+                    message += f"  - `{path}`\n"
+
+            if files_failed:
+                message += f"\n⚠️ **Partial failures ({len(files_failed)}):**\n"
+                for failure in files_failed[:3]:
+                    message += f"  - {failure['path']}: {failure['error']}\n"
+                if len(files_failed) > 3:
+                    message += f"  ... and {len(files_failed) - 3} more\n"
 
             return TaskResult(
                 status="success",
-                content="This request does not require file creation. If you need code implementation, please be more explicit about what needs to be built.",
+                content=message,
                 agent=self.config.agent_id,
+                execution_time=execution_time,
                 metadata={
-                    "type": "non-implementation",
-                    "execution_time": execution_time
-                },
-                execution_time=execution_time
+                    "project_type": project_spec['project_type'],
+                    "framework": project_spec['framework'],
+                    "language": project_spec['language'],
+                    "files_created": files_created,
+                    "files_failed": files_failed,
+                    "total_files": len(files_plan)
+                }
+            )
+
+        except ValueError as e:
+            # User request was unclear - ask for clarification
+            execution_time = (datetime.now() - start_time).total_seconds()
+            return TaskResult(
+                status="error",
+                content=str(e),
+                agent=self.config.agent_id,
+                execution_time=execution_time,
+                metadata={"error_type": "unclear_request"}
             )
 
         except Exception as e:
-            logger.error(f"Code generation failed: {e}")
+            logger.error(f"❌ Code generation failed: {e}")
+            import traceback
+            traceback.print_exc()
+
+            execution_time = (datetime.now() - start_time).total_seconds()
             return TaskResult(
                 status="error",
                 content=f"Failed to generate code: {str(e)}",
-                agent=self.config.agent_id
+                agent=self.config.agent_id,
+                execution_time=execution_time
             )
 
     async def analyze_code_request(self, prompt: str) -> Dict[str, Any]:
@@ -565,327 +576,210 @@ class CodeSmithAgent(ChatAgent):
 
         return fixed_code
 
-    async def implement_infrastructure(self, request: TaskRequest, workspace_path: str) -> list:
+    async def _analyze_user_request(self, prompt: str) -> Dict[str, Any]:
         """
-        Create actual infrastructure files (redis.config, docker-compose.yml, etc.)
+        🧠 Use AI to understand what project user wants to create
+        NO templates, NO hardcoded logic - pure AI analysis
+
+        v5.8.2: COMPLETELY GENERIC - analyzes ANY project type
+        If unclear: Raises exception to ask user (no fallback to 'generic')
         """
-        files_created = []
-        ki_autoagent_dir = os.path.join(workspace_path, '.ki_autoagent')
+        logger.info("🧠 Analyzing user request with AI...")
 
-        # Check if system analysis exists
-        analysis_file = os.path.join(ki_autoagent_dir, 'system_analysis.json')
-        system_info = {}
-        if os.path.exists(analysis_file):
-            try:
-                with open(analysis_file, 'r') as f:
-                    system_info = json.load(f)
-            except Exception as e:
-                logger.warning(f"Could not load system_analysis.json: {e}")
-                # Continue without system info
-                system_info = {}
+        analysis_prompt = f"""Analyze this software project request and determine what the user wants to create.
 
-        # Create redis.config
-        redis_config = """# Redis Configuration for KI AutoAgent
-# Auto-generated by CodeSmithAgent
+USER REQUEST: {prompt}
 
-# Memory management
-maxmemory 2gb
-maxmemory-policy allkeys-lru
+Return a JSON object with this structure:
+{{
+    "project_type": "web_app|api|cli_tool|library|fullstack|mobile_app|desktop_app|game|...",
+    "framework": "React|Vue|FastAPI|Express|Django|Flask|...|null",
+    "language": "TypeScript|JavaScript|Python|Go|Rust|Java|...",
+    "tech_stack": ["list", "of", "technologies", "and", "libraries"],
+    "features": ["list", "of", "features", "to", "implement"],
+    "infrastructure": ["docker", "nginx", "..."],
+    "databases": ["postgresql", "redis", "mongodb", "..."],
+    "description": "brief description of what user wants to build",
+    "clarity_score": 0-100
+}}
 
-# Persistence
-save 900 1
-save 300 10
-save 60 10000
-
-# Agent Response Cache Configuration
-# - Infrastructure analysis: 3600s TTL
-# - Agent responses: 1800s TTL
-# - AST parsing results: 7200s TTL
-
-# Performance tuning
-tcp-backlog 511
-timeout 0
-tcp-keepalive 300
-
-# Logging
-loglevel notice
-logfile ""
-"""
-        redis_file = os.path.join(workspace_path, 'redis.config')
-        with open(redis_file, 'w') as f:
-            f.write(redis_config)
-        files_created.append('redis.config')
-        logger.info(f"✅ Created: {redis_file}")
-
-        # Create docker-compose.yml
-        docker_compose = """version: '3.8'
-
-services:
-  redis:
-    image: redis:7-alpine
-    container_name: ki_autoagent_redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - ./redis.config:/usr/local/etc/redis/redis.conf
-      - redis_data:/data
-    command: redis-server /usr/local/etc/redis/redis.conf
-    networks:
-      - ki_autoagent_network
-
-  backend:
-    build: ./backend
-    container_name: ki_autoagent_backend
-    ports:
-      - "8000:8000"
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - PYTHONUNBUFFERED=1
-    depends_on:
-      - redis
-    volumes:
-      - ./backend:/app
-    networks:
-      - ki_autoagent_network
-    command: uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
-
-networks:
-  ki_autoagent_network:
-    driver: bridge
-
-volumes:
-  redis_data:
-    driver: local
-"""
-        docker_file = os.path.join(workspace_path, 'docker-compose.yml')
-        with open(docker_file, 'w') as f:
-            f.write(docker_compose)
-        files_created.append('docker-compose.yml')
-        logger.info(f"✅ Created: {docker_file}")
-
-        # Create cache_manager.py
-        cache_manager_code = '''"""
-Cache Manager for KI AutoAgent
-Auto-generated by CodeSmithAgent v4.0.4
-"""
-
-import asyncio
-import hashlib
-import json
-from typing import Optional, Any, Callable
-import logging
-from functools import wraps
-from datetime import datetime
-
-logger = logging.getLogger(__name__)
-
-# Try to import aioredis
-try:
-    import aioredis
-    REDIS_AVAILABLE = True
-except ImportError:
-    logger.warning("aioredis not installed. Cache will be disabled.")
-    REDIS_AVAILABLE = False
-
-class CacheManager:
-    """Manages caching for agent responses and system analysis"""
-
-    def __init__(self, redis_url: str = "redis://localhost:6379"):
-        self.redis_url = redis_url
-        self.redis: Optional['aioredis.Redis'] = None
-        self.enabled = REDIS_AVAILABLE
-
-    async def connect(self):
-        """Connect to Redis"""
-        if not self.enabled:
-            return
+CRITICAL RULES:
+1. infrastructure and databases are FOR THE PROJECT THE USER WANTS TO CREATE
+   - Example: "Dashboard with Docker" → Docker is for the Dashboard app, NOT for KI_AutoAgent
+   - Example: "API with Redis caching" → Redis is for the API, NOT for KI_AutoAgent backend
+2. If clarity_score < 50, set ALL fields to null and explain what's unclear
+3. Be specific about framework/language if mentioned or clearly implied
+4. Return ONLY valid JSON, no markdown, no explanation"""
 
         try:
-            self.redis = await aioredis.from_url(self.redis_url)
-            await self.redis.ping()
-            logger.info(f"✅ Connected to Redis at {self.redis_url}")
-        except Exception as e:
-            logger.error(f"❌ Failed to connect to Redis: {e}")
-            self.enabled = False
+            # Use AI service to analyze the request
+            response = await self.ai_service.complete(analysis_prompt)
 
-    async def get(self, key: str) -> Optional[Any]:
-        """Get value from cache"""
-        if not self.enabled or not self.redis:
-            return None
+            # Parse JSON response
+            # Remove markdown code blocks if present
+            response = response.strip()
+            if response.startswith('```'):
+                # Extract JSON from markdown code block
+                lines = response.split('\n')
+                response = '\n'.join(lines[1:-1]) if len(lines) > 2 else response
+                response = response.replace('```json', '').replace('```', '').strip()
+
+            project_spec = json.loads(response)
+
+            # Check clarity score
+            clarity = project_spec.get('clarity_score', 0)
+            if clarity < 50:
+                error_msg = f"❌ Request unclear (clarity: {clarity}/100). Please be more specific about:\n"
+                error_msg += f"- What type of application? (web app, API, CLI tool, etc.)\n"
+                error_msg += f"- What technology/framework? (React, Python, Node.js, etc.)\n"
+                error_msg += f"- What should it do?\n\n"
+                if project_spec.get('description'):
+                    error_msg += f"What I understood: {project_spec['description']}"
+                raise ValueError(error_msg)
+
+            logger.info(f"✅ Project analysis: {project_spec['project_type']} using {project_spec['framework'] or project_spec['language']}")
+            return project_spec
+
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ Failed to parse AI response as JSON: {e}")
+            raise ValueError(f"AI analysis failed. Please rephrase your request more clearly.")
+        except Exception as e:
+            logger.error(f"❌ Project analysis failed: {e}")
+            raise
+
+    async def _plan_project_files(
+        self,
+        project_spec: Dict[str, Any],
+        workspace_path: str,
+        user_prompt: str
+    ) -> List[Dict[str, Any]]:
+        """
+        📋 Plan which files to create based on project type
+        Uses AI to generate file structure based on project_spec
+
+        v5.8.2: COMPLETELY GENERIC - generates file plan for ANY project type
+        """
+        logger.info(f"📋 Planning file structure for {project_spec['project_type']}...")
+
+        planning_prompt = f"""Generate a complete file structure for this project.
+
+PROJECT ANALYSIS:
+- Type: {project_spec['project_type']}
+- Framework: {project_spec['framework']}
+- Language: {project_spec['language']}
+- Tech Stack: {', '.join(project_spec['tech_stack'])}
+- Features: {', '.join(project_spec['features'])}
+- Infrastructure: {', '.join(project_spec.get('infrastructure', []))}
+- Databases: {', '.join(project_spec.get('databases', []))}
+
+USER REQUEST: {user_prompt}
+
+Return a JSON array of files to create. Each file should have:
+{{
+    "path": "relative/path/to/file.ext",
+    "type": "component|config|infrastructure|test|documentation|...",
+    "description": "what this file does",
+    "priority": 1-10 (higher = create first)
+}}
+
+IMPORTANT:
+1. Create a COMPLETE, working project (not just a demo)
+2. Include ALL necessary files: code, config, infrastructure, tests, README
+3. Use modern best practices for the chosen framework
+4. Infrastructure files are FOR THIS PROJECT (e.g., Dockerfile for THIS app)
+5. Organize files logically (src/, components/, config/, etc.)
+6. Return ONLY valid JSON array, no markdown"""
 
         try:
-            value = await self.redis.get(key)
-            if value:
-                return json.loads(value)
+            response = await self.ai_service.complete(planning_prompt)
+
+            # Parse JSON response
+            response = response.strip()
+            if response.startswith('```'):
+                lines = response.split('\n')
+                response = '\n'.join(lines[1:-1]) if len(lines) > 2 else response
+                response = response.replace('```json', '').replace('```', '').strip()
+
+            files_plan = json.loads(response)
+
+            # Sort by priority (highest first)
+            files_plan.sort(key=lambda x: x.get('priority', 5), reverse=True)
+
+            logger.info(f"✅ Planned {len(files_plan)} files to create")
+            for file_spec in files_plan[:5]:  # Log first 5
+                logger.info(f"  - {file_spec['path']} ({file_spec['type']})")
+            if len(files_plan) > 5:
+                logger.info(f"  ... and {len(files_plan) - 5} more files")
+
+            return files_plan
+
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ Failed to parse file plan JSON: {e}")
+            raise ValueError("Failed to plan file structure. AI response was not valid JSON.")
         except Exception as e:
-            logger.error(f"Cache get error: {e}")
+            logger.error(f"❌ File planning failed: {e}")
+            raise
 
-        return None
+    async def _generate_file_content(
+        self,
+        file_spec: Dict[str, Any],
+        project_spec: Dict[str, Any],
+        user_prompt: str
+    ) -> str:
+        """
+        ✍️ Use AI to generate production-ready code for each file
+        NO templates - pure AI generation based on project context
 
-    async def set(self, key: str, value: Any, ttl: int = 3600):
-        """Set value in cache with TTL"""
-        if not self.enabled or not self.redis:
-            return
+        v5.8.2: COMPLETELY GENERIC - generates ANY file type
+        """
+        file_path = file_spec['path']
+        logger.info(f"✍️ Generating content for {file_path}...")
+
+        generation_prompt = f"""Generate COMPLETE, PRODUCTION-READY content for this file.
+
+USER'S ORIGINAL REQUEST: {user_prompt}
+
+PROJECT CONTEXT:
+- Type: {project_spec['project_type']}
+- Framework: {project_spec['framework']}
+- Language: {project_spec['language']}
+- Tech Stack: {', '.join(project_spec['tech_stack'])}
+- Features: {', '.join(project_spec['features'])}
+
+FILE TO GENERATE:
+- Path: {file_path}
+- Type: {file_spec['type']}
+- Purpose: {file_spec['description']}
+
+REQUIREMENTS:
+1. Generate COMPLETE, working code (not a skeleton or TODO)
+2. Use modern best practices and idioms for {project_spec['language']}/{project_spec['framework']}
+3. Include proper error handling, types/interfaces (if applicable)
+4. Add helpful comments for complex logic
+5. This file is part of THE PROJECT USER REQUESTED, NOT KI_AutoAgent or any other system
+6. Make it production-ready and following industry standards
+7. If this is a config file (package.json, etc.), include ALL necessary dependencies
+
+RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the raw file content."""
 
         try:
-            await self.redis.set(key, json.dumps(value), ex=ttl)
-            logger.debug(f"Cached {key} for {ttl}s")
+            content = await self.ai_service.complete(generation_prompt)
+
+            # Remove markdown code blocks if AI added them despite instructions
+            content = content.strip()
+            if content.startswith('```'):
+                lines = content.split('\n')
+                # Remove first line (```language) and last line (```)
+                if lines[0].startswith('```') and lines[-1].strip() == '```':
+                    content = '\n'.join(lines[1:-1])
+
+            logger.info(f"✅ Generated {len(content)} characters for {file_path}")
+            return content
+
         except Exception as e:
-            logger.error(f"Cache set error: {e}")
+            logger.error(f"❌ Failed to generate content for {file_path}: {e}")
+            raise
 
-    async def delete(self, pattern: str):
-        """Delete keys matching pattern"""
-        if not self.enabled or not self.redis:
-            return
-
-        try:
-            keys = await self.redis.keys(pattern)
-            if keys:
-                await self.redis.delete(*keys)
-                logger.debug(f"Deleted {len(keys)} cached keys")
-        except Exception as e:
-            logger.error(f"Cache delete error: {e}")
-
-def cache_agent_response(ttl: int = 1800):
-    """
-    Decorator for caching agent responses
-
-    Usage:
-        @cache_agent_response(ttl=3600)
-        async def analyze_infrastructure(self, request):
-            # Expensive operation
-            return result
-    """
-    def decorator(func: Callable):
-        @wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            # Generate cache key from function name and arguments
-            cache_key = f"{self.__class__.__name__}:{func.__name__}:"
-            cache_key += hashlib.md5(f"{args}{kwargs}".encode()).hexdigest()
-
-            # Initialize cache if needed
-            if not hasattr(self, '_cache_manager'):
-                self._cache_manager = CacheManager()
-                await self._cache_manager.connect()
-
-            # Try to get from cache
-            cached = await self._cache_manager.get(cache_key)
-            if cached:
-                logger.info(f"🎯 Cache hit for {func.__name__}")
-                return cached
-
-            # Execute function and cache result
-            logger.info(f"🔍 Cache miss for {func.__name__}, executing...")
-            result = await func(self, *args, **kwargs)
-
-            # Cache the result
-            await self._cache_manager.set(cache_key, result, ttl)
-
-            return result
-
-        return wrapper
-    return decorator
-
-# Singleton instance
-_cache_manager: Optional[CacheManager] = None
-
-async def get_cache_manager() -> CacheManager:
-    """Get or create cache manager singleton"""
-    global _cache_manager
-    if _cache_manager is None:
-        _cache_manager = CacheManager()
-        await _cache_manager.connect()
-    return _cache_manager
-'''
-
-        cache_file = os.path.join(workspace_path, 'backend/core/cache_manager.py')
-        os.makedirs(os.path.dirname(cache_file), exist_ok=True)
-        with open(cache_file, 'w') as f:
-            f.write(cache_manager_code)
-        files_created.append('backend/core/cache_manager.py')
-        logger.info(f"✅ Created: {cache_file}")
-
-        # Create test file
-        test_code = '''"""
-Tests for Cache Manager
-Auto-generated by CodeSmithAgent
-"""
-
-import pytest
-import asyncio
-import json
-from unittest.mock import Mock, patch, AsyncMock
-
-# from backend.core.cache_manager import CacheManager, cache_agent_response  # REMOVED v4.0
-
-@pytest.mark.asyncio
-async def test_cache_manager_connect():
-    """Test cache manager connection"""
-    cache = CacheManager("redis://localhost:6379")
-
-    with patch('aioredis.from_url') as mock_redis:
-        mock_redis.return_value = AsyncMock()
-        await cache.connect()
-        assert cache.enabled
-
-@pytest.mark.asyncio
-async def test_cache_get_set():
-    """Test cache get and set operations"""
-    cache = CacheManager()
-    cache.redis = AsyncMock()
-    cache.enabled = True
-
-    # Test set
-    await cache.set("test_key", {"data": "test"}, ttl=60)
-    cache.redis.set.assert_called_once()
-
-    # Test get
-    cache.redis.get.return_value = json.dumps({"data": "test"})
-    result = await cache.get("test_key")
-    assert result == {"data": "test"}
-
-@pytest.mark.asyncio
-async def test_cache_decorator():
-    """Test cache_agent_response decorator"""
-
-    class TestAgent:
-        call_count = 0
-
-        @cache_agent_response(ttl=60)
-        async def expensive_operation(self, value):
-            self.call_count += 1
-            return f"result_{value}"
-
-    agent = TestAgent()
-
-    # Mock cache manager
-    with patch('backend.core.cache_manager.CacheManager') as MockCache:
-        mock_cache = AsyncMock()
-        mock_cache.get.return_value = None  # First call - cache miss
-        MockCache.return_value = mock_cache
-
-        # First call should execute function
-        result1 = await agent.expensive_operation("test")
-        assert agent.call_count == 1
-
-        # Second call with same args should use cache
-        mock_cache.get.return_value = "cached_result"
-        result2 = await agent.expensive_operation("test")
-        # Call count should still be 1 (not executed again)
-        assert agent.call_count == 1
-
-if __name__ == "__main__":
-    asyncio.run(test_cache_manager_connect())
-'''
-
-        test_file = os.path.join(workspace_path, 'backend/tests/test_cache_manager.py')
-        os.makedirs(os.path.dirname(test_file), exist_ok=True)
-        with open(test_file, 'w') as f:
-            f.write(test_code)
-        files_created.append('backend/tests/test_cache_manager.py')
-        logger.info(f"✅ Created: {test_file}")
-
-        return files_created
 
     def format_implementation(self, implementation: CodeImplementation) -> str:
         """
@@ -1392,380 +1286,6 @@ Run this script to safely comment out dead code for review.
 
         return {"message": "CodeSmith received request"}
 
-    async def handle_button_implementation(self, request: TaskRequest, workspace_path: str) -> TaskResult:
-        """
-        🎯 Special handler for button implementation requests
-        Ensures buttons are added to the correct file in KI_AutoAgent
-        """
-        start_time = datetime.now()
-        logger.info("🎯 Handling button implementation request")
-
-        try:
-            # KNOW EXACTLY where buttons go
-            file_path = os.path.join(workspace_path, 'vscode-extension/src/ui/MultiAgentChatPanel.ts')
-
-            # Check if file exists
-            if not os.path.exists(file_path):
-                logger.error(f"❌ MultiAgentChatPanel.ts not found at {file_path}")
-                return TaskResult(
-                    status="error",
-                    content=f"Cannot find MultiAgentChatPanel.ts at expected location: {file_path}",
-                    agent=self.config.agent_id,
-                    execution_time=(datetime.now() - start_time).total_seconds()
-                )
-
-            # Read the current file
-            with open(file_path, 'r') as f:
-                current_content = f.read()
-
-            # Find the orchestrator button
-            orchestrator_pos = current_content.find('🎯 Orchestrator')
-            if orchestrator_pos == -1:
-                logger.error("❌ Could not find Orchestrator button in file")
-                return TaskResult(
-                    status="error",
-                    content="Could not locate Orchestrator button in MultiAgentChatPanel.ts",
-                    agent=self.config.agent_id,
-                    execution_time=(datetime.now() - start_time).total_seconds()
-                )
-
-            logger.info(f"✅ Found Orchestrator button at position {orchestrator_pos}")
-
-            # Generate the implementation
-            implementation_prompt = f"""Add a Plan-First button to KI_AutoAgent's MultiAgentChatPanel.ts.
-
-PROJECT: KI_AutoAgent VSCode Extension (NOT JD Edwards!)
-FILE: vscode-extension/src/ui/MultiAgentChatPanel.ts
-LOCATION: Next to the Orchestrator button
-
-The file already has:
-- Orchestrator button with text "🎯 Orchestrator"
-- Agent selector buttons
-- A Plan-First button may already be partially implemented
-
-Task: {request.prompt}
-
-IMPORTANT:
-- This is TypeScript/HTML, not Java or enterprise code
-- The button should be placed near the Orchestrator button
-- Include appropriate event handlers
-- DO NOT mention JD Edwards, Oracle, or any enterprise systems!"""
-
-            # Use direct implementation first (Claude CLI is unreliable)
-            logger.info("📝 Using direct button implementation...")
-            result = await self._direct_button_implementation(file_path, request.prompt)
-
-            # Only try Claude CLI if direct implementation fails
-            if result.get('status') != 'success' and not 'already' in result.get('message', ''):
-                logger.info("🔄 Attempting Claude CLI implementation...")
-                try:
-                    result = await self.implement_code_to_file(
-                        spec=implementation_prompt,
-                        file_path=file_path
-                    )
-                except Exception as impl_error:
-                    logger.error(f"❌ Claude CLI also failed: {impl_error}")
-                    # Keep the result from direct implementation
-
-            if result.get('status') == 'success':
-                execution_time = (datetime.now() - start_time).total_seconds()
-                return TaskResult(
-                    status="success",
-                    content=f"✅ Successfully added button to MultiAgentChatPanel.ts\n"
-                            f"File: {file_path}\n"
-                            f"Lines modified: {result.get('lines', 0)}",
-                    agent=self.config.agent_id,
-                    metadata={
-                        "file_modified": file_path,
-                        "lines": result.get('lines', 0),
-                        "execution_time": execution_time
-                    },
-                    execution_time=execution_time
-                )
-            else:
-                return TaskResult(
-                    status="error",
-                    content=f"Failed to implement button: {result.get('error', 'Unknown error')}",
-                    agent=self.config.agent_id,
-                    execution_time=(datetime.now() - start_time).total_seconds()
-                )
-
-        except Exception as e:
-            logger.error(f"Button implementation failed: {e}")
-            return TaskResult(
-                status="error",
-                content=f"Button implementation failed: {str(e)}",
-                agent=self.config.agent_id,
-                execution_time=(datetime.now() - start_time).total_seconds()
-            )
-
-    async def _direct_button_implementation(self, file_path: str, prompt: str) -> Dict[str, Any]:
-        """
-        🔧 Direct implementation without Claude CLI
-        Fallback for when Claude CLI fails or times out
-        """
-        logger.info("🔧 Starting direct button implementation")
-
-        try:
-            # Read the current file
-            with open(file_path, 'r') as f:
-                content = f.read()
-
-            # Check if Plan-First button already exists
-            if 'plan-first-btn' in content:
-                logger.info("✅ Plan-First button already exists in file")
-
-                # Check if button is fully implemented (HTML, CSS, JS)
-                has_html = '<button id="plan-first-btn"' in content
-                has_css = '#plan-first-btn {' in content
-                has_js = 'planFirstBtn' in content
-
-                if has_html and has_css and has_js:
-                    return {
-                        "status": "success",
-                        "message": "✅ Plan-First button is fully implemented with HTML, CSS, and JavaScript!",
-                        "lines": 0,
-                        "details": "The button already exists next to the Orchestrator button and is functional."
-                    }
-                elif has_html:
-                    return {
-                        "status": "success",
-                        "message": "Plan-First button HTML exists, may need CSS or JS",
-                        "lines": 0
-                    }
-
-            # Find the orchestrator button
-            orchestrator_match = content.find('data-agent="orchestrator"')
-            if orchestrator_match == -1:
-                logger.error("❌ Could not find orchestrator button")
-                return {
-                    "status": "error",
-                    "error": "Could not find orchestrator button in file"
-                }
-
-            # Find the line start for proper indentation
-            line_start = content.rfind('\n', 0, orchestrator_match)
-            if line_start == -1:
-                line_start = 0
-            else:
-                line_start += 1
-
-            # Get the indentation
-            indent = ''
-            for char in content[line_start:orchestrator_match]:
-                if char in ' \t':
-                    indent += char
-                else:
-                    break
-
-            # Create the Plan-First button HTML
-            plan_first_button = f'''{indent}<button id="plan-first-btn" class="control-button" title="Show plan before executing">
-{indent}    📋 Plan First
-{indent}</button>
-'''
-
-            # Insert the button before the orchestrator button
-            new_content = content[:line_start] + plan_first_button + content[line_start:]
-
-            # Write back to file
-            with open(file_path, 'w') as f:
-                f.write(new_content)
-
-            logger.info(f"✅ Direct implementation successful - added Plan-First button")
-
-            return {
-                "status": "success",
-                "lines": 3,
-                "message": "Plan-First button added via direct implementation"
-            }
-
-        except Exception as e:
-            logger.error(f"❌ Direct implementation failed: {e}")
-            return {
-                "status": "error",
-                "error": f"Direct implementation failed: {str(e)}"
-            }
-
-    async def analyze_typescript_errors(self, file_path: str, line_number: int) -> Dict[str, Any]:
-        """
-        🔍 Analyze TypeScript errors at specific line
-        Better error analysis for the Orchestrator
-        """
-        logger.info(f"🔍 Analyzing TypeScript errors at {file_path}:{line_number}")
-
-        try:
-            import subprocess
-
-            # Read the file to get context
-            with open(file_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-
-            # Get context around the error line
-            start = max(0, line_number - 10)
-            end = min(len(lines), line_number + 10)
-            context_lines = lines[start:end]
-
-            # Run TypeScript compiler to get errors
-            result = subprocess.run(
-                ['npx', 'tsc', '--noEmit', file_path],
-                capture_output=True,
-                text=True,
-                cwd=os.path.dirname(file_path) or '.'
-            )
-
-            errors = []
-
-            # Parse TypeScript errors
-            if result.stderr or result.stdout:
-                error_output = result.stderr + result.stdout
-                for line in error_output.split('\n'):
-                    if f':{line_number}:' in line and 'error' in line:
-                        errors.append(line.strip())
-
-            # Analyze common TypeScript issues at this line
-            if line_number <= len(lines):
-                line_content = lines[line_number - 1]
-
-                # Check for common issues
-                issues = []
-
-                # Template string issues
-                if '`' in line_content:
-                    # Check for unmatched backticks
-                    backtick_count = line_content.count('`')
-                    if backtick_count % 2 != 0:
-                        issues.append("Unmatched backtick in template string")
-
-                    # Check for nested quotes
-                    if '${' in line_content and ("'" in line_content or '"' in line_content):
-                        issues.append("Possible quote conflict in template string")
-
-                # Function call before definition
-                if '(' in line_content:
-                    func_name = line_content.split('(')[0].strip().split(' ')[-1]
-                    # Check if function is defined later
-                    defined_later = False
-                    for i in range(line_number, len(lines)):
-                        if f'function {func_name}' in lines[i]:
-                            defined_later = True
-                            issues.append(f"Function '{func_name}' used before declaration (defined at line {i+1})")
-                            break
-
-                # Missing semicolons (simple check)
-                if not line_content.strip().endswith((';', '{', '}', ',')) and line_content.strip():
-                    if not any(keyword in line_content for keyword in ['if', 'else', 'for', 'while', '//']):
-                        issues.append("Possible missing semicolon")
-
-                return {
-                    "status": "success",
-                    "line": line_number,
-                    "content": line_content.strip(),
-                    "context": ''.join(context_lines),
-                    "typescript_errors": errors,
-                    "detected_issues": issues,
-                    "suggestion": self._generate_fix_suggestion(issues, line_content)
-                }
-
-            return {
-                "status": "error",
-                "message": f"Line {line_number} not found in file"
-            }
-
-        except Exception as e:
-            logger.error(f"❌ Error analyzing TypeScript: {e}")
-            return {
-                "status": "error",
-                "message": str(e)
-            }
-
-    def _generate_fix_suggestion(self, issues: List[str], line_content: str) -> str:
-        """Generate fix suggestions based on detected issues"""
-        suggestions = []
-
-        for issue in issues:
-            if "Function" in issue and "before declaration" in issue:
-                suggestions.append("Move the function definition before its first use")
-            elif "template string" in issue:
-                suggestions.append("Check template string syntax - ensure backticks are matched")
-            elif "missing semicolon" in issue:
-                suggestions.append("Add a semicolon at the end of the statement")
-
-        return " | ".join(suggestions) if suggestions else "Review the line for syntax errors"
-
-    async def update_caches_for_external_changes(self, workspace_path: str) -> Dict[str, Any]:
-        """
-        🔄 Update all caches when code was changed externally
-        Clears and rebuilds caches to reflect external modifications
-        """
-        logger.info("🔄 Updating caches for external code changes...")
-        results = {
-            "caches_cleared": [],
-            "caches_rebuilt": [],
-            "errors": []
-        }
-
-        try:
-            # 1. Clear code knowledge cache
-            self.code_knowledge = None
-            results["caches_cleared"].append("code_knowledge")
-
-            # 2. Clear and rebuild indexing if available
-            if INDEXING_AVAILABLE and self.code_indexer:
-                try:
-                    # Clear existing index
-                    if hasattr(self.code_indexer, 'clear_cache'):
-                        self.code_indexer.clear_cache()
-                        results["caches_cleared"].append("code_indexer")
-
-                    # Rebuild index
-                    logger.info("📇 Rebuilding code index...")
-                    await self.code_indexer.index_codebase(workspace_path)
-                    results["caches_rebuilt"].append("code_indexer")
-                except Exception as e:
-                    error_msg = f"Code indexer cache update failed: {e}"
-                    logger.error(error_msg)
-                    results["errors"].append(error_msg)
-
-            # 3. Clear tree-sitter cache if available
-            if INDEXING_AVAILABLE and self.tree_sitter:
-                try:
-                    if hasattr(self.tree_sitter, 'clear_cache'):
-                        self.tree_sitter.clear_cache()
-                        results["caches_cleared"].append("tree_sitter")
-                except Exception as e:
-                    error_msg = f"Tree-sitter cache clear failed: {e}"
-                    logger.error(error_msg)
-                    results["errors"].append(error_msg)
-
-            # 4. Reload code patterns (in case they were modified)
-            self.code_patterns = self._load_code_patterns()
-            results["caches_rebuilt"].append("code_patterns")
-
-            # 5. Clear any project-specific caches in .ki_autoagent
-            ki_autoagent_dir = os.path.join(workspace_path, '.ki_autoagent')
-            if os.path.exists(ki_autoagent_dir):
-                cache_files = ['system_analysis.json', 'search.db']
-                for cache_file in cache_files:
-                    cache_path = os.path.join(ki_autoagent_dir, cache_file)
-                    if os.path.exists(cache_path):
-                        try:
-                            # Instead of deleting, mark as stale
-                            stale_path = cache_path + '.stale'
-                            os.rename(cache_path, stale_path)
-                            results["caches_cleared"].append(f"ki_autoagent/{cache_file}")
-                        except Exception as e:
-                            error_msg = f"Failed to mark {cache_file} as stale: {e}"
-                            logger.error(error_msg)
-                            results["errors"].append(error_msg)
-
-            logger.info(f"✅ Cache update complete. Cleared: {len(results['caches_cleared'])}, Rebuilt: {len(results['caches_rebuilt'])}")
-            return results
-
-        except Exception as e:
-            logger.error(f"Cache update failed: {e}")
-            results["errors"].append(str(e))
-            return results
-
     def _check_for_hallucination(self, content: str) -> bool:
         """
         🧠 Check if agent is hallucinating about wrong systems
@@ -1788,39 +1308,6 @@ IMPORTANT:
 
         return False
 
-    def _validate_workspace_context(self) -> Dict[str, str]:
-        """
-        🔍 Ensure agent knows it's in KI_AutoAgent workspace
-        """
-        import os
-
-        # Check for KI_AutoAgent markers
-        expected_files = [
-            'vscode-extension/src/ui/MultiAgentChatPanel.ts',
-            'backend/agents/specialized/codesmith_agent.py',
-            'package.json'
-        ]
-
-        workspace_path = os.getcwd()
-
-        for expected_file in expected_files:
-            file_path = os.path.join(workspace_path, expected_file)
-            if os.path.exists(file_path):
-                logger.info(f"✅ Workspace validation: Found {expected_file}")
-                return {
-                    'project': 'KI_AutoAgent',
-                    'type': 'VSCode Extension',
-                    'ui_file': 'vscode-extension/src/ui/MultiAgentChatPanel.ts',
-                    'workspace_path': workspace_path
-                }
-
-        logger.warning("⚠️ Not in expected KI_AutoAgent workspace structure")
-        return {
-            'project': 'Unknown',
-            'type': 'Unknown',
-            'ui_file': 'unknown',
-            'workspace_path': workspace_path
-        }
 
     def _enforce_asimov_rule_1(self, file_path: str):
         """

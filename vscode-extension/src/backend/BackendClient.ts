@@ -34,6 +34,21 @@ export interface BackendMessage {
     tool?: string;  // For agent_tool_start/complete messages
     tool_status?: string;  // For agent_tool_start/complete messages ("running" | "success" | "error")
     tool_result?: string;  // For agent_tool_complete messages
+    tool_details?: {  // For agent_tool_start/complete messages (v5.8.1)
+        files_read?: string[];
+        files_written?: string[];
+        scanning?: string[];
+        ignoring?: string[];
+        todos_added?: string[];
+        todos_completed?: string[];
+        files_analyzed?: number;
+        languages?: string[];
+        loc?: number;
+        complexity_avg?: number;
+        security_issues?: number;
+        dependencies?: Record<string, string>;
+        [key: string]: any;  // Allow additional properties
+    };
 }
 
 export interface ChatRequest {

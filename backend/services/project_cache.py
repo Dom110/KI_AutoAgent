@@ -19,7 +19,7 @@ class ProjectCache:
     Stores results in workspace cache directory
 
     v5.8.0: Supports both:
-    - Legacy: project_root → creates .kiautoagent/cache inside
+    - Legacy: project_root → creates .ki_autoagent_ws/cache inside
     - New: explicit cache_dir path (for $WORKSPACE/.ki_autoagent_ws/cache/)
     """
 
@@ -29,21 +29,21 @@ class ProjectCache:
 
         Args:
             project_root: Can be either:
-                          - Workspace root (legacy) → creates .kiautoagent/cache inside
+                          - Workspace root (legacy) → creates .ki_autoagent_ws/cache inside
                           - Cache directory path (v5.8.0) → uses directly
             cache_duration_hours: How long to keep cached data (default 24h)
         """
         project_path = Path(project_root)
 
         # v5.8.0: If project_root ends with 'cache', use it directly
-        # Otherwise, use legacy behavior (create .kiautoagent/cache inside)
+        # Otherwise, use legacy behavior (create .ki_autoagent_ws/cache inside)
         if project_path.name == "cache":
             self.cache_dir = project_path
             self.project_root = project_path.parent.parent  # Go up from cache/.ki_autoagent_ws/
         else:
             # Legacy behavior
             self.project_root = project_path
-            self.cache_dir = self.project_root / ".kiautoagent" / "cache"
+            self.cache_dir = self.project_root / ".ki_autoagent_ws" / "cache"
 
         self.cache_duration = timedelta(hours=cache_duration_hours)
         self.connected = True  # Always connected for file-based cache

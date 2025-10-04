@@ -547,7 +547,8 @@ class AgentWorkflow:
         content: str = "",
         tool: str = "",
         tool_status: str = "",
-        tool_result: Any = None
+        tool_result: Any = None,
+        tool_details: Dict[str, Any] = None
     ):
         """
         Send agent activity messages to UI for visualization
@@ -560,6 +561,21 @@ class AgentWorkflow:
             tool: Tool name (if tool-related)
             tool_status: "running" | "success" | "error"
             tool_result: Tool execution result
+            tool_details: Structured details for UI (NEW in v5.8.1)
+                {
+                    "files_read": ["file1.py", "file2.py"],
+                    "files_written": ["output.json"],
+                    "scanning": ["src/", "package.json"],
+                    "ignoring": ["node_modules/", ".git/"],
+                    "todos_added": ["Task 1", "Task 2"],
+                    "todos_completed": ["Old task"],
+                    "files_analyzed": 23,
+                    "languages": ["TypeScript", "JSON"],
+                    "loc": 1847,
+                    "complexity_avg": 4.8,
+                    "security_issues": 2,
+                    "dependencies": {"react": "18.2.0", ...}
+                }
         """
         if not self.websocket_manager or not state.get("client_id"):
             return
@@ -577,6 +593,10 @@ class AgentWorkflow:
             if tool:
                 message["tool"] = tool
                 message["tool_status"] = tool_status
+
+                # Add structured details (NEW)
+                if tool_details:
+                    message["tool_details"] = tool_details
 
                 if tool_result is not None:
                     # Truncate large results
@@ -1004,9 +1024,36 @@ class AgentWorkflow:
                     content="Analyzing requirements and researching best practices..."
                 )
 
-                # Step 1: Do research (existing behavior)
-                research_result = await self._execute_architect_task(state, current_step)
-                logger.info(f"🔍 Research completed: {research_result[:200]}...")
+                # Step 1: Call ResearchAgent for web research
+                research_step = ExecutionStep(
+                    id=f"research_{current_step.id}",
+                    task=f"Research best practices and latest technologies for: {current_step.task}",
+                    agent="research",
+                    status="pending"
+                )
+
+                logger.info("🔍 Step 1: Calling ResearchAgent for web research...")
+                await self._send_agent_activity(
+                    state,
+                    "progress",
+                    "research",
+                    content=f"Researching: {current_step.task[:100]}..."
+                )
+
+                research_result = await self._execute_research_task(state, research_step)
+                logger.info(f"✅ Research completed: {research_result[:200]}...")
+
+                # Step 2: Call Architect with research results
+                logger.info("🏗️ Step 2: Architect analyzing requirements with research insights...")
+                await self._send_agent_activity(
+                    state,
+                    "progress",
+                    "architect",
+                    content="Analyzing requirements with research insights..."
+                )
+
+                architect_analysis = await self._execute_architect_task_with_research(state, current_step, research_result)
+                logger.info(f"✅ Architect analysis completed: {architect_analysis[:200]}...")
 
                 # v5.8.1: Send progress message
                 await self._send_agent_activity(
@@ -1016,8 +1063,8 @@ class AgentWorkflow:
                     content="Creating architecture proposal..."
                 )
 
-                # Step 2: Create proposal based on research
-                proposal = await self._create_architecture_proposal(state, research_result)
+                # Step 3: Create proposal based on architect analysis (which includes research)
+                proposal = await self._create_architecture_proposal(state, architect_analysis)
                 state["architecture_proposal"] = proposal
                 state["proposal_status"] = "pending"
                 state["needs_approval"] = True
@@ -2868,6 +2915,60 @@ Research:
 - CDN integration
 
 ⚠️ This is a STUB response - real ArchitectAgent would provide more detailed analysis."""
+
+    async def _execute_architect_task_with_research(
+        self,
+        state: ExtendedAgentState,
+        step: ExecutionStep,
+        research_results: str
+    ) -> Any:
+        """
+        Execute architect task WITH research insights
+
+        Args:
+            state: Current workflow state
+            step: Current execution step
+            research_results: Results from ResearchAgent
+
+        Returns:
+            Architect's analysis including research insights
+        """
+        if "architect" in self.real_agents:
+            logger.info("🏗️ Executing ArchitectAgent with research insights...")
+
+            agent = self.real_agents["architect"]
+
+            # Enhance task with research context
+            enhanced_task = f"""
+{step.task}
+
+**Research Insights:**
+{research_results}
+
+Please create an architecture proposal that incorporates these research findings.
+"""
+
+            task_request = TaskRequest(
+                prompt=enhanced_task,
+                context={
+                    "step_id": step.id,
+                    "task_type": "architecture_with_research",
+                    "workspace_path": state.get("workspace_path"),
+                    "session_id": state.get("session_id"),
+                    "research_results": research_results
+                }
+            )
+
+            try:
+                result = await agent.execute(task_request)
+                return result.content if hasattr(result, 'content') else str(result)
+            except Exception as e:
+                logger.error(f"❌ ArchitectAgent failed: {e}")
+                return f"Architecture analysis completed with error: {str(e)}"
+
+        # Fallback: Use research results only
+        logger.warning("⚠️ ArchitectAgent not available - using research results only")
+        return research_results
 
     # ============================================================================
     # v5.2.0: Architecture Proposal System - Helper Functions

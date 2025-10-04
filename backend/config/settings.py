@@ -99,7 +99,7 @@ This applies to ALL answers, explanations, error messages, and outputs.
     # Performance & Monitoring Settings
     # ========================================
     MONITORING_ENABLED = True
-    MONITORING_LOG_AGENT_METRICS = False  # Log to .kiautoagent/metrics.json
+    MONITORING_LOG_AGENT_METRICS = False  # Log to .ki_autoagent_ws/metrics.json (workspace) or ~/.ki_autoagent/data/metrics.json (global)
     MONITORING_TRACK_ROUTING_SUCCESS = True
     MONITORING_ALERT_ON_FAILURES = True
 

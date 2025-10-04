@@ -153,6 +153,9 @@ class BaseAgent(ABC):
         # Cancellation support
         self.cancel_token = None
 
+        # v5.8.1: Track current request for workspace context
+        self._current_request = None
+
         # Initialize core systems if available
         if CORE_SYSTEMS_AVAILABLE:
             self.memory_manager = get_memory_manager()
@@ -390,6 +393,9 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         """Execute task with memory enhancement, context integration, and PRIME DIRECTIVES"""
         start_time = datetime.now()
         execution_time = 0  # Initialize to prevent UnboundLocalError
+
+        # v5.8.1: Store current request for workspace context access
+        self._current_request = request
 
         # APPLY PRIME DIRECTIVES FIRST - These override everything
         if PRIME_DIRECTIVES_AVAILABLE:
@@ -686,6 +692,31 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         logger.info(f"⏱️ Dynamic timeout calculated: {timeout}s for prompt length {len(prompt)}")
         return timeout
 
+    def _get_workspace_from_request(self) -> Optional[str]:
+        """
+        Get workspace_path from current request context (v5.8.1)
+
+        Returns:
+            Workspace path from request.context or None
+        """
+        if self._current_request and self._current_request.context:
+            return self._current_request.context.get('workspace_path')
+        return None
+
+    def _get_file_tools_for_current_workspace(self) -> Optional['FileSystemTools']:
+        """
+        Get FileSystemTools instance with correct workspace from request context (v5.8.1)
+
+        Returns:
+            FileSystemTools with workspace from request.context, or default self.file_tools
+        """
+        workspace = self._get_workspace_from_request()
+        if workspace and FILE_TOOLS_AVAILABLE:
+            from agents.tools.file_tools import FileSystemTools
+            logger.info(f"📂 Using workspace from request.context: {workspace}")
+            return FileSystemTools(workspace)
+        return self.file_tools
+
     async def write_implementation(self, file_path: str, content: str, create_dirs: bool = True) -> Dict[str, Any]:
         """
         Write implementation to file with proper validation and error handling
@@ -698,7 +729,10 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         Returns:
             Dict with status and details
         """
-        if not self.file_tools:
+        # v5.8.1: Use workspace-aware file tools
+        file_tools = self._get_file_tools_for_current_workspace()
+
+        if not file_tools:
             error_msg = f"❌ File system tools not available for {self.name}"
             logger.error(error_msg)
             return {
@@ -717,8 +751,8 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             }
 
         try:
-            # Use file tools to write with validation
-            result = await self.file_tools.write_file(
+            # v5.8.1: Use workspace-aware file tools (not self.file_tools!)
+            result = await file_tools.write_file(
                 path=file_path,
                 content=content,
                 agent_name=self.name,
@@ -773,7 +807,10 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         Returns:
             Dict with status and details
         """
-        if not self.file_tools:
+        # v5.8.1: Use workspace-aware file tools
+        file_tools = self._get_file_tools_for_current_workspace()
+
+        if not file_tools:
             return {
                 "status": "error",
                 "error": "File system tools not available",
@@ -788,7 +825,8 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             }
 
         try:
-            result = await self.file_tools.create_file(
+            # v5.8.1: Use workspace-aware file tools (not self.file_tools!)
+            result = await file_tools.create_file(
                 path=file_path,
                 content=content,
                 agent_name=self.name,
@@ -1168,10 +1206,17 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         return learnings
 
-    async def save_learnings_to_disk(self) -> bool:
+    async def save_learnings_to_disk(self, scope: str = "auto") -> bool:
         """
-        Persist learning entries to disk
-        Saves to .ki_autoagent/learning/{agent_id}.json
+        Persist learning entries to disk (DUAL LEARNING SYSTEM)
+
+        Args:
+            scope: "global" | "workspace" | "auto" (default)
+                   auto = separate by context (global vs workspace)
+
+        Saves to:
+        - Global: ~/.ki_autoagent/data/learning/global/{agent_id}.json
+        - Workspace: $WORKSPACE/.ki_autoagent_ws/learning/{agent_id}.json
         """
         import json
         import os
@@ -1179,9 +1224,8 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         if not self.memory_manager or not self.memory_manager.learning_entries:
             return False
 
-        # Create learning directory
-        learning_dir = os.path.join(os.getcwd(), '.ki_autoagent', 'learning')
-        os.makedirs(learning_dir, exist_ok=True)
+        workspace_path = os.getenv("KI_WORKSPACE_PATH")
+        home_dir = os.path.expanduser("~")
 
         # Filter learnings for this agent
         agent_learnings = [
@@ -1189,73 +1233,151 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             if self.config.agent_id in learning.context
         ]
 
-        # Save to JSON
-        learning_file = os.path.join(learning_dir, f"{self.config.agent_id}.json")
-        with open(learning_file, 'w') as f:
-            json.dump([
-                {
-                    'id': l.id,
-                    'timestamp': l.timestamp,
-                    'description': l.description,
-                    'lesson': l.lesson,
-                    'context': l.context,
-                    'impact': l.impact,
-                    'applied_count': l.applied_count
-                }
-                for l in agent_learnings
-            ], f, indent=2)
+        # Separate learnings by scope
+        global_learnings = []
+        workspace_learnings = []
 
-        logger.info(f"💾 Saved {len(agent_learnings)} learnings for {self.name}")
+        for learning in agent_learnings:
+            context_str = learning.context if isinstance(learning.context, str) else str(learning.context)
+
+            # Check if learning is global or workspace-specific
+            if "global" in context_str or "best-practice" in context_str or "security" in context_str:
+                global_learnings.append(learning)
+            elif workspace_path and ("workspace" in context_str or "project" in context_str):
+                workspace_learnings.append(learning)
+            else:
+                # Default: based on scope parameter
+                if scope == "global":
+                    global_learnings.append(learning)
+                elif scope == "workspace" and workspace_path:
+                    workspace_learnings.append(learning)
+                else:
+                    # Auto: prefer workspace if available
+                    if workspace_path:
+                        workspace_learnings.append(learning)
+                    else:
+                        global_learnings.append(learning)
+
+        # Save global learnings
+        if global_learnings:
+            global_learning_dir = os.path.join(home_dir, '.ki_autoagent', 'data', 'learning', 'global')
+            os.makedirs(global_learning_dir, exist_ok=True)
+            global_file = os.path.join(global_learning_dir, f"{self.config.agent_id}.json")
+
+            with open(global_file, 'w') as f:
+                json.dump([
+                    {
+                        'id': l.id,
+                        'timestamp': l.timestamp,
+                        'description': l.description,
+                        'lesson': l.lesson,
+                        'context': l.context,
+                        'impact': l.impact,
+                        'applied_count': l.applied_count
+                    }
+                    for l in global_learnings
+                ], f, indent=2)
+
+            logger.info(f"💾 Saved {len(global_learnings)} GLOBAL learnings for {self.name}")
+
+        # Save workspace learnings
+        if workspace_learnings and workspace_path:
+            workspace_learning_dir = os.path.join(workspace_path, '.ki_autoagent_ws', 'learning')
+            os.makedirs(workspace_learning_dir, exist_ok=True)
+            workspace_file = os.path.join(workspace_learning_dir, f"{self.config.agent_id}.json")
+
+            with open(workspace_file, 'w') as f:
+                json.dump([
+                    {
+                        'id': l.id,
+                        'timestamp': l.timestamp,
+                        'description': l.description,
+                        'lesson': l.lesson,
+                        'context': l.context,
+                        'impact': l.impact,
+                        'applied_count': l.applied_count
+                    }
+                    for l in workspace_learnings
+                ], f, indent=2)
+
+            logger.info(f"💾 Saved {len(workspace_learnings)} WORKSPACE learnings for {self.name}")
+
         return True
 
     async def load_learnings_from_disk(self) -> int:
         """
-        Load learning entries from disk
-        Loads from .ki_autoagent/learning/{agent_id}.json
+        Load learning entries from disk (DUAL LEARNING SYSTEM)
+
+        Loads BOTH global AND workspace learnings:
+        - Global: ~/.ki_autoagent/data/learning/global/{agent_id}.json (always)
+        - Workspace: $WORKSPACE/.ki_autoagent_ws/learning/{agent_id}.json (if in workspace)
+
+        Returns:
+            Total number of learnings loaded
         """
         import json
         import os
-        from dataclasses import asdict
-
-        learning_file = os.path.join(os.getcwd(), '.ki_autoagent', 'learning', f"{self.config.agent_id}.json")
-
-        if not os.path.exists(learning_file):
-            return 0
 
         if not self.memory_manager:
             logger.warning(f"{self.name}: No memory manager available to load learnings")
             return 0
 
-        try:
-            with open(learning_file, 'r') as f:
-                learnings_data = json.load(f)
+        workspace_path = os.getenv("KI_WORKSPACE_PATH")
+        home_dir = os.path.expanduser("~")
+        total_loaded = 0
 
-            # Convert to LearningEntry objects and add to memory manager
-            from core.memory_manager import LearningEntry
+        # Helper function to load from file
+        def load_from_file(file_path: str, source_name: str) -> int:
+            if not os.path.exists(file_path):
+                return 0
 
-            loaded_count = 0
-            for data in learnings_data:
-                learning = LearningEntry(
-                    id=data['id'],
-                    timestamp=data['timestamp'],
-                    description=data['description'],
-                    lesson=data['lesson'],
-                    context=data['context'],
-                    impact=data['impact'],
-                    applied_count=data.get('applied_count', 0)
-                )
+            try:
+                with open(file_path, 'r') as f:
+                    learnings_data = json.load(f)
 
-                # Check if not already in memory
-                if not any(l.id == learning.id for l in self.memory_manager.learning_entries):
-                    self.memory_manager.learning_entries.append(learning)
-                    loaded_count += 1
+                # Convert to LearningEntry objects
+                from core.memory_manager import LearningEntry
 
-            logger.info(f"📖 Loaded {loaded_count} learnings for {self.name}")
-            return loaded_count
+                loaded = 0
+                for data in learnings_data:
+                    learning = LearningEntry(
+                        id=data['id'],
+                        timestamp=data['timestamp'],
+                        description=data['description'],
+                        lesson=data['lesson'],
+                        context=data['context'],
+                        impact=data['impact'],
+                        applied_count=data.get('applied_count', 0)
+                    )
 
-        except Exception as e:
-            logger.error(f"Failed to load learnings for {self.name}: {e}")
-            return 0
+                    # Check if not already in memory (avoid duplicates)
+                    if not any(l.id == learning.id for l in self.memory_manager.learning_entries):
+                        self.memory_manager.learning_entries.append(learning)
+                        loaded += 1
+
+                if loaded > 0:
+                    logger.info(f"📚 Loaded {loaded} {source_name} learnings for {self.name}")
+                return loaded
+
+            except Exception as e:
+                logger.error(f"Failed to load {source_name} learnings: {e}")
+                return 0
+
+        # 1. Load GLOBAL learnings (always)
+        global_learning_dir = os.path.join(home_dir, '.ki_autoagent', 'data', 'learning', 'global')
+        global_file = os.path.join(global_learning_dir, f"{self.config.agent_id}.json")
+        total_loaded += load_from_file(global_file, "GLOBAL")
+
+        # 2. Load WORKSPACE learnings (if in workspace)
+        if workspace_path:
+            workspace_learning_dir = os.path.join(workspace_path, '.ki_autoagent_ws', 'learning')
+            workspace_file = os.path.join(workspace_learning_dir, f"{self.config.agent_id}.json")
+            total_loaded += load_from_file(workspace_file, "WORKSPACE")
+
+        if total_loaded > 0:
+            logger.info(f"📖 Total learnings loaded for {self.name}: {total_loaded}")
+
+        return total_loaded
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self.name} ({self.model})>"

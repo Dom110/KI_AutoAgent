@@ -59,7 +59,7 @@ class FixerGPTAgent(ChatAgent):
             temperature=getattr(Settings, 'ALTERNATIVE_FIXER_TEMPERATURE', 0.7),
             max_tokens=getattr(Settings, 'ALTERNATIVE_FIXER_MAX_TOKENS', 4096),
             icon="🔧🔄",
-            instructions_path=".kiautoagent/instructions/fixer-gpt-instructions.md"
+            instructions_path=".ki_autoagent/instructions/fixer-gpt-instructions.md"
         )
         super().__init__(config)
 

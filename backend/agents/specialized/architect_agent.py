@@ -236,6 +236,9 @@ class ArchitectAgent(ChatAgent):
         start_time = datetime.now()
         files_created = []
 
+        # v5.8.1: Store current request for workspace context (BaseAgent needs this!)
+        self._current_request = request
+
         # Get client_id for progress updates
         # Ensure context is a dictionary - ROBUST handling
         if not hasattr(request, 'context'):
@@ -276,7 +279,7 @@ class ArchitectAgent(ChatAgent):
                     self.file_watcher.start()
                     logger.info(f"✅ ProjectCache updated with workspace path: {workspace_path}")
 
-            ki_autoagent_dir = os.path.join(workspace_path, '.ki_autoagent')
+            ki_autoagent_dir = os.path.join(workspace_path, '.ki_autoagent_ws')
             os.makedirs(ki_autoagent_dir, exist_ok=True)
 
             # Send initial progress
