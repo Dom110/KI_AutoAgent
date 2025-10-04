@@ -331,6 +331,11 @@ async def websocket_chat(websocket: WebSocket):
 
     await manager.connect(websocket, client_id)
 
+    # v5.7.0: Get workspace path from environment variable (set by VS Code Extension)
+    default_workspace = os.environ.get("KI_WORKSPACE_PATH")
+    if default_workspace:
+        logger.info(f"📂 Using workspace from environment: {default_workspace}")
+
     # Create session
     session = {
         "client_id": client_id,
@@ -338,7 +343,7 @@ async def websocket_chat(websocket: WebSocket):
         "created_at": datetime.now(),
         "messages": [],
         "plan_first_mode": False,
-        "workspace_path": None
+        "workspace_path": default_workspace  # Use environment variable as default
     }
     active_sessions[client_id] = session
 

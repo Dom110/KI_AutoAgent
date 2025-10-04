@@ -145,11 +145,11 @@ class ArchitectAgent(ChatAgent):
         # Initialize OpenAI service with specific model
         self.openai = OpenAIService(model=self.config.model)
 
-        # Get project path from environment or use workspace root
-        # Since backend now runs from project root, use current directory if not in backend/
-        # Otherwise, use parent directory
+        # v5.7.0: Get project path from KI_WORKSPACE_PATH (set by VS Code Extension)
+        # Backend runs from ~/.ki-autoagent/backend/, but analyzes user workspace
+        # Priority: KI_WORKSPACE_PATH > PROJECT_PATH > fallback to parent of backend dir
         default_path = os.getcwd() if os.path.basename(os.getcwd()) != 'backend' else os.path.dirname(os.getcwd())
-        project_path = os.getenv('PROJECT_PATH', default_path)
+        project_path = os.getenv('KI_WORKSPACE_PATH') or os.getenv('PROJECT_PATH', default_path)
 
         # For consistency, always use the full absolute path
         project_path = os.path.abspath(project_path)

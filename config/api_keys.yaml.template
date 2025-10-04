@@ -1,0 +1,18 @@
+# API Keys Konfiguration Template
+# Kopieren Sie diese Datei nach api_keys.yaml oder api_keys.local.yaml
+# und fügen Sie Ihre API Keys ein
+
+# Option 1: Referenz zu Environment Variables (empfohlen)
+OPENAI_API_KEY: ${OPENAI_API_KEY}
+ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}
+
+# Option 2: Direkte Keys (NICHT für Git!)
+# OPENAI_API_KEY: sk-xxxxxxxxxxxxxxxxxxxxx
+# ANTHROPIC_API_KEY: sk-ant-xxxxxxxxxxxxx
+# PERPLEXITY_API_KEY: pplx-xxxxxxxxxxxxx
+
+# Weitere Einstellungen
+LANGUAGE: de  # de oder en
+DEBUG_MODE: false
+PLAN_FIRST_MODE: true

@@ -1,0 +1,545 @@
+INFO:__main__:🔍 DEBUG: Starting LangGraph server v5.6.0 on port 8001
+INFO:__main__:🔍 DEBUG: This is the ACTIVE server for v5.6.0-ai-routing-dashboard
+INFO:__main__:🔍 DEBUG: WebSocket endpoint: ws://localhost:8001/ws/chat
+INFO:__main__:✅ Models API endpoint registered at /api/models
+INFO:__main__:✅ Settings API endpoint registered at /api/settings
+INFO:__main__:🚀 Starting server on port 8001
+INFO:uvicorn.error:Started server process [69827]
+INFO:uvicorn.error:Waiting for application startup.
+INFO:__main__:================================================================================
+INFO:__main__:🚀 Starting KI AutoAgent LangGraph Backend v5.6.0...
+INFO:__main__:🔍 DEBUG: Initializing LangGraph StateGraph workflow system
+INFO:__main__:🔍 DEBUG: Using port 8001 (NOT 8000)
+INFO:__main__:📦 Creating agent workflow...
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for orchestrator
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for architect
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for codesmith
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for reviewer
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for fixer
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for docbot
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for research
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for tradestrat
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for opus_arbitrator
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for performance
+INFO:langgraph_system.workflow:🤖 Initializing real agent instances...
+INFO:config.capabilities_loader:✅ Loaded capabilities for 11 agents
+INFO:agents.base.base_agent:✅ Loaded instructions for ArchitectAgent from .kiautoagent/instructions/architect-v2-instructions.md
+INFO:agents.base.base_agent:🤖 🏗️ ArchitectAgent initialized (Model: gpt-4o-2024-11-20)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:agents.specialized.architect_agent:🏗️ Initializing ArchitectAgent with path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:🏗️ Initializing ProjectCache with path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.project_cache:📦 ProjectCache initialized: /Users/dominikfoert/git/KI_AutoAgent/.kiautoagent/cache
+INFO:services.code_search:🔍 LightweightCodeSearch initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:agents.specialized.architect_agent:✅ Code indexing tools initialized
+INFO:agents.specialized.architect_agent:✅ Analysis tools initialized: Semgrep, Vulture, Radon, CallGraph, Layers
+INFO:services.diagram_service:📊 DiagramService initialized
+INFO:agents.base.base_agent:✅ Loaded instructions for CodeSmithAgent from .kiautoagent/instructions/codesmith-v2-instructions.md
+INFO:agents.base.base_agent:🤖 💻 CodeSmithAgent initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:services.diagram_service:📊 DiagramService initialized
+INFO:agents.base.base_agent:✅ Loaded instructions for ReviewerGPT from .kiautoagent/instructions/reviewergpt-instructions.md
+INFO:agents.base.base_agent:🤖 🔍 ReviewerGPT initialized (Model: gpt-4o-mini-2024-07-18)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-mini-2024-07-18
+INFO:agents.base.base_agent:✅ Loaded instructions for FixerBot from .kiautoagent/instructions/fixerbot-instructions.md
+INFO:agents.base.base_agent:🤖 🔧 FixerBot initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:agents.base.base_agent:🤖 🎯 OrchestratorAgent initialized (Model: gpt-4o-2024-11-20)
+INFO:langgraph_system.workflow:✅ Orchestrator initialized with AI decomposition
+INFO:agents.base.base_agent:✅ Loaded instructions for ResearchBot from .kiautoagent/instructions/research-instructions.md
+INFO:agents.base.base_agent:🤖 🔍 ResearchBot initialized (Model: sonar)
+INFO:utils.perplexity_service:✅ PerplexityService initialized with model: sonar
+INFO:agents.specialized.research_agent:✅ ResearchAgent initialized with Perplexity API
+INFO:langgraph_system.workflow:✅ ResearchAgent initialized with Perplexity API
+INFO:agents.base.base_agent:✅ Loaded instructions for DocuBot from .kiautoagent/instructions/docubot-instructions.md
+INFO:agents.base.base_agent:🤖 📝 DocuBot initialized (Model: gpt-4o-2024-11-20)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:langgraph_system.workflow:✅ DocuBotAgent initialized
+INFO:agents.base.base_agent:✅ Loaded instructions for PerformanceBot from .kiautoagent/instructions/performance-instructions.md
+INFO:agents.base.base_agent:🤖 ⚡ PerformanceBot initialized (Model: gpt-4o-2024-11-20)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:langgraph_system.workflow:✅ PerformanceBot initialized
+INFO:agents.base.base_agent:✅ Loaded instructions for TradeStrat from .kiautoagent/instructions/tradestrat-instructions.md
+INFO:agents.base.base_agent:🤖 📈 TradeStrat initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:langgraph_system.workflow:✅ TradeStratAgent initialized
+INFO:agents.base.base_agent:✅ Loaded instructions for OpusArbitrator from .kiautoagent/instructions/opus-arbitrator-instructions.md
+INFO:agents.base.base_agent:🤖 ⚖️ OpusArbitrator initialized (Model: claude-opus-4-1-20250805)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:langgraph_system.workflow:✅ OpusArbitratorAgent initialized
+INFO:langgraph_system.workflow:✅ Initialized 10 real agents
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Workflow Self-Diagnosis System v5.5.0 initialized
+INFO:langgraph_system.workflow:🏥 Self-Diagnosis System initialized
+INFO:langgraph_system.workflow:🧠 Intelligent Query Handler initialized
+INFO:langgraph_system.workflow:🛡️ Safe Orchestrator Executor initialized (v5.5.2)
+INFO:langgraph_system.workflow:✅ Using MemorySaver for workflow checkpointing
+INFO:langgraph_system.workflow:✅ Workflow compiled with checkpointer support
+INFO:__main__:✅ LangGraph workflow system initialized
+INFO:__main__:✅ workflow_system type: AgentWorkflow
+INFO:__main__:🔧 Tool registry initialized with 0 tools
+INFO:__main__:✅ Approval manager initialized
+INFO:__main__:================================================================================
+INFO:__main__:🎉 STARTUP COMPLETE - Ready to accept connections!
+INFO:__main__:================================================================================
+INFO:uvicorn.error:Application startup complete.
+INFO:uvicorn.error:Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)
+INFO:uvicorn.error:127.0.0.1:59829 - "WebSocket /ws/chat?workspace=%2FUsers%2Fdominikfoert%2Fgit%2FKI_AutoAgent" [accepted]
+INFO:__main__:✅ Client client_b18e1511 connected
+INFO:__main__:🔍 DEBUG: New client connected: client_b18e1511
+INFO:uvicorn.error:connection open
+INFO:__main__:🔍 DEBUG: Welcome message sent to client_b18e1511
+INFO:uvicorn.error:127.0.0.1:59841 - "WebSocket /ws/chat?workspace=%2FUsers%2Fdominikfoert%2Fgit%2FKI_AutoAgent" [accepted]
+INFO:__main__:✅ Client client_2ef0b02b connected
+INFO:__main__:🔍 DEBUG: New client connected: client_2ef0b02b
+INFO:uvicorn.error:connection open
+INFO:__main__:🔍 DEBUG: Welcome message sent to client_2ef0b02b
+INFO:uvicorn.error:127.0.0.1:59864 - "WebSocket /ws/chat" [accepted]
+INFO:__main__:✅ Client client_75c77cea connected
+INFO:__main__:🔍 DEBUG: New client connected: client_75c77cea
+INFO:uvicorn.error:connection open
+INFO:__main__:🔍 DEBUG: Welcome message sent to client_75c77cea
+INFO:__main__:🔍 DEBUG: Received chat from client_75c77cea
+INFO:__main__:🔍 DEBUG: Using LangGraph v5.6.0 - Port 8001
+INFO:__main__:🔍 DEBUG: Message data keys: ['session_id', 'content', 'user_id', 'workspace_path']
+INFO:__main__:🔍 DEBUG: Chat message content: Baue eine einfache Dashboard App mit 3 Charts im agent_projects Ordner...
+INFO:__main__:📌 Using client-provided session_id: architect_json_test_095308
+INFO:__main__:🔌 WebSocket DEBUG: Checking for approval state - session_id: architect_json_test_095308
+INFO:__main__:🔌 WebSocket DEBUG: Found workflow_system.active_workflows with 0 sessions
+INFO:__main__:🔌 WebSocket DEBUG: No workflow state found for session architect_json_test_095308
+INFO:__main__:✅ workflow_system available: AgentWorkflow
+INFO:__main__:🔍 DEBUG: Starting LangGraph workflow for: Baue eine einfache Dashboard App mit 3 Charts im agent_projects Ordner...
+INFO:__main__:🔍 DEBUG: Session state - plan_first_mode: False, workspace: None
+INFO:__main__:🔍 DEBUG: Plan-First mode: False
+INFO:__main__:🔍 DEBUG: Executing LangGraph workflow
+INFO:__main__:🔍 DEBUG: Session ID: architect_json_test_095308
+INFO:__main__:🔍 DEBUG: Workspace: None
+INFO:langgraph_system.workflow:🎯 Orchestrator node executing
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:🧠 DIRECT AI ROUTING → Using Orchestrator for all tasks
+INFO:langgraph_system.workflow:🤖 Using Orchestrator AI for task decomposition (complexity: complex)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:agents.specialized.orchestrator_agent:🧠 Found 3 similar tasks in memory
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.orchestrator_agent:✅ AI decomposition: 8 tasks, 125.0min estimated
+INFO:agents.specialized.orchestrator_agent:💡 Reasoning: The task is broken into clear stages: architecture design, research, implementation, review, bug fixing, optimization, and documentation. Research and architecture design can happen in parallel. Implementation depends on the architecture and research. Review, bug fixing, optimization, and documentation are sequential but can be executed efficiently after implementation. This ensures a streamlined workflow while allowing some tasks to run in parallel to save time.
+WARNING:agents.specialized.orchestrator_agent:⚠️ Memory storage failed (non-critical): 'PersistentAgentMemory' object has no attribute 'store'
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: architect - Design the architecture for a simple dashboard app...
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: research - Research the best libraries or frameworks for crea...
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: codesmith - Implement the basic structure of the dashboard app...
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: codesmith - Integrate the selected charting library and implem...
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: reviewer - Review the code for the dashboard app to ensure it...
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: fixer - Fix any bugs or issues identified during the revie...
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: performance - Optimize the performance of the dashboard app, ens...
+INFO:agents.specialized.orchestrator_agent:🎯 Orchestrator executing step: docbot - Write documentation for the dashboard app, includi...
+INFO:langgraph_system.workflow:✅ Orchestrator created 8-step plan with parallelization
+INFO:langgraph_system.workflow:📖 Created Task Ledger with 1 success criteria
+INFO:langgraph_system.workflow:📊 Created Progress Ledger - 8 total steps
+INFO:langgraph_system.workflow:⚡ Identified 1 parallel execution groups
+INFO:langgraph_system.workflow:   parallel_group_0: Steps ['task_1', 'task_2'] can run in parallel
+INFO:langgraph_system.workflow:🔍 Running Pre-Execution Validation (v5.5.0)
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🚀 COMPREHENSIVE PRE-EXECUTION VALIDATION
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🔍 Starting Pre-Execution Validation
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 1/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 2/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 3/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
+INFO:langgraph_system.workflow_self_diagnosis:✅ Pre-Execution Validation PASSED
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 73.39%
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:📊 PRE-EXECUTION VALIDATION SUMMARY
+INFO:langgraph_system.workflow_self_diagnosis:  Validation: PASS
+INFO:langgraph_system.workflow_self_diagnosis:  Risk Score: 0.00%
+INFO:langgraph_system.workflow_self_diagnosis:  Health: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:  Decision: SAFE TO EXECUTE
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow:✅ Pre-Execution Validation PASSED - Plan is safe to execute
+INFO:langgraph_system.workflow:📋 Orchestrator created 8-step execution plan
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Checking execution plan with 8 steps
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Step task_1: agent=architect, status=pending
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Found first pending step: architect
+INFO:langgraph_system.workflow:🏗️ First step is architect - allowing proposal creation
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Architect will create proposal for client_id: client_75c77cea
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Current session_id: architect_json_test_095308
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: WebSocket manager available: True
+INFO:langgraph_system.workflow:📍 Set current_step_id to: task_1 for agent: architect
+INFO:langgraph_system.workflow:🔀 Route after approval - Status: approved
+INFO:langgraph_system.workflow:📋 Execution plan has 8 steps:
+INFO:langgraph_system.workflow:   Step 1: agent=architect, status=in_progress, task=Design the architecture for a simple dashboard app...
+INFO:langgraph_system.workflow:   Step 2: agent=research, status=pending, task=Research the best libraries or frameworks for crea...
+INFO:langgraph_system.workflow:   Step 3: agent=codesmith, status=pending, task=Implement the basic structure of the dashboard app...
+INFO:langgraph_system.workflow:   Step 4: agent=codesmith, status=pending, task=Integrate the selected charting library and implem...
+INFO:langgraph_system.workflow:   Step 5: agent=reviewer, status=pending, task=Review the code for the dashboard app to ensure it...
+INFO:langgraph_system.workflow:   Step 6: agent=fixer, status=pending, task=Fix any bugs or issues identified during the revie...
+INFO:langgraph_system.workflow:   Step 7: agent=performance, status=pending, task=Optimize the performance of the dashboard app, ens...
+INFO:langgraph_system.workflow:   Step 8: agent=docbot, status=pending, task=Write documentation for the dashboard app, includi...
+INFO:langgraph_system.workflow:✅ Routing to in_progress agent: architect (step_id: task_1)
+INFO:langgraph_system.workflow:🏗️ Architect node executing
+INFO:langgraph_system.workflow:🔍 Architect: current_step_id=task_1, current_step=ExecutionStep(id='task_1', agent='architect', task='Design the architecture for a simple dashboard app with 3 charts, including folder structure, data flow, and component layout.', expected_output='Completion of: Design the architecture for a simple dashboard app...', dependencies=[], status='in_progress', result=None, error=None, start_time=None, end_time=None, timeout_seconds=900, started_at=None, retry_count=0, max_retries=3, retry_delay_seconds=5, can_run_parallel=True, parallel_group='parallel_group_0', attempts=[], completion_percentage=0.0)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:📋 No proposal exists - performing research and creating proposal
+INFO:langgraph_system.workflow:🏗️ Executing with real ArchitectAgent...
+INFO:agents.specialized.architect_agent:📂 Using workspace path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:🔄 Updating file watcher from None to /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher stopped
+INFO:services.project_cache:📦 ProjectCache initialized: /Users/dominikfoert/git/KI_AutoAgent/.kiautoagent/cache
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ ProjectCache updated with workspace path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:🔍 Received prompt: 'Design the architecture for a simple dashboard app with 3 charts, including folder structure, data flow, and component layout.'
+INFO:agents.specialized.architect_agent:🔍 Prompt lower: 'design the architecture for a simple dashboard app with 3 charts, including folder structure, data flow, and component layout.'
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:🔍 Research completed: # 🏗️ System Architecture Design
+
+## Project: web app
+
+**Architecture Type**: serverless
+
+
+## 📦 Components
+
+### Frontend
+- **Type**: UI
+- **Technology**: React/Next.js
+- **Responsibility**: User interf...
+INFO:langgraph_system.workflow:📋 Creating architecture proposal...
+INFO:agents.specialized.architect_agent:📂 Using workspace path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:🔄 Updating file watcher from None to /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher stopped
+INFO:services.project_cache:📦 ProjectCache initialized: /Users/dominikfoert/git/KI_AutoAgent/.kiautoagent/cache
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ ProjectCache updated with workspace path: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:🔍 Received prompt: 'Based on your research, create a comprehensive ARCHITECTURE PROPOSAL for user approval.
+
+**Original User Request:**
+
+
+**Architect Task:**
+Design the architecture for a simple dashboard app with 3 charts, including folder structure, data flow, and component layout.
+
+**Research Findings:**
+# 🏗️ System Architecture Design
+
+## Project: web app
+
+**Architecture Type**: serverless
+
+
+## 📦 Components
+
+### Frontend
+- **Type**: UI
+- **Technology**: React/Next.js
+- **Responsibility**: User interface
+
+### Backend API
+- **Type**: API
+- **Technology**: Python/FastAPI
+- **Responsibility**: Business logic and data management
+
+### Database
+- **Type**: Storage
+- **Technology**: PostgreSQL
+- **Responsibility**: Data persistence
+
+
+## 🛠️ Technology Stack
+
+- React
+- Postgresql
+- Redis
+- Aws
+- Azure
+
+## 📐 Design Patterns
+
+- OBSERVER
+- STRATEGY
+
+## 🔄 Data Flow
+
+- **Type**: REST API
+- **Protocol**: HTTPS
+
+
+## 🚀 Deployment
+
+- **Platform**: Cloud
+- **Containerization**: Docker
+
+
+## 📈 Scalability
+
+Horizontal scaling with load balancer
+
+
+## 🔒 Security Considerations
+
+OAuth2, HTTPS, rate limiting, input validation
+
+
+---
+
+*Generated by ArchitectAgent (GPT-5)*
+
+Create a detailed proposal in JSON format with these sections:
+
+1. **summary**: High-level architecture overview (2-3 paragraphs)
+2. **improvements**: Suggested improvements to user's original idea based on research findings (bulleted list)
+3. **tech_stack**: Recommended technologies with justifications (including alternatives considered)
+4. **structure**: Folder/module structure with explanations
+5. **risks**: Potential challenges and mitigation strategies
+6. **research_insights**: Key findings from research that influenced design decisions
+
+**IMPORTANT:**
+- Be specific and actionable
+- Explain WHY each decision was made
+- Reference research findings that support decisions
+- Suggest improvements even if not explicitly requested
+- Consider scalability, maintainability, testability
+
+Return ONLY valid JSON with these exact keys.'
+INFO:agents.specialized.architect_agent:🔍 Prompt lower: 'based on your research, create a comprehensive architecture proposal for user approval.
+
+**original user request:**
+
+
+**architect task:**
+design the architecture for a simple dashboard app with 3 charts, including folder structure, data flow, and component layout.
+
+**research findings:**
+# 🏗️ system architecture design
+
+## project: web app
+
+**architecture type**: serverless
+
+
+## 📦 components
+
+### frontend
+- **type**: ui
+- **technology**: react/next.js
+- **responsibility**: user interface
+
+### backend api
+- **type**: api
+- **technology**: python/fastapi
+- **responsibility**: business logic and data management
+
+### database
+- **type**: storage
+- **technology**: postgresql
+- **responsibility**: data persistence
+
+
+## 🛠️ technology stack
+
+- react
+- postgresql
+- redis
+- aws
+- azure
+
+## 📐 design patterns
+
+- observer
+- strategy
+
+## 🔄 data flow
+
+- **type**: rest api
+- **protocol**: https
+
+
+## 🚀 deployment
+
+- **platform**: cloud
+- **containerization**: docker
+
+
+## 📈 scalability
+
+horizontal scaling with load balancer
+
+
+## 🔒 security considerations
+
+oauth2, https, rate limiting, input validation
+
+
+---
+
+*generated by architectagent (gpt-5)*
+
+create a detailed proposal in json format with these sections:
+
+1. **summary**: high-level architecture overview (2-3 paragraphs)
+2. **improvements**: suggested improvements to user's original idea based on research findings (bulleted list)
+3. **tech_stack**: recommended technologies with justifications (including alternatives considered)
+4. **structure**: folder/module structure with explanations
+5. **risks**: potential challenges and mitigation strategies
+6. **research_insights**: key findings from research that influenced design decisions
+
+**important:**
+- be specific and actionable
+- explain why each decision was made
+- reference research findings that support decisions
+- suggest improvements even if not explicitly requested
+- consider scalability, maintainability, testability
+
+return only valid json with these exact keys.'
+INFO:agents.specialized.architect_agent:🔍 Using understand_system() to analyze workspace...
+INFO:agents.specialized.architect_agent:🔍 INDEXING_AVAILABLE = True, self.code_indexer = True
+INFO:agents.specialized.architect_agent:✅ Taking indexing path with understand_system()
+INFO:agents.specialized.architect_agent:✅ Using cached system knowledge from Redis (permanent cache)
+INFO:agents.specialized.architect_agent:✅ Created: /Users/dominikfoert/git/KI_AutoAgent/.ki_autoagent/system_analysis.json
+INFO:agents.specialized.architect_agent:🔧 Using analyze_infrastructure_improvements()...
+INFO:agents.specialized.architect_agent:✅ Created: /Users/dominikfoert/git/KI_AutoAgent/.ki_autoagent/improvements.md
+INFO:langgraph_system.workflow:🔍 Architect response length: 2395 characters
+INFO:langgraph_system.workflow:📝 Architect FULL RESPONSE:
+================================================================================
+## 🔍 System-Analyse Report
+
+### 📊 Code-Index Status
+- **172** Files vollständig indiziert
+- **718** Functions analysiert
+- **177** Classes dokumentiert
+- **0** API Endpoints gefunden
+- **51182** Lines of Code
+
+### 🏗️ Architecture Overview
+```mermaid
+```mermaid
+graph TB
+```
+```
+
+### 🔒 Security Analysis
+
+### 📈 Performance Metrics
+- **Average Complexity**: 0.0
+- **Maintainability Index**: 0.0
+- **Quality Score**: 0.0/100
+### 🚀 Konkrete Verbesserungen (Priorisiert)
+
+#### 1. Enable Parallel Agent Execution in Orchestrator [HIGH]
+**Problem**: Agents execute sequentially even when they could run in parallel
+**Lösung**: Modify orchestrator to detect independent subtasks and run agents concurrently
+```python
+# In orchestrator_agent_v2.py
+# Execute independent subtasks in parallel:
+if workflow_type == "parallel":
+    tasks = [agent.execute(subtask) for subtask in independent_subtasks]
+    results = await asyncio.gather(*tasks)
+
+```
+**Impact**: 3-5x faster for multi-agent workflows like infrastructure analysis
+
+#### 2. Fix Stop Button Functionality [CRITICAL]
+**Problem**: Stop button doesn't properly cancel running agent tasks
+**Lösung**: Integrate CancelToken system with WebSocket stop handler
+```python
+# In server.py WebSocket handler:
+if message_type == "stop":
+    if client_id in active_tasks:
+        active_tasks[client_id].cancel()
+    await manager.send_json(client_id, {"type": "stopped"})
+
+```
+**Impact**: Users can interrupt long-running tasks, better UX
+
+#### 3. Implement Progress Message Deduplication [MEDIUM]
+**Problem**: Duplicate progress messages spam the UI ("Indexing file 28/154" appears multiple times)
+**Lösung**: Add deduplication and rate limiting for progress messages
+**Impact**: Cleaner UI, better performance, reduced message queue size
+
+#### 4. Optimize Agent Memory Usage [HIGH]
+**Problem**: system_analysis.json is 14GB - being loaded into memory repeatedly
+**Lösung**: Stream large files instead of loading entirely, use chunked processing
+**Impact**: Reduce memory usage by 90%, prevent OOM errors
+
+#### 5. Optimize WebSocket Message Handling [MEDIUM]
+**Problem**: WebSocket messages are processed synchronously, causing UI lag
+**Lösung**: Implement message queuing and batch processing
+**Impact**: Smoother UI updates, 50% reduction in message latency
+
+### 📊 Dependency Graph
+```mermaid
+```mermaid
+graph TB
+    A[Module] --> B[Dependencies]
+```
+```
+
+================================================================================
+INFO:langgraph_system.workflow:📝 First 100 chars: '## 🔍 System-Analyse Report\n\n### 📊 Code-Index Status\n- **172** Files vollständig indiziert\n- **718** '
+INFO:langgraph_system.workflow:📝 Last 100 chars: 'cy\n\n### 📊 Dependency Graph\n```mermaid\n```mermaid\ngraph TB\n    A[Module] --> B[Dependencies]\n```\n```\n'
+WARNING:langgraph_system.workflow:⚠️ No JSON markdown block found, trying direct parse
+ERROR:langgraph_system.workflow:❌ JSON decode error at position 0: Expecting value
+ERROR:langgraph_system.workflow:❌ Content around error: '## 🔍 System-Analyse Report\n\n### 📊 Code-Index Statu'
+ERROR:langgraph_system.workflow:❌ Failed to create structured proposal: Expecting value: line 1 column 1 (char 0)
+WARNING:langgraph_system.workflow:⚠️ Falling back to text-based proposal
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Sending architecture proposal to client_id: client_75c77cea
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Session ID: architect_json_test_095308
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Proposal size: 1500 chars
+INFO:langgraph_system.workflow:✅ WebSocket DEBUG: Architecture proposal sent successfully
+INFO:langgraph_system.workflow:📝 WebSocket DEBUG: Stored state in websocket_manager.active_workflows for session: architect_json_test_095308
+INFO:langgraph_system.workflow:📋 Architecture proposal created and sent to user
+INFO:langgraph_system.workflow:🏛️ Architecture proposal created - routing to approval node
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:📋 Architecture proposal pending - workflow will pause here
+INFO:langgraph_system.workflow:⏸️  Workflow pausing - user must approve via WebSocket
+INFO:langgraph_system.workflow:⏸️  Workflow waiting for architecture approval - routing to END
+INFO:langgraph_system.workflow:⏸️  Workflow paused - stored state for session architect_json_test_095308
+INFO:langgraph_system.workflow:📋 Waiting for architecture proposal approval via WebSocket
+INFO:__main__:🔌 Client client_75c77cea disconnected gracefully
+INFO:__main__:❌ Client client_75c77cea disconnected
+INFO:__main__:✅ Cleaned up session for client_75c77cea
+INFO:uvicorn.error:connection closed
+INFO:uvicorn.access:127.0.0.1:60049 - "GET / HTTP/1.1" 404
+INFO:uvicorn.error:Shutting down
+INFO:__main__:🔌 Client client_b18e1511 disconnected gracefully
+INFO:__main__:❌ Client client_b18e1511 disconnected
+INFO:__main__:✅ Cleaned up session for client_b18e1511
+INFO:__main__:🔌 Client client_2ef0b02b disconnected gracefully
+INFO:__main__:❌ Client client_2ef0b02b disconnected
+INFO:__main__:✅ Cleaned up session for client_2ef0b02b
+INFO:uvicorn.error:connection closed
+INFO:uvicorn.error:connection closed
+INFO:uvicorn.error:Waiting for application shutdown.
+INFO:__main__:👋 Shutting down KI AutoAgent Backend...
+INFO:uvicorn.error:Application shutdown complete.
+INFO:uvicorn.error:Finished server process [69827]

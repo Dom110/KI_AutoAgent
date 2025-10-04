@@ -122,43 +122,49 @@ export class BackendManager {
                 }
             }
 
-            // Get backend directory path
+            // v5.7.0: Backend now runs from ~/.ki-autoagent/ (global installation)
             const workspaceRoot = vscode.workspace.rootPath;
             if (!workspaceRoot) {
                 throw new Error('No workspace folder open');
             }
 
-            const backendDir = path.join(workspaceRoot, 'backend');
-            const venvPython = path.join(workspaceRoot, 'venv', 'bin', 'python');  // venv is in project root, not backend
-            // Use LangGraph server for v5.0.0
-            const serverPath = path.join(backendDir, 'api', 'server_langgraph.py');
-            this.outputChannel.appendLine(`🔍 DEBUG: Starting LangGraph server v5.0.0 on port 8001`);
+            // Use global backend from ~/.ki-autoagent/
+            const homeDir = require('os').homedir();
+            const globalBackendDir = path.join(homeDir, '.ki-autoagent', 'backend');
+            const globalVenvPython = path.join(homeDir, '.ki-autoagent', 'venv', 'bin', 'python');
+            const serverPath = path.join(globalBackendDir, 'api', 'server_langgraph.py');
 
-            // Check if backend directory exists
-            if (!fs.existsSync(backendDir)) {
-                throw new Error(`Backend directory not found: ${backendDir}`);
+            this.outputChannel.appendLine(`🔍 DEBUG: Starting LangGraph server v5.0.0 on port 8001`);
+            this.outputChannel.appendLine(`📂 Backend location: ${globalBackendDir}`);
+            this.outputChannel.appendLine(`📂 User workspace: ${workspaceRoot}`);
+
+            // Check if global backend directory exists
+            if (!fs.existsSync(globalBackendDir)) {
+                throw new Error(`❌ Global backend not found at: ${globalBackendDir}\n` +
+                               `Please install KI AutoAgent backend:\n` +
+                               `  cd ${path.dirname(globalBackendDir)}\n` +
+                               `  # Follow installation instructions`);
             }
 
             // Check if virtual environment exists
-            if (!fs.existsSync(venvPython)) {
-                this.outputChannel.appendLine(`⚠️ Virtual environment not found at ${venvPython}, using system Python`);
-                this.outputChannel.appendLine(`Looking for venv in project root: ${workspaceRoot}/venv`);
-                // Use system Python as fallback
+            if (!fs.existsSync(globalVenvPython)) {
+                this.outputChannel.appendLine(`⚠️ Virtual environment not found at ${globalVenvPython}`);
+                throw new Error(`Virtual environment not found. Please run setup in ~/.ki-autoagent/`);
             } else {
-                this.outputChannel.appendLine(`✅ Using virtual environment: ${venvPython}`);
+                this.outputChannel.appendLine(`✅ Using virtual environment: ${globalVenvPython}`);
             }
 
-            // Start the backend process
-            const pythonExecutable = fs.existsSync(venvPython) ? venvPython : this.pythonPath;
+            // Start the backend process with workspace as parameter
+            const pythonExecutable = globalVenvPython;
 
-            // Use server_langgraph.py for v5.0.0 on port 8001
-            this.backendProcess = spawn(pythonExecutable, [
-                path.join(backendDir, 'api', 'server_langgraph.py')
-            ], {
-                cwd: workspaceRoot, // Use project root instead of backend/
+            // Pass workspace path to backend via environment variable
+            this.backendProcess = spawn(pythonExecutable, [serverPath], {
+                cwd: globalBackendDir,  // Backend runs from its own directory
                 env: {
                     ...process.env,
-                    PYTHONPATH: backendDir
+                    PYTHONPATH: globalBackendDir,
+                    KI_WORKSPACE_PATH: workspaceRoot,  // Tell backend which workspace to analyze
+                    KI_CONFIG_DIR: path.join(homeDir, '.ki-autoagent', 'config')
                 }
             });
 
