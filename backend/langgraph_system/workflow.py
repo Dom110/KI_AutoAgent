@@ -918,13 +918,17 @@ class AgentWorkflow:
                     "proposal": revised_proposal
                 })
 
-                # Send via WebSocket
+                # Send via WebSocket (v5.8.1: ensure consistent format)
                 if self.websocket_manager:
                     await self.websocket_manager.send_json(state["client_id"], {
                         "type": "architecture_proposal_revised",
                         "proposal": revised_proposal,
-                        "formatted_message": formatted_msg,
-                        "session_id": state.get("session_id")
+                        "content": formatted_msg,  # v5.8.1: use 'content' for consistency
+                        "session_id": state.get("session_id"),
+                        "metadata": {
+                            "waiting_for_approval": True,
+                            "approval_type": "architecture_proposal"
+                        }
                     })
 
                 logger.info("📋 Revised proposal sent to user")
@@ -964,16 +968,16 @@ class AgentWorkflow:
                     logger.info(f"🔌 WebSocket DEBUG: Session ID: {state.get('session_id')}")
                     logger.info(f"🔌 WebSocket DEBUG: Proposal size: {len(str(proposal))} chars")
 
-                    # Send as agent response that appears in chat
+                    # Send as architecture_proposal (v5.8.1 fix: UI expects this type!)
                     message_to_send = {
-                        "type": "agent_response",
+                        "type": "architecture_proposal",
                         "agent": "architect",
-                        "content": formatted_msg + "\n\n📋 **Please reply with:** 'approve', 'reject', or provide feedback",
+                        "content": formatted_msg,
+                        "proposal": proposal,
                         "session_id": state.get("session_id"),
                         "metadata": {
                             "waiting_for_approval": True,
-                            "approval_type": "architecture_proposal",
-                            "proposal": proposal
+                            "approval_type": "architecture_proposal"
                         }
                     }
 

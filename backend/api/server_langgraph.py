@@ -745,20 +745,23 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
                         "result": step.result
                     })
 
-        # Send final result
-        await manager.send_json(client_id, {
-            "type": "response",
-            "agent": "orchestrator",
-            "content": final_state.get("final_result", "Task completed"),
-            "metadata": {
-                "execution_time": (
-                    final_state["end_time"] - final_state["start_time"]
-                ).total_seconds() if final_state.get("end_time") else None,
-                "token_usage": final_state.get("token_usage"),
-                "cost": final_state.get("cost"),
-                "status": final_state.get("status")
-            }
-        })
+        # Send final result (v5.8.1: skip if waiting for approval)
+        if final_state.get("status") != "waiting_architecture_approval":
+            await manager.send_json(client_id, {
+                "type": "response",
+                "agent": "orchestrator",
+                "content": final_state.get("final_result", "Task completed"),
+                "metadata": {
+                    "execution_time": (
+                        final_state["end_time"] - final_state["start_time"]
+                    ).total_seconds() if final_state.get("end_time") else None,
+                    "token_usage": final_state.get("token_usage"),
+                    "cost": final_state.get("cost"),
+                    "status": final_state.get("status")
+                }
+            })
+        else:
+            logger.info(f"⏸️  Workflow waiting for architecture approval - not sending final response yet")
 
         # Add to session messages
         session["messages"].append({
