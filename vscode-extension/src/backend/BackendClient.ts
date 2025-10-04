@@ -8,7 +8,7 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 
 export interface BackendMessage {
-    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed';
+    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed' | 'architecture_proposal' | 'architecture_proposal_revised' | 'architectureApprovalProcessed';
     content?: string;
     agent?: string;
     metadata?: any;
@@ -28,6 +28,8 @@ export interface BackendMessage {
     client_id?: string;  // For initialized message
     workspace_path?: string;  // For initialized message
     requires_init?: boolean;  // For connected message
+    proposal?: any;  // For architecture_proposal messages
+    decision?: string;  // For architectureApprovalProcessed messages
 }
 
 export interface ChatRequest {
@@ -363,7 +365,21 @@ export class BackendClient extends EventEmitter {
                 this.emit('session_restore', message);
                 break;
 
+            case 'architecture_proposal':
+            case 'architecture_proposal_revised':
+                this.log(`🏛️ Architecture Proposal ${message.type === 'architecture_proposal_revised' ? '(Revised)' : ''}`);
+                this.log(`📋 Proposal data: ${message.proposal ? 'Present' : 'Missing'}`);
+                // Forward to UI - use exact event name that MultiAgentChatPanel expects!
+                this.emit(message.type, message);  // v5.8.1: emit exact type (architecture_proposal or architecture_proposal_revised)
+                break;
+
+            case 'architectureApprovalProcessed':
+                this.log(`✅ Architecture approval processed: ${message.decision}`);
+                this.emit('architectureApprovalProcessed', message);
+                break;
+
             default:
+                this.log(`⚠️ Unhandled message type: ${message.type}`);
                 this.emit('message', message);
         }
     }
