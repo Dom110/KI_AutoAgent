@@ -145,22 +145,31 @@ class ArchitectAgent(ChatAgent):
         # Initialize OpenAI service with specific model
         self.openai = OpenAIService(model=self.config.model)
 
-        # v5.7.0: Get project path from KI_WORKSPACE_PATH (set by VS Code Extension)
-        # Backend runs from ~/.ki-autoagent/backend/, but analyzes user workspace
+        # v5.8.0: Get workspace path from KI_WORKSPACE_PATH (set by client)
+        # Backend runs from $HOME/.ki_autoagent/backend/, but analyzes user workspace
         # Priority: KI_WORKSPACE_PATH > PROJECT_PATH > fallback to parent of backend dir
         default_path = os.getcwd() if os.path.basename(os.getcwd()) != 'backend' else os.path.dirname(os.getcwd())
-        project_path = os.getenv('KI_WORKSPACE_PATH') or os.getenv('PROJECT_PATH', default_path)
+        workspace_path = os.getenv('KI_WORKSPACE_PATH') or os.getenv('PROJECT_PATH', default_path)
 
         # For consistency, always use the full absolute path
-        project_path = os.path.abspath(project_path)
-        logger.info(f"🏗️ Initializing ArchitectAgent with path: {project_path}")
+        workspace_path = os.path.abspath(workspace_path)
+        logger.info(f"🏗️ Initializing ArchitectAgent with workspace: {workspace_path}")
+
+        # v5.8.0: Workspace-specific cache directory
+        # Cache/DB files go in $WORKSPACE/.ki_autoagent_ws/cache/
+        workspace_cache_dir = os.path.join(workspace_path, ".ki_autoagent_ws", "cache")
+        os.makedirs(workspace_cache_dir, exist_ok=True)
+        logger.info(f"📦 Workspace cache directory: {workspace_cache_dir}")
+
+        # Store workspace path for later use
+        self.workspace_path = workspace_path
 
         # Initialize cache services if available
         # DOCUMENTED REASON: Cache services are optional - not yet implemented
         # Architect works without caching, just slower
         if CACHE_SERVICES_AVAILABLE:
-            logger.info(f"🏗️ Initializing ProjectCache with path: {project_path}")
-            self.project_cache = ProjectCache(project_path)
+            # Pass cache_dir to ProjectCache (it will use this instead of creating in workspace root)
+            self.project_cache = ProjectCache(workspace_cache_dir)
             if not self.project_cache.connected:
                 from core.exceptions import CacheNotAvailableError
                 raise CacheNotAvailableError(
@@ -169,11 +178,11 @@ class ArchitectAgent(ChatAgent):
                     line=123
                 )
 
-            # Initialize SQLite search
-            self.code_search = LightweightCodeSearch(project_path)
+            # Initialize SQLite search with workspace path and cache dir
+            self.code_search = LightweightCodeSearch(workspace_path, cache_dir=workspace_cache_dir)
 
             # Initialize SMART file watcher with debouncing
-            self.file_watcher = SmartFileWatcher(project_path, self.project_cache, debounce_seconds=30)
+            self.file_watcher = SmartFileWatcher(workspace_path, self.project_cache, debounce_seconds=30)
             self.file_watcher.start()
 
             logger.info("✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce")

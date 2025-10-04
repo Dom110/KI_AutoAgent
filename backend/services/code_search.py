@@ -37,16 +37,20 @@ class LightweightCodeSearch:
     """
     Fast code search using regex patterns
     No external dependencies required
+
+    v5.8.0: Optional cache_dir parameter for consistency (not used, search is always live)
     """
 
-    def __init__(self, project_root: str):
+    def __init__(self, project_root: str, cache_dir: Optional[str] = None):
         """
         Initialize code search
 
         Args:
             project_root: Root directory to search
+            cache_dir: Optional cache directory (for API consistency, not used in this implementation)
         """
         self.project_root = Path(project_root)
+        self.cache_dir = Path(cache_dir) if cache_dir else None
         self.default_ignore_patterns = {
             '.git', '__pycache__', 'node_modules', '.venv', 'venv',
             'dist', 'build', '.pytest_cache', '.mypy_cache', '.tox',

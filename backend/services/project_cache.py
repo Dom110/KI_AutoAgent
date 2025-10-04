@@ -16,7 +16,11 @@ logger = logging.getLogger(__name__)
 class ProjectCache:
     """
     Cache for project analysis results
-    Stores results in .kiautoagent/cache/ directory
+    Stores results in workspace cache directory
+
+    v5.8.0: Supports both:
+    - Legacy: project_root → creates .kiautoagent/cache inside
+    - New: explicit cache_dir path (for $WORKSPACE/.ki_autoagent_ws/cache/)
     """
 
     def __init__(self, project_root: str, cache_duration_hours: int = 24):
@@ -24,11 +28,23 @@ class ProjectCache:
         Initialize project cache
 
         Args:
-            project_root: Root directory of the project
+            project_root: Can be either:
+                          - Workspace root (legacy) → creates .kiautoagent/cache inside
+                          - Cache directory path (v5.8.0) → uses directly
             cache_duration_hours: How long to keep cached data (default 24h)
         """
-        self.project_root = Path(project_root)
-        self.cache_dir = self.project_root / ".kiautoagent" / "cache"
+        project_path = Path(project_root)
+
+        # v5.8.0: If project_root ends with 'cache', use it directly
+        # Otherwise, use legacy behavior (create .kiautoagent/cache inside)
+        if project_path.name == "cache":
+            self.cache_dir = project_path
+            self.project_root = project_path.parent.parent  # Go up from cache/.ki_autoagent_ws/
+        else:
+            # Legacy behavior
+            self.project_root = project_path
+            self.cache_dir = self.project_root / ".kiautoagent" / "cache"
+
         self.cache_duration = timedelta(hours=cache_duration_hours)
         self.connected = True  # Always connected for file-based cache
 

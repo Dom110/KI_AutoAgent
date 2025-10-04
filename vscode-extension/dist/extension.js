@@ -9117,30 +9117,30 @@ class BackendManager {
                     throw new Error(`Port ${port} is already in use`);
                 }
             }
-            // v5.7.0: Backend now runs from ~/.ki-autoagent/ (global installation)
+            // v5.8.0: Backend now runs from $HOME/.ki_autoagent/ (global installation)
             const workspaceRoot = vscode.workspace.rootPath;
             if (!workspaceRoot) {
                 throw new Error('No workspace folder open');
             }
-            // Use global backend from ~/.ki-autoagent/
+            // Use global backend from $HOME/.ki_autoagent/
             const homeDir = (__webpack_require__(/*! os */ "os").homedir)();
-            const globalBackendDir = path.join(homeDir, '.ki-autoagent', 'backend');
-            const globalVenvPython = path.join(homeDir, '.ki-autoagent', 'venv', 'bin', 'python');
+            const globalBackendDir = path.join(homeDir, '.ki_autoagent', 'backend');
+            const globalVenvPython = path.join(homeDir, '.ki_autoagent', 'venv', 'bin', 'python');
             const serverPath = path.join(globalBackendDir, 'api', 'server_langgraph.py');
-            this.outputChannel.appendLine(`🔍 DEBUG: Starting LangGraph server v5.0.0 on port 8001`);
+            this.outputChannel.appendLine(`🔍 DEBUG: Starting LangGraph server v5.8.0 on port 8001`);
             this.outputChannel.appendLine(`📂 Backend location: ${globalBackendDir}`);
             this.outputChannel.appendLine(`📂 User workspace: ${workspaceRoot}`);
             // Check if global backend directory exists
             if (!fs.existsSync(globalBackendDir)) {
                 throw new Error(`❌ Global backend not found at: ${globalBackendDir}\n` +
                     `Please install KI AutoAgent backend:\n` +
-                    `  cd ${path.dirname(globalBackendDir)}\n` +
-                    `  # Follow installation instructions`);
+                    `  Run: ./install.sh from the KI_AutoAgent repository\n` +
+                    `  See: https://github.com/dominikfoert/KI_AutoAgent`);
             }
             // Check if virtual environment exists
             if (!fs.existsSync(globalVenvPython)) {
                 this.outputChannel.appendLine(`⚠️ Virtual environment not found at ${globalVenvPython}`);
-                throw new Error(`Virtual environment not found. Please run setup in ~/.ki-autoagent/`);
+                throw new Error(`Virtual environment not found. Please run: ./install.sh`);
             }
             else {
                 this.outputChannel.appendLine(`✅ Using virtual environment: ${globalVenvPython}`);
@@ -9154,7 +9154,7 @@ class BackendManager {
                     ...process.env,
                     PYTHONPATH: globalBackendDir,
                     KI_WORKSPACE_PATH: workspaceRoot, // Tell backend which workspace to analyze
-                    KI_CONFIG_DIR: path.join(homeDir, '.ki-autoagent', 'config')
+                    KI_CONFIG_DIR: path.join(homeDir, '.ki_autoagent', 'config')
                 }
             });
             // Handle stdout

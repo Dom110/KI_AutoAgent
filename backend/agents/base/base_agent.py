@@ -221,37 +221,86 @@ class BaseAgent(ABC):
         logger.info(f"🤖 {self.config.icon} {self.name} initialized (Model: {self.model})")
 
     def _load_instructions(self) -> str:
-        """Load agent instructions from file if available"""
-        if self.config.instructions_path:
-            # Try multiple path resolutions including both .kiautoagent and .ki_autoagent
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        """
+        Load agent instructions with two-tier system (v5.8.0).
 
-            # Try both .kiautoagent (new) and .ki_autoagent (legacy) variants
-            path_variants = [self.config.instructions_path]
-            if self.config.instructions_path.startswith('.ki_autoagent/'):
-                # Convert .ki_autoagent to .kiautoagent
-                path_variants.append(self.config.instructions_path.replace('.ki_autoagent/', '.kiautoagent/'))
+        1. Base instructions (required) from $HOME/.ki_autoagent/config/instructions/
+           - Agent identity, core capabilities, base behavior
+        2. Project instructions (optional) from $WORKSPACE/.ki_autoagent_ws/instructions/
+           - Project-specific rules, style guides, custom behavior
 
-            possible_paths = []
-            for path_variant in path_variants:
-                possible_paths.extend([
-                    path_variant,  # As provided
-                    os.path.join(os.getcwd(), path_variant),  # From CWD
-                    os.path.join(project_root, path_variant),  # From project root
-                ])
+        Returns merged instructions: Base + Project (if available)
+        """
+        if not self.config.instructions_path:
+            return ""
 
-            for path in possible_paths:
-                if os.path.exists(path):
+        # Extract filename from instructions_path
+        # e.g. ".ki_autoagent/instructions/architect-v2-instructions.md" → "architect-v2-instructions.md"
+        instructions_filename = os.path.basename(self.config.instructions_path)
+
+        # 1. Load base instructions from global config
+        home_dir = os.path.expanduser("~")
+
+        # Try both .ki_autoagent (new) and .ki-autoagent (legacy for backwards compatibility)
+        base_instructions_paths = [
+            os.path.join(home_dir, ".ki_autoagent", "config", "instructions", instructions_filename),
+            os.path.join(home_dir, ".ki-autoagent", "config", "instructions", instructions_filename),
+        ]
+
+        base_instructions = None
+        base_path_used = None
+
+        for base_path in base_instructions_paths:
+            if os.path.exists(base_path):
+                try:
+                    with open(base_path, 'r', encoding='utf-8') as f:
+                        base_instructions = f.read()
+                        base_path_used = base_path
+                        logger.info(f"✅ Base instructions loaded: {base_path}")
+                        break
+                except Exception as e:
+                    logger.warning(f"Error reading base instructions from {base_path}: {e}")
+
+        if not base_instructions:
+            logger.warning(
+                f"Base instructions not found for {self.name}. "
+                f"Tried: {base_instructions_paths}"
+            )
+            return ""
+
+        # 2. Try to load project-specific instructions (optional)
+        workspace_path = os.getenv("KI_WORKSPACE_PATH")
+
+        if workspace_path:
+            # Extract agent ID from filename
+            # e.g. "architect-v2-instructions.md" → "architect"
+            agent_id = instructions_filename.split('-')[0]
+
+            project_instructions_paths = [
+                os.path.join(workspace_path, ".ki_autoagent_ws", "instructions", f"{agent_id}-custom.md"),
+                os.path.join(workspace_path, ".kiautoagent", "instructions", f"{agent_id}-custom.md"),  # Legacy
+            ]
+
+            for project_path in project_instructions_paths:
+                if os.path.exists(project_path):
                     try:
-                        with open(path, 'r', encoding='utf-8') as f:
-                            content = f.read()
-                            logger.info(f"✅ Loaded instructions for {self.name} from {path}")
-                            return content
-                    except Exception as e:
-                        logger.warning(f"Error reading instructions from {path}: {e}")
+                        with open(project_path, 'r', encoding='utf-8') as f:
+                            project_instructions = f.read()
+                            logger.info(f"✅ Project instructions loaded: {project_path}")
 
-            logger.warning(f"Instructions file not found for {self.name}. Tried: {possible_paths}")
-        return ""
+                            # Merge: Base + Project
+                            return (
+                                f"{base_instructions}\n\n"
+                                f"{'='*80}\n"
+                                f"# PROJECT-SPECIFIC INSTRUCTIONS\n"
+                                f"{'='*80}\n\n"
+                                f"{project_instructions}"
+                            )
+                    except Exception as e:
+                        logger.warning(f"Error reading project instructions from {project_path}: {e}")
+
+        # Return base instructions only (no project-specific found)
+        return base_instructions
 
     def _get_language_directive(self) -> str:
         """Get language directive based on settings"""
