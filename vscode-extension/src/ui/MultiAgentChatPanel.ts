@@ -347,6 +347,21 @@ export class MultiAgentChatPanel {
             });
         });
 
+        // v5.8.1: Agent Activity Visualization
+        this.backendClient.on('agent_activity', (message: any) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`🔧 Agent activity: ${message.type} from ${message.agent}`);
+            this.sendMessage({
+                type: 'agent_activity',
+                activity_type: message.type,
+                agent: message.agent,
+                content: message.content,
+                tool: message.tool,
+                tool_status: message.tool_status,
+                tool_result: message.tool_result,
+                timestamp: message.timestamp
+            });
+        });
+
         MultiAgentChatPanel.debugChannel.appendLine('✅ Backend handlers setup complete');
     }
 
@@ -1309,6 +1324,83 @@ export class MultiAgentChatPanel {
                     color: var(--vscode-editor-foreground);
                     margin-top: 5px;
                 }
+
+                /* v5.8.1: Agent Activity Visualization */
+                .agent-activity {
+                    background: var(--vscode-editor-inactiveSelectionBackground);
+                    border-radius: 8px;
+                    padding: 12px;
+                    margin: 12px 0;
+                    transition: opacity 0.3s ease;
+                }
+
+                .agent-activity .activity-header {
+                    margin-bottom: 8px;
+                }
+
+                .agent-activity .agent-badge {
+                    background: var(--vscode-badge-background);
+                    color: var(--vscode-badge-foreground);
+                    padding: 4px 10px;
+                    border-radius: 12px;
+                    font-size: 11px;
+                    font-weight: bold;
+                    text-transform: capitalize;
+                }
+
+                .agent-activity .activity-content {
+                    padding-left: 8px;
+                }
+
+                .agent-activity .activity-item {
+                    padding: 6px 0;
+                    font-size: 13px;
+                    color: var(--vscode-editor-foreground);
+                    opacity: 0.9;
+                }
+
+                .agent-activity .activity-item.thinking {
+                    font-style: italic;
+                    color: var(--vscode-descriptionForeground);
+                }
+
+                .agent-activity .activity-item.tool-running {
+                    color: var(--vscode-charts-blue);
+                }
+
+                .agent-activity .activity-item.tool-success {
+                    color: var(--vscode-charts-green);
+                }
+
+                .agent-activity .activity-item.tool-error {
+                    color: var(--vscode-charts-red);
+                }
+
+                .agent-activity .activity-item.complete {
+                    color: var(--vscode-charts-green);
+                    font-weight: 600;
+                }
+
+                /* Agent-specific activity colors (inherit from existing agent colors) */
+                .architect-activity {
+                    border-left: 4px solid rgba(42, 74, 127, 0.8);
+                }
+
+                .codesmith-activity {
+                    border-left: 4px solid rgba(74, 62, 127, 0.8);
+                }
+
+                .orchestrator-activity {
+                    border-left: 4px solid rgba(106, 78, 106, 0.8);
+                }
+
+                .reviewer-activity {
+                    border-left: 4px solid rgba(106, 90, 62, 0.8);
+                }
+
+                .fixer-activity {
+                    border-left: 4px solid rgba(62, 122, 106, 0.8);
+                }
             </style>
         </head>
         <body>
@@ -1882,6 +1974,11 @@ export class MultiAgentChatPanel {
                             if (messageInput) messageInput.disabled = false;
                             if (sendButton) sendButton.style.display = 'inline-block';
                             break;
+
+                        case 'agent_activity':
+                            // v5.8.1: Agent Activity Visualization
+                            showAgentActivity(message);
+                            break;
                     }
                 });
 
@@ -1953,6 +2050,74 @@ export class MultiAgentChatPanel {
                         }
                     });
                     progressMessages.clear();
+                }
+
+                // ============================================================================
+                // v5.8.1: Agent Activity Visualization
+                // ============================================================================
+
+                const agentActivityMap = new Map();  // agent -> activity div
+
+                function showAgentActivity(message) {
+                    const {activity_type, agent, content, tool, tool_status, tool_result} = message;
+
+                    // Get or create agent activity container
+                    let activityDiv = agentActivityMap.get(agent);
+
+                    if (!activityDiv) {
+                        activityDiv = document.createElement('div');
+                        activityDiv.className = \`agent-activity \${agent}-activity\`;
+                        activityDiv.innerHTML = \`
+                            <div class="activity-header">
+                                <span class="agent-badge">\${agent}</span>
+                            </div>
+                            <div class="activity-content"></div>
+                        \`;
+                        messagesDiv.appendChild(activityDiv);
+                        agentActivityMap.set(agent, activityDiv);
+                    }
+
+                    const activityContent = activityDiv.querySelector('.activity-content');
+
+                    if (activity_type === 'agent_thinking') {
+                        activityContent.innerHTML = \`<div class="activity-item thinking">💭 \${content}</div>\`;
+                    } else if (activity_type === 'agent_progress') {
+                        const progressItem = document.createElement('div');
+                        progressItem.className = 'activity-item progress';
+                        progressItem.innerHTML = \`📊 \${content}\`;
+                        activityContent.appendChild(progressItem);
+                    } else if (activity_type === 'agent_tool_start') {
+                        const toolItem = document.createElement('div');
+                        toolItem.className = 'activity-item tool-running';
+                        toolItem.id = \`tool-\${agent}-\${tool}\`;
+                        toolItem.innerHTML = \`🔧 \${tool}() → ⏳ Running...\`;
+                        activityContent.appendChild(toolItem);
+                    } else if (activity_type === 'agent_tool_complete') {
+                        const toolItem = document.getElementById(\`tool-\${agent}-\${tool}\`);
+                        if (toolItem) {
+                            const icon = tool_status === 'success' ? '✅' : '❌';
+                            toolItem.className = \`activity-item tool-\${tool_status}\`;
+                            toolItem.innerHTML = \`🔧 \${tool}() → \${icon} \${tool_status}\`;
+                        }
+                    } else if (activity_type === 'agent_complete') {
+                        const completeItem = document.createElement('div');
+                        completeItem.className = 'activity-item complete';
+                        completeItem.innerHTML = \`✅ \${content || 'Completed'}\`;
+                        activityContent.appendChild(completeItem);
+
+                        // Remove activity div after 2 seconds
+                        setTimeout(() => {
+                            if (activityDiv.parentNode) {
+                                activityDiv.style.opacity = '0';
+                                setTimeout(() => {
+                                    if (activityDiv.parentNode) activityDiv.parentNode.removeChild(activityDiv);
+                                    agentActivityMap.delete(agent);
+                                }, 300);
+                            }
+                        }, 2000);
+                    }
+
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
                 }
 
                 // ============================================================================

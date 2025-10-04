@@ -8,7 +8,7 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 
 export interface BackendMessage {
-    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed' | 'architecture_proposal' | 'architecture_proposal_revised' | 'architectureApprovalProcessed';
+    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'agent_complete' | 'agent_tool_start' | 'agent_tool_complete' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed' | 'architecture_proposal' | 'architecture_proposal_revised' | 'architectureApprovalProcessed';
     content?: string;
     agent?: string;
     metadata?: any;
@@ -31,6 +31,9 @@ export interface BackendMessage {
     proposal?: any;  // For architecture_proposal messages
     decision?: string;  // For architectureApprovalProcessed messages
     feedback?: string;  // For architecture_approval outgoing messages
+    tool?: string;  // For agent_tool_start/complete messages
+    tool_status?: string;  // For agent_tool_start/complete messages ("running" | "success" | "error")
+    tool_result?: string;  // For agent_tool_complete messages
 }
 
 export interface ChatRequest {
@@ -291,7 +294,9 @@ export class BackendClient extends EventEmitter {
                 break;
 
             case 'agent_thinking':
+                this.log(`💭 ${message.agent || 'Agent'} thinking: ${message.content || message.message || ''}`);
                 this.emit('thinking', message);
+                this.emit('agent_activity', message);  // v5.8.1: Also emit for new activity visualization
                 break;
 
             case 'response':  // LangGraph v5.0.0 response
@@ -317,6 +322,7 @@ export class BackendClient extends EventEmitter {
                 }
                 this.log(`📊 Agent Progress: ${message.agent} - ${progressContent}`);
                 this.emit('progress', message);
+                this.emit('agent_activity', message);  // v5.8.1: Also emit for new activity visualization
                 break;
 
             case 'agent_response':
@@ -377,6 +383,18 @@ export class BackendClient extends EventEmitter {
             case 'architectureApprovalProcessed':
                 this.log(`✅ Architecture approval processed: ${message.decision}`);
                 this.emit('architectureApprovalProcessed', message);
+                break;
+
+            case 'agent_complete':
+                this.log(`✅ ${message.agent} completed: ${message.content || ''}`);
+                this.emit('agent_activity', message);
+                break;
+
+            case 'agent_tool_start':
+            case 'agent_tool_complete':
+                const toolAction = message.type === 'agent_tool_start' ? 'started' : 'completed';
+                this.log(`🔧 ${message.agent} tool ${toolAction}: ${message.tool} [${message.tool_status}]`);
+                this.emit('agent_activity', message);
                 break;
 
             default:

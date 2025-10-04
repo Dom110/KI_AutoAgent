@@ -537,6 +537,62 @@ class AgentWorkflow:
 
     # =================== End v5.4.3 Enhancements ===================
 
+    # =================== v5.8.1: Agent Activity Visualization ===================
+
+    async def _send_agent_activity(
+        self,
+        state: ExtendedAgentState,
+        activity_type: str,
+        agent: str,
+        content: str = "",
+        tool: str = "",
+        tool_status: str = "",
+        tool_result: Any = None
+    ):
+        """
+        Send agent activity messages to UI for visualization
+
+        Args:
+            state: Current workflow state
+            activity_type: "thinking" | "tool_start" | "tool_complete" | "progress" | "complete"
+            agent: Agent name (architect, codesmith, etc.)
+            content: Activity description
+            tool: Tool name (if tool-related)
+            tool_status: "running" | "success" | "error"
+            tool_result: Tool execution result
+        """
+        if not self.websocket_manager or not state.get("client_id"):
+            return
+
+        try:
+            message = {
+                "type": f"agent_{activity_type}",
+                "agent": agent,
+                "timestamp": datetime.now().isoformat()
+            }
+
+            if content:
+                message["content"] = content
+
+            if tool:
+                message["tool"] = tool
+                message["tool_status"] = tool_status
+
+                if tool_result is not None:
+                    # Truncate large results
+                    result_str = str(tool_result)
+                    if len(result_str) > 500:
+                        result_str = result_str[:500] + "..."
+                    message["tool_result"] = result_str
+
+            await self.websocket_manager.send_json(state["client_id"], message)
+            logger.debug(f"📤 Sent {agent} activity: {activity_type}")
+
+        except Exception as e:
+            logger.error(f"Failed to send agent activity: {e}")
+
+    # =================== End Agent Activity Visualization ===================
+
     async def orchestrator_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
         """
         Orchestrator node - plans and decomposes tasks
@@ -940,9 +996,25 @@ class AgentWorkflow:
             if not state.get("architecture_proposal"):
                 logger.info("📋 No proposal exists - performing research and creating proposal")
 
+                # v5.8.1: Send thinking message
+                await self._send_agent_activity(
+                    state,
+                    "thinking",
+                    "architect",
+                    content="Analyzing requirements and researching best practices..."
+                )
+
                 # Step 1: Do research (existing behavior)
                 research_result = await self._execute_architect_task(state, current_step)
                 logger.info(f"🔍 Research completed: {research_result[:200]}...")
+
+                # v5.8.1: Send progress message
+                await self._send_agent_activity(
+                    state,
+                    "progress",
+                    "architect",
+                    content="Creating architecture proposal..."
+                )
 
                 # Step 2: Create proposal based on research
                 proposal = await self._create_architecture_proposal(state, research_result)
@@ -1069,6 +1141,14 @@ class AgentWorkflow:
 
         logger.info(f"💻 Executing step {current_step.id}: {current_step.task[:100]}...")
 
+        # v5.8.1: Send thinking message
+        await self._send_agent_activity(
+            state,
+            "thinking",
+            "codesmith",
+            content=f"Implementing: {current_step.task[:100]}..."
+        )
+
         # Check for code patterns
         patterns = memory.recall_similar(
             current_step.task,
@@ -1082,6 +1162,14 @@ class AgentWorkflow:
             current_step.result = result
             current_step.status = "completed"
             logger.info(f"✅ CodeSmith node set step {current_step.id} to completed")
+
+            # v5.8.1: Send completion message
+            await self._send_agent_activity(
+                state,
+                "complete",
+                "codesmith",
+                content=f"✅ Implementation completed"
+            )
 
             # ✅ FIX: Create NEW list to trigger LangGraph state update
             state["execution_plan"] = list(state["execution_plan"])
