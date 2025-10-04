@@ -8,7 +8,7 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 
 export interface BackendMessage {
-    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'response' | 'step_completed';
+    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed';
     content?: string;
     agent?: string;
     metadata?: any;
@@ -24,6 +24,10 @@ export interface BackendMessage {
     task?: any;  // For session_restore - original task info
     progress?: any[];  // For session_restore - progress messages
     result?: any;  // For session_restore - completed result
+    session_id?: string;  // For initialized message
+    client_id?: string;  // For initialized message
+    workspace_path?: string;  // For initialized message
+    requires_init?: boolean;  // For connected message
 }
 
 export interface ChatRequest {
@@ -100,43 +104,78 @@ export class BackendClient extends EventEmitter {
 
     /**
      * Connect to the backend WebSocket
+     * v5.8.1: Send init message with workspace_path after connection
      */
     public async connect(): Promise<void> {
         return new Promise((resolve, reject) => {
             try {
-                // Add workspace path as query parameter for persistent session ID
+                // Get workspace path for init message
                 const workspaceFolders = vscode.workspace.workspaceFolders;
-                let wsUrlWithWorkspace = this.wsUrl;
+                const workspacePath = workspaceFolders && workspaceFolders.length > 0
+                    ? workspaceFolders[0].uri.fsPath
+                    : null;
 
-                if (workspaceFolders && workspaceFolders.length > 0) {
-                    const workspacePath = workspaceFolders[0].uri.fsPath;
-                    const encodedPath = encodeURIComponent(workspacePath);
-                    wsUrlWithWorkspace = `${this.wsUrl}?workspace=${encodedPath}`;
-                    this.log(`🔑 Using workspace-based connection: ${workspacePath}`);
-                } else {
-                    this.log(`⚠️ No workspace folder found, using random session ID`);
+                if (!workspacePath) {
+                    const error = new Error('No workspace folder open. Please open a folder or workspace.');
+                    this.log(`❌ ${error.message}`);
+                    reject(error);
+                    return;
                 }
 
-                this.log(`🔌 Connecting to backend at ${wsUrlWithWorkspace}...`);
+                this.log(`🔌 Connecting to backend at ${this.wsUrl}...`);
+                this.log(`📂 Workspace: ${workspacePath}`);
 
-                this.ws = new WebSocket(wsUrlWithWorkspace);
+                this.ws = new WebSocket(this.wsUrl);
+
+                // Track initialization state
+                let isInitialized = false;
 
                 this.ws.on('open', () => {
-                    this.isConnected = true;
-                    this.reconnectAttempts = 0;
-                    this.log('✅ Connected to backend!');
-                    this.emit('connected');
-
-                    // Process queued messages
-                    this.processMessageQueue();
-
-                    resolve();
+                    this.log('✅ WebSocket connected, waiting for server handshake...');
                 });
 
                 this.ws.on('message', (data: WebSocket.Data) => {
                     try {
                         const message = JSON.parse(data.toString()) as BackendMessage;
-                        this.handleMessage(message);
+
+                        // v5.8.1: Handle handshake sequence
+                        if (message.type === 'connected' && !isInitialized) {
+                            this.log('📩 Received server welcome, sending init message...');
+
+                            // Send init message with workspace_path
+                            const initMessage = {
+                                type: 'init',
+                                workspace_path: workspacePath
+                            };
+
+                            this.ws?.send(JSON.stringify(initMessage));
+                            this.log(`📤 Sent init message with workspace: ${workspacePath}`);
+                        }
+                        else if (message.type === 'initialized') {
+                            // Initialization complete
+                            isInitialized = true;
+                            this.isConnected = true;
+                            this.reconnectAttempts = 0;
+
+                            this.log(`✅ Workspace initialized: ${message.workspace_path}`);
+                            this.log(`🔑 Session ID: ${message.session_id}`);
+                            this.emit('connected');
+
+                            // Process queued messages
+                            this.processMessageQueue();
+
+                            resolve();
+                        }
+                        else if (message.type === 'error') {
+                            this.log(`❌ Server error: ${message.message || message.error}`);
+                            if (!isInitialized) {
+                                reject(new Error(message.message || 'Initialization failed'));
+                            }
+                        }
+                        else {
+                            // Normal message handling
+                            this.handleMessage(message);
+                        }
                     } catch (error) {
                         this.log(`❌ Failed to parse message: ${error}`);
                     }

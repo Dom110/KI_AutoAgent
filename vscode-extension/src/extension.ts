@@ -169,25 +169,17 @@ export async function activate(context: vscode.ExtensionContext) {
         await syncSettingsToEnv(outputChannel);
         outputChannel.appendLine('✅ Settings synced to .env');
 
-        // Start Python backend automatically
-        outputChannel.appendLine('🐍 Starting Python backend...');
-        const backendStarted = await backendManager.startBackend();
+        // Check if backend service is running
+        outputChannel.appendLine('🔍 Checking backend service...');
+        const backendRunning = await backendManager.ensureBackendRunning();
 
-        if (!backendStarted) {
-            // Backend failed to start, show warning
-            const action = await vscode.window.showWarningMessage(
-                'Python backend failed to start automatically. The extension will work with limited functionality.',
-                'Start Manually',
-                'Continue Anyway'
-            );
-
-            if (action === 'Start Manually') {
-                // Show instructions
-                outputChannel.appendLine('📝 Showing manual start instructions...');
-                vscode.commands.executeCommand('ki-autoagent.showBackendInstructions');
-            }
+        if (!backendRunning) {
+            // Backend is not running - instructions already shown by BackendManager
+            outputChannel.appendLine('⚠️  Extension activated but backend is not available');
+            outputChannel.appendLine('💡 Start the backend service to enable AI features');
+            return; // Exit activation early
         } else {
-            outputChannel.appendLine('✅ Python backend is running!');
+            outputChannel.appendLine('✅ Backend service is running!');
         }
 
         // Initialize Backend Client
@@ -341,18 +333,26 @@ function registerCommandsEarly(context: vscode.ExtensionContext) {
     );
     context.subscriptions.push(stopBackendCmd);
 
-    // Restart backend command
+    // Reconnect to backend command
     const restartBackendCmd = vscode.commands.registerCommand(
         'ki-autoagent.restartBackend',
         async () => {
-            if (backendManager) {
-                outputChannel.appendLine('🔄 Restarting backend...');
-                await backendManager.stopBackend();
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                const started = await backendManager.startBackend();
-                if (started && backendClient) {
+            if (backendManager && backendClient) {
+                outputChannel.appendLine('🔄 Reconnecting to backend...');
+
+                // Check if backend is running
+                const isRunning = await backendManager.ensureBackendRunning();
+                if (!isRunning) {
+                    vscode.window.showWarningMessage('Backend service is not running. Please start it first.');
+                    return;
+                }
+
+                // Reconnect client
+                try {
                     await backendClient.connect();
-                    vscode.window.showInformationMessage('Backend restarted successfully');
+                    vscode.window.showInformationMessage('✅ Reconnected to backend successfully');
+                } catch (error: any) {
+                    vscode.window.showErrorMessage(`Failed to reconnect: ${error.message}`);
                 }
             } else {
                 vscode.window.showWarningMessage('Backend manager not initialized');

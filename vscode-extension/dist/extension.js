@@ -8699,37 +8699,66 @@ class BackendClient extends events_1.EventEmitter {
     }
     /**
      * Connect to the backend WebSocket
+     * v5.8.1: Send init message with workspace_path after connection
      */
     async connect() {
         return new Promise((resolve, reject) => {
             try {
-                // Add workspace path as query parameter for persistent session ID
+                // Get workspace path for init message
                 const workspaceFolders = vscode.workspace.workspaceFolders;
-                let wsUrlWithWorkspace = this.wsUrl;
-                if (workspaceFolders && workspaceFolders.length > 0) {
-                    const workspacePath = workspaceFolders[0].uri.fsPath;
-                    const encodedPath = encodeURIComponent(workspacePath);
-                    wsUrlWithWorkspace = `${this.wsUrl}?workspace=${encodedPath}`;
-                    this.log(`🔑 Using workspace-based connection: ${workspacePath}`);
+                const workspacePath = workspaceFolders && workspaceFolders.length > 0
+                    ? workspaceFolders[0].uri.fsPath
+                    : null;
+                if (!workspacePath) {
+                    const error = new Error('No workspace folder open. Please open a folder or workspace.');
+                    this.log(`❌ ${error.message}`);
+                    reject(error);
+                    return;
                 }
-                else {
-                    this.log(`⚠️ No workspace folder found, using random session ID`);
-                }
-                this.log(`🔌 Connecting to backend at ${wsUrlWithWorkspace}...`);
-                this.ws = new ws_1.default(wsUrlWithWorkspace);
+                this.log(`🔌 Connecting to backend at ${this.wsUrl}...`);
+                this.log(`📂 Workspace: ${workspacePath}`);
+                this.ws = new ws_1.default(this.wsUrl);
+                // Track initialization state
+                let isInitialized = false;
                 this.ws.on('open', () => {
-                    this.isConnected = true;
-                    this.reconnectAttempts = 0;
-                    this.log('✅ Connected to backend!');
-                    this.emit('connected');
-                    // Process queued messages
-                    this.processMessageQueue();
-                    resolve();
+                    this.log('✅ WebSocket connected, waiting for server handshake...');
                 });
                 this.ws.on('message', (data) => {
                     try {
                         const message = JSON.parse(data.toString());
-                        this.handleMessage(message);
+                        // v5.8.1: Handle handshake sequence
+                        if (message.type === 'connected' && !isInitialized) {
+                            this.log('📩 Received server welcome, sending init message...');
+                            // Send init message with workspace_path
+                            const initMessage = {
+                                type: 'init',
+                                workspace_path: workspacePath
+                            };
+                            this.ws?.send(JSON.stringify(initMessage));
+                            this.log(`📤 Sent init message with workspace: ${workspacePath}`);
+                        }
+                        else if (message.type === 'initialized') {
+                            // Initialization complete
+                            isInitialized = true;
+                            this.isConnected = true;
+                            this.reconnectAttempts = 0;
+                            this.log(`✅ Workspace initialized: ${message.workspace_path}`);
+                            this.log(`🔑 Session ID: ${message.session_id}`);
+                            this.emit('connected');
+                            // Process queued messages
+                            this.processMessageQueue();
+                            resolve();
+                        }
+                        else if (message.type === 'error') {
+                            this.log(`❌ Server error: ${message.message || message.error}`);
+                            if (!isInitialized) {
+                                reject(new Error(message.message || 'Initialization failed'));
+                            }
+                        }
+                        else {
+                            // Normal message handling
+                            this.handleMessage(message);
+                        }
                     }
                     catch (error) {
                         this.log(`❌ Failed to parse message: ${error}`);
@@ -8974,8 +9003,8 @@ exports.BackendClient = BackendClient;
 "use strict";
 
 /**
- * BackendManager - Manages Python backend lifecycle
- * Automatically starts and monitors the Python FastAPI server
+ * BackendManager - Manages connection to global Python backend service
+ * v5.8.1: Backend runs as global service, extension only connects
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -9016,11 +9045,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BackendManager = void 0;
 const vscode = __importStar(__webpack_require__(/*! vscode */ "vscode"));
-const child_process_1 = __webpack_require__(/*! child_process */ "child_process");
-const path = __importStar(__webpack_require__(/*! path */ "path"));
-const fs = __importStar(__webpack_require__(/*! fs */ "fs"));
 const axios_1 = __importDefault(__webpack_require__(/*! axios */ "./node_modules/axios/dist/node/axios.cjs"));
-const net = __importStar(__webpack_require__(/*! net */ "net"));
 class BackendManager {
     // Get configuration from settings
     get backendUrl() {
@@ -9035,21 +9060,9 @@ class BackendManager {
         const cleanUrl = url.replace(/^https?:\/\//, '');
         return `${wsProtocol}://${cleanUrl}/ws/chat`;
     }
-    get pythonPath() {
-        const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        return config.get('backend.pythonPath', 'python3');
-    }
-    get autoStart() {
-        const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        return config.get('backend.autoStart', true);
-    }
     constructor(context) {
         this.context = context;
-        this.backendProcess = null;
-        this.isRunning = false;
-        this.startupAttempts = 0;
-        this.lastAttemptTime = 0;
-        this.maxStartupAttempts = 3;
+        this.isConnected = false;
         this.outputChannel = vscode.window.createOutputChannel('KI AutoAgent Backend');
     }
     static getInstance(context) {
@@ -9059,181 +9072,20 @@ class BackendManager {
         return BackendManager.instance;
     }
     /**
-     * Start the Python backend automatically
+     * Check if backend is running and healthy
+     * v5.8.1: Backend is a global service, we only check if it's available
      */
-    async startBackend() {
-        // Check if auto-start is disabled
-        if (!this.autoStart) {
-            this.outputChannel.appendLine('⚠️ Backend auto-start is disabled in settings');
-            this.outputChannel.appendLine('Starting backend check only...');
-            return await this.checkBackendHealth();
-        }
-        if (this.isRunning) {
-            this.outputChannel.appendLine('✅ Backend already running');
-            return true;
-        }
-        this.outputChannel.show();
-        this.outputChannel.appendLine('🚀 Starting Python backend...');
-        try {
-            // Extract port from backend URL
-            const urlParts = this.backendUrl.match(/:(\d+)/);
-            const port = parseInt(urlParts ? urlParts[1] : '8001');
-            // Check if backend is already running and healthy
-            const isAlreadyRunning = await this.checkBackendHealth();
-            if (isAlreadyRunning) {
-                this.outputChannel.appendLine('✅ Backend already running and healthy');
-                this.outputChannel.appendLine('🔄 Restarting backend for fresh extension session...');
-                // Kill the existing backend to start fresh
-                await this.killProcessOnPort(port);
-                this.outputChannel.appendLine('⏳ Waiting for port to be released...');
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                // Double-check port is free
-                const stillInUse = await this.isPortInUse(port);
-                if (stillInUse) {
-                    this.outputChannel.appendLine('⚠️ Port still in use, waiting more...');
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                }
-                this.outputChannel.appendLine('🚀 Starting fresh backend instance...');
-                // Continue with normal startup process
-            }
-            // Check if port is occupied by a stale process
-            const portInUse = await this.isPortInUse(port);
-            if (portInUse) {
-                this.outputChannel.appendLine(`⚠️ Port ${port} is in use. Attempting to free it...`);
-                const killed = await this.killProcessOnPort(port);
-                if (killed) {
-                    this.outputChannel.appendLine(`✅ Freed port ${port}`);
-                    // Wait longer for port to be fully released
-                    await new Promise(resolve => setTimeout(resolve, 3000));
-                    // Double-check the port is free
-                    const stillInUse = await this.isPortInUse(port);
-                    if (stillInUse) {
-                        this.outputChannel.appendLine(`⚠️ Port ${port} still in use after cleanup. Waiting longer...`);
-                        await new Promise(resolve => setTimeout(resolve, 2000));
-                    }
-                }
-                else {
-                    this.outputChannel.appendLine(`❌ Could not free port ${port}. Please manually stop the process.`);
-                    throw new Error(`Port ${port} is already in use`);
-                }
-            }
-            // v5.8.0: Backend now runs from $HOME/.ki_autoagent/ (global installation)
-            const workspaceRoot = vscode.workspace.rootPath;
-            if (!workspaceRoot) {
-                throw new Error('No workspace folder open');
-            }
-            // Use global backend from $HOME/.ki_autoagent/
-            const homeDir = (__webpack_require__(/*! os */ "os").homedir)();
-            const globalBackendDir = path.join(homeDir, '.ki_autoagent', 'backend');
-            const globalVenvPython = path.join(homeDir, '.ki_autoagent', 'venv', 'bin', 'python');
-            const serverPath = path.join(globalBackendDir, 'api', 'server_langgraph.py');
-            this.outputChannel.appendLine(`🔍 DEBUG: Starting LangGraph server v5.8.0 on port 8001`);
-            this.outputChannel.appendLine(`📂 Backend location: ${globalBackendDir}`);
-            this.outputChannel.appendLine(`📂 User workspace: ${workspaceRoot}`);
-            // Check if global backend directory exists
-            if (!fs.existsSync(globalBackendDir)) {
-                throw new Error(`❌ Global backend not found at: ${globalBackendDir}\n` +
-                    `Please install KI AutoAgent backend:\n` +
-                    `  Run: ./install.sh from the KI_AutoAgent repository\n` +
-                    `  See: https://github.com/dominikfoert/KI_AutoAgent`);
-            }
-            // Check if virtual environment exists
-            if (!fs.existsSync(globalVenvPython)) {
-                this.outputChannel.appendLine(`⚠️ Virtual environment not found at ${globalVenvPython}`);
-                throw new Error(`Virtual environment not found. Please run: ./install.sh`);
-            }
-            else {
-                this.outputChannel.appendLine(`✅ Using virtual environment: ${globalVenvPython}`);
-            }
-            // Start the backend process with workspace as parameter
-            const pythonExecutable = globalVenvPython;
-            // Pass workspace path to backend via environment variable
-            this.backendProcess = (0, child_process_1.spawn)(pythonExecutable, [serverPath], {
-                cwd: globalBackendDir, // Backend runs from its own directory
-                env: {
-                    ...process.env,
-                    PYTHONPATH: globalBackendDir,
-                    KI_WORKSPACE_PATH: workspaceRoot, // Tell backend which workspace to analyze
-                    KI_CONFIG_DIR: path.join(homeDir, '.ki_autoagent', 'config')
-                }
-            });
-            // Handle stdout
-            this.backendProcess.stdout?.on('data', (data) => {
-                const output = data.toString();
-                this.outputChannel.append(output);
-                // Check for startup completion
-                if (output.includes('Uvicorn running on') || output.includes('Application startup complete')) {
-                    this.outputChannel.appendLine('✅ Backend started successfully!');
-                    this.isRunning = true;
-                    vscode.window.showInformationMessage('🤖 KI AutoAgent Backend is ready!');
-                }
-            });
-            // Handle stderr - Python logs INFO to stderr by default
-            this.backendProcess.stderr?.on('data', (data) => {
-                const output = data.toString();
-                // Check if it's actually an error or just INFO/DEBUG logs
-                if (output.includes('ERROR') || output.includes('CRITICAL') || output.includes('Exception') || output.includes('Traceback')) {
-                    this.outputChannel.append(`❌ Error: ${output}`);
-                }
-                else if (output.includes('WARNING')) {
-                    this.outputChannel.append(`⚠️ Warning: ${output}`);
-                }
-                else {
-                    // It's just INFO or DEBUG output from Python logging
-                    this.outputChannel.append(output);
-                }
-            });
-            // Handle process exit
-            this.backendProcess.on('exit', (code) => {
-                this.outputChannel.appendLine(`Backend process exited with code ${code}`);
-                this.isRunning = false;
-                // Only restart if not manually stopped
-                if (code !== 0 && this.startupAttempts < this.maxStartupAttempts && this.backendProcess) {
-                    this.startupAttempts++;
-                    this.outputChannel.appendLine(`Attempting restart (${this.startupAttempts}/${this.maxStartupAttempts})...`);
-                    // Clean up the old process
-                    this.backendProcess = null;
-                    // Try to restart after a delay
-                    setTimeout(async () => {
-                        // Reset attempts if it's been a while since last attempt
-                        if (Date.now() - (this.lastAttemptTime || 0) > 60000) {
-                            this.startupAttempts = 0;
-                        }
-                        this.lastAttemptTime = Date.now();
-                        // Make sure port is free before restarting
-                        const portInUse = await this.isPortInUse(8001);
-                        if (portInUse) {
-                            this.outputChannel.appendLine('⚠️ Port 8001 still in use after exit, cleaning up...');
-                            await this.killProcessOnPort(8001);
-                            // Wait for port to be released
-                            await new Promise(resolve => setTimeout(resolve, 2000));
-                        }
-                        await this.startBackend();
-                    }, 3000);
-                }
-                else if (code !== 0) {
-                    this.outputChannel.appendLine('❌ Backend failed to start after maximum attempts');
-                    vscode.window.showErrorMessage('KI AutoAgent Backend failed to start. Please check the output for errors.');
-                }
-            });
-            // Wait for backend to be ready
-            await this.waitForBackend();
-            return true;
-        }
-        catch (error) {
-            this.outputChannel.appendLine(`❌ Failed to start backend: ${error.message}`);
-            vscode.window.showErrorMessage(`Failed to start Python backend: ${error.message}`);
-            // Show instructions to start manually
-            const action = await vscode.window.showErrorMessage('Python backend failed to start automatically.', 'Show Instructions', 'Retry');
-            if (action === 'Show Instructions') {
-                this.showManualStartInstructions();
-            }
-            else if (action === 'Retry') {
-                this.startupAttempts++;
-                return await this.startBackend();
-            }
+    async ensureBackendRunning() {
+        this.outputChannel.appendLine('🔍 Checking backend service...');
+        const isHealthy = await this.checkBackendHealth();
+        if (!isHealthy) {
+            this.outputChannel.appendLine('❌ Backend service is not running');
+            this.showBackendNotRunningInstructions();
             return false;
         }
+        this.outputChannel.appendLine('✅ Backend service is running and healthy');
+        this.isConnected = true;
+        return true;
     }
     /**
      * Check if backend is healthy
@@ -9250,58 +9102,52 @@ class BackendManager {
         }
     }
     /**
-     * Wait for backend to be ready
+     * Show instructions for starting the global backend service
      */
-    async waitForBackend(maxWaitTime = 30000) {
-        const startTime = Date.now();
-        const checkInterval = 1000;
-        return new Promise((resolve, reject) => {
-            const timer = setInterval(async () => {
-                const elapsed = Date.now() - startTime;
-                if (elapsed > maxWaitTime) {
-                    clearInterval(timer);
-                    reject(new Error('Backend startup timeout'));
-                    return;
-                }
-                const isHealthy = await this.checkBackendHealth();
-                if (isHealthy) {
-                    clearInterval(timer);
-                    this.isRunning = true;
-                    this.outputChannel.appendLine('✅ Backend is ready!');
-                    resolve();
-                }
-            }, checkInterval);
-        });
-    }
-    /**
-     * Show manual start instructions
-     */
-    showManualStartInstructions() {
+    showBackendNotRunningInstructions() {
+        const homeDir = (__webpack_require__(/*! os */ "os").homedir)();
         const instructions = `
-# Manual Backend Start Instructions
+❌ KI AutoAgent Backend is not running!
 
-1. Open a terminal
-2. Navigate to the backend directory:
-   cd backend
+The backend now runs as a global service (v5.8.1+).
 
-3. Activate virtual environment:
-   source venv/bin/activate  # On macOS/Linux
-   .\\venv\\Scripts\\activate  # On Windows
+To start the backend:
+  1. Open a terminal
+  2. Run: ${homeDir}/.ki_autoagent/start.sh
 
-4. Start the server:
-   python -m uvicorn api.server:app --reload
+To check status:
+  ${homeDir}/.ki_autoagent/status.sh
 
-5. The backend should be available at http://localhost:8001
+To stop:
+  ${homeDir}/.ki_autoagent/stop.sh
+
+The backend will serve all your VS Code workspaces from a single process.
+Each workspace is isolated via the workspace_path sent during connection.
 `;
         this.outputChannel.appendLine(instructions);
         this.outputChannel.show();
+        vscode.window.showErrorMessage('KI AutoAgent Backend is not running. Please start it manually.', 'Show Instructions', 'Check Status').then(async (action) => {
+            if (action === 'Show Instructions') {
+                this.outputChannel.show();
+            }
+            else if (action === 'Check Status') {
+                const isHealthy = await this.checkBackendHealth();
+                if (isHealthy) {
+                    vscode.window.showInformationMessage('✅ Backend is now running!');
+                    this.isConnected = true;
+                }
+                else {
+                    vscode.window.showWarningMessage('❌ Backend is still not running');
+                }
+            }
+        });
     }
     /**
      * Get backend status
      */
     getStatus() {
         return {
-            running: this.isRunning,
+            running: this.isConnected,
             url: this.backendUrl,
             wsUrl: this.wsUrl
         };
@@ -9313,144 +9159,25 @@ class BackendManager {
         return this.wsUrl;
     }
     /**
-     * Check if a port is in use
+     * Get backend URL
      */
-    async isPortInUse(port) {
-        return new Promise((resolve) => {
-            const server = net.createServer();
-            server.once('error', (err) => {
-                if (err.code === 'EADDRINUSE') {
-                    resolve(true);
-                }
-                else {
-                    resolve(false);
-                }
-            });
-            server.once('listening', () => {
-                server.close();
-                resolve(false);
-            });
-            server.listen(port, '127.0.0.1');
-        });
+    getBackendUrl() {
+        return this.backendUrl;
     }
     /**
-     * Kill process on specific port
+     * v5.8.1: Backend runs as global service - no need to stop per extension
+     * This method is kept for backwards compatibility but does nothing
      */
-    async killProcessOnPort(port) {
-        return new Promise((resolve) => {
-            const platform = process.platform;
-            if (platform === 'darwin' || platform === 'linux') {
-                // First, get all PIDs using the port
-                (0, child_process_1.exec)(`lsof -ti:${port}`, (error, stdout, stderr) => {
-                    if (error || !stdout.trim()) {
-                        this.outputChannel.appendLine(`⚠️ No process found on port ${port}`);
-                        resolve(true); // Port is already free
-                        return;
-                    }
-                    const pids = stdout.trim().split('\n').filter(pid => pid);
-                    this.outputChannel.appendLine(`Found ${pids.length} process(es) on port ${port}: ${pids.join(', ')}`);
-                    // Kill each process
-                    let killedCount = 0;
-                    let attemptedCount = 0;
-                    pids.forEach((pid) => {
-                        // Try SIGTERM first
-                        (0, child_process_1.exec)(`kill -TERM ${pid} 2>/dev/null`, (termError) => {
-                            if (termError) {
-                                // If SIGTERM fails, try SIGKILL
-                                (0, child_process_1.exec)(`kill -9 ${pid} 2>/dev/null`, (killError) => {
-                                    attemptedCount++;
-                                    if (!killError) {
-                                        killedCount++;
-                                        this.outputChannel.appendLine(`✅ Force killed PID ${pid}`);
-                                    }
-                                    if (attemptedCount === pids.length) {
-                                        if (killedCount > 0) {
-                                            this.outputChannel.appendLine(`✅ Killed ${killedCount}/${pids.length} process(es) on port ${port}`);
-                                            // Wait for OS to release the port
-                                            setTimeout(() => resolve(true), 1000);
-                                        }
-                                        else {
-                                            this.outputChannel.appendLine(`❌ Could not kill processes on port ${port}`);
-                                            resolve(false);
-                                        }
-                                    }
-                                });
-                            }
-                            else {
-                                attemptedCount++;
-                                killedCount++;
-                                this.outputChannel.appendLine(`✅ Gracefully terminated PID ${pid}`);
-                                if (attemptedCount === pids.length) {
-                                    this.outputChannel.appendLine(`✅ Killed ${killedCount}/${pids.length} process(es) on port ${port}`);
-                                    // Wait for OS to release the port
-                                    setTimeout(() => resolve(true), 1000);
-                                }
-                            }
-                        });
-                    });
-                });
-            }
-            else if (platform === 'win32') {
-                // On Windows, use netstat and taskkill
-                const command = `for /f "tokens=5" %a in ('netstat -aon ^| findstr :${port}') do taskkill /PID %a /F`;
-                (0, child_process_1.exec)(command, (error, stdout, stderr) => {
-                    if (error) {
-                        this.outputChannel.appendLine(`⚠️ Could not kill process on port ${port}: ${error.message}`);
-                        resolve(false);
-                    }
-                    else {
-                        this.outputChannel.appendLine(`✅ Killed process on port ${port}`);
-                        resolve(true);
-                    }
-                });
-            }
-            else {
-                this.outputChannel.appendLine(`⚠️ Unsupported platform: ${platform}`);
-                resolve(false);
-                return;
-            }
-        });
-    }
-    /**
-     * Gracefully stop the backend with cleanup
-     */
-    async stopBackend(force = false) {
-        if (!this.backendProcess) {
-            this.outputChannel.appendLine('No backend process to stop');
-            return;
-        }
-        this.outputChannel.appendLine('Stopping backend...');
-        // Try graceful shutdown first
-        if (!force) {
-            this.backendProcess.kill('SIGTERM');
-            // Wait for graceful shutdown
-            await new Promise((resolve) => {
-                let timeout = setTimeout(() => {
-                    this.outputChannel.appendLine('⚠️ Graceful shutdown timeout, forcing...');
-                    this.backendProcess?.kill('SIGKILL');
-                    resolve(void 0);
-                }, 5000);
-                this.backendProcess?.once('exit', () => {
-                    clearTimeout(timeout);
-                    this.outputChannel.appendLine('✅ Backend stopped gracefully');
-                    resolve(void 0);
-                });
-            });
-        }
-        else {
-            // Force kill immediately
-            this.backendProcess.kill('SIGKILL');
-            this.outputChannel.appendLine('✅ Backend force stopped');
-        }
-        this.backendProcess = null;
-        this.isRunning = false;
-        this.startupAttempts = 0;
+    async stopBackend() {
+        this.outputChannel.appendLine('ℹ️  Backend runs as global service. Use $HOME/.ki_autoagent/stop.sh to stop it.');
+        this.isConnected = false;
     }
     /**
      * Dispose and cleanup
      */
     dispose() {
-        this.stopBackend();
+        // Don't stop the backend - it's a global service
+        this.isConnected = false;
         this.outputChannel.dispose();
     }
 }
@@ -9980,20 +9707,17 @@ async function activate(context) {
         outputChannel.appendLine('🔑 Syncing API keys from settings to .env...');
         await syncSettingsToEnv(outputChannel);
         outputChannel.appendLine('✅ Settings synced to .env');
-        // Start Python backend automatically
-        outputChannel.appendLine('🐍 Starting Python backend...');
-        const backendStarted = await backendManager.startBackend();
-        if (!backendStarted) {
-            // Backend failed to start, show warning
-            const action = await vscode.window.showWarningMessage('Python backend failed to start automatically. The extension will work with limited functionality.', 'Start Manually', 'Continue Anyway');
-            if (action === 'Start Manually') {
-                // Show instructions
-                outputChannel.appendLine('📝 Showing manual start instructions...');
-                vscode.commands.executeCommand('ki-autoagent.showBackendInstructions');
-            }
+        // Check if backend service is running
+        outputChannel.appendLine('🔍 Checking backend service...');
+        const backendRunning = await backendManager.ensureBackendRunning();
+        if (!backendRunning) {
+            // Backend is not running - instructions already shown by BackendManager
+            outputChannel.appendLine('⚠️  Extension activated but backend is not available');
+            outputChannel.appendLine('💡 Start the backend service to enable AI features');
+            return; // Exit activation early
         }
         else {
-            outputChannel.appendLine('✅ Python backend is running!');
+            outputChannel.appendLine('✅ Backend service is running!');
         }
         // Initialize Backend Client
         outputChannel.appendLine('🔌 Initializing Backend Client...');
@@ -10108,16 +9832,23 @@ function registerCommandsEarly(context) {
         }
     });
     context.subscriptions.push(stopBackendCmd);
-    // Restart backend command
+    // Reconnect to backend command
     const restartBackendCmd = vscode.commands.registerCommand('ki-autoagent.restartBackend', async () => {
-        if (backendManager) {
-            outputChannel.appendLine('🔄 Restarting backend...');
-            await backendManager.stopBackend();
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            const started = await backendManager.startBackend();
-            if (started && backendClient) {
+        if (backendManager && backendClient) {
+            outputChannel.appendLine('🔄 Reconnecting to backend...');
+            // Check if backend is running
+            const isRunning = await backendManager.ensureBackendRunning();
+            if (!isRunning) {
+                vscode.window.showWarningMessage('Backend service is not running. Please start it first.');
+                return;
+            }
+            // Reconnect client
+            try {
                 await backendClient.connect();
-                vscode.window.showInformationMessage('Backend restarted successfully');
+                vscode.window.showInformationMessage('✅ Reconnected to backend successfully');
+            }
+            catch (error) {
+                vscode.window.showErrorMessage(`Failed to reconnect: ${error.message}`);
             }
         }
         else {
@@ -12399,17 +12130,6 @@ module.exports = require("assert");
 
 /***/ }),
 
-/***/ "child_process":
-/*!********************************!*\
-  !*** external "child_process" ***!
-  \********************************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("child_process");
-
-/***/ }),
-
 /***/ "crypto":
 /*!*************************!*\
   !*** external "crypto" ***!
@@ -12462,17 +12182,6 @@ module.exports = require("http");
 
 "use strict";
 module.exports = require("https");
-
-/***/ }),
-
-/***/ "net":
-/*!**********************!*\
-  !*** external "net" ***!
-  \**********************/
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("net");
 
 /***/ }),
 

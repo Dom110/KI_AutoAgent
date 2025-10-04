@@ -1,13 +1,13 @@
 """
 KI AutoAgent Backend Version Information
 
-Version 5.8.0 - Global Agent Service with Workspace Separation
+Version 5.8.1 - Multi-Client Architecture
 """
 
 # Version numbers - Single source of truth
-__version__ = "5.8.0"
-__version_info__ = (5, 8, 0)
-__release_tag__ = "v5.8.0-global-agent-service"
+__version__ = "5.8.1"
+__version_info__ = (5, 8, 1)
+__release_tag__ = "v5.8.1-multi-client-architecture"
 __release_date__ = "2025-10-04"
 __author__ = "KI AutoAgent Team"
 __description__ = "Cognitive AI Development Platform with Self-Understanding Capabilities"

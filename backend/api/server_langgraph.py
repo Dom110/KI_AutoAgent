@@ -331,19 +331,16 @@ async def websocket_chat(websocket: WebSocket):
 
     await manager.connect(websocket, client_id)
 
-    # v5.7.0: Get workspace path from environment variable (set by VS Code Extension)
-    default_workspace = os.environ.get("KI_WORKSPACE_PATH")
-    if default_workspace:
-        logger.info(f"📂 Using workspace from environment: {default_workspace}")
-
-    # Create session
+    # v5.8.1: Multi-client architecture - workspace_path sent by client in init message
+    # Create session WITHOUT workspace_path initially
     session = {
         "client_id": client_id,
         "session_id": str(uuid.uuid4()),
         "created_at": datetime.now(),
         "messages": [],
         "plan_first_mode": False,
-        "workspace_path": default_workspace  # Use environment variable as default
+        "workspace_path": None,  # Will be set by client's init message
+        "initialized": False
     }
     active_sessions[client_id] = session
 
@@ -352,12 +349,13 @@ async def websocket_chat(websocket: WebSocket):
         logger.info(f"🔍 DEBUG: New client connected: {client_id}")
         await manager.send_json(client_id, {
             "type": "connected",
-            "message": f"Connected to KI AutoAgent LangGraph System {__version_display__}",
+            "message": f"Connected to KI AutoAgent LangGraph System {__version_display__}. Please send init message with workspace_path.",
             "session_id": session["session_id"],
             "client_id": client_id,
-            "version": __release_tag__
+            "version": __release_tag__,
+            "requires_init": True
         })
-        logger.info(f"🔍 DEBUG: Welcome message sent to {client_id}")
+        logger.info(f"🔍 DEBUG: Welcome message sent to {client_id}, waiting for init...")
 
         # Message handling loop
         while True:
@@ -370,6 +368,41 @@ async def websocket_chat(websocket: WebSocket):
             if message_type == "chat":
                 content = data.get("content") or data.get("message") or ""
                 logger.info(f"🔍 DEBUG: Chat message content: {content[:100]}...")
+
+            # v5.8.1: Handle init message (must be sent first)
+            if message_type == "init":
+                workspace_path = data.get("workspace_path")
+                if not workspace_path:
+                    logger.error(f"❌ Init message missing workspace_path from {client_id}")
+                    await manager.send_json(client_id, {
+                        "type": "error",
+                        "message": "workspace_path required in init message"
+                    })
+                    continue
+
+                # Set workspace path in session
+                session["workspace_path"] = workspace_path
+                session["initialized"] = True
+                logger.info(f"✅ Client {client_id} initialized with workspace: {workspace_path}")
+
+                # Send confirmation
+                await manager.send_json(client_id, {
+                    "type": "initialized",
+                    "session_id": session["session_id"],
+                    "client_id": client_id,
+                    "workspace_path": workspace_path,
+                    "message": f"Workspace initialized: {workspace_path}"
+                })
+                continue
+
+            # v5.8.1: Require initialization before processing other messages
+            if not session.get("initialized"):
+                logger.warning(f"⚠️ Client {client_id} tried to send {message_type} before init")
+                await manager.send_json(client_id, {
+                    "type": "error",
+                    "message": "Please send init message with workspace_path first"
+                })
+                continue
 
             if message_type == "chat":
                 await handle_chat_message(client_id, data, session)

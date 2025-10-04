@@ -2,9 +2,9 @@
 
 ---
 
-## 🏗️ SYSTEM-ARCHITEKTUR (v5.8.0+)
+## 🏗️ SYSTEM-ARCHITEKTUR (v5.8.1+)
 
-### **WICHTIG: Backend ist GLOBAL installiert!**
+### **WICHTIG: Backend ist GLOBAL und MULTI-CLIENT!**
 
 ```
 $HOME/.ki_autoagent/                # Globale Agent-Service Installation
@@ -61,12 +61,29 @@ cd /path/to/KI_AutoAgent
 # Erstellt: start.sh, stop.sh, status.sh
 ```
 
-#### 2. **Backend Starten**
+#### 2. **Backend Starten** (v5.8.1: KEIN workspace parameter!)
 ```bash
-# Als Service (alle Workspaces)
-$HOME/.ki_autoagent/start.sh [/path/to/workspace]
+# Als globaler Service für ALLE Workspaces
+$HOME/.ki_autoagent/start.sh
 
-# VS Code Extension startet automatisch mit KI_WORKSPACE_PATH
+# Backend läuft EINMAL und bedient alle Clients
+# VS Code Extension VERBINDET SICH NUR (startet Backend NICHT)
+```
+
+#### 2a. **Multi-Client WebSocket Protocol** (v5.8.1)
+```
+Client (VS Code) → Backend:
+  1. WebSocket Connect zu ws://localhost:8001/ws/chat
+  2. Server sendet: {"type": "connected", "requires_init": true}
+  3. Client sendet: {"type": "init", "workspace_path": "/Users/.../MyProject"}
+  4. Server sendet: {"type": "initialized", "workspace_path": "...", "session_id": "..."}
+  5. Client kann jetzt Chat-Messages senden
+
+Vorteile:
+  - Ein Backend bedient mehrere VS Code Fenster/Workspaces
+  - Jeder Client sendet seinen workspace_path
+  - Backend isoliert cache/memory per workspace
+  - Kein spawning mehr in VS Code Extension!
 ```
 
 #### 3. **Two-Tier Instruction System**
@@ -102,10 +119,13 @@ $HOME/.ki_autoagent/start.sh [/path/to/workspace]
 ### **Key Principles:**
 
 1. **Agent Service** → Läuft von `$HOME/.ki_autoagent/backend/`
-2. **Workspace Separation** → Analysiert NUR `$KI_WORKSPACE_PATH`
-3. **Base Instructions** → Globale Agent-Identität
-4. **Project Instructions** → Workspace-spezifische Regeln
-5. **Cache Isolation** → Jeder Workspace: `.ki_autoagent_ws/cache/`
+2. **Multi-Client** → Ein Backend bedient ALLE Clients/Workspaces (v5.8.1)
+3. **Workspace per Request** → Client sendet workspace_path bei Connect (v5.8.1)
+4. **Workspace Separation** → Backend analysiert NUR den workspace des Clients
+5. **Base Instructions** → Globale Agent-Identität
+6. **Project Instructions** → Workspace-spezifische Regeln
+7. **Cache Isolation** → Jeder Workspace: `.ki_autoagent_ws/cache/`
+8. **NO Spawning** → VS Code Extension startet Backend NICHT, nur Verbindung (v5.8.1)
 
 ### **Verzeichnisse:**
 ```
@@ -119,13 +139,15 @@ LEGACY:     ~/.ki-autoagent/               (Backwards Compatibility)
 ## 🚨 REMINDER: ARCHITEKTUR-REGELN BEACHTEN!
 
 **Bei JEDER Änderung am System:**
-1. Agents → Python Backend (`$HOME/.ki_autoagent/backend/`)
-2. UI → TypeScript (`vscode-extension/`)
-3. AI Calls → NUR Python Backend
-4. Frontend → NUR WebSocket zu Backend
-5. **Workspace Analyse → NUR `$KI_WORKSPACE_PATH`, NICHT Backend-Code!**
-6. **Base Instructions → `$HOME/.ki_autoagent/config/instructions/`**
-7. **Project Instructions → `$WORKSPACE/.ki_autoagent_ws/instructions/`**
+1. **Backend** → Python (`$HOME/.ki_autoagent/backend/`)
+2. **UI** → TypeScript (`vscode-extension/`)
+3. **AI Calls** → NUR Python Backend
+4. **Frontend ↔ Backend** → NUR WebSocket zu `ws://localhost:8001`
+5. **Workspace Analyse** → NUR `session["workspace_path"]`, NICHT Backend-Code!
+6. **Base Instructions** → `$HOME/.ki_autoagent/config/instructions/`
+7. **Project Instructions** → `$WORKSPACE/.ki_autoagent_ws/instructions/`
+8. **NO SPAWNING** → VS Code Extension darf Backend NICHT starten! (v5.8.1)
+9. **Init Protocol** → Client MUSS init message mit workspace_path senden (v5.8.1)
 
 **Verstöße gegen diese Regeln führen zu Duplikation und Chaos!**
 
