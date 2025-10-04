@@ -486,15 +486,12 @@ export class MultiAgentChatPanel {
         MultiAgentChatPanel.debugChannel.appendLine(`📋 Handling architecture approval: ${message.decision}`);
 
         try {
-            // Forward approval to backend via WebSocket
+            // v5.8.1: Send approval as direct message type (not command!)
             await this.backendClient.sendMessage({
-                type: 'command' as any,
-                content: 'architecture_approval',
-                metadata: {
-                    session_id: message.session_id,
-                    decision: message.decision,
-                    feedback: message.feedback || ''
-                }
+                type: 'architecture_approval' as any,
+                session_id: message.session_id,
+                decision: message.decision,
+                feedback: message.feedback || ''
             });
 
             MultiAgentChatPanel.debugChannel.appendLine(`✅ Architecture approval sent to backend: ${message.decision}`);

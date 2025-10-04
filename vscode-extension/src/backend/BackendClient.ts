@@ -30,6 +30,7 @@ export interface BackendMessage {
     requires_init?: boolean;  // For connected message
     proposal?: any;  // For architecture_proposal messages
     decision?: string;  // For architectureApprovalProcessed messages
+    feedback?: string;  // For architecture_approval outgoing messages
 }
 
 export interface ChatRequest {
