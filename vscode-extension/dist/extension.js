@@ -9240,7 +9240,7 @@ class BackendManager {
      */
     async checkBackendHealth() {
         try {
-            const response = await axios_1.default.get(`${this.backendUrl}/`, {
+            const response = await axios_1.default.get(`${this.backendUrl}/health`, {
                 timeout: 2000
             });
             return response.data.status === 'healthy';

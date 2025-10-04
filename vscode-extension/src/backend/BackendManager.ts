@@ -266,7 +266,7 @@ export class BackendManager {
      */
     public async checkBackendHealth(): Promise<boolean> {
         try {
-            const response = await axios.get(`${this.backendUrl}/`, {
+            const response = await axios.get(`${this.backendUrl}/health`, {
                 timeout: 2000
             });
             return response.data.status === 'healthy';
