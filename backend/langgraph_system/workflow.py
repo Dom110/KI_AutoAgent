@@ -2848,6 +2848,15 @@ Return ONLY valid JSON with these exact keys."""
                 result = await agent.execute(task_request)
                 content = result.content if hasattr(result, 'content') else str(result)
 
+                # v5.7.0: Enhanced debug logging for empty responses
+                logger.info(f"🔍 Architect response length: {len(content)} characters")
+                if not content or not content.strip():
+                    logger.error(f"❌ Architect returned empty response! Result type: {type(result)}")
+                    logger.error(f"❌ Result attributes: {dir(result)}")
+                    raise ValueError("Architect returned empty response")
+
+                logger.debug(f"📝 Architect response preview: {content[:200]}...")
+
                 # Try to parse JSON
                 import json
                 import re
@@ -2856,6 +2865,7 @@ Return ONLY valid JSON with these exact keys."""
                 json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
                 if json_match:
                     content = json_match.group(1)
+                    logger.info("✅ Extracted JSON from markdown code block")
 
                 proposal = json.loads(content)
 
