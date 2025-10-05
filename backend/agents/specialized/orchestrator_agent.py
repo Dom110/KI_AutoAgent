@@ -109,15 +109,10 @@ class OrchestratorAgent(ChatAgent):
             # Get task decomposition
             decomposition = await self.decompose_task(request.prompt, complexity)
 
-            # Create workflow
-            workflow = await self.create_workflow(decomposition)
-
-            # Execute workflow (parallel where possible)
-            result = await self.execute_workflow(workflow, decomposition.parallelizable)
-
             execution_time = (datetime.now() - start_time).total_seconds()
 
-            # Convert subtasks to serializable format for workflow.py
+            # v5.8.4: Convert subtasks to serializable format for workflow.py
+            # NOTE: Removed execute_workflow() simulation - workflow.py handles real execution
             subtasks_dict = []
             for subtask in decomposition.subtasks:
                 subtasks_dict.append({
@@ -133,7 +128,7 @@ class OrchestratorAgent(ChatAgent):
 
             return TaskResult(
                 status="success",
-                content=self.format_orchestration_result(decomposition, result),
+                content=self.format_orchestration_plan(decomposition),
                 agent=self.config.agent_id,
                 metadata={
                     "complexity": complexity,
@@ -330,9 +325,9 @@ class OrchestratorAgent(ChatAgent):
         system_prompt = """You are an expert task orchestrator for a multi-agent AI system.
 
 Available agents:
-- architect: System design, architecture planning
+- architect: System design, architecture planning, code analysis
 - codesmith: Code implementation (Claude 4.1 Sonnet)
-- reviewer: Code review, testing (GPT-5-mini)
+- reviewer: Code review, testing (GPT-4o-mini)
 - fixer: Bug fixing (Claude 4.1 Sonnet)
 - docbot: Documentation (GPT-4o)
 - research: Web research (Perplexity)
@@ -347,6 +342,36 @@ Rules:
 3. Find opportunities for parallel execution
 4. Estimate realistic durations (minutes)
 5. Prioritize tasks appropriately
+
+IMPORTANT WORKFLOWS:
+
+BUILD/CREATE Tasks:
+When user says "erstelle", "build", "create", "develop":
+1. architect: Design initial architecture (BEFORE research)
+2. research: Find best practices
+3. architect: REFINE architecture with research insights ← CRITICAL!
+4. codesmith: Build implementation
+5. architect: RE-ANALYZE built code (AFTER code exists) ← CRITICAL!
+6. reviewer: Review code quality
+7. docbot: Generate documentation
+
+Example: "Erstelle eine Dashboard App"
+→ task_1: architect - Design initial dashboard architecture
+→ task_2: research - Best practices for dashboards
+→ task_3: architect - Refine architecture with research insights ← architect uses research!
+→ task_4: codesmith - Build dashboard application
+→ task_5: architect - Analyze built code and calculate metrics ← architect DREIMAL total!
+→ task_6: reviewer - Review code quality
+→ task_7: docbot - Generate ARCHITECTURE.md
+
+ANALYZE/CHECK Tasks:
+When user says "analyze", "untersuche", "check", "review":
+1. architect: Analyze existing code
+2. reviewer: Review quality
+
+Example: "Analyze TestApp2"
+→ task_1: architect - Analyze codebase
+→ task_2: reviewer - Review findings
 
 Output MUST be valid JSON matching this structure:
 {
@@ -592,12 +617,21 @@ Please decompose this into an optimal execution plan."""
 
         return workflow
 
+    # ============================================================================
+    # OBSOLETE v5.8.4: The following methods are no longer needed
+    # Reason: workflow.py handles actual execution, Orchestrator only plans
+    # Marked for removal after testing confirms everything works
+    # ============================================================================
+
     async def execute_workflow(
         self,
         workflow: List[WorkflowStep],
         parallel: bool = False
     ) -> Dict[str, Any]:
         """
+        OBSOLETE v5.8.4: This is a simulation only
+        Real execution happens in workflow.py via _execute_*_task methods
+
         Execute workflow steps (parallel or sequential)
         """
         results = {}
@@ -624,6 +658,8 @@ Please decompose this into an optimal execution plan."""
         workflow: List[WorkflowStep]
     ) -> Dict[str, Any]:
         """
+        OBSOLETE v5.8.4: Simulation only, real execution in workflow.py
+
         Execute workflow steps sequentially
         """
         results = {}
@@ -656,6 +692,8 @@ Please decompose this into an optimal execution plan."""
         workflow: List[WorkflowStep]
     ) -> Dict[str, Any]:
         """
+        OBSOLETE v5.8.4: Simulation only, real execution in workflow.py
+
         Execute workflow steps in parallel where dependencies allow
         """
         results = {}
@@ -699,16 +737,40 @@ Please decompose this into an optimal execution plan."""
         workflow: List[WorkflowStep]
     ) -> Dict[int, List[WorkflowStep]]:
         """
-        Group workflow steps by dependency level
+        OBSOLETE v5.8.4: Only used by _execute_parallel_workflow (simulation)
+
+        Group workflow steps by dependency level for parallel execution
+
+        v5.8.4: Implemented dependency level calculation
         """
         levels: Dict[int, List[WorkflowStep]] = {}
+        step_levels: Dict[str, int] = {}
 
-        # Simple grouping - steps with no dependencies are level 0
-        # Steps depending on level 0 are level 1, etc.
+        # Calculate level for each step recursively
+        def calculate_level(step: WorkflowStep) -> int:
+            if step.id in step_levels:
+                return step_levels[step.id]
+
+            # No dependencies = level 0
+            if not step.dependencies or len(step.dependencies) == 0:
+                step_levels[step.id] = 0
+                return 0
+
+            # Find max level of dependencies + 1
+            max_dep_level = -1
+            for dep_id in step.dependencies:
+                # Find dependency step
+                dep_step = next((s for s in workflow if s.id == dep_id), None)
+                if dep_step:
+                    dep_level = calculate_level(dep_step)
+                    max_dep_level = max(max_dep_level, dep_level)
+
+            step_levels[step.id] = max_dep_level + 1
+            return max_dep_level + 1
+
+        # Calculate levels for all steps
         for step in workflow:
-            level = 0  # Default level
-            # TODO: Implement proper dependency level calculation
-
+            level = calculate_level(step)
             if level not in levels:
                 levels[level] = []
             levels[level].append(step)
@@ -722,13 +784,27 @@ Please decompose this into an optimal execution plan."""
         workflow: List[WorkflowStep]
     ) -> bool:
         """
+        OBSOLETE v5.8.4: Only used by _execute_parallel_workflow (simulation)
+
         Check if all dependencies for a step are met
+
+        v5.8.4: Implemented dependency checking
         """
-        # TODO: Implement dependency checking
+        # No dependencies = always ready
+        if not step.dependencies or len(step.dependencies) == 0:
+            return True
+
+        # Check if all dependencies are completed
+        for dep_id in step.dependencies:
+            if dep_id not in completed:
+                return False
+
         return True
 
     async def _execute_step(self, step: WorkflowStep) -> Any:
         """
+        OBSOLETE v5.8.4: Simulation only, real execution in workflow.py
+
         Execute a single workflow step
 
         NOTE: This is only used when Orchestrator runs its own execute_workflow.
@@ -763,6 +839,8 @@ Please decompose this into an optimal execution plan."""
 
     async def _execute_step_async(self, step: WorkflowStep) -> Any:
         """
+        OBSOLETE v5.8.4: Wrapper for _execute_step (simulation)
+
         Execute step asynchronously
         """
         return await self._execute_step(step)
@@ -773,6 +851,9 @@ Please decompose this into an optimal execution plan."""
         results: Dict[str, Any]
     ) -> str:
         """
+        OBSOLETE v5.8.4: Used with execute_workflow simulation
+        Replaced by format_orchestration_plan()
+
         Format the orchestration result for display
         """
         output = []
@@ -795,6 +876,41 @@ Please decompose this into an optimal execution plan."""
                     output.append(f"  - Error: {result['error']}")
                 else:
                     output.append(f"  - Result: {str(result)[:200]}")
+
+        return "\n".join(output)
+
+    # ============================================================================
+    # END OBSOLETE SECTION - All methods above marked for removal after testing
+    # ============================================================================
+
+    def format_orchestration_plan(
+        self,
+        decomposition: TaskDecomposition
+    ) -> str:
+        """
+        v5.8.4: NEW - Format orchestration plan (without execution results)
+
+        Format the orchestration plan for display.
+        This replaces format_orchestration_result since we don't execute anymore.
+        """
+        output = []
+        output.append(f"## 🎯 Task Orchestration Plan\n")
+        output.append(f"**Main Goal**: {decomposition.main_goal}\n")
+        output.append(f"**Complexity**: {decomposition.complexity}\n")
+        output.append(f"**Execution Mode**: {'Parallel' if decomposition.parallelizable else 'Sequential'}\n")
+        output.append(f"**Estimated Duration**: {decomposition.estimated_duration:.1f}min\n")
+        output.append(f"**Required Agents**: {', '.join(decomposition.required_agents)}\n")
+        output.append("\n### 📋 Planned Subtasks:\n")
+
+        for i, subtask in enumerate(decomposition.subtasks, 1):
+            output.append(f"\n**{i}. {subtask.description}**")
+            output.append(f"  - Agent: {subtask.agent}")
+            output.append(f"  - Priority: {subtask.priority}")
+            output.append(f"  - Estimated Time: {subtask.estimated_duration:.1f}min")
+            if subtask.dependencies:
+                output.append(f"  - Dependencies: {', '.join(subtask.dependencies)}")
+
+        output.append("\n\n*Note: Actual execution will be handled by the workflow system*")
 
         return "\n".join(output)
 

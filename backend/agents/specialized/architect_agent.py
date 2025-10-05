@@ -28,7 +28,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 # Import cache services - OPTIONAL (NOT YET IMPLEMENTED)
 # DOCUMENTED REASON: Cache services are planned but not yet implemented
 # This is NOT a fallback - Architect will work without caching, just slower
-from core.exceptions import DependencyError
 CACHE_SERVICES_AVAILABLE = False
 try:
     from services.project_cache import ProjectCache
@@ -1094,10 +1093,12 @@ networks:
             diagrams = self.project_cache.get('diagrams')
 
         if not diagrams:
+            # v5.8.2: Use AI-powered diagram generation for meaningful, project-specific diagrams
+            logger.info("🤖 Generating diagrams with AI (GPT-4o)...")
             diagrams = {
-                'system_context': self.diagram_service.generate_architecture_diagram(code_index, 'context'),
-                'container': self.diagram_service.generate_architecture_diagram(code_index, 'container'),
-                'component': self.diagram_service.generate_architecture_diagram(code_index, 'component'),
+                'system_context': await self.diagram_service.generate_architecture_diagram_ai(code_index, 'context'),
+                'container': await self.diagram_service.generate_architecture_diagram_ai(code_index, 'container'),
+                'component': await self.diagram_service.generate_architecture_diagram_ai(code_index, 'component'),
                 'dependency_graph': self.diagram_service.generate_dependency_graph(
                     code_index.get('import_graph', {})
                 ),
@@ -1106,6 +1107,7 @@ networks:
             }
             if self.project_cache:
                 self.project_cache.set('diagrams', diagrams)
+            logger.info("✅ AI-powered diagrams generated successfully")
 
         # Store system knowledge
         self.system_knowledge = {
@@ -1123,6 +1125,11 @@ networks:
         if self.project_cache:
             self.project_cache.set('system_knowledge', self.system_knowledge)
             logger.info("✅ System knowledge stored in permanent Redis cache")
+
+        # v5.8.2: Store in shared_context for other agents to access
+        if self.shared_context:
+            self.shared_context.set('architect:system_knowledge', self.system_knowledge)
+            logger.info("✅ System knowledge shared via shared_context for agent collaboration")
 
         # Index functions for search
         if self.code_search and code_index:
@@ -1326,14 +1333,20 @@ if message_type == "stop":
                 'specific_files': dead_code.get('files', [])[:5]  # Show first 5 files
             })
 
-        # KI_AutoAgent Specific Improvement #6: Memory Optimization
-        improvements.append({
-            'title': 'Optimize Agent Memory Usage',
-            'priority': 'HIGH',
-            'problem': 'system_analysis.json is 14GB - being loaded into memory repeatedly',
-            'solution': 'Stream large files instead of loading entirely, use chunked processing',
-            'impact': 'Reduce memory usage by 90%, prevent OOM errors'
-        })
+        # v5.8.4: Memory Optimization - Check actual file size instead of hardcoded value
+        import os
+        analysis_file = os.path.join(self.workspace_path or '.', '.ki_autoagent_ws', 'system_analysis.json')
+        if os.path.exists(analysis_file):
+            file_size_mb = os.path.getsize(analysis_file) / (1024 * 1024)
+            # Only add improvement if file is actually large (>50MB)
+            if file_size_mb > 50:
+                improvements.append({
+                    'title': 'Optimize Agent Memory Usage',
+                    'priority': 'HIGH',
+                    'problem': f'system_analysis.json is {file_size_mb:.1f}MB - being loaded into memory repeatedly',
+                    'solution': 'Stream large files instead of loading entirely, use chunked processing',
+                    'impact': 'Reduce memory usage, prevent OOM errors'
+                })
 
         # KI_AutoAgent Specific Improvement #7: Security Vulnerabilities
         security_summary = security.get('summary', {})
@@ -1388,17 +1401,57 @@ if message_type == "stop":
     async def generate_architecture_flowchart(self) -> str:
         """
         Generate a detailed architecture flowchart of the current system
+        v5.8.3: Fixed to use AI-powered generation for proper diagrams
         """
         if not self.system_knowledge:
             await self.understand_system('.', None, 'architecture flowchart')
 
-        # Generate comprehensive flowchart
-        flowchart = self.diagram_service.generate_architecture_diagram(
+        # v5.8.3: Use AI-powered generation instead of template
+        # This creates meaningful diagrams instead of empty ones
+        flowchart = await self.diagram_service.generate_architecture_diagram_ai(
             self.system_knowledge['code_index'],
             'component'
         )
 
-        return f"## System Architecture Flowchart\n\n```mermaid\n{flowchart}\n```"
+        # If AI generation failed, try to convert code_index to components format
+        if not flowchart or "Not Available" in flowchart:
+            # Extract components from code_index
+            code_index = self.system_knowledge.get('code_index', {})
+            components = []
+
+            # Add main system components
+            if 'agents' in code_index:
+                for agent in code_index.get('agents', []):
+                    components.append({
+                        'name': agent,
+                        'type': 'service',
+                        'connections': []
+                    })
+
+            if 'services' in code_index:
+                for service in code_index.get('services', []):
+                    components.append({
+                        'name': service,
+                        'type': 'service',
+                        'connections': []
+                    })
+
+            if 'modules' in code_index:
+                for module_name in list(code_index.get('modules', {}).keys())[:10]:
+                    components.append({
+                        'name': module_name,
+                        'type': 'module',
+                        'connections': []
+                    })
+
+            # Generate with components list
+            if components:
+                flowchart = self.diagram_service.generate_architecture_diagram(
+                    components,
+                    'component'
+                )
+
+        return f"## System Architecture Flowchart\n\n{flowchart}"
 
     def _detect_request_type(self, prompt: str) -> str:
         """Detect the type of request from the prompt"""

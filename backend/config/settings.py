@@ -120,6 +120,19 @@ This applies to ALL answers, explanations, error messages, and outputs.
     COST_ALERT_ON_THRESHOLD = 0.8  # Alert at 80% of budget
     COST_PREFER_CHEAPER_MODELS = False
 
+    # ========================================
+    # VideoAgent Settings (v5.8.2)
+    # ========================================
+    VIDEOAGENT_ENABLED = True  # Enable VideoAgent for video understanding
+    VIDEOAGENT_MODEL = "gemini-2.0-flash-exp"  # Gemini model for video analysis
+    VIDEOAGENT_TEMPERATURE = 0.7  # Creativity level (0.0-1.0)
+    VIDEOAGENT_MAX_TOKENS = 8000  # Max response tokens
+    VIDEOAGENT_OUTPUT_DIR = "~/.ki_autoagent/data/video_output"  # Output directory for results
+    VIDEOAGENT_CLEANUP_AFTER_ANALYSIS = True  # Delete video from Gemini API after analysis
+    VIDEOAGENT_BATCH_SIZE = 20  # Max videos per batch
+    VIDEOAGENT_DUAL_OUTPUT = True  # Always generate JSON + Markdown (required)
+    VIDEOAGENT_MULTI_LANGUAGE = True  # Support multi-language instructions
+
     @classmethod
     def get_language_directive(cls) -> str:
         """Hole die aktuelle Sprach-Direktive"""
@@ -225,6 +238,22 @@ This applies to ALL answers, explanations, error messages, and outputs.
         if 'cost.preferCheaperModels' in vscode_settings:
             cls.COST_PREFER_CHEAPER_MODELS = vscode_settings['cost.preferCheaperModels']
 
+        # VideoAgent Settings (v5.8.2)
+        if 'videoAgent.enabled' in vscode_settings:
+            cls.VIDEOAGENT_ENABLED = vscode_settings['videoAgent.enabled']
+        if 'videoAgent.model' in vscode_settings:
+            cls.VIDEOAGENT_MODEL = vscode_settings['videoAgent.model']
+        if 'videoAgent.temperature' in vscode_settings:
+            cls.VIDEOAGENT_TEMPERATURE = vscode_settings['videoAgent.temperature']
+        if 'videoAgent.maxTokens' in vscode_settings:
+            cls.VIDEOAGENT_MAX_TOKENS = vscode_settings['videoAgent.maxTokens']
+        if 'videoAgent.outputDir' in vscode_settings:
+            cls.VIDEOAGENT_OUTPUT_DIR = vscode_settings['videoAgent.outputDir']
+        if 'videoAgent.cleanupAfterAnalysis' in vscode_settings:
+            cls.VIDEOAGENT_CLEANUP_AFTER_ANALYSIS = vscode_settings['videoAgent.cleanupAfterAnalysis']
+        if 'videoAgent.batchSize' in vscode_settings:
+            cls.VIDEOAGENT_BATCH_SIZE = vscode_settings['videoAgent.batchSize']
+
     @classmethod
     def _auto_detect_provider(cls, model: str) -> str:
         """
@@ -313,6 +342,18 @@ This applies to ALL answers, explanations, error messages, and outputs.
                 "monthlyBudget": cls.COST_MONTHLY_BUDGET,
                 "alertOnThreshold": cls.COST_ALERT_ON_THRESHOLD,
                 "preferCheaperModels": cls.COST_PREFER_CHEAPER_MODELS,
+            },
+            # VideoAgent (v5.8.2)
+            "videoAgent": {
+                "enabled": cls.VIDEOAGENT_ENABLED,
+                "model": cls.VIDEOAGENT_MODEL,
+                "temperature": cls.VIDEOAGENT_TEMPERATURE,
+                "maxTokens": cls.VIDEOAGENT_MAX_TOKENS,
+                "outputDir": cls.VIDEOAGENT_OUTPUT_DIR,
+                "cleanupAfterAnalysis": cls.VIDEOAGENT_CLEANUP_AFTER_ANALYSIS,
+                "batchSize": cls.VIDEOAGENT_BATCH_SIZE,
+                "dualOutput": cls.VIDEOAGENT_DUAL_OUTPUT,
+                "multiLanguage": cls.VIDEOAGENT_MULTI_LANGUAGE,
             },
         }
 

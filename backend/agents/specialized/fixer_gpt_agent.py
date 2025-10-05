@@ -67,6 +67,27 @@ class FixerGPTAgent(ChatAgent):
         self.openai_service = OpenAIService()
         logger.info(f"✅ FixerGPT initialized with model: {model}")
 
+    async def _get_architect_analysis(self) -> Optional[Dict[str, Any]]:
+        """
+        Get Architect's system analysis from shared_context (v5.8.2)
+        Returns system_knowledge with metrics, dead_code, security, etc.
+        """
+        if not self.shared_context:
+            logger.warning("⚠️ FixerGPT: shared_context not available")
+            return None
+
+        try:
+            analysis = self.shared_context.get('architect:system_knowledge')
+            if analysis:
+                logger.info("✅ FixerGPT: Got Architect analysis from shared_context")
+                return analysis
+            else:
+                logger.info("ℹ️ FixerGPT: No Architect analysis available yet")
+                return None
+        except Exception as e:
+            logger.error(f"❌ FixerGPT: Failed to get Architect analysis: {e}")
+            return None
+
     def _create_fresh_perspective_prompt(
         self,
         issue: str,
@@ -163,6 +184,52 @@ Sometimes a fresh AI sees what another AI missed."""
             logger.info(f"📊 Context: {len(previous_attempts)} previous attempts, "
                        f"{len(research_results)} research results")
 
+            # v5.8.2: Get Architect's analysis for refactoring suggestions
+            architect_analysis = await self._get_architect_analysis()
+
+            # Build refactoring context from Architect's metrics
+            refactoring_context = ""
+            if architect_analysis:
+                metrics = architect_analysis.get('metrics', {})
+                metrics_summary = metrics.get('summary', {})
+                quality_score = metrics_summary.get('quality_score', 0)
+                avg_complexity = metrics_summary.get('average_complexity', 0)
+
+                # Find high-complexity functions
+                all_metrics = metrics.get('files', {})
+                high_complexity_funcs = []
+                for file_path, file_metrics in all_metrics.items():
+                    for func in file_metrics.get('functions', []):
+                        if func.get('complexity', 0) > 15:
+                            high_complexity_funcs.append({
+                                'name': func.get('name'),
+                                'complexity': func.get('complexity'),
+                                'file': file_path,
+                                'line': func.get('line_number')
+                            })
+
+                if high_complexity_funcs:
+                    refactoring_context += f"""
+📊 HIGH COMPLEXITY FUNCTIONS DETECTED (CC > 15):
+Consider refactoring these functions to reduce complexity:
+"""
+                    for func in high_complexity_funcs[:10]:  # Top 10
+                        refactoring_context += f"  - {func['name']} (CC={func['complexity']}) at {func['file']}:{func['line']}\n"
+
+                    refactoring_context += """
+REFACTORING STRATEGIES:
+1. Extract Method: Break down large functions into smaller ones
+2. Guard Clauses: Use early returns to reduce nesting
+3. Strategy Pattern: Replace complex if/else with polymorphism
+4. Replace Nested Conditionals: Use lookup tables or maps
+"""
+
+                if quality_score < 70:
+                    refactoring_context += f"""
+⚠️ OVERALL QUALITY SCORE LOW: {quality_score:.1f}/100
+Focus on improving maintainability through refactoring.
+"""
+
             # Build comprehensive prompt
             system_prompt = self._create_fresh_perspective_prompt(
                 issue=issue_description,
@@ -174,7 +241,7 @@ Sometimes a fresh AI sees what another AI missed."""
             attempts_text = self._format_previous_attempts(previous_attempts)
             research_text = self._format_research_results(research_results)
 
-            # Full user prompt
+            # Full user prompt with refactoring context
             user_prompt = f"""FIX THIS ISSUE WITH A FRESH APPROACH:
 
 ISSUE:
@@ -184,12 +251,15 @@ ISSUE:
 
 {research_text}
 
+{refactoring_context}
+
 INSTRUCTIONS:
 1. Analyze what previous attempts missed
 2. Consider if the approach itself is wrong
 3. Look for simple solutions that were overlooked
 4. Think about the problem from a different angle
-5. Provide your fix with explanation of why your approach is different
+5. If high-complexity functions are involved, suggest refactoring
+6. Provide your fix with explanation of why your approach is different
 
 Provide the fix now:"""
 

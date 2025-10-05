@@ -33,6 +33,10 @@ class TreeSitterIndexer:
                 'calls': [{'function': 'bar', 'line': 15}]
             }
         """
+        # v5.8.2: Support HTML/CSS/JS files with basic parsing
+        if file_path.endswith(('.html', '.css', '.js', '.jsx', '.ts', '.tsx')):
+            return await self._index_web_file(file_path)
+
         if not file_path.endswith('.py'):
             return {'functions': [], 'classes': [], 'imports': [], 'calls': []}
 
@@ -154,6 +158,111 @@ class TreeSitterIndexer:
                 'line': node.lineno
             }
         return {}
+
+    async def _index_web_file(self, file_path: str) -> Dict[str, Any]:
+        """
+        Basic parsing for HTML/CSS/JS files (v5.8.2)
+        Uses regex-based extraction (not a full AST parser)
+        """
+        import re
+
+        functions = []
+        classes = []
+        imports = []
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                source = f.read()
+
+            # JavaScript/TypeScript function detection
+            if file_path.endswith(('.js', '.jsx', '.ts', '.tsx')):
+                # Match: function name(...) or const name = (...) => or async function name
+                func_pattern = r'(?:async\s+)?(?:function|const|let|var)\s+(\w+)\s*[=\(]'
+                for match in re.finditer(func_pattern, source):
+                    line_num = source[:match.start()].count('\n') + 1
+                    functions.append({
+                        'name': match.group(1),
+                        'line': line_num,
+                        'async': 'async' in match.group(0),
+                        'calls': [],
+                        'parameters': [],
+                        'decorators': []
+                    })
+
+                # Match: class ClassName
+                class_pattern = r'class\s+(\w+)'
+                for match in re.finditer(class_pattern, source):
+                    line_num = source[:match.start()].count('\n') + 1
+                    classes.append({
+                        'name': match.group(1),
+                        'line': line_num,
+                        'methods': [],
+                        'bases': []
+                    })
+
+                # Match: import/require statements
+                import_pattern = r'import\s+.*?from\s+[\'"]([^\'"]+)[\'"]|require\([\'"]([^\'"]+)[\'"]\)'
+                for match in re.finditer(import_pattern, source):
+                    module = match.group(1) or match.group(2)
+                    line_num = source[:match.start()].count('\n') + 1
+                    imports.append({
+                        'type': 'import',
+                        'module': module,
+                        'names': [],
+                        'line': line_num
+                    })
+
+            # HTML: Extract IDs and script tags
+            elif file_path.endswith('.html'):
+                # Count script tags as "functions"
+                script_pattern = r'<script[^>]*>(.*?)</script>'
+                for i, match in enumerate(re.finditer(script_pattern, source, re.DOTALL)):
+                    line_num = source[:match.start()].count('\n') + 1
+                    functions.append({
+                        'name': f'script_block_{i+1}',
+                        'line': line_num,
+                        'async': False,
+                        'calls': [],
+                        'parameters': [],
+                        'decorators': []
+                    })
+
+                # Find element IDs (useful for AI diagram generation)
+                id_pattern = r'id=[\'"]([^\'"]+)[\'"]'
+                for match in re.finditer(id_pattern, source):
+                    line_num = source[:match.start()].count('\n') + 1
+                    classes.append({
+                        'name': f'#{match.group(1)}',
+                        'line': line_num,
+                        'methods': [],
+                        'bases': []
+                    })
+
+            # CSS: Extract selectors as "classes"
+            elif file_path.endswith('.css'):
+                # Match CSS selectors
+                selector_pattern = r'([\.#]?[\w-]+)\s*\{'
+                for match in re.finditer(selector_pattern, source):
+                    line_num = source[:match.start()].count('\n') + 1
+                    classes.append({
+                        'name': match.group(1),
+                        'line': line_num,
+                        'methods': [],
+                        'bases': []
+                    })
+
+            logger.info(f"Web file indexed: {file_path} - {len(functions)} functions, {len(classes)} classes/selectors")
+
+            return {
+                'functions': functions,
+                'classes': classes,
+                'imports': imports,
+                'calls': []
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to index web file {file_path}: {e}")
+            return {'functions': [], 'classes': [], 'imports': [], 'calls': []}
 
     async def search_pattern(self, pattern: str) -> List[Dict[str, Any]]:
         """Search for pattern in indexed code (stub for compatibility)"""

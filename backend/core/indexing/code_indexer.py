@@ -61,8 +61,9 @@ class CodeIndexer:
         # Index all files
         ast_data = {}
         import_graph = {}
-        all_functions = []
-        all_classes = []
+        # v5.8.4: Count instead of storing full lists to reduce memory usage
+        total_functions_count = 0
+        total_classes_count = 0
 
         for i, file_path in enumerate(python_files):
             if progress_callback and i % 10 == 0:
@@ -77,48 +78,45 @@ class CodeIndexer:
             imports = [imp.get('module', '') for imp in file_data.get('imports', [])]
             import_graph[relative_path] = imports
 
-            # Collect all functions and classes
-            for func in file_data.get('functions', []):
-                func['file'] = relative_path
-                all_functions.append(func)
-
-            for cls in file_data.get('classes', []):
-                cls['file'] = relative_path
-                all_classes.append(cls)
+            # v5.8.4: Count functions and classes instead of duplicating them
+            # Functions and classes are already stored in ast_data[relative_path]
+            total_functions_count += len(file_data.get('functions', []))
+            total_classes_count += len(file_data.get('classes', []))
 
         # Calculate statistics
         statistics = {
             'total_files': total_files,
-            'total_functions': len(all_functions),
-            'total_classes': len(all_classes),
+            'total_functions': total_functions_count,
+            'total_classes': total_classes_count,
             'total_imports': sum(len(imports) for imports in import_graph.values()),
             'lines_of_code': self._count_total_lines(python_files)
         }
 
         logger.info(f"Indexing complete: {statistics}")
 
+        # v5.8.4: Removed all_functions and all_classes to eliminate duplication
+        # All function/class data is already in ast.files, saving ~300KB per analysis
         return {
             'ast': {'files': ast_data},
             'import_graph': import_graph,
-            'statistics': statistics,
-            'all_functions': all_functions,
-            'all_classes': all_classes
+            'statistics': statistics
         }
 
     def _find_python_files(self, root_path: str) -> List[str]:
         """Find all Python files in the project"""
-        python_files = []
+        all_files = []  # v5.8.2: Renamed from python_files
 
         for root, dirs, files in os.walk(root_path):
             # Skip excluded directories
             dirs[:] = [d for d in dirs if d not in self.excluded_dirs]
 
             for file in files:
-                if file.endswith('.py'):
+                # v5.8.2: Support HTML/CSS/JS files for frontend projects
+                if file.endswith(('.py', '.html', '.css', '.js', '.jsx', '.ts', '.tsx', '.vue')):
                     file_path = os.path.join(root, file)
-                    python_files.append(file_path)
+                    all_files.append(file_path)
 
-        return python_files
+        return all_files
 
     def _count_total_lines(self, files: List[str]) -> int:
         """Count total lines of code"""

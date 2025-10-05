@@ -11,6 +11,7 @@ python-multipart==0.0.6
 # AI Services
 openai==1.109.1
 anthropic==0.68.0
+google-generativeai>=0.8.3  # For Gemini video understanding (v5.8.2)
 aiohttp==3.10.5  # For Perplexity API integration
 # perplexity-python==0.1.0  # Not available for Python 3.13
 

@@ -7,6 +7,7 @@ import logging
 import asyncio
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+from dataclasses import replace as dataclass_replace
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
@@ -19,6 +20,14 @@ except ImportError:
     ASYNC_CHECKPOINTER_AVAILABLE = False
     logger.warning("AsyncSqliteSaver not available, using sync version")
 
+# v5.8.3: Import LangGraph Store for cross-session agent learning
+try:
+    from langgraph.store.memory import InMemoryStore
+    LANGGRAPH_STORE_AVAILABLE = True
+except ImportError:
+    LANGGRAPH_STORE_AVAILABLE = False
+    logger.warning("LangGraph Store not available - agent learning disabled")
+
 from .state import ExtendedAgentState, create_initial_state, ExecutionStep, TaskLedger, ProgressLedger
 from .extensions import (
     ToolRegistry,
@@ -28,6 +37,15 @@ from .extensions import (
     get_tool_registry
 )
 from .cache_manager import CacheManager
+
+# v5.8.4: Import retry logic for resilience
+try:
+    from .retry_logic import retry_with_backoff, RetryExhaustedError
+    RETRY_LOGIC_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"⚠️ Retry logic not available: {e}")
+    RETRY_LOGIC_AVAILABLE = False
+    RetryExhaustedError = Exception
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +158,119 @@ except ImportError as e:
     logger.warning(f"⚠️ Conflict resolution will use stub")
 
 
+# ============================================================================
+# v5.8.3: Helper Functions for Immutable State Updates
+# ============================================================================
+
+def update_step_status(
+    state: ExtendedAgentState,
+    step_id: str,
+    status: str,
+    result: Any = None,
+    error: str = None
+) -> Dict[str, Any]:
+    """
+    Create state update for a single step's status/result/error
+
+    v5.8.3: LangGraph Best Practice - Immutable State Updates
+    This fixes the "architect stuck in_progress" bug by:
+    1. Using dataclass.replace() to create new step instances
+    2. Returning the update dict instead of mutating state
+    3. Letting the reducer merge the updates
+
+    Args:
+        state: Current workflow state
+        step_id: ID of the step to update
+        status: New status ("pending", "in_progress", "completed", "failed")
+        result: Optional result to set
+        error: Optional error to set
+
+    Returns:
+        Dict with "execution_plan" key containing updated steps list
+    """
+    updated_steps = []
+    for step in state["execution_plan"]:
+        if step.id == step_id:
+            # Build update dict
+            updates = {"status": status}
+            if result is not None:
+                updates["result"] = result
+            if error is not None:
+                updates["error"] = error
+
+            # Add timestamps
+            if status == "completed" or status == "failed":
+                updates["end_time"] = datetime.now()
+            if status == "in_progress" and step.status != "in_progress":
+                updates["started_at"] = datetime.now()
+                updates["start_time"] = datetime.now()
+
+            # Create new step instance
+            updated_steps.append(dataclass_replace(step, **updates))
+        else:
+            updated_steps.append(step)
+
+    return {"execution_plan": updated_steps}
+
+
+def merge_state_updates(*updates: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Merge multiple state update dicts
+
+    v5.8.3: Helper to combine multiple partial state updates
+
+    Args:
+        *updates: Variable number of state update dicts
+
+    Returns:
+        Merged dict with all updates
+    """
+    result = {}
+    for update in updates:
+        result.update(update)
+    return result
+
+
+async def execute_agent_with_retry(agent, task_request, agent_name: str = "unknown", max_attempts: int = 2):
+    """
+    Execute agent with retry logic for resilience
+
+    v5.8.4: Adds exponential backoff retry to agent execution
+
+    Args:
+        agent: Agent instance to execute
+        task_request: TaskRequest for the agent
+        agent_name: Name of the agent (for logging)
+        max_attempts: Maximum retry attempts (default: 2)
+
+    Returns:
+        TaskResult from agent
+
+    Raises:
+        Exception: If all retry attempts fail
+    """
+    if not RETRY_LOGIC_AVAILABLE:
+        # No retry logic available, execute directly
+        return await agent.execute(task_request)
+
+    try:
+        return await retry_with_backoff(
+            agent.execute,
+            task_request,
+            max_attempts=max_attempts,
+            base_delay=2.0,  # Start with 2s delay
+            max_delay=10.0,   # Max 10s delay
+            exponential_base=2.0,  # Double the delay each time
+            retry_on=(ConnectionError, TimeoutError, asyncio.TimeoutError)
+        )
+    except RetryExhaustedError as e:
+        logger.error(f"❌ {agent_name} failed after {max_attempts} attempts: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"❌ {agent_name} failed with non-retryable error: {e}")
+        raise
+
+
 class AgentWorkflow:
     """
     Main workflow orchestrator for the KI AutoAgent system
@@ -222,6 +353,16 @@ class AgentWorkflow:
         # This fixes "no running event loop" errors in human-in-the-loop workflows
         self.checkpointer = None  # Will be initialized in async context
         self.checkpointer_path = db_path  # Store for async init
+
+        # v5.8.3: Initialize LangGraph Store for cross-session agent learning
+        self.memory_store = None
+        if LANGGRAPH_STORE_AVAILABLE:
+            try:
+                self.memory_store = InMemoryStore()
+                logger.info("🧠 LangGraph Store initialized - agents can now learn across sessions")
+            except Exception as e:
+                logger.error(f"Failed to initialize LangGraph Store: {e}")
+                self.memory_store = None
 
     def _init_agent_memories(self):
         """Initialize persistent memory for each agent"""
@@ -434,28 +575,40 @@ class AgentWorkflow:
                 if step.can_retry():
                     delay = step.get_retry_delay()
                     logger.info(f"🔄 Retrying step {step.id} after {delay}s delay (attempt {step.retry_count + 1}/{step.max_retries})")
-                    step.status = "pending"  # Reset to pending for retry
-                    step.retry_count += 1
-                    step.started_at = None
-                    steps_modified = True
+                    # v5.8.3: Immutable retry update
+                    updated_steps.append(dataclass_replace(
+                        step,
+                        status="pending",
+                        retry_count=step.retry_count + 1,
+                        started_at=None,
+                        attempts=new_attempts
+                    ))
 
                     # Add retry message
-                    state["messages"].append({
+                    messages_to_add.append({
                         "role": "system",
-                        "content": f"Step {step.id} timed out. Retrying (attempt {step.retry_count}/{step.max_retries})"
+                        "content": f"Step {step.id} timed out. Retrying (attempt {step.retry_count + 1}/{step.max_retries})"
                     })
                 else:
                     # Max retries reached, mark as failed
                     logger.error(f"❌ Step {step.id} failed after {step.max_retries} retries")
-                    step.status = "failed"
-                    step.error = f"Timeout after {step.max_retries} attempts"
-                    step.end_time = datetime.now()
-                    steps_modified = True
+                    # v5.8.3: Immutable failure update
+                    updated_steps.append(dataclass_replace(
+                        step,
+                        status="failed",
+                        error=f"Timeout after {step.max_retries} attempts",
+                        end_time=datetime.now(),
+                        attempts=new_attempts
+                    ))
+            else:
+                # Keep step as-is
+                updated_steps.append(step)
 
-        if steps_modified:
-            state["execution_plan"] = list(state["execution_plan"])  # Trigger state update
-
-        return state
+        # Return partial state updates
+        result = {"execution_plan": updated_steps}
+        if messages_to_add:
+            result["messages"] = messages_to_add
+        return result
 
     def identify_parallel_groups(self, steps: List[ExecutionStep]) -> Dict[str, List[ExecutionStep]]:
         """
@@ -806,11 +959,14 @@ class AgentWorkflow:
         # Set status to executing
         state["status"] = "executing"
 
-        # Mark all steps as pending (keep completed/failed as is)
-        for step in plan:
-            if step.status != "failed" and step.status != "completed":
-                step.status = "pending"
-        state["execution_plan"] = list(plan)
+        # v5.8.3: Mark all steps as pending using immutable pattern
+        updated_plan = [
+            dataclass_replace(step, status="pending")
+            if step.status not in ["failed", "completed"]
+            else step
+            for step in plan
+        ]
+        state["execution_plan"] = updated_plan  # Will be merged by reducer
 
         logger.info(f"📋 Orchestrator created {len(plan)}-step execution plan")
 
@@ -897,9 +1053,15 @@ class AgentWorkflow:
             logger.info(f"🔌 WebSocket DEBUG: WebSocket manager available: {self.websocket_manager is not None}")
             state["approval_status"] = "approved"  # Allow workflow to continue to architect
             state["waiting_for_approval"] = False
-            first_step.status = "in_progress"
-            state["current_step_id"] = first_step.id
-            state["execution_plan"] = list(state["execution_plan"])
+            # v5.8.3: Immutable update with current_step_id
+
+            state.update(merge_state_updates(
+
+                update_step_status(state, first_step.id, "in_progress"),
+
+                {"current_step_id": first_step.id}
+
+            ))
             logger.info(f"📍 Set current_step_id to: {first_step.id} for agent: architect")
         else:
             # No architecture proposal needed - auto-approve
@@ -909,9 +1071,15 @@ class AgentWorkflow:
 
             # Set first pending step to in_progress
             if first_step:
-                first_step.status = "in_progress"
-                state["current_step_id"] = first_step.id
-                state["execution_plan"] = list(state["execution_plan"])
+                # v5.8.3: Immutable update with current_step_id
+
+                state.update(merge_state_updates(
+
+                    update_step_status(state, first_step.id, "in_progress"),
+
+                    {"current_step_id": first_step.id}
+
+                ))
                 logger.info(f"📍 Set current_step_id to: {first_step.id} for agent: {first_step.agent}")
 
         return state
@@ -956,10 +1124,15 @@ class AgentWorkflow:
             if proposal_status == "approved":
                 logger.info("✅ Proposal approved - finalizing architecture")
                 final_result = await self._finalize_architecture(state)
-                current_step.result = final_result
-                current_step.status = "completed"
-                state["execution_plan"] = list(state["execution_plan"])
+                # v5.8.3: Immutable update
 
+                return merge_state_updates(
+
+                    update_step_status(state, current_step.id, "completed", result=final_result),
+
+                    {"messages": state["messages"]}
+
+                )
                 # Store in memory
                 memory.store_memory(
                     content=f"Approved architecture: {current_step.task}",
@@ -1120,9 +1293,9 @@ class AgentWorkflow:
                     logger.warning("⚠️ WebSocket DEBUG: No websocket_manager available!")
 
                 # Update step status to pending (waiting for approval)
-                current_step.status = "in_progress"
-                state["execution_plan"] = list(state["execution_plan"])
+                # v5.8.3: Immutable update
 
+                state.update(update_step_status(state, current_step.id, "in_progress"))
                 # Store research in memory
                 memory.store_memory(
                     content=f"Architecture research: {current_step.task}",
@@ -1140,10 +1313,15 @@ class AgentWorkflow:
             # ============================================================
             logger.warning("⚠️ Unexpected architect_node state - falling back to old behavior")
             result = await self._execute_architect_task(state, current_step)
-            current_step.result = result
-            current_step.status = "completed"
-            state["execution_plan"] = list(state["execution_plan"])
+            # v5.8.3: Immutable update
 
+            return merge_state_updates(
+
+                update_step_status(state, current_step.id, "completed", result=result),
+
+                {"messages": state["messages"]}
+
+            )
             memory.store_memory(
                 content=f"Architecture design: {current_step.task}",
                 memory_type="procedural",
@@ -1154,14 +1332,13 @@ class AgentWorkflow:
 
         except Exception as e:
             logger.error(f"❌ Architect execution failed: {e}", exc_info=True)
-            current_step.status = "failed"
-            current_step.error = str(e)
+            # v5.8.3: Immutable exception handling
+            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
             state["errors"].append({
                 "agent": "architect",
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()
             })
-            state["execution_plan"] = list(state["execution_plan"])
 
         return state
 
@@ -1206,8 +1383,8 @@ class AgentWorkflow:
         try:
             # Execute code generation
             result = await self._execute_codesmith_task(state, current_step, patterns)
-            current_step.result = result
-            current_step.status = "completed"
+            # v5.8.3: Immutable update
+            state.update(update_step_status(state, current_step.id, "completed", result=result))
             logger.info(f"✅ CodeSmith node set step {current_step.id} to completed")
 
             # v5.8.1: Send completion message
@@ -1250,11 +1427,8 @@ class AgentWorkflow:
 
         except Exception as e:
             logger.error(f"CodeSmith execution failed: {e}")
-            current_step.status = "failed"
-            current_step.error = str(e)
-            # ✅ FIX: Create NEW list even on failure
-            state["execution_plan"] = list(state["execution_plan"])
-
+            # v5.8.3: Immutable exception handling
+            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
         return state
 
     async def reviewer_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1280,11 +1454,8 @@ class AgentWorkflow:
         try:
             # Perform review
             review_result = await self._execute_reviewer_task(state, current_step)
-            current_step.result = review_result
-            current_step.status = "completed"
-
-            # ✅ FIX: Create NEW list to trigger LangGraph state update
-            state["execution_plan"] = list(state["execution_plan"])
+            # v5.8.3: Immutable update
+            state.update(update_step_status(state, current_step.id, "completed", result=review_result))
 
             # 🔍 ANALYZE REVIEW: Check if critical issues found
             review_text = str(review_result).lower() if isinstance(review_result, str) else str(review_result.get("review", "")).lower()
@@ -1321,11 +1492,8 @@ class AgentWorkflow:
 
         except Exception as e:
             logger.error(f"Reviewer execution failed: {e}")
-            current_step.status = "failed"
-            current_step.error = str(e)
-            # ✅ FIX: Create NEW list even on failure
-            state["execution_plan"] = list(state["execution_plan"])
-
+            # v5.8.3: Immutable exception handling
+            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
         return state
 
     async def fixer_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1363,11 +1531,8 @@ class AgentWorkflow:
         try:
             # Fix issues
             fix_result = await self._execute_fixer_task(state, current_step, issues)
-            current_step.result = fix_result
-            current_step.status = "completed"
-
-            # ✅ FIX: Create NEW list to trigger LangGraph state update
-            state["execution_plan"] = list(state["execution_plan"])
+            # v5.8.3: Immutable update
+            state.update(update_step_status(state, current_step.id, "completed", result=fix_result))
 
             # Learn fix patterns
             # v5.5.3: Handle both dict and string fix_result
@@ -1385,11 +1550,8 @@ class AgentWorkflow:
 
         except Exception as e:
             logger.error(f"Fixer execution failed: {e}")
-            current_step.status = "failed"
-            current_step.error = str(e)
-            # ✅ FIX: Create NEW list even on failure
-            state["execution_plan"] = list(state["execution_plan"])
-
+            # v5.8.3: Immutable exception handling
+            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
         return state
 
     async def research_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1434,10 +1596,15 @@ class AgentWorkflow:
                 research_result = f"Research placeholder for: {research_query}"
 
             # Store result
-            current_step.result = research_result
-            current_step.status = "completed"
-            state["execution_plan"] = list(state["execution_plan"])
+            # v5.8.3: Immutable update
 
+            return merge_state_updates(
+
+                update_step_status(state, current_step.id, "completed", result=research_result),
+
+                {"messages": state["messages"]}
+
+            )
             # Track research in information_gathered
             info_gathered = list(state.get("information_gathered", []))
             info_gathered.append({
@@ -1453,10 +1620,9 @@ class AgentWorkflow:
 
         except Exception as e:
             logger.error(f"Research execution failed: {e}")
-            current_step.status = "failed"
-            current_step.error = str(e)
-            state["execution_plan"] = list(state["execution_plan"])
+            # v5.8.3: Immutable update with error
 
+            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
         return state
 
     async def fixer_gpt_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1510,10 +1676,15 @@ class AgentWorkflow:
             logger.info(f"✅ FixerGPT completed: {len(fix_result)} characters")
 
             # Store result
-            current_step.result = fix_result
-            current_step.status = "completed"
-            state["execution_plan"] = list(state["execution_plan"])
+            # v5.8.3: Immutable update
 
+            return merge_state_updates(
+
+                update_step_status(state, current_step.id, "completed", result=fix_result),
+
+                {"messages": state["messages"]}
+
+            )
             # Request re-review
             state["needs_replan"] = True
             state["suggested_agent"] = "reviewer"
@@ -1523,10 +1694,9 @@ class AgentWorkflow:
 
         except Exception as e:
             logger.error(f"FixerGPT execution failed: {e}")
-            current_step.status = "failed"
-            current_step.error = str(e)
-            state["execution_plan"] = list(state["execution_plan"])
+            # v5.8.3: Immutable update with error
 
+            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
         return state
 
     async def docbot_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1576,10 +1746,15 @@ class AgentWorkflow:
                 logger.info(f"✅ DocBot completed: {len(doc_result)} characters")
 
                 # Store result
-                current_step.result = doc_result
-                current_step.status = "completed"
-                state["execution_plan"] = list(state["execution_plan"])
+                # v5.8.3: Immutable update
 
+                return merge_state_updates(
+
+                    update_step_status(state, current_step.id, "completed", result=doc_result),
+
+                    {"messages": state["messages"]}
+
+                )
                 # Add to collaboration history
                 state["collaboration_history"].append({
                     "from": "docbot",
@@ -1591,15 +1766,14 @@ class AgentWorkflow:
                 # Fallback to stub
                 logger.warning("⚠️ DocBot agent not available - using stub")
                 current_step.result = "📚 Documentation stub: Would generate comprehensive docs here"
-                current_step.status = "completed"
-                state["execution_plan"] = list(state["execution_plan"])
+                # v5.8.3: Immutable update
 
+                state.update(update_step_status(state, current_step.id, "completed"))
         except Exception as e:
             logger.error(f"DocBot execution failed: {e}")
-            current_step.status = "failed"
-            current_step.error = str(e)
-            state["execution_plan"] = list(state["execution_plan"])
+            # v5.8.3: Immutable update with error
 
+            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
         return state
 
     async def performance_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1649,10 +1823,15 @@ class AgentWorkflow:
                 logger.info(f"✅ Performance optimization completed: {len(perf_result)} characters")
 
                 # Store result
-                current_step.result = perf_result
-                current_step.status = "completed"
-                state["execution_plan"] = list(state["execution_plan"])
+                # v5.8.3: Immutable update
 
+                return merge_state_updates(
+
+                    update_step_status(state, current_step.id, "completed", result=perf_result),
+
+                    {"messages": state["messages"]}
+
+                )
                 # Add to collaboration history
                 state["collaboration_history"].append({
                     "from": "performance",
@@ -1664,15 +1843,14 @@ class AgentWorkflow:
                 # Fallback to stub
                 logger.warning("⚠️ Performance agent not available - using stub")
                 current_step.result = "⚡ Performance stub: Would optimize performance here"
-                current_step.status = "completed"
-                state["execution_plan"] = list(state["execution_plan"])
+                # v5.8.3: Immutable update
 
+                state.update(update_step_status(state, current_step.id, "completed"))
         except Exception as e:
             logger.error(f"Performance optimization failed: {e}")
-            current_step.status = "failed"
-            current_step.error = str(e)
-            state["execution_plan"] = list(state["execution_plan"])
+            # v5.8.3: Immutable update with error
 
+            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
         return state
 
     async def tradestrat_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1723,10 +1901,15 @@ class AgentWorkflow:
                 logger.info(f"✅ Trading strategy developed: {len(strategy_result)} characters")
 
                 # Store result
-                current_step.result = strategy_result
-                current_step.status = "completed"
-                state["execution_plan"] = list(state["execution_plan"])
+                # v5.8.3: Immutable update
 
+                return merge_state_updates(
+
+                    update_step_status(state, current_step.id, "completed", result=strategy_result),
+
+                    {"messages": state["messages"]}
+
+                )
                 # Add to collaboration history
                 state["collaboration_history"].append({
                     "from": "tradestrat",
@@ -1738,15 +1921,14 @@ class AgentWorkflow:
                 # Fallback to stub
                 logger.warning("⚠️ TradeStrat agent not available - using stub")
                 current_step.result = "📈 Trading strategy stub: Would develop strategy here"
-                current_step.status = "completed"
-                state["execution_plan"] = list(state["execution_plan"])
+                # v5.8.3: Immutable update
 
+                state.update(update_step_status(state, current_step.id, "completed"))
         except Exception as e:
             logger.error(f"Trading strategy development failed: {e}")
-            current_step.status = "failed"
-            current_step.error = str(e)
-            state["execution_plan"] = list(state["execution_plan"])
+            # v5.8.3: Immutable update with error
 
+            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
         return state
 
     async def opus_arbitrator_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1800,10 +1982,15 @@ class AgentWorkflow:
                 logger.info(f"✅ Arbitration completed: {len(arbitration_result)} characters")
 
                 # Store result
-                current_step.result = arbitration_result
-                current_step.status = "completed"
-                state["execution_plan"] = list(state["execution_plan"])
+                # v5.8.3: Immutable update
 
+                return merge_state_updates(
+
+                    update_step_status(state, current_step.id, "completed", result=arbitration_result),
+
+                    {"messages": state["messages"]}
+
+                )
                 # Add to collaboration history
                 state["collaboration_history"].append({
                     "from": "opus_arbitrator",
@@ -1820,15 +2007,14 @@ class AgentWorkflow:
                 # Fallback to stub
                 logger.warning("⚠️ OpusArbitrator agent not available - using stub")
                 current_step.result = "⚖️ Arbitration stub: Would resolve conflicts here"
-                current_step.status = "completed"
-                state["execution_plan"] = list(state["execution_plan"])
+                # v5.8.3: Immutable update
 
+                state.update(update_step_status(state, current_step.id, "completed"))
         except Exception as e:
             logger.error(f"Arbitration failed: {e}")
-            current_step.status = "failed"
-            current_step.error = str(e)
-            state["execution_plan"] = list(state["execution_plan"])
+            # v5.8.3: Immutable update with error
 
+            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
         return state
 
     async def route_after_approval(self, state: ExtendedAgentState) -> str:
@@ -1861,9 +2047,8 @@ class AgentWorkflow:
                     # Validate agent has a workflow node
                     if agent not in AVAILABLE_NODES:
                         logger.warning(f"⚠️ Agent '{agent}' has no workflow node - marking as completed with stub")
-                        step.status = "completed"
-                        step.result = f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}"
-                        state["execution_plan"] = list(state["execution_plan"])  # Trigger state update
+                        # v5.8.3: Immutable stub update
+                        state.update(update_step_status(state, step.id, "completed", result=f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}"))
                         return "end"  # Skip execution, go to end
                     logger.info(f"✅ Routing to in_progress agent: {agent} (step_id: {step.id})")
                     return agent
@@ -1875,9 +2060,8 @@ class AgentWorkflow:
                     # Validate agent has a workflow node
                     if agent not in AVAILABLE_NODES:
                         logger.warning(f"⚠️ Agent '{agent}' has no workflow node - marking as completed with stub")
-                        step.status = "completed"
-                        step.result = f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}"
-                        state["execution_plan"] = list(state["execution_plan"])  # Trigger state update
+                        # v5.8.3: Immutable stub update
+                        state.update(update_step_status(state, step.id, "completed", result=f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}"))
                         return "end"  # Skip execution, go to end
                     logger.info(f"✅ Routing to pending agent: {agent} (step_id: {step.id})")
                     return agent
@@ -1912,9 +2096,9 @@ class AgentWorkflow:
                 logger.info("✅ Architecture proposal approved - marking step complete")
                 for step in state["execution_plan"]:
                     if step.agent == "architect" and step.status == "in_progress":
-                        step.status = "completed"
-                        step.result = "Architecture proposal approved by user"
-                        state["execution_plan"] = list(state["execution_plan"])
+                        # v5.8.3: Immutable approval completion
+                        state.update(update_step_status(state, step.id, "completed",
+                            result="Architecture proposal approved by user"))
                         break
                 # Continue with standard routing
                 return await self.route_to_next_agent(state)
@@ -1988,16 +2172,20 @@ class AgentWorkflow:
                     # Validate agent has a workflow node
                     if agent not in AVAILABLE_NODES:
                         logger.warning(f"⚠️ Agent '{agent}' has no workflow node - marking as completed with stub")
-                        step.status = "completed"
-                        step.result = f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}"
-                        state["execution_plan"] = list(state["execution_plan"])  # Trigger state update
+                        # v5.8.3: Immutable stub update
+                        state.update(update_step_status(state, step.id, "completed",
+                            result=f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}"))
                         # Continue to check for next step
                         continue
-                    step.status = "in_progress"
-                    # v5.4.3: Track execution start time for timeout management
-                    step.started_at = datetime.now()
-                    step.start_time = datetime.now()  # Also set start_time for compatibility
-                    state["current_step_id"] = step.id
+                    # v5.8.3: Immutable in_progress update
+                    now = datetime.now()
+                    state.update(merge_state_updates(
+                        update_step_status(state, step.id, "in_progress"),
+                        {"current_step_id": step.id}
+                    ))
+                    # Also update timestamps via dataclass_replace
+                    updated_step = dataclass_replace(step, started_at=now, start_time=now)
+                    state["execution_plan"] = [updated_step if s.id == step.id else s for s in state["execution_plan"]]
                     logger.info(f"✅ Routing to {agent} for step {step.id}")
                     return agent
                 else:
@@ -2011,9 +2199,9 @@ class AgentWorkflow:
             for step in stuck_steps:
                 logger.error(f"   ⚠️ Stuck step: {step.id} ({step.agent}): {step.task[:100]}")
                 # Force mark as failed
-                step.status = "failed"
-                step.error = "Step execution completed but status was not updated to 'completed'"
-            state["execution_plan"] = list(state["execution_plan"])
+                # v5.8.3: Immutable update with error
+
+                state.update(update_step_status(state, step.id, "failed", error="Step execution completed but status was not updated to 'completed'"))
             # Now check if there are any more pending steps
             has_pending = any(s.status == "pending" for s in state["execution_plan"])
             if has_pending:
@@ -3632,9 +3820,13 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
         # The checkpointer automatically saves state at each step
         # When route_after_approval returns "end" for waiting_architecture_approval,
         # the workflow pauses and can be resumed later with the same thread_id
-        self.workflow = workflow.compile(
-            checkpointer=self.checkpointer
-        )
+        # v5.8.3: Add Store for cross-session agent learning
+        compile_kwargs = {"checkpointer": self.checkpointer}
+        if self.memory_store:
+            compile_kwargs["store"] = self.memory_store
+            logger.info("🧠 Compiling workflow with Store for agent learning")
+
+        self.workflow = workflow.compile(**compile_kwargs)
         logger.info("✅ Workflow compiled with checkpointer support")
 
         return self.workflow
@@ -3796,3 +3988,79 @@ async def create_agent_workflow(
     await workflow.compile_workflow()
 
     return workflow
+
+
+# ============================================================================
+# v5.8.3: LangGraph Store Helper Functions
+# ============================================================================
+
+async def store_learned_pattern(
+    store,
+    agent_name: str,
+    pattern_type: str,
+    pattern_data: Dict[str, Any]
+):
+    """
+    Store a learned pattern in LangGraph Store for cross-session learning
+
+    Args:
+        store: LangGraph Store instance
+        agent_name: Name of the agent that learned the pattern
+        pattern_type: Type of pattern (e.g., "code_pattern", "review_pattern", "fix_pattern")
+        pattern_data: Dictionary containing the pattern data
+    """
+    if not store:
+        return
+
+    try:
+        # Create namespace: (agent_name, "learned_patterns", pattern_type)
+        namespace = (agent_name, "learned_patterns", pattern_type)
+
+        # Use pattern name or timestamp as key
+        key = pattern_data.get("pattern", str(datetime.now()))
+
+        # Store the pattern
+        await store.put(namespace, key, pattern_data)
+        logger.info(f"🧠 Stored {pattern_type} for {agent_name}: {key}")
+    except Exception as e:
+        logger.error(f"Failed to store pattern: {e}")
+
+
+async def recall_learned_patterns(
+    store,
+    agent_name: str,
+    pattern_type: str,
+    query: str = None,
+    limit: int = 5
+) -> List[Dict[str, Any]]:
+    """
+    Recall learned patterns from LangGraph Store
+
+    Args:
+        store: LangGraph Store instance
+        agent_name: Name of the agent
+        pattern_type: Type of pattern to recall
+        query: Optional query string for semantic search
+        limit: Maximum number of patterns to return
+
+    Returns:
+        List of pattern dictionaries
+    """
+    if not store:
+        return []
+
+    try:
+        namespace = (agent_name, "learned_patterns", pattern_type)
+
+        # Search for patterns
+        if query:
+            results = await store.search(namespace, query=query, limit=limit)
+        else:
+            results = await store.search(namespace, limit=limit)
+
+        patterns = [r.value for r in results] if results else []
+        logger.info(f"🧠 Recalled {len(patterns)} {pattern_type}(s) for {agent_name}")
+        return patterns
+    except Exception as e:
+        logger.error(f"Failed to recall patterns: {e}")
+        return []

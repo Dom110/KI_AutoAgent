@@ -119,6 +119,15 @@ agents:
         - "./backtest/**"
     description: "Can write trading strategies and backtest results"
 
+  VideoAgent:
+    capabilities:
+      file_write: true
+      allowed_paths:
+        - "./**/*.json"  # JSON output for agents
+        - "./**/*.md"    # Markdown output for humans
+        - "$HOME/.ki_autoagent/data/video_output/**/*"  # Global video output directory
+    description: "Can analyze videos and write analysis results in JSON and Markdown formats"
+
 # Default settings for all agents
 defaults:
   backup_before_write: true

@@ -78,6 +78,7 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
         self.connection_info: Dict[str, Dict[str, Any]] = {}
+        self.active_tasks: Dict[str, asyncio.Task] = {}  # v5.8.4: Track active workflow tasks
 
     async def connect(self, websocket: WebSocket, client_id: str):
         await websocket.accept()
@@ -92,6 +93,15 @@ class ConnectionManager:
         if client_id in self.active_connections:
             del self.active_connections[client_id]
             del self.connection_info[client_id]
+
+            # v5.8.4: Cancel active task on disconnect
+            if client_id in self.active_tasks:
+                task = self.active_tasks[client_id]
+                if not task.done():
+                    task.cancel()
+                    logger.info(f"⏹️  Cancelled active task for {client_id}")
+                del self.active_tasks[client_id]
+
             logger.info(f"❌ Client {client_id} disconnected")
 
     async def send_json(self, client_id: str, data: dict):
@@ -519,12 +529,26 @@ async def websocket_chat(websocket: WebSocket):
                 logger.info(f"📁 Workspace set for {client_id}: {session['workspace_path']}")
 
             elif message_type == "stop":
-                # Stop current workflow
-                # TODO: Implement workflow cancellation
-                await manager.send_json(client_id, {
-                    "type": "stopped",
-                    "message": "Workflow stopped"
-                })
+                # v5.8.4: Implement workflow cancellation
+                if client_id in manager.active_tasks:
+                    task = manager.active_tasks[client_id]
+                    if not task.done():
+                        task.cancel()
+                        logger.info(f"⏹️  Stopping workflow for {client_id}")
+                        await manager.send_json(client_id, {
+                            "type": "stopped",
+                            "message": "⏹️  Workflow stopped by user"
+                        })
+                    else:
+                        await manager.send_json(client_id, {
+                            "type": "stopped",
+                            "message": "Workflow already completed"
+                        })
+                else:
+                    await manager.send_json(client_id, {
+                        "type": "stopped",
+                        "message": "No active workflow to stop"
+                    })
 
             elif message_type == "ping":
                 await manager.send_json(client_id, {"type": "pong"})
@@ -719,20 +743,41 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
     })
 
     try:
-        # Execute workflow
+        # v5.8.4: Execute workflow with cancellation support
         logger.info(f"🔍 DEBUG: Executing LangGraph workflow")
         logger.info(f"🔍 DEBUG: Session ID: {session['session_id']}")
         logger.info(f"🔍 DEBUG: Workspace: {session.get('workspace_path', 'None')}")
-        final_state = await workflow_system.execute(
-            task=content,
-            session_id=session["session_id"],
-            client_id=client_id,
-            workspace_path=session.get("workspace_path"),
-            plan_first_mode=session.get("plan_first_mode", False),
-            config={
-                "debug_mode": data.get("debug", False)
-            }
+
+        # Create task for cancellation support
+        workflow_task = asyncio.create_task(
+            workflow_system.execute(
+                task=content,
+                session_id=session["session_id"],
+                client_id=client_id,
+                workspace_path=session.get("workspace_path"),
+                plan_first_mode=session.get("plan_first_mode", False),
+                config={
+                    "debug_mode": data.get("debug", False)
+                }
+            )
         )
+
+        # Track task for cancellation
+        manager.active_tasks[client_id] = workflow_task
+
+        try:
+            final_state = await workflow_task
+        except asyncio.CancelledError:
+            logger.info(f"⏹️  Workflow cancelled for {client_id}")
+            await manager.send_json(client_id, {
+                "type": "stopped",
+                "message": "⏹️  Workflow was cancelled"
+            })
+            return
+        finally:
+            # Clean up task tracking
+            if client_id in manager.active_tasks:
+                del manager.active_tasks[client_id]
 
         # Send progress updates during execution
         if final_state.get("execution_plan"):

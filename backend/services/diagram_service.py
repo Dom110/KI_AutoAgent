@@ -7,8 +7,18 @@ from typing import List, Dict, Any, Optional
 from pathlib import Path
 from enum import Enum
 import logging
+import json
+import re
 
 logger = logging.getLogger(__name__)
+
+# Import OpenAI service for AI-powered diagram generation
+try:
+    from utils.openai_service import OpenAIService
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    logger.warning("OpenAI service not available - AI diagram generation disabled")
 
 
 class DiagramFormat(Enum):
@@ -309,3 +319,210 @@ class DiagramService:
         except Exception as e:
             logger.error(f"Failed to save diagram: {e}")
             return None
+
+    def _validate_mermaid(self, mermaid_code: str) -> bool:
+        """
+        Validate Mermaid diagram syntax (basic validation)
+
+        Checks:
+        - Has diagram type declaration (graph/flowchart/sequenceDiagram/etc.)
+        - No empty content
+        - No duplicate backtick wrappers
+        - Basic syntax structure
+
+        Returns:
+            True if valid, False otherwise
+        """
+        if not mermaid_code or not mermaid_code.strip():
+            logger.error("Mermaid validation failed: Empty code")
+            return False
+
+        # Remove backticks if present (for validation)
+        code = mermaid_code.strip()
+        if code.startswith('```'):
+            code = re.sub(r'^```mermaid\s*\n', '', code)
+            code = re.sub(r'\n```\s*$', '', code)
+
+        # Check for diagram type
+        diagram_types = [
+            'graph TB', 'graph TD', 'graph LR', 'graph RL',
+            'flowchart TB', 'flowchart TD', 'flowchart LR',
+            'sequenceDiagram', 'classDiagram', 'stateDiagram',
+            'erDiagram', 'gantt', 'pie', 'journey'
+        ]
+
+        has_type = any(dtype in code for dtype in diagram_types)
+        if not has_type:
+            logger.error(f"Mermaid validation failed: No diagram type found. Code: {code[:100]}")
+            return False
+
+        # Check for minimal content (more than just the type declaration)
+        lines = [l.strip() for l in code.split('\n') if l.strip()]
+        if len(lines) < 2:
+            logger.error("Mermaid validation failed: Too few lines (need content after type)")
+            return False
+
+        # Check for double backtick wrappers (error in generation)
+        if code.count('```') >= 2:
+            logger.error("Mermaid validation failed: Double backtick wrappers detected")
+            return False
+
+        logger.info("✅ Mermaid syntax validation passed")
+        return True
+
+    async def generate_architecture_diagram_ai(
+        self,
+        code_index: Dict[str, Any],
+        diagram_type: str = 'container'
+    ) -> str:
+        """
+        Generate Mermaid architecture diagram using GPT-4o (v5.8.2)
+
+        AI-powered generation creates meaningful, project-specific diagrams
+        instead of hardcoded templates.
+
+        Args:
+            code_index: Complete code index from ArchitectAgent
+            diagram_type: Type of C4 diagram ('context', 'container', 'component')
+
+        Returns:
+            Mermaid diagram code (with ```mermaid wrapper)
+        """
+        if not OPENAI_AVAILABLE:
+            logger.warning("OpenAI not available - falling back to template")
+            return self._fallback_diagram_template(diagram_type)
+
+        try:
+            # Prepare code structure summary for AI
+            structure_summary = {
+                'total_files': len(code_index.get('files', [])),
+                'modules': list(code_index.get('modules', {}).keys())[:20],  # Limit to 20
+                'api_endpoints': code_index.get('api_endpoints', [])[:15],  # Limit to 15
+                'agents': code_index.get('agents', []),
+                'services': code_index.get('services', []),
+                'tech_stack': code_index.get('tech_stack', {}),
+                'main_components': code_index.get('components', [])
+            }
+
+            # Build AI prompt based on diagram type
+            if diagram_type == 'context':
+                prompt_template = """Generate a Mermaid C4 Context diagram for this system.
+
+System Info:
+{system_info}
+
+Requirements:
+1. Show the system as the center
+2. Show external users/systems interacting with it
+3. Use simple boxes and arrows
+4. Include technology labels where relevant
+5. Use Mermaid graph TB syntax
+
+Return ONLY the Mermaid code (no ```mermaid wrapper, no explanations):"""
+
+            elif diagram_type == 'component':
+                prompt_template = """Generate a Mermaid Component diagram for this system.
+
+System Info:
+{system_info}
+
+Requirements:
+1. Show internal components and their relationships
+2. Group related components in subgraphs if applicable
+3. Show data flow between components
+4. Use descriptive labels
+5. Use Mermaid graph TB syntax
+
+Return ONLY the Mermaid code (no ```mermaid wrapper, no explanations):"""
+
+            else:  # container (default)
+                prompt_template = """Generate a Mermaid Container diagram for this system.
+
+System Info:
+{system_info}
+
+Requirements:
+1. Show main containers: VS Code Extension, Backend (FastAPI), Agents, Services, Database
+2. Show WebSocket connections (Extension ↔ Backend)
+3. Show Agent orchestration flow
+4. Show data persistence (Redis/SQLite)
+5. Use Mermaid graph TB syntax with descriptive labels
+
+Return ONLY the Mermaid code (no ```mermaid wrapper, no explanations):"""
+
+            # Format system info
+            system_info_text = json.dumps(structure_summary, indent=2)
+            full_prompt = prompt_template.format(system_info=system_info_text)
+
+            # Call GPT-4o
+            openai_service = OpenAIService(model="gpt-4o")
+            logger.info(f"🤖 Generating {diagram_type} diagram with GPT-4o...")
+
+            response = await openai_service.get_completion(
+                system_prompt="You are an expert at creating Mermaid diagrams. Generate ONLY valid Mermaid syntax, no explanations.",
+                user_prompt=full_prompt,
+                temperature=0.3  # Lower temperature for consistent syntax
+            )
+
+            # Validate Mermaid syntax
+            if not self._validate_mermaid(response):
+                logger.error("AI-generated Mermaid failed validation - using fallback")
+                return self._fallback_diagram_template(diagram_type)
+
+            # Wrap in mermaid code block
+            mermaid_code = f"```mermaid\n{response.strip()}\n```"
+
+            logger.info(f"✅ AI-generated {diagram_type} diagram created")
+            return mermaid_code
+
+        except Exception as e:
+            logger.error(f"AI diagram generation failed: {e}")
+            return self._fallback_diagram_template(diagram_type)
+
+    def _fallback_diagram_template(self, diagram_type: str) -> str:
+        """
+        Fallback to template when AI generation fails
+
+        Returns:
+            Basic Mermaid diagram template
+        """
+        logger.info(f"Using fallback template for {diagram_type} diagram")
+
+        if diagram_type == 'context':
+            return """```mermaid
+graph TB
+    User[User/Developer]
+    System[KI AutoAgent System]
+    VSCode[VS Code]
+
+    User --> VSCode
+    VSCode --> System
+    System --> User
+```"""
+
+        elif diagram_type == 'component':
+            return """```mermaid
+graph TB
+    UI[UI Layer]
+    API[API Layer]
+    Business[Business Logic]
+    Data[Data Layer]
+
+    UI --> API
+    API --> Business
+    Business --> Data
+```"""
+
+        else:  # container (default)
+            return """```mermaid
+graph TB
+    VSCode[VS Code Extension<br/>TypeScript]
+    Backend[Backend API<br/>FastAPI/Python]
+    Agents[Agent System<br/>LangGraph]
+    Redis[(Redis Cache)]
+
+    VSCode -->|WebSocket| Backend
+    Backend --> Agents
+    Agents --> Redis
+    Backend --> Redis
+```"""

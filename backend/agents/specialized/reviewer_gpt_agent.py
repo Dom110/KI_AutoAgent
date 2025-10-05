@@ -54,6 +54,27 @@ class ReviewerGPTAgent(ChatAgent):
         self.ai_service = OpenAIService(model=self.config.model)
         self.browser_tester = None  # Will be initialized on-demand
 
+    async def _get_architect_analysis(self) -> Optional[Dict[str, Any]]:
+        """
+        Get Architect's system analysis from shared_context (v5.8.2)
+        Returns system_knowledge with metrics, dead_code, security, etc.
+        """
+        if not self.shared_context:
+            logger.warning("⚠️ Reviewer: shared_context not available")
+            return None
+
+        try:
+            analysis = self.shared_context.get('architect:system_knowledge')
+            if analysis:
+                logger.info("✅ Reviewer: Got Architect analysis from shared_context")
+                return analysis
+            else:
+                logger.info("ℹ️ Reviewer: No Architect analysis available yet")
+                return None
+        except Exception as e:
+            logger.error(f"❌ Reviewer: Failed to get Architect analysis: {e}")
+            return None
+
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute code review task - ENFORCER OF ASIMOV RULES
@@ -161,7 +182,61 @@ Please fix these issues and re-test.""",
             # Fallback to AI-powered code review for non-HTML tasks
             logger.info("📝 Using AI-powered code review")
 
-            system_prompt = """
+            # v5.8.2: Get Architect's analysis for enhanced review
+            architect_analysis = await self._get_architect_analysis()
+
+            # Build context from Architect's analysis
+            analysis_context = ""
+            if architect_analysis:
+                # Add Quality Score context
+                metrics = architect_analysis.get('metrics', {})
+                metrics_summary = metrics.get('summary', {})
+                quality_score = metrics_summary.get('quality_score', 0)
+                avg_complexity = metrics_summary.get('average_complexity', 0)
+
+                analysis_context += f"""
+📊 ARCHITECT ANALYSIS AVAILABLE:
+- Quality Score: {quality_score:.1f}/100
+- Average Complexity: {avg_complexity:.1f}
+"""
+
+                # Add Dead Code context (prioritize review on these)
+                dead_code = architect_analysis.get('dead_code', {})
+                dead_code_summary = dead_code.get('summary', {})
+                total_dead = dead_code_summary.get('total_dead_code', 0)
+                if total_dead > 0:
+                    analysis_context += f"""
+🧹 DEAD CODE DETECTED: {total_dead} unused items found
+Priority: Review if these should be removed or are false positives
+"""
+                    # Show top 5 dead code items
+                    dead_items = dead_code.get('items', [])[:5]
+                    if dead_items:
+                        analysis_context += "Top dead code items:\n"
+                        for item in dead_items:
+                            analysis_context += f"  - {item.get('name')} ({item.get('type')}) at {item.get('file')}:{item.get('line')}\n"
+
+                # Add Security context
+                security = architect_analysis.get('security', {})
+                security_summary = security.get('summary', {})
+                critical_count = security_summary.get('critical', 0)
+                high_count = security_summary.get('high', 0)
+                if critical_count > 0 or high_count > 0:
+                    analysis_context += f"""
+🔒 SECURITY ISSUES FOUND:
+- Critical: {critical_count}
+- High: {high_count}
+Priority: Review these security findings first!
+"""
+
+                # Add high complexity functions
+                if quality_score < 70:
+                    analysis_context += f"""
+⚠️ LOW QUALITY SCORE ({quality_score:.1f}/100)
+Focus review on improving maintainability and reducing complexity.
+"""
+
+            system_prompt = f"""
             You are ReviewerGPT, the ENFORCER OF ASIMOV RULES and code quality.
 
             🔴 ASIMOV RULES (ABSOLUTE - BLOCK ANY VIOLATIONS):
@@ -181,6 +256,8 @@ Please fix these issues and re-test.""",
             - 🔴 BLOCK: Any code with Asimov violations
             - 🔴 REJECT: Fallbacks without documented reason
             - 🔴 FAIL: Incomplete implementations or TODOs
+
+            {analysis_context}
 
             Provide actionable feedback with specific line references.
             Rate severity: ASIMOV VIOLATION 🔴🔴🔴, Critical 🔴, High 🟠, Medium 🟡, Low 🔵

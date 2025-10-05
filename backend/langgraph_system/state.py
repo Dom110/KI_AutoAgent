@@ -4,7 +4,7 @@ Defines the complete state structure for agent communication
 """
 
 from typing import TypedDict, List, Dict, Any, Optional, Literal, Annotated
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as dataclass_replace
 from datetime import datetime
 import uuid
 import operator
@@ -31,6 +31,63 @@ class MemoryEntry:
     importance: float
     metadata: Dict[str, Any]
     session_id: str
+
+
+def merge_execution_steps(
+    existing: List["ExecutionStep"],
+    updates: List["ExecutionStep"]
+) -> List["ExecutionStep"]:
+    """
+    Custom reducer for execution_plan state updates
+
+    v5.8.3: LangGraph Best Practice - State Immutability
+    This reducer merges step updates by ID instead of mutating dataclasses.
+    Fixes the "architect stuck in_progress" bug by ensuring checkpointer
+    correctly saves state changes.
+
+    How it works:
+    - If step.id exists in existing: Replace entire step with updated version
+    - If step.id is new: Append to plan
+    - Preserves order of existing steps
+
+    Args:
+        existing: Current execution_plan from state
+        updates: New/modified steps returned from node
+
+    Returns:
+        Merged list with updated steps
+
+    Example:
+        # Node returns partial update:
+        return {"execution_plan": [dataclass_replace(step, status="completed")]}
+        # Reducer merges: existing steps + this updated step
+    """
+    if not existing:
+        return updates
+
+    # Create lookup dict for fast ID-based updates
+    steps_dict = {step.id: step for step in existing}
+
+    # Merge updates (replace if exists, add if new)
+    for update_step in updates:
+        steps_dict[update_step.id] = update_step
+
+    # Preserve original order, append new steps at end
+    result = []
+    seen_ids = set()
+
+    # First: Keep existing order
+    for step in existing:
+        if step.id in steps_dict:
+            result.append(steps_dict[step.id])
+            seen_ids.add(step.id)
+
+    # Then: Append new steps
+    for update_step in updates:
+        if update_step.id not in seen_ids:
+            result.append(update_step)
+
+    return result
 
 
 @dataclass
@@ -165,7 +222,9 @@ class ExtendedAgentState(TypedDict):
     workspace_path: str
 
     # Execution plan and tracking
-    execution_plan: List[ExecutionStep]
+    # v5.8.3: Using Annotated with custom reducer for state immutability
+    # This ensures LangGraph checkpointer correctly persists step status changes
+    execution_plan: Annotated[List[ExecutionStep], merge_execution_steps]
     current_step_id: Optional[str]
     execution_mode: Literal["sequential", "parallel"]
 

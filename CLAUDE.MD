@@ -152,3 +152,54 @@ LEGACY:     ~/.ki-autoagent/               (Backwards Compatibility)
 **Verstöße gegen diese Regeln führen zu Duplikation und Chaos!**
 
 ---
+
+## 🔧 CODE REFACTORING BEST PRACTICES (v5.8.4+)
+
+### **OBSOLETE Code Handling Protocol**
+
+**WICHTIG**: Beim Entfernen von Code IMMER diesen Prozess folgen:
+
+#### 1. **Mark as OBSOLETE First** (NIEMALS direkt löschen!)
+```python
+# ============================================================================
+# OBSOLETE v5.8.4: The following methods are no longer needed
+# Reason: workflow.py handles actual execution, Orchestrator only plans
+# Marked for removal after testing confirms everything works
+# ============================================================================
+
+async def execute_workflow(...):
+    """
+    OBSOLETE v5.8.4: This is a simulation only
+    Real execution happens in workflow.py via _execute_*_task methods
+    """
+    # ... original code bleibt ...
+
+# ============================================================================
+# END OBSOLETE SECTION - All methods above marked for removal after testing
+# ============================================================================
+```
+
+#### 2. **Test Thoroughly**
+- Erstelle TestApp und validiere Funktionalität
+- Überprüfe alle Call-Sites
+- Sicherstellen dass neue Implementierung funktioniert
+
+#### 3. **Only Then Remove**
+- Nach erfolgreichen Tests kann Code entfernt werden
+- Git Commit mit Verweis auf OBSOLETE Markierung
+- Dokumentiere Removal im CHANGELOG
+
+### **Warum dieser Prozess?**
+- ✅ **Sicher**: Code bleibt funktional während Tests laufen
+- ✅ **Nachvollziehbar**: Klare Markierung was entfernt werden soll
+- ✅ **Revertable**: Easy rollback falls Probleme auftreten
+- ✅ **Team-Friendly**: Andere sehen was deprecated ist
+
+### **Anweisung für Fixer Agent**:
+Wenn du OBSOLETE markierten Code findest:
+1. Prüfe ob Tests existieren und erfolgreich sind
+2. Wenn ja: Entferne OBSOLETE Sektion komplett
+3. Wenn nein: Frage User ob Tests durchgeführt wurden
+4. NIEMALS OBSOLETE Code ohne Bestätigung entfernen!
+
+---
