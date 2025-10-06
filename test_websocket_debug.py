@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 class WebSocketTestClient:
     def __init__(self):
-        self.uri = "ws://localhost:8000/ws/chat"
+        self.uri = "ws://localhost:8001/ws/chat"
         self.websocket = None
         self.client_id = None
         self.received_messages = []
@@ -41,19 +41,43 @@ class WebSocketTestClient:
         try:
             logger.info(f"🔌 Connecting to {self.uri}")
             self.websocket = await websockets.connect(self.uri)
-            
-            # Wait for connection message with client_id
+
+            # Wait for initial message
             message = await self.websocket.recv()
             data = json.loads(message)
-            
-            if data.get('type') == 'connection':
+            logger.info(f"📥 Initial message: {json.dumps(data, indent=2)}")
+
+            # Check if initialization is required (v5.8.1 multi-client protocol)
+            if data.get('type') == 'connected' and data.get('requires_init'):
+                logger.info("📝 Initialization required, sending workspace path")
+                init_msg = {
+                    "type": "init",
+                    "workspace_path": "/Users/dominikfoert/TestApps/TestAIFeatures_20251006"
+                }
+                await self.websocket.send(json.dumps(init_msg))
+
+                # Wait for initialization confirmation
+                message = await self.websocket.recv()
+                data = json.loads(message)
+                logger.info(f"📥 Init response: {json.dumps(data, indent=2)}")
+
+                if data.get('type') == 'initialized':
+                    self.client_id = data.get('session_id')
+                    logger.info(f"✅ Connected and initialized! Session: {self.client_id}")
+                    return True
+                else:
+                    logger.error(f"❌ Unexpected init response: {data}")
+                    return False
+
+            elif data.get('type') == 'connection':
+                # Old protocol
                 self.client_id = data.get('client_id')
                 logger.info(f"✅ Connected! Client ID: {self.client_id}")
                 return True
             else:
                 logger.error(f"❌ Unexpected connection message: {data}")
                 return False
-                
+
         except Exception as e:
             logger.error(f"❌ Connection failed: {e}")
             return False
@@ -134,26 +158,39 @@ async def run_test():
     logger.info("="*60)
     logger.info("🚀 Starting WebSocket Debug Test")
     logger.info("="*60)
-    
+
     client = WebSocketTestClient()
-    
+
     # Test 1: Connection
     logger.info("\n📋 Test 1: Establishing Connection")
     connected = await client.connect()
     if not connected:
         logger.error("Failed to connect. Is the server running on port 8001?")
         return
-    
+
     # Test 2: Simple Query
     logger.info("\n📋 Test 2: Simple Query")
     await client.send_task("What agents are available in the system?")
-    await client.receive_messages(timeout=10)
-    
+    await client.receive_messages(timeout=45)  # Wait longer for complete response
+
+    logger.info("\n⏳ Waiting 3 seconds before next task...")
+    await asyncio.sleep(3)  # Give backend time to reset
+
+    # Reconnect for clean state
+    await client.close()
+    logger.info("\n🔄 Reconnecting for second test...")
+    await asyncio.sleep(1)
+
+    connected = await client.connect()
+    if not connected:
+        logger.error("Failed to reconnect")
+        return
+
     # Test 3: Complex Task (triggers agent thinking)
     logger.info("\n📋 Test 3: Complex Task")
     await client.send_task("Analyze the WebSocket communication in backend/api/server.py and identify any potential issues")
-    await client.receive_messages(timeout=30)
-    
+    await client.receive_messages(timeout=60)  # Even longer for complex task
+
     # Close connection
     await client.close()
     

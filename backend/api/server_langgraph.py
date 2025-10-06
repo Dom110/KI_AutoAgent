@@ -797,9 +797,10 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
         # Send final result (v5.8.1: skip if waiting for approval)
         if final_state.get("status") != "waiting_architecture_approval":
             await manager.send_json(client_id, {
-                "type": "response",
+                "type": "agent_response",
                 "agent": "orchestrator",
                 "content": final_state.get("final_result", "Task completed"),
+                "status": "success",
                 "metadata": {
                     "execution_time": (
                         final_state["end_time"] - final_state["start_time"]
@@ -949,22 +950,10 @@ def main():
 
     # Check if server is already running
     if check_server_running(primary_port):
-        logger.info(f"⚠️  KI Agent already running on port {primary_port}")
-        logger.info("🔄 Attempting graceful shutdown...")
-
-        if graceful_shutdown(primary_port):
-            logger.info("✅ Previous instance shut down successfully")
-        else:
-            logger.warning("⚠️  Could not gracefully shut down. Using fallback port.")
-            # Find alternative port if graceful shutdown failed
-            for p in range(8002, 8010):
-                if not check_server_running(p):
-                    primary_port = p
-                    logger.info(f"📍 Using fallback port {primary_port}")
-                    break
-            else:
-                logger.error("❌ No available ports found (8001-8009 all in use)")
-                sys.exit(1)
+        logger.error(f"❌ KI Agent already running on port {primary_port}")
+        logger.error("❌ Another instance is already running. Please stop it first.")
+        logger.error("❌ Use: $HOME/.ki_autoagent/stop.sh")
+        sys.exit(1)
 
     port = primary_port
     logger.info(f"🚀 Starting server on port {port}")

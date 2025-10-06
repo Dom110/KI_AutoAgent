@@ -1,0 +1,146 @@
+2025-10-06 21:46:49,523 - __main__ - INFO - 🕐 Test started at 2025-10-06 21:46:49
+2025-10-06 21:46:49,523 - asyncio - DEBUG - Using selector: KqueueSelector
+2025-10-06 21:46:49,523 - __main__ - INFO - ============================================================
+2025-10-06 21:46:49,523 - __main__ - INFO - 🚀 Starting WebSocket Debug Test
+2025-10-06 21:46:49,523 - __main__ - INFO - ============================================================
+2025-10-06 21:46:49,523 - __main__ - INFO - 
+📋 Test 1: Establishing Connection
+2025-10-06 21:46:49,523 - __main__ - INFO - 🔌 Connecting to ws://localhost:8001/ws/chat
+2025-10-06 21:46:49,543 - websockets.client - DEBUG - = connection is CONNECTING
+2025-10-06 21:46:49,543 - websockets.client - DEBUG - > GET /ws/chat HTTP/1.1
+2025-10-06 21:46:49,543 - websockets.client - DEBUG - > Host: localhost:8001
+2025-10-06 21:46:49,543 - websockets.client - DEBUG - > Upgrade: websocket
+2025-10-06 21:46:49,543 - websockets.client - DEBUG - > Connection: Upgrade
+2025-10-06 21:46:49,543 - websockets.client - DEBUG - > Sec-WebSocket-Key: hFkCIifmpxZZBdKb/5keYA==
+2025-10-06 21:46:49,543 - websockets.client - DEBUG - > Sec-WebSocket-Version: 13
+2025-10-06 21:46:49,543 - websockets.client - DEBUG - > Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits
+2025-10-06 21:46:49,543 - websockets.client - DEBUG - > User-Agent: Python/3.13 websockets/10.4
+2025-10-06 21:46:49,544 - websockets.client - DEBUG - < HTTP/1.1 101 Switching Protocols
+2025-10-06 21:46:49,544 - websockets.client - DEBUG - < Upgrade: websocket
+2025-10-06 21:46:49,544 - websockets.client - DEBUG - < Connection: Upgrade
+2025-10-06 21:46:49,544 - websockets.client - DEBUG - < Sec-WebSocket-Accept: G+fZOMLDztiOE3FkKbdxzAgdTCg=
+2025-10-06 21:46:49,544 - websockets.client - DEBUG - < Sec-WebSocket-Extensions: permessage-deflate
+2025-10-06 21:46:49,544 - websockets.client - DEBUG - < date: Mon, 06 Oct 2025 19:46:49 GMT
+2025-10-06 21:46:49,544 - websockets.client - DEBUG - < server: uvicorn
+2025-10-06 21:46:49,544 - websockets.client - DEBUG - = connection is OPEN
+2025-10-06 21:46:49,544 - websockets.client - DEBUG - < TEXT '{"type":"connected","message":"Connected to KI ...","requires_init":true}' [277 bytes]
+2025-10-06 21:46:49,545 - __main__ - INFO - 📥 Initial message: {
+  "type": "connected",
+  "message": "Connected to KI AutoAgent LangGraph System v5.8.1. Please send init message with workspace_path.",
+  "session_id": "beb82c6f-d755-4523-8409-af420525d7a2",
+  "client_id": "client_5c0990b0",
+  "version": "v5.8.1-multi-client-architecture",
+  "requires_init": true
+}
+2025-10-06 21:46:49,545 - __main__ - INFO - 📝 Initialization required, sending workspace path
+2025-10-06 21:46:49,545 - websockets.client - DEBUG - > TEXT '{"type": "init", "workspace_path": "/Users/domi...stAIFeatures_20251006"}' [90 bytes]
+2025-10-06 21:46:49,545 - websockets.client - DEBUG - < TEXT '{"type":"initialized","session_id":"beb82c6f-d7...stAIFeatures_20251006"}' [264 bytes]
+2025-10-06 21:46:49,545 - __main__ - INFO - 📥 Init response: {
+  "type": "initialized",
+  "session_id": "beb82c6f-d755-4523-8409-af420525d7a2",
+  "client_id": "client_5c0990b0",
+  "workspace_path": "/Users/dominikfoert/TestApps/TestAIFeatures_20251006",
+  "message": "Workspace initialized: /Users/dominikfoert/TestApps/TestAIFeatures_20251006"
+}
+2025-10-06 21:46:49,545 - __main__ - INFO - ✅ Connected and initialized! Session: beb82c6f-d755-4523-8409-af420525d7a2
+2025-10-06 21:46:49,545 - __main__ - INFO - 
+📋 Test 2: Simple Query
+2025-10-06 21:46:49,545 - __main__ - INFO - 📤 Sending task: What agents are available in the system?...
+2025-10-06 21:46:49,545 - __main__ - DEBUG - Full message: {
+  "type": "chat",
+  "content": "What agents are available in the system?",
+  "agent": "auto",
+  "mode": "auto"
+}
+2025-10-06 21:46:49,545 - websockets.client - DEBUG - > TEXT '{"type": "chat", "content": "What agents are av..."auto", "mode": "auto"}' [104 bytes]
+2025-10-06 21:46:49,546 - websockets.client - DEBUG - < TEXT '{"type":"agent_thinking","agent":"orchestrator"...g LangGraph v5.8.1..."}' [115 bytes]
+2025-10-06 21:46:49,546 - __main__ - INFO - 💭 Agent thinking: orchestrator
+2025-10-06 21:46:50,547 - __main__ - INFO - 
+⏳ Waiting 3 seconds before next task...
+2025-10-06 21:46:53,549 - websockets.client - DEBUG - = connection is CLOSING
+2025-10-06 21:46:53,549 - websockets.client - DEBUG - > CLOSE 1000 (OK) [2 bytes]
+2025-10-06 21:46:53,550 - websockets.client - DEBUG - < CLOSE 1000 (OK) [2 bytes]
+2025-10-06 21:46:53,550 - websockets.client - DEBUG - = connection is CLOSED
+2025-10-06 21:46:53,551 - __main__ - INFO - 🔌 Connection closed
+2025-10-06 21:46:53,551 - __main__ - INFO - 
+🔄 Reconnecting for second test...
+2025-10-06 21:46:54,552 - __main__ - INFO - 🔌 Connecting to ws://localhost:8001/ws/chat
+2025-10-06 21:46:54,553 - websockets.client - DEBUG - = connection is CONNECTING
+2025-10-06 21:46:54,554 - websockets.client - DEBUG - > GET /ws/chat HTTP/1.1
+2025-10-06 21:46:54,554 - websockets.client - DEBUG - > Host: localhost:8001
+2025-10-06 21:46:54,554 - websockets.client - DEBUG - > Upgrade: websocket
+2025-10-06 21:46:54,554 - websockets.client - DEBUG - > Connection: Upgrade
+2025-10-06 21:46:54,554 - websockets.client - DEBUG - > Sec-WebSocket-Key: PcMLgYALSPZ5kmWW0v0pDw==
+2025-10-06 21:46:54,554 - websockets.client - DEBUG - > Sec-WebSocket-Version: 13
+2025-10-06 21:46:54,554 - websockets.client - DEBUG - > Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits
+2025-10-06 21:46:54,554 - websockets.client - DEBUG - > User-Agent: Python/3.13 websockets/10.4
+2025-10-06 21:46:54,555 - websockets.client - DEBUG - < HTTP/1.1 101 Switching Protocols
+2025-10-06 21:46:54,555 - websockets.client - DEBUG - < Upgrade: websocket
+2025-10-06 21:46:54,555 - websockets.client - DEBUG - < Connection: Upgrade
+2025-10-06 21:46:54,555 - websockets.client - DEBUG - < Sec-WebSocket-Accept: 40793hwI/yBZ43CeyaiLUe7TKz4=
+2025-10-06 21:46:54,555 - websockets.client - DEBUG - < Sec-WebSocket-Extensions: permessage-deflate
+2025-10-06 21:46:54,555 - websockets.client - DEBUG - < date: Mon, 06 Oct 2025 19:46:54 GMT
+2025-10-06 21:46:54,555 - websockets.client - DEBUG - < server: uvicorn
+2025-10-06 21:46:54,555 - websockets.client - DEBUG - = connection is OPEN
+2025-10-06 21:46:54,555 - websockets.client - DEBUG - < TEXT '{"type":"connected","message":"Connected to KI ...","requires_init":true}' [277 bytes]
+2025-10-06 21:46:54,555 - __main__ - INFO - 📥 Initial message: {
+  "type": "connected",
+  "message": "Connected to KI AutoAgent LangGraph System v5.8.1. Please send init message with workspace_path.",
+  "session_id": "e754ef59-7d32-4d56-af54-fa7e9a25ef29",
+  "client_id": "client_72f3616c",
+  "version": "v5.8.1-multi-client-architecture",
+  "requires_init": true
+}
+2025-10-06 21:46:54,556 - __main__ - INFO - 📝 Initialization required, sending workspace path
+2025-10-06 21:46:54,556 - websockets.client - DEBUG - > TEXT '{"type": "init", "workspace_path": "/Users/domi...stAIFeatures_20251006"}' [90 bytes]
+2025-10-06 21:46:54,556 - websockets.client - DEBUG - < TEXT '{"type":"initialized","session_id":"e754ef59-7d...stAIFeatures_20251006"}' [264 bytes]
+2025-10-06 21:46:54,556 - __main__ - INFO - 📥 Init response: {
+  "type": "initialized",
+  "session_id": "e754ef59-7d32-4d56-af54-fa7e9a25ef29",
+  "client_id": "client_72f3616c",
+  "workspace_path": "/Users/dominikfoert/TestApps/TestAIFeatures_20251006",
+  "message": "Workspace initialized: /Users/dominikfoert/TestApps/TestAIFeatures_20251006"
+}
+2025-10-06 21:46:54,556 - __main__ - INFO - ✅ Connected and initialized! Session: e754ef59-7d32-4d56-af54-fa7e9a25ef29
+2025-10-06 21:46:54,556 - __main__ - INFO - 
+📋 Test 3: Complex Task
+2025-10-06 21:46:54,556 - __main__ - INFO - 📤 Sending task: Analyze the WebSocket communication in backend/api/server.py and identify any potential issues...
+2025-10-06 21:46:54,556 - __main__ - DEBUG - Full message: {
+  "type": "chat",
+  "content": "Analyze the WebSocket communication in backend/api/server.py and identify any potential issues",
+  "agent": "auto",
+  "mode": "auto"
+}
+2025-10-06 21:46:54,556 - websockets.client - DEBUG - > TEXT '{"type": "chat", "content": "Analyze the WebSoc..."auto", "mode": "auto"}' [158 bytes]
+2025-10-06 21:46:54,557 - websockets.client - DEBUG - < TEXT '{"type":"agent_thinking","agent":"orchestrator"...g LangGraph v5.8.1..."}' [115 bytes]
+2025-10-06 21:46:54,557 - __main__ - INFO - 💭 Agent thinking: orchestrator
+2025-10-06 21:46:54,772 - websockets.client - DEBUG - < TEXT '{"type":"step_completed","agent":"orchestrator"... gezielt helfen kann?"}' [222 bytes]
+2025-10-06 21:46:54,772 - websockets.client - DEBUG - < TEXT '{"type":"agent_response","agent":"orchestrator"...,"status":"completed"}}' [304 bytes]
+2025-10-06 21:46:54,772 - __main__ - DEBUG - 📨 Message type: step_completed, Agent: orchestrator
+2025-10-06 21:46:54,772 - __main__ - INFO - 📥 Response from orchestrator (status: success)
+2025-10-06 21:46:54,772 - __main__ - INFO - Content preview: Ich verstehe Ihre Entwicklungs-Anfrage. Könnten Sie bitte mehr Details angeben, damit ich Ihnen gezielt helfen kann?...
+2025-10-06 21:46:54,772 - __main__ - INFO - ✅ Task completed successfully!
+2025-10-06 21:46:54,772 - websockets.client - DEBUG - = connection is CLOSING
+2025-10-06 21:46:54,772 - websockets.client - DEBUG - > CLOSE 1000 (OK) [2 bytes]
+2025-10-06 21:46:54,772 - websockets.client - DEBUG - < CLOSE 1000 (OK) [2 bytes]
+2025-10-06 21:46:54,773 - websockets.client - DEBUG - = connection is CLOSED
+2025-10-06 21:46:54,773 - __main__ - INFO - 🔌 Connection closed
+2025-10-06 21:46:54,773 - __main__ - INFO - 
+============================================================
+2025-10-06 21:46:54,773 - __main__ - INFO - 📊 Test Summary
+2025-10-06 21:46:54,773 - __main__ - INFO - ============================================================
+2025-10-06 21:46:54,773 - __main__ - INFO - Total messages received: 4
+2025-10-06 21:46:54,773 - __main__ - INFO - Message type breakdown:
+2025-10-06 21:46:54,773 - __main__ - INFO -   - agent_thinking: 2
+2025-10-06 21:46:54,773 - __main__ - INFO -   - step_completed: 1
+2025-10-06 21:46:54,773 - __main__ - INFO -   - agent_response: 1
+2025-10-06 21:46:54,773 - __main__ - INFO - 
+✅ Debug Features Verified:
+2025-10-06 21:46:54,773 - __main__ - INFO -   - Agent thinking messages: ✓
+2025-10-06 21:46:54,773 - __main__ - INFO -   - Progress updates: ✗
+2025-10-06 21:46:54,773 - __main__ - INFO -   - Final responses: ✓
+2025-10-06 21:46:54,773 - __main__ - INFO - 
+📁 Full message log saved to test_websocket_messages.json
+2025-10-06 21:46:54,773 - __main__ - INFO - 📁 Debug log saved to test_websocket_debug.log
+2025-10-06 21:46:54,774 - __main__ - INFO - 
+🕐 Test completed at 2025-10-06 21:46:54

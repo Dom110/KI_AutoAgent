@@ -110,7 +110,8 @@ class CalculatorArchitectureTest:
 
                 # Collect responses
                 logger.info("\n📥 Collecting responses...")
-                timeout_seconds = 120  # 2 minutes max
+                # v5.8.7: Increased timeout - AI architecture design can take 60-90s
+                timeout_seconds = 180  # 3 minutes max (was 120)
                 start_time = datetime.now()
 
                 while True:
@@ -151,6 +152,10 @@ class CalculatorArchitectureTest:
                             logger.info("=" * 80)
                             logger.info(self.architecture_proposal)
                             logger.info("=" * 80)
+
+                            # v5.8.7: Test complete after receiving proposal (workflow pauses for approval)
+                            logger.info("✅ Proposal received, test complete (workflow pauses for approval)")
+                            break
 
                         # Capture final response
                         elif msg_type == "response":
@@ -204,7 +209,16 @@ class CalculatorArchitectureTest:
             logger.error("❌ FAIL: No architecture proposal received")
             return
 
-        proposal_lower = self.architecture_proposal.lower()
+        # v5.8.7 FIX: Proposal can be dict or string
+        if isinstance(self.architecture_proposal, dict):
+            # Convert dict to string for analysis
+            import json
+            proposal_text = json.dumps(self.architecture_proposal, indent=2)
+            logger.info("✅ Proposal is dict - converting to text for analysis")
+        else:
+            proposal_text = str(self.architecture_proposal)
+
+        proposal_lower = proposal_text.lower()
 
         # Check for GOOD keywords
         logger.info("\n✅ Checking for expected keywords...")

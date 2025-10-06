@@ -166,6 +166,63 @@ class BaseAgent(ABC):
             self.shared_context = None
             self.conversation = None
 
+        # v5.9.0: Initialize Predictive Learning System
+        try:
+            from langgraph_system.extensions.predictive_learning import PredictiveMemory
+            storage_path = os.path.join(os.path.expanduser("~/.ki_autoagent/data/predictive"), f"{config.name}_predictions.json")
+            os.makedirs(os.path.dirname(storage_path), exist_ok=True)
+            self.predictive_memory = PredictiveMemory(agent_name=config.name, storage_path=storage_path)
+            self.predictive_memory.load_from_disk()
+            logging.info(f"✨ Predictive Learning enabled for {config.name}")
+        except Exception as e:
+            self.predictive_memory = None
+            logging.warning(f"⚠️ Predictive Learning not available: {e}")
+
+        # v5.9.0: Initialize Curiosity-Driven Exploration System
+        try:
+            from langgraph_system.extensions.curiosity_system import CuriosityModule
+            storage_path = os.path.join(os.path.expanduser("~/.ki_autoagent/data/curiosity"), f"{config.name}_curiosity.json")
+            os.makedirs(os.path.dirname(storage_path), exist_ok=True)
+            # Pass embedding function if available
+            embedding_fn = None
+            if hasattr(self, 'openai') and hasattr(self.openai, 'get_embedding'):
+                embedding_fn = self.openai.get_embedding
+            self.curiosity_module = CuriosityModule(
+                agent_name=config.name,
+                storage_path=storage_path,
+                embedding_function=embedding_fn
+            )
+            self.curiosity_module.load_from_disk()
+            logging.info(f"🔍 Curiosity-Driven Exploration enabled for {config.name}")
+        except Exception as e:
+            self.curiosity_module = None
+            logging.warning(f"⚠️ Curiosity-Driven Exploration not available: {e}")
+
+        # v5.9.0: Initialize Neurosymbolic Reasoning System
+        try:
+            from langgraph_system.extensions.neurosymbolic_reasoning import NeurosymbolicReasoner
+            # Pass LLM function if available (for neural reasoning)
+            llm_fn = None
+            if hasattr(self, 'openai') and hasattr(self.openai, 'complete'):
+                llm_fn = lambda prompt, ctx: self.openai.complete(prompt)
+            self.neurosymbolic_reasoner = NeurosymbolicReasoner(
+                agent_name=config.name,
+                llm_function=llm_fn
+            )
+            logging.info(f"🧠 Neurosymbolic Reasoning enabled for {config.name}")
+        except Exception as e:
+            self.neurosymbolic_reasoner = None
+            logging.warning(f"⚠️ Neurosymbolic Reasoning not available: {e}")
+
+        # v5.9.0: Initialize Framework Comparison System (for Architect mainly)
+        try:
+            from langgraph_system.extensions.framework_comparison import FrameworkComparator
+            self.framework_comparator = FrameworkComparator()
+            logging.info(f"🔍 Framework Comparison (Systemvergleich) enabled for {config.name}")
+        except Exception as e:
+            self.framework_comparator = None
+            logging.warning(f"⚠️ Framework Comparison not available: {e}")
+
         # Communication bus (will be initialized separately)
         self.communication_bus = None
 
@@ -397,22 +454,53 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         # v5.8.1: Store current request for workspace context access
         self._current_request = request
 
-        # APPLY PRIME DIRECTIVES FIRST - These override everything
-        if PRIME_DIRECTIVES_AVAILABLE:
-            validation = PrimeDirectives.validate_request({
-                'prompt': request.prompt,
-                'context': request.context
-            })
+        # 🔴 APPLY ASIMOV RULES (via Neurosymbolic Reasoning) - These override everything
+        if self.neurosymbolic_reasoner:
+            # Build context for rule evaluation
+            reasoning_context = {
+                'task': request.prompt,
+                'agent': self.name,
+                'context': request.context or {}
+            }
 
-            # Handle research requirement (Directive 4)
-            if validation['status'] == 'needs_research':
-                logger.info(f"📚 Directive 4: Research required for topics: {validation.get('research_topics', [])}")
+            # Apply Neurosymbolic Reasoning (includes Asimov Rules)
+            reasoning_result = self.neurosymbolic_reasoner.reason(
+                task=request.prompt,
+                context=reasoning_context
+            )
+
+            # 🔴 ASIMOV CONSTRAINT VIOLATIONS - FAIL FAST
+            if reasoning_result['symbolic_results']['constraints_violated']:
+                logger.error(f"🔴 ASIMOV RULE VIOLATION detected for {self.name}")
+                violations_text = "\n".join([
+                    f"❌ {v['rule']}: {v['message']}"
+                    for v in reasoning_result['symbolic_results']['constraints_violated']
+                ])
+
+                execution_time = (datetime.now() - start_time).total_seconds()
+                return TaskResult(
+                    agent_id=self.config.agent_id,
+                    agent=self.name,
+                    content=f"🔴 ASIMOV RULE VIOLATION:\n\n{violations_text}\n\nTask cannot proceed. Asimov Rules are ABSOLUTE and INVIOLABLE.",
+                    status='asimov_violation',
+                    metadata={'asimov_violation': True, 'violations': reasoning_result['symbolic_results']['constraints_violated']},
+                    execution_time=execution_time
+                )
+
+            # 🔴 RESEARCH REQUIRED (Asimov Rule 7)
+            research_required = any(
+                action.get('action_type') == 'require' and 'research' in str(action.get('description', '')).lower()
+                for action in reasoning_result['symbolic_results'].get('actions_taken', [])
+            )
+
+            if research_required and not reasoning_context['context'].get('research_performed'):
+                logger.info(f"📚 ASIMOV RULE 7: Research required before claiming knowledge")
 
                 # Perform mandatory research
                 research_results = await self._perform_mandatory_research(
                     request.prompt,
-                    validation.get('research_topics', []),
-                    validation.get('technologies_to_verify', [])
+                    topics=['latest_practices', 'verify_technology'],
+                    technologies_to_verify=[]
                 )
 
                 # Add research to context
@@ -420,20 +508,24 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                     request.context = {}
                 request.context['research_completed'] = True
                 request.context['research_results'] = research_results
-
-                # Log research completion
                 logger.info(f"✅ Research completed. Found {len(research_results.get('findings', []))} relevant findings")
 
-            elif validation['status'] == 'challenge':
-                # Return respectful challenge to user
-                challenge_response = PrimeDirectives.format_challenge_response(validation)
+            # ⚠️ WARNINGS (e.g., Asimov Rule 5: Challenge Misconceptions)
+            if reasoning_result['symbolic_results'].get('warnings'):
+                warnings_text = "\n".join([
+                    f"⚠️ {w['rule']}: {w['warning']}"
+                    for w in reasoning_result['symbolic_results']['warnings']
+                ])
+                logger.warning(f"⚠️ Asimov Rule Warnings:\n{warnings_text}")
+
+                # Return challenge to user
                 execution_time = (datetime.now() - start_time).total_seconds()
                 return TaskResult(
                     agent_id=self.config.agent_id,
                     agent=self.name,
-                    content=challenge_response,
+                    content=f"🤔 I need to clarify before proceeding:\n\n{warnings_text}\n\nCould you please confirm or provide more details?",
                     status='challenge',
-                    metadata={'directive_challenge': True, 'violations': validation.get('violations', [])},
+                    metadata={'asimov_challenge': True, 'warnings': reasoning_result['symbolic_results']['warnings']},
                     execution_time=execution_time
                 )
 
@@ -1378,6 +1470,420 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             logger.info(f"📖 Total learnings loaded for {self.name}: {total_loaded}")
 
         return total_loaded
+
+    # ========================================================================
+    # v5.9.0: PREDICTIVE LEARNING METHODS
+    # ========================================================================
+
+    def make_prediction(
+        self,
+        task_id: str,
+        action: str,
+        expected_outcome: str,
+        confidence: float,
+        context: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Make a prediction before taking action
+
+        This enables the agent to learn from prediction errors by comparing
+        what it expected to happen vs. what actually happened.
+
+        Args:
+            task_id: Unique identifier for this task
+            action: What the agent is about to do
+            expected_outcome: What the agent expects will happen
+            confidence: How confident (0.0 to 1.0)
+            context: Additional context
+
+        Example:
+            agent.make_prediction(
+                task_id="task_123",
+                action="Write calculator code",
+                expected_outcome="Code will pass tests",
+                confidence=0.9
+            )
+        """
+        if not self.predictive_memory:
+            return
+
+        self.predictive_memory.make_prediction(
+            task_id=task_id,
+            action=action,
+            expected_outcome=expected_outcome,
+            confidence=confidence,
+            context=context
+        )
+
+    def record_reality(
+        self,
+        task_id: str,
+        actual_outcome: str,
+        success: bool,
+        metadata: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Record what actually happened after action execution
+
+        This completes the prediction cycle and enables learning from errors.
+
+        Args:
+            task_id: Task identifier (same as in make_prediction)
+            actual_outcome: What actually happened
+            success: Did the action succeed?
+            metadata: Additional outcome data
+
+        Example:
+            agent.record_reality(
+                task_id="task_123",
+                actual_outcome="Tests failed - edge case not handled",
+                success=False
+            )
+        """
+        if not self.predictive_memory:
+            return
+
+        error = self.predictive_memory.record_reality(
+            task_id=task_id,
+            actual_outcome=actual_outcome,
+            success=success,
+            metadata=metadata
+        )
+
+        # Save predictions to disk after each reality recording
+        if error:
+            self.predictive_memory.save_to_disk()
+
+    def adjust_confidence_based_on_history(self, action: str, base_confidence: float) -> float:
+        """
+        Adjust confidence based on historical prediction accuracy
+
+        Args:
+            action: The action being considered
+            base_confidence: Initial confidence level
+
+        Returns:
+            Adjusted confidence based on learned patterns
+        """
+        if not self.predictive_memory:
+            return base_confidence
+
+        adjustment = self.predictive_memory.get_prediction_confidence_adjustment(action)
+        adjusted = base_confidence * adjustment
+
+        if adjustment < 0.8:
+            logger.info(f"⚠️ Confidence adjusted from {base_confidence:.2f} to {adjusted:.2f} based on history")
+
+        return adjusted
+
+    def get_prediction_summary(self) -> Dict[str, Any]:
+        """Get summary of agent's prediction history"""
+        if not self.predictive_memory:
+            return {"error": "Predictive memory not available"}
+
+        return self.predictive_memory.get_error_summary()
+
+    # ========================================================================
+    # v5.9.0: CURIOSITY-DRIVEN EXPLORATION METHODS
+    # ========================================================================
+
+    def record_task_encounter(
+        self,
+        task_id: str,
+        task_description: str,
+        task_embedding: Optional[List[float]] = None,
+        outcome: Optional[str] = None,
+        category: Optional[str] = None
+    ):
+        """
+        Record that agent encountered a task
+
+        This enables curiosity-driven exploration by tracking which tasks
+        the agent has worked on before.
+
+        Args:
+            task_id: Unique task identifier
+            task_description: Human-readable task description
+            task_embedding: Optional embedding for semantic comparison
+            outcome: "success", "failure", or None if in progress
+            category: Optional task category (e.g., "authentication", "database")
+
+        Example:
+            agent.record_task_encounter(
+                task_id="task_123",
+                task_description="Build authentication system",
+                outcome="success",
+                category="authentication"
+            )
+        """
+        if not self.curiosity_module:
+            return
+
+        self.curiosity_module.record_task_encounter(
+            task_id=task_id,
+            task_description=task_description,
+            task_embedding=task_embedding,
+            outcome=outcome,
+            category=category
+        )
+
+        # Save curiosity data to disk
+        self.curiosity_module.save_to_disk()
+
+    def calculate_task_priority_with_curiosity(
+        self,
+        task_description: str,
+        base_priority: float,
+        task_embedding: Optional[List[float]] = None,
+        category: Optional[str] = None
+    ) -> float:
+        """
+        Calculate final task priority considering both importance and novelty
+
+        This balances exploitation (doing important tasks) with exploration
+        (trying novel tasks to learn).
+
+        Args:
+            task_description: The task to evaluate
+            base_priority: Base priority from task importance (0.0-1.0)
+            task_embedding: Optional pre-computed embedding
+            category: Optional task category
+
+        Returns:
+            Final priority with novelty bonus applied
+
+        Example:
+            priority = agent.calculate_task_priority_with_curiosity(
+                task_description="Implement WebRTC video chat",
+                base_priority=0.7  # Important task
+            )
+            # If agent never did WebRTC before, priority might boost to 0.85
+        """
+        if not self.curiosity_module:
+            return base_priority
+
+        final_priority, novelty_score = self.curiosity_module.calculate_task_priority(
+            task_description=task_description,
+            base_priority=base_priority,
+            task_embedding=task_embedding,
+            category=category
+        )
+
+        return final_priority
+
+    def get_exploration_summary(self) -> Dict[str, Any]:
+        """Get summary of agent's exploration history"""
+        if not self.curiosity_module:
+            return {"error": "Curiosity module not available"}
+
+        return self.curiosity_module.get_exploration_summary()
+
+    def set_exploration_weight(self, weight: float):
+        """
+        Adjust exploration vs exploitation balance
+
+        Args:
+            weight: 0.0 = pure exploitation (ignore novelty),
+                   1.0 = pure exploration (maximize novelty)
+                   default = 0.3 (30% curiosity, 70% importance)
+
+        Example:
+            # Make agent more curious
+            agent.set_exploration_weight(0.5)  # 50/50 balance
+        """
+        if not self.curiosity_module:
+            logger.warning(f"⚠️ Curiosity module not available for {self.name}")
+            return
+
+        self.curiosity_module.set_exploration_weight(weight)
+
+    # ========================================================================
+    # v5.9.0: NEUROSYMBOLIC REASONING METHODS
+    # ========================================================================
+
+    def apply_neurosymbolic_reasoning(
+        self,
+        task: str,
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Apply hybrid reasoning combining rules (symbolic) and AI (neural)
+
+        This enables the agent to follow explicit rules while maintaining
+        creative flexibility for implementation.
+
+        Args:
+            task: The task to reason about
+            context: Additional context (e.g., has_rate_limit, requires_api_key)
+
+        Returns:
+            Dictionary with:
+            - symbolic_results: Results from rule evaluation
+            - neural_guidance: Guidance from LLM
+            - final_approach: Combined approach
+            - can_proceed: Whether constraints allow proceeding
+
+        Example:
+            result = agent.apply_neurosymbolic_reasoning(
+                task="Implement API client with rate limiting",
+                context={"has_rate_limit": True}
+            )
+
+            if not result["final_approach"]["can_proceed"]:
+                # Handle constraint violations
+                ...
+
+            # Follow symbolic suggestions + neural creativity
+            suggestions = result["final_approach"]["symbolic_suggestions"]
+        """
+        if not self.neurosymbolic_reasoner:
+            logger.warning(f"⚠️ Neurosymbolic reasoner not available for {self.name}")
+            return {
+                "symbolic_results": {},
+                "neural_guidance": None,
+                "final_approach": {"can_proceed": True}
+            }
+
+        return self.neurosymbolic_reasoner.reason(task, context)
+
+    def add_custom_rule(self, rule):
+        """
+        Add a custom reasoning rule for this agent
+
+        Args:
+            rule: Rule object (from neurosymbolic_reasoning module)
+
+        Example:
+            from langgraph_system.extensions.neurosymbolic_reasoning import (
+                Rule, RuleType, Condition, Action, ActionType
+            )
+
+            rule = Rule(
+                rule_id="custom_db_check",
+                name="Database Connection Check",
+                rule_type=RuleType.CONSTRAINT,
+                conditions=[
+                    Condition(
+                        description="Task requires database",
+                        evaluator=lambda ctx: "database" in ctx.get("task", "").lower()
+                    )
+                ],
+                actions=[
+                    Action(
+                        action_type=ActionType.REQUIRE,
+                        description="Verify database connection before proceeding"
+                    )
+                ],
+                priority=9
+            )
+
+            agent.add_custom_rule(rule)
+        """
+        if not self.neurosymbolic_reasoner:
+            logger.warning(f"⚠️ Neurosymbolic reasoner not available for {self.name}")
+            return
+
+        self.neurosymbolic_reasoner.add_custom_rule(rule)
+
+    def get_reasoning_statistics(self) -> Dict[str, Any]:
+        """Get statistics about rule-based reasoning"""
+        if not self.neurosymbolic_reasoner:
+            return {"error": "Neurosymbolic reasoner not available"}
+
+        return self.neurosymbolic_reasoner.get_rule_statistics()
+
+    # ========================================================================
+    # v5.9.0: FRAMEWORK COMPARISON METHODS (Systemvergleich)
+    # ========================================================================
+
+    def compare_architecture_with_frameworks(
+        self,
+        decision: str,
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Compare an architecture decision with other agent frameworks
+
+        This is META-LEVEL analysis that helps understand if the proposed
+        architecture aligns with best practices from successful frameworks.
+
+        Args:
+            decision: The architecture decision to analyze
+            context: Additional context about the project
+
+        Returns:
+            Analysis with:
+            - similar_patterns: Patterns from other frameworks
+            - recommendations: Suggestions based on comparison
+            - best_practices: Industry best practices
+            - risk_assessment: Potential issues
+
+        Example:
+            analysis = agent.compare_architecture_with_frameworks(
+                decision="Use multiple specialized agents for software development",
+                context={"project_type": "web_app", "complexity": "medium"}
+            )
+
+            # See what AutoGen, CrewAI, ChatDev do
+            for pattern in analysis["similar_patterns"]:
+                print(f"Pattern: {pattern['pattern']}")
+                for approach in pattern["approaches"]:
+                    print(f"  {approach['framework']}: {approach['approach']}")
+        """
+        if not self.framework_comparator:
+            logger.warning(f"⚠️ Framework comparator not available for {self.name}")
+            return {
+                "similar_patterns": [],
+                "recommendations": [],
+                "best_practices": [],
+                "risk_assessment": []
+            }
+
+        return self.framework_comparator.compare_architecture_decision(
+            decision=decision,
+            context=context or {}
+        )
+
+    def get_framework_profile(self, framework_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get detailed profile of a specific agent framework
+
+        Args:
+            framework_name: Name of framework (e.g., "autogen", "crewai", "babyagi")
+
+        Returns:
+            Framework profile or None if not found
+
+        Example:
+            profile = agent.get_framework_profile("autogen")
+            print(f"Strengths: {profile.strengths}")
+            print(f"Best for: {profile.best_for}")
+        """
+        if not self.framework_comparator:
+            return None
+
+        profile = self.framework_comparator.get_framework_profile(framework_name)
+        if not profile:
+            return None
+
+        # Convert to dict for easier consumption
+        return {
+            "name": profile.name,
+            "category": profile.category.value,
+            "description": profile.description,
+            "strengths": profile.strengths,
+            "weaknesses": profile.weaknesses,
+            "best_for": profile.best_for,
+            "architecture_pattern": profile.architecture_pattern,
+            "popularity_score": profile.popularity_score
+        }
+
+    def list_known_frameworks(self) -> List[str]:
+        """List all agent frameworks in the knowledge base"""
+        if not self.framework_comparator:
+            return []
+
+        return self.framework_comparator.list_frameworks()
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self.name} ({self.model})>"

@@ -1,0 +1,64 @@
+2025-10-06 17:42:36,247 - __main__ - INFO - ================================================================================
+2025-10-06 17:42:36,247 - __main__ - INFO - 🚀 Starting Calculator Architecture Test (v5.8.7)
+2025-10-06 17:42:36,247 - __main__ - INFO - ================================================================================
+2025-10-06 17:42:36,251 - __main__ - INFO - ✅ Created test workspace: /tmp/test_calculator_v587
+2025-10-06 17:42:36,251 - __main__ - INFO - 🔌 Connecting to backend: ws://localhost:8001/ws/chat
+2025-10-06 17:42:36,273 - __main__ - INFO - ✅ Connected!
+2025-10-06 17:42:36,273 - __main__ - INFO - 📨 Connection: {"type":"connected","message":"Connected to KI AutoAgent LangGraph System v5.8.1. Please send init message with workspace_path.","session_id":"38bce960-f9fd-43db-b816-43ef8183d67c","client_id":"client_bdfe69aa","version":"v5.8.1-multi-client-architecture","requires_init":true}
+2025-10-06 17:42:36,273 - __main__ - INFO - 📤 Sent init message
+2025-10-06 17:42:36,274 - __main__ - INFO - 📨 Init response: {"type":"initialized","session_id":"38bce960-f9fd-43db-b816-43ef8183d67c","client_id":"client_bdfe69aa","workspace_path":"/tmp/test_calculator_v587","message":"Workspace initialized: /tmp/test_calculator_v587"}
+2025-10-06 17:42:36,274 - __main__ - INFO - 
+📤 Sending test message: 'Create simple HTML calculator'
+2025-10-06 17:42:36,274 - __main__ - INFO - ✅ Message sent
+2025-10-06 17:42:36,274 - __main__ - INFO - 
+📥 Collecting responses...
+2025-10-06 17:42:36,274 - __main__ - INFO -   💭 [orchestrator] thinking...
+2025-10-06 17:42:37,590 - __main__ - INFO -   💭 [architect] thinking...
+2025-10-06 17:42:37,590 - __main__ - INFO -   🔄 [research] Researching: Design the initial architecture for a simple HTML calculator, including layout, input fields, button...
+2025-10-06 17:42:47,591 - __main__ - WARNING - ⚠️ No response for 10s, waiting...
+2025-10-06 17:42:50,680 - __main__ - INFO -   🔄 [architect] Analyzing requirements with research insights...
+2025-10-06 17:43:00,681 - __main__ - WARNING - ⚠️ No response for 10s, waiting...
+2025-10-06 17:43:10,682 - __main__ - WARNING - ⚠️ No response for 10s, waiting...
+2025-10-06 17:43:20,682 - __main__ - WARNING - ⚠️ No response for 10s, waiting...
+2025-10-06 17:43:28,911 - __main__ - INFO -   🔄 [architect] Creating architecture proposal...
+2025-10-06 17:43:38,912 - __main__ - WARNING - ⚠️ No response for 10s, waiting...
+2025-10-06 17:43:48,912 - __main__ - WARNING - ⚠️ No response for 10s, waiting...
+2025-10-06 17:43:58,913 - __main__ - WARNING - ⚠️ No response for 10s, waiting...
+2025-10-06 17:44:03,478 - __main__ - INFO - 
+📋 Architecture Proposal Received!
+2025-10-06 17:44:03,478 - __main__ - INFO - ================================================================================
+2025-10-06 17:44:03,478 - __main__ - INFO - {'summary': 'Architecture for: Design the initial architecture for a simple HTML calculator, including layout, input fields, buttons, and basic functionality (addition, subtraction, multiplication, division).', 'improvements': '- Research-backed design decisions\n- Simple, appropriate architecture\n- Best practices applied', 'tech_stack': '# 🏗️ Architecture Proposal\n\n## Project: System\n\n\n## 📊 Task Analysis\n\n- **Complexity**: Simple\n- **Type**: frontend_only\n- **Architecture**: single_file\n- **Reasoning**: The task involves designing a simple HTML calculator with basic functionality, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No server or persistent storage is explicitly required.\n\n\n## 🔍 Research Insights\n\n*Based on latest best practices via Perplexity AI*\n\n# 🏗️ Architecture Proposal\n## Pr', 'structure': 'Standard modular architecture', 'risks': 'Standard implementation risks - will be addressed during development', 'research_insights': '# 🏗️ Architecture Proposal\n\n## Project: System\n\n\n## 📊 Task Analysis\n\n- **Complexity**: Simple\n- **Type**: frontend_only\n- **Architecture**: single_file\n- **Reasoning**: The task involves designing a simple HTML calculator with basic functionality, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No server or persistent storage is explicitly required.\n\n\n## 🔍 Research Insights\n\n*Based on latest best practices via Perplexity AI*\n\n# 🏗️ Architecture Proposal\n## Pr'}
+2025-10-06 17:44:03,478 - __main__ - INFO - ================================================================================
+2025-10-06 17:44:03,478 - __main__ - INFO - ✅ Proposal received, test complete (workflow pauses for approval)
+2025-10-06 17:44:03,478 - __main__ - INFO - 
+================================================================================
+2025-10-06 17:44:03,478 - __main__ - INFO - 🔍 VALIDATING ARCHITECTURE PROPOSAL
+2025-10-06 17:44:03,478 - __main__ - INFO - ================================================================================
+2025-10-06 17:44:03,478 - __main__ - INFO - ✅ Proposal is dict - converting to text for analysis
+2025-10-06 17:44:03,478 - __main__ - INFO - 
+✅ Checking for expected keywords...
+2025-10-06 17:44:03,478 - __main__ - INFO -   ✅ Found: 'html'
+2025-10-06 17:44:03,478 - __main__ - INFO -   ✅ Found: 'css'
+2025-10-06 17:44:03,478 - __main__ - INFO -   ✅ Found: 'javascript'
+2025-10-06 17:44:03,478 - __main__ - INFO -   ✅ Found: 'simple'
+2025-10-06 17:44:03,478 - __main__ - INFO -   ✅ Found: 'frontend'
+2025-10-06 17:44:03,478 - __main__ - INFO -   ✅ Found: 'modular'
+2025-10-06 17:44:03,478 - __main__ - INFO -   ✅ Found: 'calculator'
+2025-10-06 17:44:03,478 - __main__ - INFO - 
+❌ Checking for unexpected keywords (over-engineering)...
+2025-10-06 17:44:03,479 - __main__ - INFO -   ✅ Research insights present
+2025-10-06 17:44:03,479 - __main__ - INFO -   ✅ Task classification present
+2025-10-06 17:44:03,479 - __main__ - INFO - 
+🎉 TEST PASSED! Architecture proposal is appropriate.
+2025-10-06 17:44:03,479 - __main__ - INFO - 
+================================================================================
+2025-10-06 17:44:03,479 - __main__ - INFO - 📊 TEST SUMMARY
+2025-10-06 17:44:03,479 - __main__ - INFO - ================================================================================
+2025-10-06 17:44:03,479 - __main__ - INFO - Messages received: 6
+2025-10-06 17:44:03,479 - __main__ - INFO - Architecture proposal: ✅ Received
+2025-10-06 17:44:03,479 - __main__ - INFO - Errors: 0
+2025-10-06 17:44:03,479 - __main__ - INFO - Warnings: 0
+2025-10-06 17:44:03,479 - __main__ - INFO - 
+================================================================================
+2025-10-06 17:44:03,479 - __main__ - INFO - ✅ RESULT: PASSED
+2025-10-06 17:44:03,479 - __main__ - INFO - ================================================================================

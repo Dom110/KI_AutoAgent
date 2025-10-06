@@ -3,8 +3,6 @@ INFO:api.server_langgraph:🔍 DEBUG: This is the ACTIVE server for v5.8.1-multi
 INFO:api.server_langgraph:🔍 DEBUG: WebSocket endpoint: ws://localhost:8001/ws/chat
 INFO:api.server_langgraph:✅ Models API endpoint registered at /api/models
 INFO:api.server_langgraph:✅ Settings API endpoint registered at /api/settings
-INFO:     Started server process [42500]
-INFO:     Waiting for application startup.
 INFO:api.server_langgraph:================================================================================
 INFO:api.server_langgraph:🚀 Starting KI AutoAgent LangGraph Backend v5.8.1...
 INFO:api.server_langgraph:🔍 DEBUG: Initializing LangGraph StateGraph workflow system
@@ -45,7 +43,7 @@ INFO:agents.specialized.architect_agent:✅ Cache services initialized: Redis ca
 INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
 INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
 INFO:agents.specialized.architect_agent:✅ Code indexing tools initialized
-WARNING:core.analysis.semgrep_analyzer:⚠️ Semgrep CLI not found - install with: pip install semgrep
+INFO:core.analysis.semgrep_analyzer:✅ Semgrep CLI found
 INFO:core.analysis.vulture_analyzer:✅ Vulture library found
 INFO:core.analysis.radon_metrics:✅ Radon library found
 INFO:agents.specialized.architect_agent:✅ Analysis tools initialized: Semgrep, Vulture, Radon, CallGraph, Layers
@@ -105,30 +103,26 @@ INFO:api.server_langgraph:✅ Approval manager initialized
 INFO:api.server_langgraph:================================================================================
 INFO:api.server_langgraph:🎉 STARTUP COMPLETE - Ready to accept connections!
 INFO:api.server_langgraph:================================================================================
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
-INFO:     127.0.0.1:50687 - "WebSocket /ws/chat" [accepted]
-INFO:api.server_langgraph:✅ Client client_7caffe27 connected
-INFO:api.server_langgraph:🔍 DEBUG: New client connected: client_7caffe27
-INFO:     connection open
-INFO:api.server_langgraph:🔍 DEBUG: Welcome message sent to client_7caffe27, waiting for init...
-INFO:api.server_langgraph:🔍 DEBUG: Received init from client_7caffe27
+INFO:api.server_langgraph:✅ Client client_119a9c7b connected
+INFO:api.server_langgraph:🔍 DEBUG: New client connected: client_119a9c7b
+INFO:api.server_langgraph:🔍 DEBUG: Welcome message sent to client_119a9c7b, waiting for init...
+INFO:api.server_langgraph:🔍 DEBUG: Received init from client_119a9c7b
 INFO:api.server_langgraph:🔍 DEBUG: Using LangGraph v5.8.1 - Port 8001
 INFO:api.server_langgraph:🔍 DEBUG: Message data keys: ['type', 'workspace_path']
-INFO:api.server_langgraph:✅ Client client_7caffe27 initialized with workspace: /tmp/test_calculator_v587
-INFO:api.server_langgraph:🔍 DEBUG: Received chat from client_7caffe27
+INFO:api.server_langgraph:✅ Client client_119a9c7b initialized with workspace: /tmp/test_calculator_v587
+INFO:api.server_langgraph:🔍 DEBUG: Received chat from client_119a9c7b
 INFO:api.server_langgraph:🔍 DEBUG: Using LangGraph v5.8.1 - Port 8001
 INFO:api.server_langgraph:🔍 DEBUG: Message data keys: ['type', 'content', 'mode']
 INFO:api.server_langgraph:🔍 DEBUG: Chat message content: Create simple HTML calculator...
-INFO:api.server_langgraph:🔌 WebSocket DEBUG: Checking for approval state - session_id: 4819e3d2-dace-418f-b091-17ebc2199fa7
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: Checking for approval state - session_id: df59f675-56e3-4d8f-958a-5e0a0fc679ea
 INFO:api.server_langgraph:🔌 WebSocket DEBUG: Found workflow_system.active_workflows with 0 sessions
-INFO:api.server_langgraph:🔌 WebSocket DEBUG: No workflow state found for session 4819e3d2-dace-418f-b091-17ebc2199fa7
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: No workflow state found for session df59f675-56e3-4d8f-958a-5e0a0fc679ea
 INFO:api.server_langgraph:✅ workflow_system available: AgentWorkflow
 INFO:api.server_langgraph:🔍 DEBUG: Starting LangGraph workflow for: Create simple HTML calculator...
 INFO:api.server_langgraph:🔍 DEBUG: Session state - plan_first_mode: False, workspace: /tmp/test_calculator_v587
 INFO:api.server_langgraph:🔍 DEBUG: Plan-First mode: False
 INFO:api.server_langgraph:🔍 DEBUG: Executing LangGraph workflow
-INFO:api.server_langgraph:🔍 DEBUG: Session ID: 4819e3d2-dace-418f-b091-17ebc2199fa7
+INFO:api.server_langgraph:🔍 DEBUG: Session ID: df59f675-56e3-4d8f-958a-5e0a0fc679ea
 INFO:api.server_langgraph:🔍 DEBUG: Workspace: /tmp/test_calculator_v587
 INFO:langgraph_system.workflow:🎯 Orchestrator node executing
 INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
@@ -139,28 +133,29 @@ INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200
 INFO:agents.specialized.orchestrator_agent:🧠 Found 3 similar tasks in memory
 INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
 INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
-INFO:agents.specialized.orchestrator_agent:✅ AI decomposition: 7 tasks, 95.0min estimated
-INFO:agents.specialized.orchestrator_agent:💡 Reasoning: The task requires sequential execution to ensure the architecture is properly designed, refined, and implemented before analysis, review, and documentation. Dependencies between tasks ensure quality and alignment with best practices.
+INFO:agents.specialized.orchestrator_agent:✅ AI decomposition: 7 tasks, 90.0min estimated
+INFO:agents.specialized.orchestrator_agent:💡 Reasoning: The task requires sequential execution because each step builds upon the previous one. The architecture must be designed first, then refined with research insights. Implementation depends on the refined architecture, and subsequent analysis, review, and documentation depend on the completed implementation.
 WARNING:agents.specialized.orchestrator_agent:⚠️ Memory storage failed (non-critical): 'PersistentAgentMemory' object has no attribute 'store'
 INFO:langgraph_system.workflow:✅ Orchestrator created 7-step plan with parallelization
 INFO:langgraph_system.workflow:📖 Created Task Ledger with 1 success criteria
 INFO:langgraph_system.workflow:📊 Created Progress Ledger - 7 total steps
-INFO:langgraph_system.workflow:⚡ Identified 1 parallel execution groups
-INFO:langgraph_system.workflow:   parallel_group_0: Steps ['task_1', 'task_2'] can run in parallel
 INFO:langgraph_system.workflow:🔍 Running Pre-Execution Validation (v5.5.0)
 INFO:langgraph_system.workflow_self_diagnosis:============================================================
 INFO:langgraph_system.workflow_self_diagnosis:🚀 COMPREHENSIVE PRE-EXECUTION VALIDATION
 INFO:langgraph_system.workflow_self_diagnosis:============================================================
 INFO:langgraph_system.workflow_self_diagnosis:🔍 Starting Pre-Execution Validation
 INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 1/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
 INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
-INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 2 issues
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
 INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 2/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
 INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
-INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 2 issues
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
 INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 3/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
 INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
-INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 2 issues
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
 INFO:langgraph_system.workflow_self_diagnosis:✅ Pre-Execution Validation PASSED
 INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
 INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
@@ -179,8 +174,8 @@ INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Checking execution plan wit
 INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Step task_1: agent=architect, status=pending
 INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Found first pending step: architect
 INFO:langgraph_system.workflow:🏗️ First step is architect - allowing proposal creation
-INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Architect will create proposal for client_id: client_7caffe27
-INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Current session_id: 4819e3d2-dace-418f-b091-17ebc2199fa7
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Architect will create proposal for client_id: client_119a9c7b
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Current session_id: df59f675-56e3-4d8f-958a-5e0a0fc679ea
 INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: WebSocket manager available: True
 INFO:langgraph_system.workflow:📍 Set current_step_id to: task_1 for agent: architect
 INFO:langgraph_system.workflow:🔀 Route after approval - Status: approved
@@ -189,19 +184,19 @@ INFO:langgraph_system.workflow:   Step 1: agent=architect, status=in_progress, t
 INFO:langgraph_system.workflow:   Step 2: agent=research, status=pending, task=Research best practices for building HTML calculat...
 INFO:langgraph_system.workflow:   Step 3: agent=architect, status=pending, task=Refine the initial architecture using insights fro...
 INFO:langgraph_system.workflow:   Step 4: agent=codesmith, status=pending, task=Implement the HTML calculator based on the refined...
-INFO:langgraph_system.workflow:   Step 5: agent=architect, status=pending, task=Analyze the implemented HTML calculator to ensure ...
-INFO:langgraph_system.workflow:   Step 6: agent=reviewer, status=pending, task=Review the code quality of the HTML calculator, in...
+INFO:langgraph_system.workflow:   Step 5: agent=architect, status=pending, task=Analyze the built HTML calculator to ensure it ali...
+INFO:langgraph_system.workflow:   Step 6: agent=reviewer, status=pending, task=Review the HTML calculator code for quality, reada...
 INFO:langgraph_system.workflow:   Step 7: agent=docbot, status=pending, task=Generate documentation for the HTML calculator, in...
 INFO:langgraph_system.workflow:✅ Routing to in_progress agent: architect (step_id: task_1)
 INFO:langgraph_system.workflow:🏗️ Architect node executing
-INFO:langgraph_system.workflow:🔍 Architect: current_step_id=task_1, current_step=ExecutionStep(id='task_1', agent='architect', task='Design the initial architecture for a simple HTML calculator, including layout, functionality, and user interaction.', expected_output='Completion of: Design the initial architecture for a simple HTML ...', dependencies=[], status='in_progress', result=None, error=None, start_time=datetime.datetime(2025, 10, 6, 16, 49, 21, 316241), end_time=None, timeout_seconds=600, started_at=datetime.datetime(2025, 10, 6, 16, 49, 21, 316239), retry_count=0, max_retries=3, retry_delay_seconds=5, can_run_parallel=True, parallel_group='parallel_group_0', attempts=[], completion_percentage=0.0)
+INFO:langgraph_system.workflow:🔍 Architect: current_step_id=task_1, current_step=ExecutionStep(id='task_1', agent='architect', task='Design the initial architecture for a simple HTML calculator, including layout, input fields, buttons, and basic functionality (addition, subtraction, multiplication, division).', expected_output='Completion of: Design the initial architecture for a simple HTML ...', dependencies=[], status='in_progress', result=None, error=None, start_time=datetime.datetime(2025, 10, 6, 17, 39, 13, 87325), end_time=None, timeout_seconds=600, started_at=datetime.datetime(2025, 10, 6, 17, 39, 13, 87323), retry_count=0, max_retries=3, retry_delay_seconds=5, can_run_parallel=False, parallel_group=None, attempts=[], completion_percentage=0.0)
 INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
 INFO:langgraph_system.workflow:📋 No proposal exists - performing research and creating proposal
 INFO:langgraph_system.workflow:🔍 Step 1: Calling ResearchAgent for web research...
 INFO:langgraph_system.workflow:🔍 Executing with real ResearchAgent...
 INFO:agents.specialized.research_agent:🔍 ResearchAgent executing: Research best practices and latest technologies for: Design the initial architecture for a simple HT...
 INFO:langgraph_system.workflow:✅ ResearchAgent completed: Research best practices and latest technologies for: Design ...
-INFO:langgraph_system.workflow:✅ Research completed: The latest best practices for designing the initial architecture of a simple HTML calculator in 2024-2025 emphasize a clean separation of concerns between layout, functionality, and user interaction, ...
+INFO:langgraph_system.workflow:✅ Research completed: For designing the initial architecture of a simple HTML calculator with layout, input fields, buttons, and basic arithmetic functionality (addition, subtraction, multiplication, division) in 2024-2025...
 INFO:langgraph_system.workflow:🏗️ Step 2: Architect analyzing requirements with research insights...
 INFO:langgraph_system.workflow:🏗️ Executing ArchitectAgent with research insights...
 INFO:agents.specialized.architect_agent:📂 Using workspace path: /tmp/test_calculator_v587
@@ -213,80 +208,1172 @@ INFO:services.smart_file_watcher:👁️  File watcher started (call check_chang
 INFO:agents.specialized.architect_agent:✅ ProjectCache updated with workspace path: /tmp/test_calculator_v587
 INFO:agents.specialized.architect_agent:🆕 Workspace appears empty - New project mode
 INFO:agents.specialized.architect_agent:🔍 New project detection: True
-INFO:agents.specialized.architect_agent:📊 Task classified as: medium - fullstack
-INFO:agents.specialized.architect_agent:📊 Task classification: {'complexity': 'medium', 'type': 'fullstack', 'requires_backend': True, 'requires_database': True, 'suggested_stack': ['React/Vue', 'Node.js/Python', 'PostgreSQL/MongoDB'], 'file_structure': 'fullstack', 'reasoning': 'Fullstack application with backend services'}
+INFO:agents.specialized.architect_agent:📝 Classification input (full): 
+Design the initial architecture for a simple HTML calculator, including layout, input fields, buttons, and basic functionality (addition, subtraction, multiplication, division).
+
+**Research Insights:...
+INFO:agents.specialized.architect_agent:📝 Classification input (extracted first line): Design the initial architecture for a simple HTML calculator, including layout, input fields, buttons, and basic functionality (addition, subtraction, multiplication, division).
+INFO:agents.specialized.architect_agent:🔍 AI-classifying task: Design the initial architecture for a simple HTML calculator, including layout, input fields, button...
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:✅ AI Classification: simple - frontend_only
+INFO:agents.specialized.architect_agent:   Backend: False, Database: False
+INFO:agents.specialized.architect_agent:   Reasoning: The task involves designing a simple HTML calculator with basic functionality, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No backend or database is explicitly required.
+INFO:agents.specialized.architect_agent:💾 Cached classification for future calls
+INFO:agents.specialized.architect_agent:📊 Task classification: {'complexity': 'simple', 'type': 'frontend_only', 'requires_backend': False, 'requires_database': False, 'suggested_stack': ['HTML', 'CSS', 'JavaScript'], 'file_structure': 'modular', 'reasoning': 'The task involves designing a simple HTML calculator with basic functionality, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No backend or database is explicitly required.'}
 INFO:agents.specialized.architect_agent:🆕 New project detected - Using Research-Driven Architecture Design
-INFO:agents.specialized.architect_agent:📚 Calling Research Agent for: 
-Design the initial architecture for a simple HTML calculator, including layout, functionality, and user interaction.
+INFO:agents.specialized.architect_agent:✅ Using research results from workflow context (5529 chars)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:✅ Requirements analyzed with research: frontend-only
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:🔧 Parsing architecture with constraints: backend=False, database=False, complexity=simple
+INFO:agents.specialized.architect_agent:✅ Skipping backend component (classification says not needed)
+INFO:agents.specialized.architect_agent:✅ Skipping database component (classification says not needed)
+INFO:langgraph_system.workflow:✅ Architect analysis completed: # 🏗️ Architecture Proposal
+
+## Project: frontend-only
+
+
+## 📊 Task Analysis
+
+- **Complexity**: Simple
+- **Type**: frontend_only
+- **Architecture**: single_file
+- **Reasoning**: The task involves design...
+INFO:langgraph_system.workflow:📋 Creating architecture proposal...
+INFO:agents.specialized.architect_agent:📂 Using workspace path: /tmp/test_calculator_v587
+INFO:agents.specialized.architect_agent:🔄 Updating file watcher from None to /tmp/test_calculator_v587
+INFO:services.smart_file_watcher:👁️  File watcher stopped
+INFO:services.project_cache:📦 ProjectCache initialized: /tmp/test_calculator_v587/.ki_autoagent_ws/cache
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /tmp/test_calculator_v587
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ ProjectCache updated with workspace path: /tmp/test_calculator_v587
+INFO:agents.specialized.architect_agent:🆕 Workspace appears empty - New project mode
+INFO:agents.specialized.architect_agent:🔍 New project detection: True
+INFO:agents.specialized.architect_agent:📝 Classification input (full): Based on your research, create a comprehensive ARCHITECTURE PROPOSAL for user approval.
+
+**Original User Request:**
+
+
+**Architect Task:**
+Design the initial architecture for a simple HTML calculator, ...
+INFO:agents.specialized.architect_agent:📝 Classification input (extracted first line): Based on your research, create a comprehensive ARCHITECTURE PROPOSAL for user approval.
+WARNING:agents.specialized.architect_agent:⚠️ Detected meta-prompt, skipping classification: Based on your research, create a comprehensive ARCHITECTURE ...
+INFO:agents.specialized.architect_agent:✅ Returning previous classification instead
+INFO:agents.specialized.architect_agent:📊 Task classification: {'complexity': 'simple', 'type': 'frontend_only', 'requires_backend': False, 'requires_database': False, 'suggested_stack': ['HTML', 'CSS', 'JavaScript'], 'file_structure': 'modular', 'reasoning': 'The task involves designing a simple HTML calculator with basic functionality, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No backend or database is explicitly required.'}
+INFO:agents.specialized.architect_agent:🆕 New project detected - Using Research-Driven Architecture Design
+INFO:agents.specialized.architect_agent:✅ Using research results from workflow context (3187 chars)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:✅ Requirements analyzed with research: unknown
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:🔧 Parsing architecture with constraints: backend=False, database=False, complexity=simple
+INFO:agents.specialized.architect_agent:✅ Skipping backend component (classification says not needed)
+INFO:agents.specialized.architect_agent:✅ Skipping database component (classification says not needed)
+INFO:langgraph_system.workflow:🔍 Architect response length: 2713 characters
+INFO:langgraph_system.workflow:📝 Architect FULL RESPONSE:
+================================================================================
+# 🏗️ Architecture Proposal
+
+## Project: System
+
+
+## 📊 Task Analysis
+
+- **Complexity**: Simple
+- **Type**: frontend_only
+- **Architecture**: single_file
+- **Reasoning**: The task involves designing a simple HTML calculator with basic functionality, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No server or persistent storage is explicitly required.
+
+
+## 🔍 Research Insights
+
+*Based on latest best practices via Perplexity AI*
+
+# 🏗️ Architecture Proposal
+## Project: frontend-only
+## 📊 Task Analysis
+- **Complexity**: Simple
+- **Type**: frontend_only
+- **Architecture**: single_file
+- **Reasoning**: The task involves designing a simple HTML calculator with basic functionality, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No server or persistent storage is explicitly required.
+## 🔍 Research Insights
+*Based on latest best practices via Perplexity AI*
+- For designing the initial architecture of a simple HTML calculator with layout, input fields, buttons, and basic arithmetic functionality (addition, subtraction, multiplication, division) in 2024-2025, the latest best practices and technologies emphasize clean separation of concerns, performance optimization, security, and maintainability.
+**1. Current Industry Standards (2024-2025):**
+- Use **semantic HTML** for structure: `<button>` for clickable buttons, `<input>` or preferably a display `<div>` for showing results to improve accessibility and SEO.
+- Style with modern **CSS techniques** including Flexbox or CSS Grid for responsive, clean layout.
+- Add interactivity using **vanilla JavaScript** or lightweight frameworks/components that hydrate only as needed (e.g., Astro's partial hydration) to minimize JavaScript bundle size and improve performance[1][2].
+- Use **progressive enhancement**: Start with a functional static HTML/CSS UI, then layer JavaScript for interactivity[1].
+
+*(Research insights truncated for brevity)*
+
+
+## 📁 Project Structure
+
+**Modular Structure** (Organized & Maintainable)
+
+```
+├── index.html       (Main HTML)
+├── styles.css       (Styling)
+└── script.js        (Logic)
+```
+
+
+## 📦 Components
+
+### Frontend
+- **Type**: UI
+- **Technology**: HTML
+- **Responsibility**: User interface
+
+
+## 🛠️ Technology Stack
+
+- HTML
+- CSS
+- JavaScript
+
+
+## 📐 Design Patterns
+
+- MVC
+- REPOSITORY
+- STRATEGY
+
+
+## 🔒 Security Considerations
+
+OAuth2, HTTPS, rate limiting, input validation
+
+
+## 💡 Implementation Notes
+
+- Keep it simple - avoid over-engineering
+- Single file or minimal modular structure
+- Focus on clean, readable code
+
+
+---
+
+*Generated by ArchitectAgent v5.8.7 with Research Integration*
+
+*Research-backed design with latest best practices*
+================================================================================
+INFO:langgraph_system.workflow:📝 First 100 chars: '# 🏗️ Architecture Proposal\n\n## Project: System\n\n\n## 📊 Task Analysis\n\n- **Complexity**: Simple\n- **Ty'
+INFO:langgraph_system.workflow:📝 Last 100 chars: 'rchitectAgent v5.8.7 with Research Integration*\n\n*Research-backed design with latest best practices*'
+WARNING:langgraph_system.workflow:⚠️ No JSON markdown block found, trying direct parse
+WARNING:langgraph_system.workflow:⚠️ JSON decode error (attempt 1): Expecting value at position 0
+WARNING:langgraph_system.workflow:⚠️ Trying to fix invalid control characters...
+ERROR:langgraph_system.workflow:❌ JSON still invalid after retry: Expecting value at position 0
+ERROR:langgraph_system.workflow:❌ Content around error: '# 🏗️ Architecture Proposal\n\n## Project: System\n\n\n#'
+ERROR:langgraph_system.workflow:❌ Failed to create structured proposal: Expecting value: line 1 column 1 (char 0)
+WARNING:langgraph_system.workflow:⚠️ Falling back to text-based proposal
+INFO:langgraph_system.workflow:💡 Using Architect's markdown response for proposal
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Sending architecture proposal to client_id: client_119a9c7b
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Session ID: df59f675-56e3-4d8f-958a-5e0a0fc679ea
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Proposal size: 1532 chars
+INFO:langgraph_system.workflow:✅ WebSocket DEBUG: Architecture proposal sent successfully
+INFO:langgraph_system.workflow:📝 WebSocket DEBUG: Stored state in websocket_manager.active_workflows for session: df59f675-56e3-4d8f-958a-5e0a0fc679ea
+INFO:langgraph_system.workflow:📋 Architecture proposal created and sent to user
+INFO:langgraph_system.workflow:🏛️ Architecture proposal created - routing to approval node
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:📋 Architecture proposal pending - workflow will pause here
+INFO:langgraph_system.workflow:⏸️  Workflow pausing - user must approve via WebSocket
+INFO:langgraph_system.workflow:⏸️  Workflow waiting for architecture approval - routing to END
+INFO:langgraph_system.workflow:⏸️  Workflow paused - stored state for session df59f675-56e3-4d8f-958a-5e0a0fc679ea
+INFO:langgraph_system.workflow:📋 Waiting for architecture proposal approval via WebSocket
+INFO:api.server_langgraph:⏸️  Workflow waiting for architecture approval - not sending final response yet
+INFO:api.server_langgraph:🔌 Client client_119a9c7b disconnected gracefully
+INFO:api.server_langgraph:❌ Client client_119a9c7b disconnected
+INFO:api.server_langgraph:✅ Cleaned up session for client_119a9c7b
+INFO:api.server_langgraph:✅ Client client_bdfe69aa connected
+INFO:api.server_langgraph:🔍 DEBUG: New client connected: client_bdfe69aa
+INFO:api.server_langgraph:🔍 DEBUG: Welcome message sent to client_bdfe69aa, waiting for init...
+INFO:api.server_langgraph:🔍 DEBUG: Received init from client_bdfe69aa
+INFO:api.server_langgraph:🔍 DEBUG: Using LangGraph v5.8.1 - Port 8001
+INFO:api.server_langgraph:🔍 DEBUG: Message data keys: ['type', 'workspace_path']
+INFO:api.server_langgraph:✅ Client client_bdfe69aa initialized with workspace: /tmp/test_calculator_v587
+INFO:api.server_langgraph:🔍 DEBUG: Received chat from client_bdfe69aa
+INFO:api.server_langgraph:🔍 DEBUG: Using LangGraph v5.8.1 - Port 8001
+INFO:api.server_langgraph:🔍 DEBUG: Message data keys: ['type', 'content', 'mode']
+INFO:api.server_langgraph:🔍 DEBUG: Chat message content: Create simple HTML calculator...
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: Checking for approval state - session_id: 38bce960-f9fd-43db-b816-43ef8183d67c
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: Found manager.active_workflows with 1 sessions
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: Found workflow_system.active_workflows with 1 sessions
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: No workflow state found for session 38bce960-f9fd-43db-b816-43ef8183d67c
+INFO:api.server_langgraph:✅ workflow_system available: AgentWorkflow
+INFO:api.server_langgraph:🔍 DEBUG: Starting LangGraph workflow for: Create simple HTML calculator...
+INFO:api.server_langgraph:🔍 DEBUG: Session state - plan_first_mode: False, workspace: /tmp/test_calculator_v587
+INFO:api.server_langgraph:🔍 DEBUG: Plan-First mode: False
+INFO:api.server_langgraph:🔍 DEBUG: Executing LangGraph workflow
+INFO:api.server_langgraph:🔍 DEBUG: Session ID: 38bce960-f9fd-43db-b816-43ef8183d67c
+INFO:api.server_langgraph:🔍 DEBUG: Workspace: /tmp/test_calculator_v587
+INFO:langgraph_system.workflow:🎯 Orchestrator node executing
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:🧠 DIRECT AI ROUTING → Using Orchestrator for all tasks
+INFO:langgraph_system.workflow:🤖 Using Orchestrator AI for task decomposition (complexity: complex)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:agents.specialized.orchestrator_agent:♻️  Using cached decomposition for: Create simple HTML calculator...
+INFO:langgraph_system.workflow:✅ Orchestrator created 7-step plan with parallelization
+INFO:langgraph_system.workflow:📖 Created Task Ledger with 1 success criteria
+INFO:langgraph_system.workflow:📊 Created Progress Ledger - 7 total steps
+INFO:langgraph_system.workflow:🔍 Running Pre-Execution Validation (v5.5.0)
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🚀 COMPREHENSIVE PRE-EXECUTION VALIDATION
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🔍 Starting Pre-Execution Validation
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 1/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 2/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 3/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
+INFO:langgraph_system.workflow_self_diagnosis:✅ Pre-Execution Validation PASSED
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 73.59%
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:📊 PRE-EXECUTION VALIDATION SUMMARY
+INFO:langgraph_system.workflow_self_diagnosis:  Validation: PASS
+INFO:langgraph_system.workflow_self_diagnosis:  Risk Score: 0.00%
+INFO:langgraph_system.workflow_self_diagnosis:  Health: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:  Decision: SAFE TO EXECUTE
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow:✅ Pre-Execution Validation PASSED - Plan is safe to execute
+INFO:langgraph_system.workflow:📋 Orchestrator created 7-step execution plan
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Checking execution plan with 7 steps
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Step task_1: agent=architect, status=pending
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Found first pending step: architect
+INFO:langgraph_system.workflow:🏗️ First step is architect - allowing proposal creation
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Architect will create proposal for client_id: client_bdfe69aa
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Current session_id: 38bce960-f9fd-43db-b816-43ef8183d67c
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: WebSocket manager available: True
+INFO:langgraph_system.workflow:📍 Set current_step_id to: task_1 for agent: architect
+INFO:langgraph_system.workflow:🔀 Route after approval - Status: approved
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps:
+INFO:langgraph_system.workflow:   Step 1: agent=architect, status=in_progress, task=Design the initial architecture for a simple HTML ...
+INFO:langgraph_system.workflow:   Step 2: agent=research, status=pending, task=Research best practices for building HTML calculat...
+INFO:langgraph_system.workflow:   Step 3: agent=architect, status=pending, task=Refine the initial architecture using insights fro...
+INFO:langgraph_system.workflow:   Step 4: agent=codesmith, status=pending, task=Implement the HTML calculator based on the refined...
+INFO:langgraph_system.workflow:   Step 5: agent=architect, status=pending, task=Analyze the built HTML calculator to ensure it ali...
+INFO:langgraph_system.workflow:   Step 6: agent=reviewer, status=pending, task=Review the HTML calculator code for quality, reada...
+INFO:langgraph_system.workflow:   Step 7: agent=docbot, status=pending, task=Generate documentation for the HTML calculator, in...
+INFO:langgraph_system.workflow:✅ Routing to in_progress agent: architect (step_id: task_1)
+INFO:langgraph_system.workflow:🏗️ Architect node executing
+INFO:langgraph_system.workflow:🔍 Architect: current_step_id=task_1, current_step=ExecutionStep(id='task_1', agent='architect', task='Design the initial architecture for a simple HTML calculator, including layout, input fields, buttons, and basic functionality (addition, subtraction, multiplication, division).', expected_output='Completion of: Design the initial architecture for a simple HTML ...', dependencies=[], status='in_progress', result=None, error=None, start_time=datetime.datetime(2025, 10, 6, 17, 42, 37, 143381), end_time=None, timeout_seconds=600, started_at=datetime.datetime(2025, 10, 6, 17, 42, 37, 143380), retry_count=0, max_retries=3, retry_delay_seconds=5, can_run_parallel=False, parallel_group=None, attempts=[], completion_percentage=0.0)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:📋 No proposal exists - performing research and creating proposal
+INFO:langgraph_system.workflow:🔍 Step 1: Calling ResearchAgent for web research...
+INFO:langgraph_system.workflow:🔍 Executing with real ResearchAgent...
+INFO:agents.specialized.research_agent:🔍 ResearchAgent executing: Research best practices and latest technologies for: Design the initial architecture for a simple HT...
+INFO:langgraph_system.workflow:✅ ResearchAgent completed: Research best practices and latest technologies for: Design ...
+INFO:langgraph_system.workflow:✅ Research completed: For designing the initial architecture of a simple HTML calculator with layout, input fields, buttons, and basic arithmetic functionality (addition, subtraction, multiplication, division), the latest ...
+INFO:langgraph_system.workflow:🏗️ Step 2: Architect analyzing requirements with research insights...
+INFO:langgraph_system.workflow:🏗️ Executing ArchitectAgent with research insights...
+INFO:agents.specialized.architect_agent:📂 Using workspace path: /tmp/test_calculator_v587
+INFO:agents.specialized.architect_agent:🔄 Updating file watcher from None to /tmp/test_calculator_v587
+INFO:services.smart_file_watcher:👁️  File watcher stopped
+INFO:services.project_cache:📦 ProjectCache initialized: /tmp/test_calculator_v587/.ki_autoagent_ws/cache
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /tmp/test_calculator_v587
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ ProjectCache updated with workspace path: /tmp/test_calculator_v587
+INFO:agents.specialized.architect_agent:🆕 Workspace appears empty - New project mode
+INFO:agents.specialized.architect_agent:🔍 New project detection: True
+INFO:agents.specialized.architect_agent:📝 Classification input (full): 
+Design the initial architecture for a simple HTML calculator, including layout, input fields, buttons, and basic functionality (addition, subtraction, multiplication, division).
+
+**Research Insights:...
+INFO:agents.specialized.architect_agent:📝 Classification input (extracted first line): Design the initial architecture for a simple HTML calculator, including layout, input fields, buttons, and basic functionality (addition, subtraction, multiplication, division).
+INFO:agents.specialized.architect_agent:✅ Using cached classification for: Design the initial architecture for a simple HTML calculator...
+INFO:agents.specialized.architect_agent:📊 Task classification: {'complexity': 'simple', 'type': 'frontend_only', 'requires_backend': False, 'requires_database': False, 'suggested_stack': ['HTML', 'CSS', 'JavaScript'], 'file_structure': 'modular', 'reasoning': 'The task involves designing a simple HTML calculator with basic functionality, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No backend or database is explicitly required.'}
+INFO:agents.specialized.architect_agent:🆕 New project detected - Using Research-Driven Architecture Design
+INFO:agents.specialized.architect_agent:✅ Using research results from workflow context (4973 chars)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:✅ Requirements analyzed with research: frontend-only
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:🔧 Parsing architecture with constraints: backend=False, database=False, complexity=simple
+INFO:agents.specialized.architect_agent:✅ Skipping backend component (classification says not needed)
+INFO:agents.specialized.architect_agent:✅ Skipping database component (classification says not needed)
+INFO:langgraph_system.workflow:✅ Architect analysis completed: # 🏗️ Architecture Proposal
+
+## Project: frontend-only
+
+
+## 📊 Task Analysis
+
+- **Complexity**: Simple
+- **Type**: frontend_only
+- **Architecture**: single_file
+- **Reasoning**: The task involves design...
+INFO:langgraph_system.workflow:📋 Creating architecture proposal...
+INFO:agents.specialized.architect_agent:📂 Using workspace path: /tmp/test_calculator_v587
+INFO:agents.specialized.architect_agent:🔄 Updating file watcher from None to /tmp/test_calculator_v587
+INFO:services.smart_file_watcher:👁️  File watcher stopped
+INFO:services.project_cache:📦 ProjectCache initialized: /tmp/test_calculator_v587/.ki_autoagent_ws/cache
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /tmp/test_calculator_v587
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ ProjectCache updated with workspace path: /tmp/test_calculator_v587
+INFO:agents.specialized.architect_agent:🆕 Workspace appears empty - New project mode
+INFO:agents.specialized.architect_agent:🔍 New project detection: True
+INFO:agents.specialized.architect_agent:📝 Classification input (full): Based on your research, create a comprehensive ARCHITECTURE PROPOSAL for user approval.
+
+**Original User Request:**
+
+
+**Architect Task:**
+Design the initial architecture for a simple HTML calculator, ...
+INFO:agents.specialized.architect_agent:📝 Classification input (extracted first line): Based on your research, create a comprehensive ARCHITECTURE PROPOSAL for user approval.
+WARNING:agents.specialized.architect_agent:⚠️ Detected meta-prompt, skipping classification: Based on your research, create a comprehensive ARCHITECTURE ...
+INFO:agents.specialized.architect_agent:✅ Returning previous classification instead
+INFO:agents.specialized.architect_agent:📊 Task classification: {'complexity': 'simple', 'type': 'frontend_only', 'requires_backend': False, 'requires_database': False, 'suggested_stack': ['HTML', 'CSS', 'JavaScript'], 'file_structure': 'modular', 'reasoning': 'The task involves designing a simple HTML calculator with basic functionality, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No backend or database is explicitly required.'}
+INFO:agents.specialized.architect_agent:🆕 New project detected - Using Research-Driven Architecture Design
+INFO:agents.specialized.architect_agent:✅ Using research results from workflow context (3026 chars)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:✅ Requirements analyzed with research: unknown
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:🔧 Parsing architecture with constraints: backend=False, database=False, complexity=simple
+INFO:agents.specialized.architect_agent:✅ Skipping backend component (classification says not needed)
+INFO:agents.specialized.architect_agent:✅ Skipping database component (classification says not needed)
+INFO:langgraph_system.workflow:🔍 Architect response length: 2660 characters
+INFO:langgraph_system.workflow:📝 Architect FULL RESPONSE:
+================================================================================
+# 🏗️ Architecture Proposal
+
+## Project: System
+
+
+## 📊 Task Analysis
+
+- **Complexity**: Simple
+- **Type**: frontend_only
+- **Architecture**: single_file
+- **Reasoning**: The task involves designing a simple HTML calculator with basic functionality, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No server or persistent storage is explicitly required.
+
+
+## 🔍 Research Insights
+
+*Based on latest best practices via Perplexity AI*
+
+# 🏗️ Architecture Proposal
+## Project: frontend-only
+## 📊 Task Analysis
+- **Complexity**: Simple
+- **Type**: frontend_only
+- **Architecture**: single_file
+- **Reasoning**: The task involves designing a simple HTML calculator with basic functionality, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No server or persistent storage is explicitly required.
+## 🔍 Research Insights
+*Based on latest best practices via Perplexity AI*
+- For designing the initial architecture of a simple HTML calculator with layout, input fields, buttons, and basic arithmetic functionality (addition, subtraction, multiplication, division), the latest best practices in 2024-2025 emphasize clean separation of concerns, accessibility, performance, security, and maintainability.
+**1. Current Industry Standards (2024-2025):**
+- Use **semantic HTML5 elements** for structure (e.g., `<form>`, `<input>`, `<button>`, `<section>`) to improve accessibility and SEO.
+- Keep layout and styling in **CSS**, preferably with modern techniques like Flexbox or CSS Grid for responsive and clean UI.
+- Implement interactivity and logic with **vanilla JavaScript** or lightweight frameworks/components, avoiding heavy libraries for simple apps to reduce bundle size and improve performance[1][2].
+- Follow **progressive enhancement**: the calculator should be usable with basic HTML/CSS even if JavaScript fails.
+
+*(Research insights truncated for brevity)*
+
+
+## 📁 Project Structure
+
+**Modular Structure** (Organized & Maintainable)
+
+```
+├── index.html       (Main HTML)
+├── styles.css       (Styling)
+└── script.js        (Logic)
+```
+
+
+## 📦 Components
+
+### Frontend
+- **Type**: UI
+- **Technology**: HTML
+- **Responsibility**: User interface
+
+
+## 🛠️ Technology Stack
+
+- HTML
+- CSS
+- JavaScript
+
+
+## 📐 Design Patterns
+
+- REPOSITORY
+- STRATEGY
+
+
+## 🔒 Security Considerations
+
+OAuth2, HTTPS, rate limiting, input validation
+
+
+## 💡 Implementation Notes
+
+- Keep it simple - avoid over-engineering
+- Single file or minimal modular structure
+- Focus on clean, readable code
+
+
+---
+
+*Generated by ArchitectAgent v5.8.7 with Research Integration*
+
+*Research-backed design with latest best practices*
+================================================================================
+INFO:langgraph_system.workflow:📝 First 100 chars: '# 🏗️ Architecture Proposal\n\n## Project: System\n\n\n## 📊 Task Analysis\n\n- **Complexity**: Simple\n- **Ty'
+INFO:langgraph_system.workflow:📝 Last 100 chars: 'rchitectAgent v5.8.7 with Research Integration*\n\n*Research-backed design with latest best practices*'
+WARNING:langgraph_system.workflow:⚠️ No JSON markdown block found, trying direct parse
+WARNING:langgraph_system.workflow:⚠️ JSON decode error (attempt 1): Expecting value at position 0
+WARNING:langgraph_system.workflow:⚠️ Trying to fix invalid control characters...
+ERROR:langgraph_system.workflow:❌ JSON still invalid after retry: Expecting value at position 0
+ERROR:langgraph_system.workflow:❌ Content around error: '# 🏗️ Architecture Proposal\n\n## Project: System\n\n\n#'
+ERROR:langgraph_system.workflow:❌ Failed to create structured proposal: Expecting value: line 1 column 1 (char 0)
+WARNING:langgraph_system.workflow:⚠️ Falling back to text-based proposal
+INFO:langgraph_system.workflow:💡 Using Architect's markdown response for proposal
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Sending architecture proposal to client_id: client_bdfe69aa
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Session ID: 38bce960-f9fd-43db-b816-43ef8183d67c
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Proposal size: 1532 chars
+INFO:langgraph_system.workflow:✅ WebSocket DEBUG: Architecture proposal sent successfully
+INFO:langgraph_system.workflow:📝 WebSocket DEBUG: Stored state in websocket_manager.active_workflows for session: 38bce960-f9fd-43db-b816-43ef8183d67c
+INFO:langgraph_system.workflow:📋 Architecture proposal created and sent to user
+INFO:langgraph_system.workflow:🏛️ Architecture proposal created - routing to approval node
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:📋 Architecture proposal pending - workflow will pause here
+INFO:langgraph_system.workflow:⏸️  Workflow pausing - user must approve via WebSocket
+INFO:langgraph_system.workflow:⏸️  Workflow waiting for architecture approval - routing to END
+INFO:langgraph_system.workflow:⏸️  Workflow paused - stored state for session 38bce960-f9fd-43db-b816-43ef8183d67c
+INFO:langgraph_system.workflow:📋 Waiting for architecture proposal approval via WebSocket
+INFO:api.server_langgraph:⏸️  Workflow waiting for architecture approval - not sending final response yet
+INFO:api.server_langgraph:🔌 Client client_bdfe69aa disconnected gracefully
+INFO:api.server_langgraph:❌ Client client_bdfe69aa disconnected
+INFO:api.server_langgraph:✅ Cleaned up session for client_bdfe69aa
+WARNING:api.server_langgraph:⚠️ Shutdown request rejected: Server has no shutdown token configured
+INFO:api.server_langgraph:✅ Client client_812ce966 connected
+INFO:api.server_langgraph:🔍 DEBUG: New client connected: client_812ce966
+INFO:api.server_langgraph:🔍 DEBUG: Welcome message sent to client_812ce966, waiting for init...
+INFO:api.server_langgraph:🔍 DEBUG: Received init from client_812ce966
+INFO:api.server_langgraph:🔍 DEBUG: Using LangGraph v5.8.1 - Port 8001
+INFO:api.server_langgraph:🔍 DEBUG: Message data keys: ['type', 'workspace_path']
+INFO:api.server_langgraph:✅ Client client_812ce966 initialized with workspace: /Users/dominikfoert/TestApps/manualTest
+INFO:api.models_endpoint:✅ Returned model descriptions: 15 GPT, 5 Claude, 5 Perplexity models
+INFO:api.server_langgraph:🔍 DEBUG: Received chat from client_812ce966
+INFO:api.server_langgraph:🔍 DEBUG: Using LangGraph v5.8.1 - Port 8001
+INFO:api.server_langgraph:🔍 DEBUG: Message data keys: ['type', 'content', 'agent', 'metadata']
+INFO:api.server_langgraph:🔍 DEBUG: Chat message content: Create a simple calcultor app...
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: Checking for approval state - session_id: 7d1c6f74-31a2-41d8-bb25-3fa9f713c788
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: Found manager.active_workflows with 2 sessions
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: Found workflow_system.active_workflows with 2 sessions
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: No workflow state found for session 7d1c6f74-31a2-41d8-bb25-3fa9f713c788
+INFO:api.server_langgraph:✅ workflow_system available: AgentWorkflow
+INFO:api.server_langgraph:🔍 DEBUG: Starting LangGraph workflow for: Create a simple calcultor app...
+INFO:api.server_langgraph:🔍 DEBUG: Session state - plan_first_mode: False, workspace: /Users/dominikfoert/TestApps/manualTest
+INFO:api.server_langgraph:🔍 DEBUG: Plan-First mode: False
+INFO:api.server_langgraph:🔍 DEBUG: Executing LangGraph workflow
+INFO:api.server_langgraph:🔍 DEBUG: Session ID: 7d1c6f74-31a2-41d8-bb25-3fa9f713c788
+INFO:api.server_langgraph:🔍 DEBUG: Workspace: /Users/dominikfoert/TestApps/manualTest
+INFO:langgraph_system.workflow:🎯 Orchestrator node executing
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:🧠 DIRECT AI ROUTING → Using Orchestrator for all tasks
+INFO:langgraph_system.workflow:🤖 Using Orchestrator AI for task decomposition (complexity: complex)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:agents.specialized.orchestrator_agent:🧠 Found 3 similar tasks in memory
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.orchestrator_agent:✅ AI decomposition: 7 tasks, 110.0min estimated
+INFO:agents.specialized.orchestrator_agent:💡 Reasoning: The tasks are sequentially dependent, starting with architecture design, followed by research, refinement, implementation, analysis, review, and documentation. Each step builds upon the previous one to ensure a robust and well-documented calculator app.
+WARNING:agents.specialized.orchestrator_agent:⚠️ Memory storage failed (non-critical): 'PersistentAgentMemory' object has no attribute 'store'
+INFO:langgraph_system.workflow:✅ Orchestrator created 7-step plan with parallelization
+INFO:langgraph_system.workflow:📖 Created Task Ledger with 1 success criteria
+INFO:langgraph_system.workflow:📊 Created Progress Ledger - 7 total steps
+INFO:langgraph_system.workflow:🔍 Running Pre-Execution Validation (v5.5.0)
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🚀 COMPREHENSIVE PRE-EXECUTION VALIDATION
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🔍 Starting Pre-Execution Validation
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 1/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 2/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 3/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
+INFO:langgraph_system.workflow_self_diagnosis:✅ Pre-Execution Validation PASSED
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 73.59%
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:📊 PRE-EXECUTION VALIDATION SUMMARY
+INFO:langgraph_system.workflow_self_diagnosis:  Validation: PASS
+INFO:langgraph_system.workflow_self_diagnosis:  Risk Score: 0.00%
+INFO:langgraph_system.workflow_self_diagnosis:  Health: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:  Decision: SAFE TO EXECUTE
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow:✅ Pre-Execution Validation PASSED - Plan is safe to execute
+INFO:langgraph_system.workflow:📋 Orchestrator created 7-step execution plan
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Checking execution plan with 7 steps
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Step task_1: agent=architect, status=pending
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Found first pending step: architect
+INFO:langgraph_system.workflow:🏗️ First step is architect - allowing proposal creation
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Architect will create proposal for client_id: client_812ce966
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Current session_id: 7d1c6f74-31a2-41d8-bb25-3fa9f713c788
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: WebSocket manager available: True
+INFO:langgraph_system.workflow:📍 Set current_step_id to: task_1 for agent: architect
+INFO:langgraph_system.workflow:🔀 Route after approval - Status: approved
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps:
+INFO:langgraph_system.workflow:   Step 1: agent=architect, status=in_progress, task=Design the initial architecture for a simple calcu...
+INFO:langgraph_system.workflow:   Step 2: agent=research, status=pending, task=Research best practices for building calculator ap...
+INFO:langgraph_system.workflow:   Step 3: agent=architect, status=pending, task=Refine the initial architecture for the calculator...
+INFO:langgraph_system.workflow:   Step 4: agent=codesmith, status=pending, task=Implement the calculator app, including input hand...
+INFO:langgraph_system.workflow:   Step 5: agent=architect, status=pending, task=Analyze the implemented calculator app to ensure i...
+INFO:langgraph_system.workflow:   Step 6: agent=reviewer, status=pending, task=Review the code quality of the implemented calcula...
+INFO:langgraph_system.workflow:   Step 7: agent=docbot, status=pending, task=Generate documentation for the calculator app, inc...
+INFO:langgraph_system.workflow:✅ Routing to in_progress agent: architect (step_id: task_1)
+INFO:langgraph_system.workflow:🏗️ Architect node executing
+INFO:langgraph_system.workflow:🔍 Architect: current_step_id=task_1, current_step=ExecutionStep(id='task_1', agent='architect', task='Design the initial architecture for a simple calculator app, including input handling, basic operations (add, subtract, multiply, divide), and user interface structure.', expected_output='Completion of: Design the initial architecture for a simple calcu...', dependencies=[], status='in_progress', result=None, error=None, start_time=datetime.datetime(2025, 10, 6, 17, 48, 22, 701508), end_time=None, timeout_seconds=600, started_at=datetime.datetime(2025, 10, 6, 17, 48, 22, 701502), retry_count=0, max_retries=3, retry_delay_seconds=5, can_run_parallel=False, parallel_group=None, attempts=[], completion_percentage=0.0)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:📋 No proposal exists - performing research and creating proposal
+INFO:langgraph_system.workflow:🔍 Step 1: Calling ResearchAgent for web research...
+INFO:langgraph_system.workflow:🔍 Executing with real ResearchAgent...
+INFO:agents.specialized.research_agent:🔍 ResearchAgent executing: Research best practices and latest technologies for: Design the initial architecture for a simple ca...
+INFO:langgraph_system.workflow:✅ ResearchAgent completed: Research best practices and latest technologies for: Design ...
+INFO:langgraph_system.workflow:✅ Research completed: ## Designing the Initial Architecture for a Simple Calculator App
+
+Designing a simple calculator app involves several key considerations, including input handling, basic arithmetic operations, user in...
+INFO:langgraph_system.workflow:🏗️ Step 2: Architect analyzing requirements with research insights...
+INFO:langgraph_system.workflow:🏗️ Executing ArchitectAgent with research insights...
+INFO:agents.specialized.architect_agent:📂 Using workspace path: /Users/dominikfoert/TestApps/manualTest
+INFO:agents.specialized.architect_agent:🔄 Updating file watcher from None to /Users/dominikfoert/TestApps/manualTest
+INFO:services.smart_file_watcher:👁️  File watcher stopped
+INFO:services.project_cache:📦 ProjectCache initialized: /Users/dominikfoert/TestApps/manualTest/.ki_autoagent_ws/cache
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /Users/dominikfoert/TestApps/manualTest
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ ProjectCache updated with workspace path: /Users/dominikfoert/TestApps/manualTest
+INFO:agents.specialized.architect_agent:🆕 Workspace appears empty - New project mode
+INFO:agents.specialized.architect_agent:🔍 New project detection: True
+INFO:agents.specialized.architect_agent:📝 Classification input (full): 
+Design the initial architecture for a simple calculator app, including input handling, basic operations (add, subtract, multiply, divide), and user interface structure.
 
 **Research Insights:**
-The latest best practices for designing the initial architecture of a simple HTML calculator in 2024-2025 emphasize a clean separation of concerns between layout, functionality, and user interaction, leveraging modern tools and frameworks to optimize performance, security, and user experience.
+## Des...
+INFO:agents.specialized.architect_agent:📝 Classification input (extracted first line): Design the initial architecture for a simple calculator app, including input handling, basic operations (add, subtract, multiply, divide), and user interface structure.
+INFO:agents.specialized.architect_agent:🔍 AI-classifying task: Design the initial architecture for a simple calculator app, including input handling, basic operati...
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:✅ AI Classification: simple - frontend_only
+INFO:agents.specialized.architect_agent:   Backend: False, Database: False
+INFO:agents.specialized.architect_agent:   Reasoning: The task involves designing a simple calculator app with basic operations and input handling, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No backend or database is explicitly required.
+INFO:agents.specialized.architect_agent:💾 Cached classification for future calls
+INFO:agents.specialized.architect_agent:📊 Task classification: {'complexity': 'simple', 'type': 'frontend_only', 'requires_backend': False, 'requires_database': False, 'suggested_stack': ['HTML', 'CSS', 'JavaScript'], 'file_structure': 'modular', 'reasoning': 'The task involves designing a simple calculator app with basic operations and input handling, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No backend or database is explicitly required.'}
+INFO:agents.specialized.architect_agent:🆕 New project detected - Using Research-Driven Architecture Design
+INFO:agents.specialized.architect_agent:✅ Using research results from workflow context (4628 chars)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:✅ Requirements analyzed with research: frontend-only
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:🔧 Parsing architecture with constraints: backend=False, database=False, complexity=simple
+INFO:agents.specialized.architect_agent:✅ Skipping backend component (classification says not needed)
+INFO:agents.specialized.architect_agent:✅ Skipping database component (classification says not needed)
+INFO:langgraph_system.workflow:✅ Architect analysis completed: # 🏗️ Architecture Proposal
 
-**1. Industry Standards (2024-2025):**  
-- Use **semantic HTML5** for the calculator layout (e.g., `<section>`, `<button>`, `<input>`, `<output>`) to ensure accessibility and SEO friendliness.  
-- Style with **modern CSS techniques** such as Flexbox or Grid for responsive and clean layout.  
-- Implement functionality using **vanilla JavaScript or modern frameworks** with minimal JavaScript payload to improve performance. Frameworks like **Astro** enable partial hydration, loading JavaScript only for interactive parts, which is ideal for simple apps like calculators[2].  
-- Follow **progressive enhancement**: start with static HTML/CSS, then add JavaScript for interactivity[1][2].
+## Project: frontend-only
 
-**2. Recommended Expert Approaches:**  
-- Begin by designing a **static UI with HTML and CSS**, ensuring buttons and display areas are clearly defined and accessible[1].  
-- Capture user input via JavaScript event listeners on buttons, and implement calculation logic in modular, reusable functions for addition, subtraction, multiplication, and division[1].  
-- Use **TypeScript** for type safety and maintainability if the project scope grows[2].  
-- Adopt **component-based architecture** even in simple projects, separating display, input handling, and calculation logic[2].  
-- Use **ARIA roles and properties** to enhance accessibility for screen readers and keyboard navigation.
 
-**3. Tools and Frameworks Currently Preferred:**  
-- **HTML5, CSS3, and JavaScript (ES6+)** as the core stack for a simple calculator[1].  
-- Frameworks like **Astro** for optimized hydration and performance, allowing static HTML with interactive islands only where needed[2].  
-- Development tools: **VS Code** with linting and formatting extensions, **ESLint**, **Prettier**, and **Jest** or **Mocha** for testing JavaScript functions[2].  
-- For styling, CSS preprocessors like **Sass** or utility-first frameworks like **Tailwind CSS** can speed up styling while maintaining consistency.
+## 📊 Task Analysis
 
-**4. Security Considerations:**  
-- Avoid using **`eval()`** or similar unsafe methods to parse and compute user input, as it can lead to code injection vulnerabilities. Instead, implement explicit parsing and calculation logic[1].  
-- Sanitize any user input if the calculator accepts typed input (e.g., from a text field) to prevent XSS attacks.  
-- Use **Content Security Policy (CSP)** headers to restrict script sources and prevent injection attacks.  
-- Ensure the app is served over **HTTPS** to protect data integrity and privacy.
+- **Complexity**: Simple
+- **Type**: frontend_only
+- **Architecture**: single_file
+- **Reasoning**: The task involves design...
+INFO:langgraph_system.workflow:📋 Creating architecture proposal...
+INFO:agents.specialized.architect_agent:📂 Using workspace path: /Users/dominikfoert/TestApps/manualTest
+INFO:agents.specialized.architect_agent:🔄 Updating file watcher from None to /Users/dominikfoert/TestApps/manualTest
+INFO:services.smart_file_watcher:👁️  File watcher stopped
+INFO:services.project_cache:📦 ProjectCache initialized: /Users/dominikfoert/TestApps/manualTest/.ki_autoagent_ws/cache
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /Users/dominikfoert/TestApps/manualTest
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ ProjectCache updated with workspace path: /Users/dominikfoert/TestApps/manualTest
+INFO:agents.specialized.architect_agent:🆕 Workspace appears empty - New project mode
+INFO:agents.specialized.architect_agent:🔍 New project detection: True
+INFO:agents.specialized.architect_agent:📝 Classification input (full): Based on your research, create a comprehensive ARCHITECTURE PROPOSAL for user approval.
 
-**5. Performance Optimizations:**  
-- Minimize JavaScript by only loading and executing code necessary for the calculator’s functionality; frameworks like Astro support this via partial hydration[2].  
-- Optimize CSS by using scoped styles or CSS modules to reduce render-blocking styles.  
-- Use **lazy loading** or defer non-critical scripts to improve initial load times.  
-- Optimize assets (icons, fonts) and avoid heavy dependencies.  
-- Monitor **Core Web Vitals** and Lighthouse scores to ensure fast time to interactive and responsiveness[2].
+**Original User Request:**
 
-**6. Common Mistakes to Avoid:**  
-- Overcomplicating the architecture for a simple calculator; keep the design modular but minimal[1].  
-- Using unsafe JavaScript evaluation methods (`eval()`) for calculations.  
-- Neglecting accessibility features such as keyboard navigation and screen reader support.  
-- Loading all JavaScript upfront instead of using hydration or lazy loading strategies, which harms performance[2].  
-- Ignoring responsive design, leading to poor usability on different device sizes.  
-- Failing to test edge cases in calculation logic (e.g., division by zero).
 
-**Summary Table:**
+**Architect Task:**
+Design the initial architecture for a simple calculator app, i...
+INFO:agents.specialized.architect_agent:📝 Classification input (extracted first line): Based on your research, create a comprehensive ARCHITECTURE PROPOSAL for user approval.
+WARNING:agents.specialized.architect_agent:⚠️ Detected meta-prompt, skipping classification: Based on your research, create a comprehensive ARCHITECTURE ...
+INFO:agents.specialized.architect_agent:✅ Returning previous classification instead
+INFO:agents.specialized.architect_agent:📊 Task classification: {'complexity': 'simple', 'type': 'frontend_only', 'requires_backend': False, 'requires_database': False, 'suggested_stack': ['HTML', 'CSS', 'JavaScript'], 'file_structure': 'modular', 'reasoning': 'The task involves designing a simple calculator app with basic operations and input handling, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No backend or database is explicitly required.'}
+INFO:agents.specialized.architect_agent:🆕 New project detected - Using Research-Driven Architecture Design
+INFO:agents.specialized.architect_agent:✅ Using research results from workflow context (3225 chars)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:✅ Requirements analyzed with research: unknown
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.architect_agent:🔧 Parsing architecture with constraints: backend=False, database=False, complexity=simple
+INFO:agents.specialized.architect_agent:✅ Skipping backend component (classification says not needed)
+INFO:agents.specialized.architect_agent:✅ Skipping database component (classification says not needed)
+INFO:langgraph_system.workflow:🔍 Architect response length: 2568 characters
+INFO:langgraph_system.workflow:📝 Architect FULL RESPONSE:
+================================================================================
+# 🏗️ Architecture Proposal
 
-| Aspect                  | Best Practice Highlights                                      | Tools/Frameworks                 | Pitfalls to Avoid                         |
-|-------------------------|---------------------------------------------------------------|---------------------------------|-------------------------------------------|
-| Layout                  | Semantic HTML5, Flexbox/Grid for responsive UI                | HTML5, CSS3, Sass, Tailwind CSS | Non-semantic tags, fixed layouts          |
-| Functionality           | Modular JS functions, no `eval()`, event-driven input capture | JavaScript ES6+, TypeScript     | Using `eval()`, monolithic code           |
-| User Interaction        | Accessible buttons with ARIA roles, keyboard support          | ARIA, Astro (partial hydration) | Ignoring accessibility                    |
-| Performance             | Minimal JS, lazy loading, optimized assets                    | Astro, Lighthouse, Webpack      | Loading all JS upfront, heavy dependencies|
-| Security                | Input sanitization, CSP, HTTPS                                | CSP headers, secure coding       | XSS vulnerabilities, insecure eval usage |
-| Development Workflow    | Use linters, formatters, testing frameworks                   | ESLint, Prettier, Jest          | Skipping testing and code consistency     |
+## Project: System
 
-These practices align with current expert guidance emphasizing **performance**, **security**, and **user experience** while leveraging modern tools like Astro for efficient component hydration and minimal JavaScript payload[1][2].
 
-📚 Sources:
-[1] https://www.upgrad.com/blog/top-html-project-ideas-topics/
-[2] https://alexbobes.com/programming/a-deep-dive-into-astro-build/
-[3] https://elementor.com/blog/what-is-amp-year-guide-to-amp-pages-seo/
-[4] https://metana.io/blog/websockets-vs-http-which-to-choose-for-your-project/
-[5] https://www.spaceotechnologies.com/blog/web-application-frameworks/
-[6] https://onenine.com/modern-web-design-examples/
-[7] https://eluminoustechnologies.com/blog/web-development-tools/
-[8] https://devot.team/blog/full-stack-ai-developer
-[9] https://litslink.com/blog/android-app-development-language
+## 📊 Task Analysis
 
-Please create an architecture proposal that incorporates these research findings.
+- **Complexity**: Simple
+- **Type**: frontend_only
+- **Architecture**: single_file
+- **Reasoning**: The task involves designing a simple calculator app with basic operations and input handling, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No server or persistent storage is explicitly required.
 
-INFO:agents.specialized.research_agent:🔍 ResearchAgent executing: Best practices for: 
-Design the initial architecture for a simple HTML calculator, including layout,...
+
+## 🔍 Research Insights
+
+*Based on latest best practices via Perplexity AI*
+
+# 🏗️ Architecture Proposal
+## Project: frontend-only
+## 📊 Task Analysis
+- **Complexity**: Simple
+- **Type**: frontend_only
+- **Architecture**: single_file
+- **Reasoning**: The task involves designing a simple calculator app with basic operations and input handling, which can be implemented entirely on the client-side using HTML, CSS, and JavaScript. No server or persistent storage is explicitly required.
+## 🔍 Research Insights
+*Based on latest best practices via Perplexity AI*
+## Designing the Initial Architecture for a Simple Calculator App
+- Designing a simple calculator app involves several key considerations, including input handling, basic arithmetic operations, user interface structure, and adherence to current industry standards. Here are the best practices and latest technologies for each aspect:
+### 1. Current Industry Standards (2024-2025)
+- **Modular Architecture**: Break down the app into smaller, independent modules for easier maintenance and scalability. This approach is modular and follows the principle of separation of concerns[1].
+- **Clean Architecture**: Keep business logic separate from other layers to enhance flexibility and maintainability. Patterns like VIPER for iOS or Clean Architecture for cross-platform apps are recommended[3].
+### 2. Recommended Approaches by Experts
+
+*(Research insights truncated for brevity)*
+
+
+## 📁 Project Structure
+
+**Modular Structure** (Organized & Maintainable)
+
+```
+├── index.html       (Main HTML)
+├── styles.css       (Styling)
+└── script.js        (Logic)
+```
+
+
+## 📦 Components
+
+### Frontend
+- **Type**: UI
+- **Technology**: HTML
+- **Responsibility**: User interface
+
+
+## 🛠️ Technology Stack
+
+- HTML
+- CSS
+- JavaScript
+
+
+## 📐 Design Patterns
+
+- MVC
+- STRATEGY
+
+
+## 🔒 Security Considerations
+
+OAuth2, HTTPS, rate limiting, input validation
+
+
+## 💡 Implementation Notes
+
+- Keep it simple - avoid over-engineering
+- Single file or minimal modular structure
+- Focus on clean, readable code
+
+
+---
+
+*Generated by ArchitectAgent v5.8.7 with Research Integration*
+
+*Research-backed design with latest best practices*
+================================================================================
+INFO:langgraph_system.workflow:📝 First 100 chars: '# 🏗️ Architecture Proposal\n\n## Project: System\n\n\n## 📊 Task Analysis\n\n- **Complexity**: Simple\n- **Ty'
+INFO:langgraph_system.workflow:📝 Last 100 chars: 'rchitectAgent v5.8.7 with Research Integration*\n\n*Research-backed design with latest best practices*'
+WARNING:langgraph_system.workflow:⚠️ No JSON markdown block found, trying direct parse
+WARNING:langgraph_system.workflow:⚠️ JSON decode error (attempt 1): Expecting value at position 0
+WARNING:langgraph_system.workflow:⚠️ Trying to fix invalid control characters...
+ERROR:langgraph_system.workflow:❌ JSON still invalid after retry: Expecting value at position 0
+ERROR:langgraph_system.workflow:❌ Content around error: '# 🏗️ Architecture Proposal\n\n## Project: System\n\n\n#'
+ERROR:langgraph_system.workflow:❌ Failed to create structured proposal: Expecting value: line 1 column 1 (char 0)
+WARNING:langgraph_system.workflow:⚠️ Falling back to text-based proposal
+INFO:langgraph_system.workflow:💡 Using Architect's markdown response for proposal
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Sending architecture proposal to client_id: client_812ce966
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Session ID: 7d1c6f74-31a2-41d8-bb25-3fa9f713c788
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Proposal size: 1521 chars
+INFO:langgraph_system.workflow:✅ WebSocket DEBUG: Architecture proposal sent successfully
+INFO:langgraph_system.workflow:📝 WebSocket DEBUG: Stored state in websocket_manager.active_workflows for session: 7d1c6f74-31a2-41d8-bb25-3fa9f713c788
+INFO:langgraph_system.workflow:📋 Architecture proposal created and sent to user
+INFO:langgraph_system.workflow:🏛️ Architecture proposal created - routing to approval node
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:📋 Architecture proposal pending - workflow will pause here
+INFO:langgraph_system.workflow:⏸️  Workflow pausing - user must approve via WebSocket
+INFO:langgraph_system.workflow:⏸️  Workflow waiting for architecture approval - routing to END
+INFO:langgraph_system.workflow:⏸️  Workflow paused - stored state for session 7d1c6f74-31a2-41d8-bb25-3fa9f713c788
+INFO:langgraph_system.workflow:📋 Waiting for architecture proposal approval via WebSocket
+INFO:api.server_langgraph:⏸️  Workflow waiting for architecture approval - not sending final response yet
+INFO:api.server_langgraph:🔍 DEBUG: Received architecture_approval from client_812ce966
+INFO:api.server_langgraph:🔍 DEBUG: Using LangGraph v5.8.1 - Port 8001
+INFO:api.server_langgraph:🔍 DEBUG: Message data keys: ['type', 'session_id', 'decision', 'feedback']
+INFO:api.server_langgraph:📋 Architecture approval received: approved (session: 7d1c6f74-31a2-41d8-bb25-3fa9f713c788)
+INFO:api.server_langgraph:✅ Found workflow state for session 7d1c6f74-31a2-41d8-bb25-3fa9f713c788
+INFO:api.server_langgraph:🔄 Processing approval decision: approved
+INFO:api.server_langgraph:📋 Passing approval decision to workflow: approved
+INFO:api.server_langgraph:🔄 Resuming workflow with approval input...
+INFO:langgraph_system.workflow:🎯 Orchestrator node executing
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:🧠 DIRECT AI ROUTING → Using Orchestrator for all tasks
+INFO:langgraph_system.workflow:🤖 Using Orchestrator AI for task decomposition (complexity: complex)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:agents.specialized.orchestrator_agent:♻️  Using cached decomposition for: Create a simple calcultor app...
+INFO:langgraph_system.workflow:✅ Orchestrator created 7-step plan with parallelization
+INFO:langgraph_system.workflow:📖 Created Task Ledger with 3 success criteria
+INFO:langgraph_system.workflow:📊 Created Progress Ledger - 7 total steps
+INFO:langgraph_system.workflow:🔍 Running Pre-Execution Validation (v5.5.0)
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🚀 COMPREHENSIVE PRE-EXECUTION VALIDATION
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🔍 Starting Pre-Execution Validation
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 1/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 2/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 3/3
+WARNING:langgraph_system.workflow_self_diagnosis:  ⚠️ Found 1 structural issues
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 3 issues
+INFO:langgraph_system.workflow_self_diagnosis:✅ Pre-Execution Validation PASSED
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 73.40%
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:📊 PRE-EXECUTION VALIDATION SUMMARY
+INFO:langgraph_system.workflow_self_diagnosis:  Validation: PASS
+INFO:langgraph_system.workflow_self_diagnosis:  Risk Score: 0.00%
+INFO:langgraph_system.workflow_self_diagnosis:  Health: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:  Decision: SAFE TO EXECUTE
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow:✅ Pre-Execution Validation PASSED - Plan is safe to execute
+INFO:langgraph_system.workflow:📋 Orchestrator created 7-step execution plan
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:✅ Architecture proposal approved - continuing workflow
+INFO:langgraph_system.workflow:🔀 Route after approval - Status: approved
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps:
+INFO:langgraph_system.workflow:   Step 1: agent=architect, status=pending, task=Design the initial architecture for a simple calcu...
+INFO:langgraph_system.workflow:   Step 2: agent=research, status=pending, task=Research best practices for building calculator ap...
+INFO:langgraph_system.workflow:   Step 3: agent=architect, status=pending, task=Refine the initial architecture for the calculator...
+INFO:langgraph_system.workflow:   Step 4: agent=codesmith, status=pending, task=Implement the calculator app, including input hand...
+INFO:langgraph_system.workflow:   Step 5: agent=architect, status=pending, task=Analyze the implemented calculator app to ensure i...
+INFO:langgraph_system.workflow:   Step 6: agent=reviewer, status=pending, task=Review the code quality of the implemented calcula...
+INFO:langgraph_system.workflow:   Step 7: agent=docbot, status=pending, task=Generate documentation for the calculator app, inc...
+INFO:langgraph_system.workflow:✅ Routing to pending agent: architect (step_id: task_1)
+INFO:langgraph_system.workflow:🏗️ Architect node executing
+INFO:langgraph_system.workflow:🔍 Architect: current_step_id=task_1, current_step=ExecutionStep(id='task_1', agent='architect', task='Design the initial architecture for a simple calculator app, including input handling, basic operations (add, subtract, multiply, divide), and user interface structure.', expected_output='Completion of: Design the initial architecture for a simple calcu...', dependencies=[], status='pending', result=None, error=None, start_time=None, end_time=None, timeout_seconds=600, started_at=None, retry_count=0, max_retries=3, retry_delay_seconds=5, can_run_parallel=False, parallel_group=None, attempts=[], completion_percentage=0.0)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:✅ Proposal approved - finalizing architecture
+INFO:langgraph_system.workflow:✅ Finalizing approved architecture...
+INFO:langgraph_system.workflow:✅ Architecture finalized
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-271' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 74.86%
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-288' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 73.26%
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-305' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 70.06%
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-322' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-339' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-356' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-373' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-390' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-407' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-424' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-441' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-458' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-475' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-492' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-509' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-526' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-543' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-560' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']
+INFO:langgraph_system.workflow:🔍 Research node executing
+ERROR:langgraph_system.workflow:❌ No in_progress research step found!
+INFO:langgraph_system.workflow:🔀 Routing to next agent...
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps
+INFO:langgraph_system.workflow:📊 Progress: 1/7 (14.3%)
+INFO:langgraph_system.workflow:  Step task_1 (architect): completed
+INFO:langgraph_system.workflow:  Step task_2 (research): pending
+INFO:langgraph_system.workflow:✅ Routing to research for step task_2
+ERROR:asyncio:Task exception was never retrieved
+future: <Task finished name='Task-577' coro=<AgentWorkflow.check_and_handle_timeouts() done, defined at /Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py:582> exception=NameError("name 'updated_steps' is not defined")>
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/backend/langgraph_system/workflow.py", line 632, in check_and_handle_timeouts
+    updated_steps.append(step)
+    ^^^^^^^^^^^^^
+NameError: name 'updated_steps' is not defined
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: CRITICAL
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 46.46%
+ERROR:langgraph_system.workflow:🚨 Workflow health is CRITICAL
+ERROR:langgraph_system.workflow:   Risk factors: ['IMMEDIATE ACTION REQUIRED: Halt workflow', 'Fix invariant violations before continuing']

@@ -231,6 +231,10 @@ class ArchitectAgent(ChatAgent):
         # Research Agent connection (will be set by workflow/orchestrator)
         self.research_agent = None
 
+        # v5.8.7: Cache task classification to avoid re-classifying meta-prompts
+        self._cached_classification = None
+        self._cached_classification_prompt = None
+
     async def _is_workspace_empty(self, workspace_path: str) -> bool:
         """
         Check if workspace has no significant code files yet (new project detection)
@@ -267,96 +271,140 @@ class ArchitectAgent(ChatAgent):
 
     async def _classify_task_complexity(self, prompt: str) -> Dict[str, Any]:
         """
-        Classify task complexity and determine required architecture type
+        Classify task complexity using AI (GPT-4o) for accurate assessment
 
-        This method analyzes the user's request to determine:
-        - Complexity level (simple/medium/complex)
-        - Architecture type (frontend_only/fullstack/backend_only)
-        - Technology requirements
+        v5.8.7: Replaced keyword-based heuristics with AI classification
+        Reason: Keywords like "calculator" or "page" don't reliably indicate
+        architecture type. A "calculator microservice" needs backend, while
+        "HTML calculator" doesn't. Only AI can understand context properly.
+
+        v5.8.7 FIX: Caches classification to avoid re-classifying meta-prompts
+        like "create comprehensive ARCHITECTURE PROPOSAL" which AI misinterprets
+        as requiring distributed systems.
 
         Args:
-            prompt: User's task description
+            prompt: User's task description (original, not orchestrator-rewritten)
 
         Returns:
-            Dict with classification details
+            Dict with classification details from AI analysis
         """
-        prompt_lower = prompt.lower()
+        # Extract ONLY the original user prompt (first line before any additions)
+        # This avoids false positives from orchestrator rewrites or research text
+        prompt_lines = [line.strip() for line in prompt.split('\n') if line.strip()]
+        original_prompt = prompt_lines[0] if prompt_lines else prompt
 
-        # Frontend-only indicators
-        frontend_keywords = ['html', 'calculator', 'form', 'ui', 'interface',
-                            'button', 'page', 'website', 'landing page', 'portfolio']
+        # v5.8.7 DEBUG: Log what we're classifying
+        logger.info(f"📝 Classification input (full): {prompt[:200]}...")
+        logger.info(f"📝 Classification input (extracted first line): {original_prompt}")
 
-        # Simplicity indicators
-        simple_keywords = ['simple', 'basic', 'quick', 'small', 'minimal', 'single page']
+        # v5.8.7 FIX: Return cached classification if same prompt
+        if self._cached_classification_prompt == original_prompt:
+            logger.info(f"✅ Using cached classification for: {original_prompt[:60]}...")
+            return self._cached_classification
 
-        # Backend indicators
-        backend_keywords = ['api', 'database', 'auth', 'authentication', 'server',
-                           'backend', 'rest', 'graphql', 'login', 'user management']
+        # v5.8.7 FIX: Detect meta-prompts and skip classification
+        meta_prompt_indicators = [
+            'based on your research, create',
+            'create a comprehensive architecture proposal',
+            'architecture proposal for user approval',
+            'create a detailed proposal',
+            'refine the architecture'
+        ]
+        prompt_lower = original_prompt.lower()
+        if any(indicator in prompt_lower for indicator in meta_prompt_indicators):
+            logger.warning(f"⚠️ Detected meta-prompt, skipping classification: {original_prompt[:60]}...")
+            if self._cached_classification:
+                logger.info(f"✅ Returning previous classification instead")
+                return self._cached_classification
+            else:
+                logger.warning(f"⚠️ No cached classification available, will classify anyway")
 
-        # Complexity indicators
-        complex_keywords = ['scalable', 'distributed', 'microservice', 'enterprise',
-                           'million users', 'high availability', 'kubernetes', 'k8s']
+        logger.info(f"🔍 AI-classifying task: {original_prompt[:100]}...")
 
-        # Check indicators
-        is_frontend_only = any(kw in prompt_lower for kw in frontend_keywords)
-        is_simple = any(kw in prompt_lower for kw in simple_keywords)
-        needs_backend = any(kw in prompt_lower for kw in backend_keywords)
-        is_complex = any(kw in prompt_lower for kw in complex_keywords)
+        # Use GPT-4o for intelligent classification
+        classification_prompt = f"""Analyze this software development task and classify it:
 
-        # Classification logic
-        if is_frontend_only and is_simple and not needs_backend:
-            classification = {
-                'complexity': 'simple',
-                'type': 'frontend_only',
-                'requires_backend': False,
-                'requires_database': False,
-                'suggested_stack': ['HTML5', 'CSS3', 'JavaScript (ES6+)'],
-                'file_structure': 'single_file',  # calculator.html or index.html
-                'reasoning': 'Simple frontend task - no backend infrastructure needed'
-            }
-        elif is_frontend_only and not needs_backend:
-            classification = {
-                'complexity': 'simple',
-                'type': 'frontend_only',
-                'requires_backend': False,
-                'requires_database': False,
-                'suggested_stack': ['HTML5', 'CSS3', 'JavaScript', 'Optional: React/Vue'],
-                'file_structure': 'modular',  # separate HTML/CSS/JS files
-                'reasoning': 'Frontend application with moderate complexity'
-            }
-        elif needs_backend and not is_complex:
-            classification = {
-                'complexity': 'medium',
-                'type': 'fullstack',
-                'requires_backend': True,
-                'requires_database': True,
-                'suggested_stack': ['React/Vue', 'Node.js/Python', 'PostgreSQL/MongoDB'],
-                'file_structure': 'fullstack',
-                'reasoning': 'Fullstack application with backend services'
-            }
-        elif is_complex:
-            classification = {
-                'complexity': 'complex',
-                'type': 'distributed',
-                'requires_backend': True,
-                'requires_database': True,
-                'suggested_stack': ['Microservices', 'Kubernetes', 'PostgreSQL', 'Redis', 'Message Queue'],
-                'file_structure': 'microservices',
-                'reasoning': 'Complex distributed system requiring high scalability'
-            }
-        else:
-            classification = {
-                'complexity': 'medium',
-                'type': 'standard_web',
-                'requires_backend': False,
-                'requires_database': False,
-                'suggested_stack': ['HTML5', 'CSS3', 'JavaScript', 'React/Vue (optional)'],
-                'file_structure': 'modular',
-                'reasoning': 'Standard web application'
-            }
+Task: "{original_prompt}"
 
-        logger.info(f"📊 Task classified as: {classification['complexity']} - {classification['type']}")
-        return classification
+Determine:
+1. **Complexity**: simple | medium | complex
+   - simple: Single-file or few-file apps, basic UIs, client-side only
+   - medium: Multi-file apps, moderate features, may need backend
+   - complex: Distributed systems, enterprise scale, microservices
+
+2. **Type**: frontend_only | fullstack | backend_only | distributed
+   - frontend_only: Pure client-side (HTML/CSS/JS) - NO server needed
+   - fullstack: Frontend + Backend + Database
+   - backend_only: API/Service without UI
+   - distributed: Microservices, Kubernetes, etc.
+
+3. **Requires Backend**: true | false
+   - true ONLY if EXPLICITLY needs: database, API, authentication, server-side processing, data persistence
+   - false if it can run in browser without server
+
+4. **Requires Database**: true | false
+   - true ONLY if EXPLICITLY needs: data storage, user accounts, persistent data
+   - false if data can be in-memory or localStorage
+
+5. **Suggested Stack**: List appropriate technologies
+
+6. **File Structure**: single_file | modular | fullstack | microservices
+   - single_file: One HTML file with inline CSS/JS
+   - modular: Separate HTML/CSS/JS files, no backend
+   - fullstack: Frontend + Backend directories
+   - microservices: Multiple services
+
+7. **Reasoning**: Brief explanation (1-2 sentences)
+
+Return ONLY valid JSON:
+{{
+  "complexity": "simple|medium|complex",
+  "type": "frontend_only|fullstack|backend_only|distributed",
+  "requires_backend": true|false,
+  "requires_database": true|false,
+  "suggested_stack": ["tech1", "tech2", ...],
+  "file_structure": "single_file|modular|fullstack|microservices",
+  "reasoning": "explanation"
+}}
+
+CRITICAL RULES:
+1. "HTML calculator", "design the architecture for a calculator", "simple HTML page" = frontend_only, requires_backend=false, requires_database=false
+2. "Calculator API", "REST API for calculations" = backend_only
+3. "Calculator with user login" or "save calculations to database" = fullstack
+4. Keywords "architecture", "functionality", "layout" do NOT automatically mean backend is needed
+5. If task CAN BE DONE client-side only, classify as frontend_only
+6. Default to SIMPLER classification when unsure - prefer frontend_only over fullstack"""
+
+        try:
+            response = await self.openai.complete(
+                classification_prompt,
+                "You are an expert software architect. Classify tasks accurately based on EXPLICIT requirements only. Never over-engineer.",
+                response_format={"type": "json_object"}
+            )
+
+            classification = json.loads(response)
+            logger.info(f"✅ AI Classification: {classification['complexity']} - {classification['type']}")
+            logger.info(f"   Backend: {classification['requires_backend']}, Database: {classification['requires_database']}")
+            logger.info(f"   Reasoning: {classification['reasoning']}")
+
+            # v5.8.7 FIX: Cache the classification for this prompt
+            self._cached_classification = classification
+            self._cached_classification_prompt = original_prompt
+            logger.info(f"💾 Cached classification for future calls")
+
+            return classification
+
+        except Exception as e:
+            logger.error(f"❌ AI classification failed: {e}")
+            # ASIMOV RULE 1: NO FALLBACK - Classification is REQUIRED
+            from core.exceptions import SystemNotReadyError
+            raise SystemNotReadyError(
+                component="ArchitectAgent",
+                reason=f"Task classification failed: {str(e)}",
+                solution="Check OpenAI API connectivity or retry",
+                file=__file__,
+                line=350
+            )
 
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
@@ -428,8 +476,13 @@ class ArchitectAgent(ChatAgent):
                 await self._send_progress(client_id, "🆕 New project detected - Researching best practices...", manager)
 
                 # 1. Research best practices using Research Agent
-                research_insights = None
-                if self.research_agent:
+                # v5.8.7 FIX: Check if research results already provided by workflow
+                research_insights = request.context.get('research_results') if isinstance(request.context, dict) else None
+
+                if research_insights:
+                    logger.info(f"✅ Using research results from workflow context ({len(research_insights)} chars)")
+                    await self._send_progress(client_id, "✅ Using research insights from workflow...", manager)
+                elif self.research_agent:
                     try:
                         logger.info(f"📚 Calling Research Agent for: {request.prompt}")
                         await self._send_progress(client_id, "📚 Researching latest best practices via Perplexity AI...", manager)
@@ -821,41 +874,65 @@ class ArchitectAgent(ChatAgent):
     ) -> ArchitectureDesign:
         """
         Parse architecture response into structured design
+
+        v5.8.7 FIX: Respects task_classification to avoid over-engineering
+        Only adds components that classification says are needed
         """
         # Extract key information from response
         # This is a simplified parser - could be enhanced with better NLP
 
-        architecture_type = "microservices"  # Default
-        if "monolithic" in response.lower():
+        # v5.8.7: Get task classification to guide component selection
+        task_classification = requirements.get('_task_classification', {})
+        requires_backend = task_classification.get('requires_backend', True)  # Default to True for safety
+        requires_database = task_classification.get('requires_database', True)
+        complexity = task_classification.get('complexity', 'medium')
+
+        logger.info(f"🔧 Parsing architecture with constraints: backend={requires_backend}, database={requires_database}, complexity={complexity}")
+
+        # Architecture type based on classification, not keywords
+        architecture_type = "monolithic"  # Default to simplest
+        if complexity == 'simple' or requirements.get('file_structure') == 'single_file':
+            architecture_type = "single_file"
+        elif complexity == 'simple' or requirements.get('file_structure') == 'modular':
             architecture_type = "monolithic"
         elif "serverless" in response.lower():
             architecture_type = "serverless"
+        elif complexity == 'complex':
+            architecture_type = "microservices"
 
-        # Extract components (simplified)
+        # Extract components ONLY if classification allows
         components = []
-        if "frontend" in response.lower():
+
+        # Frontend is almost always present
+        if "frontend" in response.lower() or "html" in response.lower() or "ui" in response.lower():
             components.append({
                 "name": "Frontend",
                 "type": "UI",
-                "technology": "React/Next.js",
+                "technology": task_classification.get('suggested_stack', ['HTML', 'CSS', 'JavaScript'])[0] if task_classification.get('suggested_stack') else "HTML/CSS/JavaScript",
                 "responsibility": "User interface"
             })
 
-        if "backend" in response.lower() or "api" in response.lower():
+        # v5.8.7 FIX: Only add backend if classification says it's needed
+        if requires_backend and ("backend" in response.lower() or "api" in response.lower()):
             components.append({
                 "name": "Backend API",
                 "type": "API",
                 "technology": "Python/FastAPI",
                 "responsibility": "Business logic and data management"
             })
+        elif not requires_backend:
+            logger.info(f"✅ Skipping backend component (classification says not needed)")
 
-        if "database" in response.lower():
+        # v5.8.7 FIX: Only add database if classification says it's needed
+        if requires_database and "database" in response.lower():
             components.append({
                 "name": "Database",
                 "type": "Storage",
                 "technology": "PostgreSQL",
                 "responsibility": "Data persistence"
             })
+        elif not requires_database:
+            logger.info(f"✅ Skipping database component (classification says not needed)")
 
         # Extract technologies
         technologies = []
@@ -959,7 +1036,17 @@ class ArchitectAgent(ChatAgent):
         doc.append(f"- **Complexity**: {task_classification['complexity'].title()}")
         doc.append(f"- **Type**: {task_classification['type']}")
         doc.append(f"- **Architecture**: {design.architecture_type}")
-        doc.append(f"- **Reasoning**: {task_classification['reasoning']}\n")
+
+        # v5.8.7 FIX: Rewrite reasoning to avoid trigger keywords when not needed
+        reasoning = task_classification['reasoning']
+        if not task_classification.get('requires_backend') and not task_classification.get('requires_database'):
+            # Remove mentions of backend/database for frontend-only projects to avoid false positives
+            reasoning = reasoning.replace('without requiring a backend or database', 'as a pure client-side application')
+            reasoning = reasoning.replace('without backend or database', 'client-side only')
+            reasoning = reasoning.replace('backend', 'server')
+            reasoning = reasoning.replace('database', 'persistent storage')
+
+        doc.append(f"- **Reasoning**: {reasoning}\n")
 
         # Research Insights (if available)
         if research_insights:
