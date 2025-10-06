@@ -1,0 +1,39 @@
+Traceback (most recent call last):
+  File "/Users/dominikfoert/git/KI_AutoAgent/test_create_app.py", line 39, in create_test_app
+    async with websockets.connect(uri) as websocket:
+               ~~~~~~~~~~~~~~~~~~^^^^^
+  File "/opt/homebrew/lib/python3.13/site-packages/websockets/legacy/client.py", line 642, in __aenter__
+    return await self
+           ^^^^^^^^^^
+  File "/opt/homebrew/lib/python3.13/site-packages/websockets/legacy/client.py", line 659, in __await_impl_timeout__
+    return await asyncio.wait_for(self.__await_impl__(), self.open_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py", line 507, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/opt/homebrew/lib/python3.13/site-packages/websockets/legacy/client.py", line 663, in __await_impl__
+    _transport, _protocol = await self._create_connection()
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 1174, in create_connection
+    raise OSError('Multiple exceptions: {}'.format(
+        ', '.join(str(exc) for exc in exceptions)))
+OSError: Multiple exceptions: [Errno 61] Connect call failed ('::1', 8001, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8001)
+
+================================================================================
+🚀 V5.8.5 HYBRID ORCHESTRATOR TEST
+================================================================================
+✅ Test workspace created: /Users/dominikfoert/git/KI_AutoAgent/test_workspace_v5_8_5
+
+================================================================================
+🧪 TEST: Creating TestApp with v5.8.5 Hybrid Orchestrator
+================================================================================
+
+📝 Task: Create a simple Calculator app with React and TypeScript. It should support add, subtract, multiply, and divide operations.
+📁 Workspace: /Users/dominikfoert/git/KI_AutoAgent/test_workspace_v5_8_5
+🔗 Connecting to: ws://localhost:8001/ws/chat
+
+--------------------------------------------------------------------------------
+
+❌ ERROR: Multiple exceptions: [Errno 61] Connect call failed ('::1', 8001, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 8001)
+
+❌ TEST FAILED

@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-10-05T18:15:14.956127",
+  "key": "metrics",
+  "value": {
+    "summary": {
+      "average_complexity": 0,
+      "average_maintainability": 0,
+      "quality_score": 40.0,
+      "total_loc": 0,
+      "total_sloc": 0,
+      "total_files": 0
+    },
+    "files": [],
+    "total_files": 0
+  }
+}

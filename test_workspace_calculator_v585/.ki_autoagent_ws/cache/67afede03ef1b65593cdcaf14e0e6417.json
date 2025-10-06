@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-10-05T18:15:20.308354",
+  "key": "diagrams",
+  "value": {
+    "system_context": "```mermaid\ngraph TB\n    subgraph External\n        direction TB\n        User1[User 1]\n        User2[User 2]\n        SystemA[External System A]\n        SystemB[External System B]\n    end\n\n    subgraph Center\n        direction TB\n        System[(System)]\n    end\n\n    User1 -->|Interacts with| System\n    User2 -->|Interacts with| System\n    SystemA -->|Uses API| System\n    SystemB -->|Sends Data to| System\n```",
+    "container": "```mermaid\ngraph TB\n    subgraph VSCodeExtension\n        direction TB\n        ext[VS Code Extension]\n    end\n\n    subgraph Backend\n        direction TB\n        fastapi[FastAPI Backend]\n    end\n\n    subgraph Agents\n        direction TB\n        agent1[Agent 1]\n        agent2[Agent 2]\n    end\n\n    subgraph Services\n        direction TB\n        service1[Service 1]\n        service2[Service 2]\n    end\n\n    subgraph Database\n        direction TB\n        redis[Redis]\n        sqlite[SQLite]\n    end\n\n    ext -- WebSocket --> fastapi\n    fastapi -- WebSocket --> ext\n\n    fastapi --> agent1\n    agent1 --> agent2\n    agent2 --> service1\n    service1 --> service2\n\n    fastapi --> redis\n    fastapi --> sqlite\n```",
+    "component": "```mermaid\ngraph TB\n    subgraph System\n        note[No components available]\n    end\n```",
+    "dependency_graph": "```mermaid\ngraph TB\n    A[Module] --> B[Dependencies]\n```",
+    "sequence": "```mermaid\nsequenceDiagram\n```",
+    "state": "```mermaid\nstateDiagram-v2\n    [*] --> Idle\n    Idle --> Processing\n    Processing --> Complete\n    Complete --> [*]\n```"
+  }
+}

@@ -1,0 +1,292 @@
+INFO:api.server_langgraph:🔍 DEBUG: Starting LangGraph server v5.8.1 on port 8001
+INFO:api.server_langgraph:🔍 DEBUG: This is the ACTIVE server for v5.8.1-multi-client-architecture
+INFO:api.server_langgraph:🔍 DEBUG: WebSocket endpoint: ws://localhost:8001/ws/chat
+INFO:api.server_langgraph:✅ Models API endpoint registered at /api/models
+INFO:api.server_langgraph:✅ Settings API endpoint registered at /api/settings
+INFO:     Started server process [42500]
+INFO:     Waiting for application startup.
+INFO:api.server_langgraph:================================================================================
+INFO:api.server_langgraph:🚀 Starting KI AutoAgent LangGraph Backend v5.8.1...
+INFO:api.server_langgraph:🔍 DEBUG: Initializing LangGraph StateGraph workflow system
+INFO:api.server_langgraph:🔍 DEBUG: Using port 8001 (NOT 8000)
+INFO:api.server_langgraph:📦 Creating agent workflow...
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for orchestrator
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for architect
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for codesmith
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for reviewer
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for fixer
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for docbot
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for research
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for tradestrat
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for opus_arbitrator
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.extensions.persistent_memory:Created new vector store for performance
+INFO:langgraph_system.workflow:🤖 Initializing real agent instances...
+INFO:config.capabilities_loader:✅ Loaded capabilities for 12 agents
+INFO:agents.base.base_agent:✅ Base instructions loaded: /Users/dominikfoert/.ki_autoagent/config/instructions/architect-v2-instructions.md
+INFO:agents.base.base_agent:🤖 🏗️ ArchitectAgent initialized (Model: gpt-4o-2024-11-20)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:agents.specialized.architect_agent:🏗️ Initializing ArchitectAgent with workspace: /Users/dominikfoert/git/KI_AutoAgent
+INFO:agents.specialized.architect_agent:📦 Workspace cache directory: /Users/dominikfoert/git/KI_AutoAgent/.ki_autoagent_ws/cache
+INFO:services.project_cache:📦 ProjectCache initialized: /Users/dominikfoert/git/KI_AutoAgent/.ki_autoagent_ws/cache
+INFO:services.code_search:🔍 LightweightCodeSearch initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /Users/dominikfoert/git/KI_AutoAgent
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ Cache services initialized: Redis cache, SQLite search, Smart File watcher with 30s debounce
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:agents.specialized.architect_agent:✅ Code indexing tools initialized
+WARNING:core.analysis.semgrep_analyzer:⚠️ Semgrep CLI not found - install with: pip install semgrep
+INFO:core.analysis.vulture_analyzer:✅ Vulture library found
+INFO:core.analysis.radon_metrics:✅ Radon library found
+INFO:agents.specialized.architect_agent:✅ Analysis tools initialized: Semgrep, Vulture, Radon, CallGraph, Layers
+INFO:services.diagram_service:📊 DiagramService initialized
+INFO:agents.base.base_agent:✅ Base instructions loaded: /Users/dominikfoert/.ki_autoagent/config/instructions/codesmith-v2-instructions.md
+INFO:agents.base.base_agent:🤖 💻 CodeSmithAgent initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:core.indexing.tree_sitter_indexer:TreeSitterIndexer initialized (using Python ast module)
+INFO:core.analysis.vulture_analyzer:✅ Vulture library found
+INFO:core.analysis.radon_metrics:✅ Radon library found
+INFO:services.diagram_service:📊 DiagramService initialized
+INFO:agents.base.base_agent:✅ Base instructions loaded: /Users/dominikfoert/.ki_autoagent/config/instructions/reviewergpt-instructions.md
+INFO:agents.base.base_agent:🤖 🔍 ReviewerGPT initialized (Model: gpt-4o-mini-2024-07-18)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-mini-2024-07-18
+INFO:agents.base.base_agent:✅ Base instructions loaded: /Users/dominikfoert/.ki_autoagent/config/instructions/fixerbot-instructions.md
+INFO:agents.base.base_agent:🤖 🔧 FixerBot initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:agents.base.base_agent:🤖 🎯 OrchestratorAgent initialized (Model: gpt-4o-2024-11-20)
+INFO:langgraph_system.workflow:✅ Orchestrator initialized with AI decomposition
+INFO:agents.base.base_agent:✅ Base instructions loaded: /Users/dominikfoert/.ki_autoagent/config/instructions/research-instructions.md
+INFO:agents.base.base_agent:🤖 🔍 ResearchBot initialized (Model: sonar)
+INFO:utils.perplexity_service:✅ PerplexityService initialized with model: sonar
+INFO:agents.specialized.research_agent:✅ ResearchAgent initialized with Perplexity API
+INFO:langgraph_system.workflow:✅ ResearchAgent initialized with Perplexity API
+INFO:agents.base.base_agent:✅ Base instructions loaded: /Users/dominikfoert/.ki_autoagent/config/instructions/docubot-instructions.md
+INFO:agents.base.base_agent:🤖 📝 DocuBot initialized (Model: gpt-4o-2024-11-20)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:langgraph_system.workflow:✅ DocuBotAgent initialized
+INFO:agents.base.base_agent:✅ Base instructions loaded: /Users/dominikfoert/.ki_autoagent/config/instructions/performance-instructions.md
+INFO:agents.base.base_agent:🤖 ⚡ PerformanceBot initialized (Model: gpt-4o-2024-11-20)
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:langgraph_system.workflow:✅ PerformanceBot initialized
+INFO:agents.base.base_agent:✅ Base instructions loaded: /Users/dominikfoert/.ki_autoagent/config/instructions/tradestrat-instructions.md
+INFO:agents.base.base_agent:🤖 📈 TradeStrat initialized (Model: claude-4.1-sonnet-20250920)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:langgraph_system.workflow:✅ TradeStratAgent initialized
+INFO:agents.base.base_agent:✅ Base instructions loaded: /Users/dominikfoert/.ki_autoagent/config/instructions/opus-arbitrator-instructions.md
+INFO:agents.base.base_agent:🤖 ⚖️ OpusArbitrator initialized (Model: claude-opus-4-1-20250805)
+INFO:utils.claude_code_service:✅ Claude Code CLI found: 2.0.1 (Claude Code)
+INFO:langgraph_system.workflow:✅ OpusArbitratorAgent initialized
+INFO:langgraph_system.workflow:✅ Initialized 10 real agents
+INFO:langgraph_system.workflow:✅ Connected Research Agent to Architect for new project research
+INFO:langgraph_system.workflow:✅ Architect can now design NEW projects with research-backed architecture
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Workflow Self-Diagnosis System v5.5.0 initialized
+INFO:langgraph_system.workflow:🏥 Self-Diagnosis System initialized
+INFO:langgraph_system.workflow:🧠 Intelligent Query Handler initialized
+INFO:langgraph_system.workflow:🛡️ Safe Orchestrator Executor initialized (v5.5.2)
+INFO:langgraph_system.workflow:🧠 LangGraph Store initialized - agents can now learn across sessions
+INFO:langgraph_system.workflow:✅ Using MemorySaver for workflow checkpointing
+INFO:langgraph_system.workflow:🧠 Compiling workflow with Store for agent learning
+INFO:langgraph_system.workflow:✅ Workflow compiled with checkpointer support
+INFO:api.server_langgraph:✅ LangGraph workflow system initialized
+INFO:api.server_langgraph:✅ workflow_system type: AgentWorkflow
+INFO:api.server_langgraph:🔧 Tool registry initialized with 0 tools
+INFO:api.server_langgraph:✅ Approval manager initialized
+INFO:api.server_langgraph:================================================================================
+INFO:api.server_langgraph:🎉 STARTUP COMPLETE - Ready to accept connections!
+INFO:api.server_langgraph:================================================================================
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     127.0.0.1:50687 - "WebSocket /ws/chat" [accepted]
+INFO:api.server_langgraph:✅ Client client_7caffe27 connected
+INFO:api.server_langgraph:🔍 DEBUG: New client connected: client_7caffe27
+INFO:     connection open
+INFO:api.server_langgraph:🔍 DEBUG: Welcome message sent to client_7caffe27, waiting for init...
+INFO:api.server_langgraph:🔍 DEBUG: Received init from client_7caffe27
+INFO:api.server_langgraph:🔍 DEBUG: Using LangGraph v5.8.1 - Port 8001
+INFO:api.server_langgraph:🔍 DEBUG: Message data keys: ['type', 'workspace_path']
+INFO:api.server_langgraph:✅ Client client_7caffe27 initialized with workspace: /tmp/test_calculator_v587
+INFO:api.server_langgraph:🔍 DEBUG: Received chat from client_7caffe27
+INFO:api.server_langgraph:🔍 DEBUG: Using LangGraph v5.8.1 - Port 8001
+INFO:api.server_langgraph:🔍 DEBUG: Message data keys: ['type', 'content', 'mode']
+INFO:api.server_langgraph:🔍 DEBUG: Chat message content: Create simple HTML calculator...
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: Checking for approval state - session_id: 4819e3d2-dace-418f-b091-17ebc2199fa7
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: Found workflow_system.active_workflows with 0 sessions
+INFO:api.server_langgraph:🔌 WebSocket DEBUG: No workflow state found for session 4819e3d2-dace-418f-b091-17ebc2199fa7
+INFO:api.server_langgraph:✅ workflow_system available: AgentWorkflow
+INFO:api.server_langgraph:🔍 DEBUG: Starting LangGraph workflow for: Create simple HTML calculator...
+INFO:api.server_langgraph:🔍 DEBUG: Session state - plan_first_mode: False, workspace: /tmp/test_calculator_v587
+INFO:api.server_langgraph:🔍 DEBUG: Plan-First mode: False
+INFO:api.server_langgraph:🔍 DEBUG: Executing LangGraph workflow
+INFO:api.server_langgraph:🔍 DEBUG: Session ID: 4819e3d2-dace-418f-b091-17ebc2199fa7
+INFO:api.server_langgraph:🔍 DEBUG: Workspace: /tmp/test_calculator_v587
+INFO:langgraph_system.workflow:🎯 Orchestrator node executing
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:🧠 DIRECT AI ROUTING → Using Orchestrator for all tasks
+INFO:langgraph_system.workflow:🤖 Using Orchestrator AI for task decomposition (complexity: complex)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:agents.specialized.orchestrator_agent:🧠 Found 3 similar tasks in memory
+INFO:utils.openai_service:✅ OpenAI Service initialized with model: gpt-4o-2024-11-20
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:agents.specialized.orchestrator_agent:✅ AI decomposition: 7 tasks, 95.0min estimated
+INFO:agents.specialized.orchestrator_agent:💡 Reasoning: The task requires sequential execution to ensure the architecture is properly designed, refined, and implemented before analysis, review, and documentation. Dependencies between tasks ensure quality and alignment with best practices.
+WARNING:agents.specialized.orchestrator_agent:⚠️ Memory storage failed (non-critical): 'PersistentAgentMemory' object has no attribute 'store'
+INFO:langgraph_system.workflow:✅ Orchestrator created 7-step plan with parallelization
+INFO:langgraph_system.workflow:📖 Created Task Ledger with 1 success criteria
+INFO:langgraph_system.workflow:📊 Created Progress Ledger - 7 total steps
+INFO:langgraph_system.workflow:⚡ Identified 1 parallel execution groups
+INFO:langgraph_system.workflow:   parallel_group_0: Steps ['task_1', 'task_2'] can run in parallel
+INFO:langgraph_system.workflow:🔍 Running Pre-Execution Validation (v5.5.0)
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🚀 COMPREHENSIVE PRE-EXECUTION VALIDATION
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:🔍 Starting Pre-Execution Validation
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 1/3
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 2 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 2/3
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 2 issues
+INFO:langgraph_system.workflow_self_diagnosis:  📋 Validation Pass 3/3
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Found 2 performance concerns
+INFO:langgraph_system.workflow_self_diagnosis:  🔧 Attempting to fix 2 issues
+INFO:langgraph_system.workflow_self_diagnosis:✅ Pre-Execution Validation PASSED
+INFO:langgraph_system.workflow_self_diagnosis:🏥 Running Self-Test Health Check
+INFO:langgraph_system.workflow_self_diagnosis:  📊 Health Check Complete: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:     Overall Score: 73.59%
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow_self_diagnosis:📊 PRE-EXECUTION VALIDATION SUMMARY
+INFO:langgraph_system.workflow_self_diagnosis:  Validation: PASS
+INFO:langgraph_system.workflow_self_diagnosis:  Risk Score: 0.00%
+INFO:langgraph_system.workflow_self_diagnosis:  Health: AT_RISK
+INFO:langgraph_system.workflow_self_diagnosis:  Decision: SAFE TO EXECUTE
+INFO:langgraph_system.workflow_self_diagnosis:============================================================
+INFO:langgraph_system.workflow:✅ Pre-Execution Validation PASSED - Plan is safe to execute
+INFO:langgraph_system.workflow:📋 Orchestrator created 7-step execution plan
+INFO:langgraph_system.workflow:✅ Approval node executing
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Checking execution plan with 7 steps
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Step task_1: agent=architect, status=pending
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Found first pending step: architect
+INFO:langgraph_system.workflow:🏗️ First step is architect - allowing proposal creation
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Architect will create proposal for client_id: client_7caffe27
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: Current session_id: 4819e3d2-dace-418f-b091-17ebc2199fa7
+INFO:langgraph_system.workflow:🔌 WebSocket DEBUG: WebSocket manager available: True
+INFO:langgraph_system.workflow:📍 Set current_step_id to: task_1 for agent: architect
+INFO:langgraph_system.workflow:🔀 Route after approval - Status: approved
+INFO:langgraph_system.workflow:📋 Execution plan has 7 steps:
+INFO:langgraph_system.workflow:   Step 1: agent=architect, status=in_progress, task=Design the initial architecture for a simple HTML ...
+INFO:langgraph_system.workflow:   Step 2: agent=research, status=pending, task=Research best practices for building HTML calculat...
+INFO:langgraph_system.workflow:   Step 3: agent=architect, status=pending, task=Refine the initial architecture using insights fro...
+INFO:langgraph_system.workflow:   Step 4: agent=codesmith, status=pending, task=Implement the HTML calculator based on the refined...
+INFO:langgraph_system.workflow:   Step 5: agent=architect, status=pending, task=Analyze the implemented HTML calculator to ensure ...
+INFO:langgraph_system.workflow:   Step 6: agent=reviewer, status=pending, task=Review the code quality of the HTML calculator, in...
+INFO:langgraph_system.workflow:   Step 7: agent=docbot, status=pending, task=Generate documentation for the HTML calculator, in...
+INFO:langgraph_system.workflow:✅ Routing to in_progress agent: architect (step_id: task_1)
+INFO:langgraph_system.workflow:🏗️ Architect node executing
+INFO:langgraph_system.workflow:🔍 Architect: current_step_id=task_1, current_step=ExecutionStep(id='task_1', agent='architect', task='Design the initial architecture for a simple HTML calculator, including layout, functionality, and user interaction.', expected_output='Completion of: Design the initial architecture for a simple HTML ...', dependencies=[], status='in_progress', result=None, error=None, start_time=datetime.datetime(2025, 10, 6, 16, 49, 21, 316241), end_time=None, timeout_seconds=600, started_at=datetime.datetime(2025, 10, 6, 16, 49, 21, 316239), retry_count=0, max_retries=3, retry_delay_seconds=5, can_run_parallel=True, parallel_group='parallel_group_0', attempts=[], completion_percentage=0.0)
+INFO:httpx:HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+INFO:langgraph_system.workflow:📋 No proposal exists - performing research and creating proposal
+INFO:langgraph_system.workflow:🔍 Step 1: Calling ResearchAgent for web research...
+INFO:langgraph_system.workflow:🔍 Executing with real ResearchAgent...
+INFO:agents.specialized.research_agent:🔍 ResearchAgent executing: Research best practices and latest technologies for: Design the initial architecture for a simple HT...
+INFO:langgraph_system.workflow:✅ ResearchAgent completed: Research best practices and latest technologies for: Design ...
+INFO:langgraph_system.workflow:✅ Research completed: The latest best practices for designing the initial architecture of a simple HTML calculator in 2024-2025 emphasize a clean separation of concerns between layout, functionality, and user interaction, ...
+INFO:langgraph_system.workflow:🏗️ Step 2: Architect analyzing requirements with research insights...
+INFO:langgraph_system.workflow:🏗️ Executing ArchitectAgent with research insights...
+INFO:agents.specialized.architect_agent:📂 Using workspace path: /tmp/test_calculator_v587
+INFO:agents.specialized.architect_agent:🔄 Updating file watcher from None to /tmp/test_calculator_v587
+INFO:services.smart_file_watcher:👁️  File watcher stopped
+INFO:services.project_cache:📦 ProjectCache initialized: /tmp/test_calculator_v587/.ki_autoagent_ws/cache
+INFO:services.smart_file_watcher:👁️  SmartFileWatcher initialized for: /tmp/test_calculator_v587
+INFO:services.smart_file_watcher:👁️  File watcher started (call check_changes() to check for updates)
+INFO:agents.specialized.architect_agent:✅ ProjectCache updated with workspace path: /tmp/test_calculator_v587
+INFO:agents.specialized.architect_agent:🆕 Workspace appears empty - New project mode
+INFO:agents.specialized.architect_agent:🔍 New project detection: True
+INFO:agents.specialized.architect_agent:📊 Task classified as: medium - fullstack
+INFO:agents.specialized.architect_agent:📊 Task classification: {'complexity': 'medium', 'type': 'fullstack', 'requires_backend': True, 'requires_database': True, 'suggested_stack': ['React/Vue', 'Node.js/Python', 'PostgreSQL/MongoDB'], 'file_structure': 'fullstack', 'reasoning': 'Fullstack application with backend services'}
+INFO:agents.specialized.architect_agent:🆕 New project detected - Using Research-Driven Architecture Design
+INFO:agents.specialized.architect_agent:📚 Calling Research Agent for: 
+Design the initial architecture for a simple HTML calculator, including layout, functionality, and user interaction.
+
+**Research Insights:**
+The latest best practices for designing the initial architecture of a simple HTML calculator in 2024-2025 emphasize a clean separation of concerns between layout, functionality, and user interaction, leveraging modern tools and frameworks to optimize performance, security, and user experience.
+
+**1. Industry Standards (2024-2025):**  
+- Use **semantic HTML5** for the calculator layout (e.g., `<section>`, `<button>`, `<input>`, `<output>`) to ensure accessibility and SEO friendliness.  
+- Style with **modern CSS techniques** such as Flexbox or Grid for responsive and clean layout.  
+- Implement functionality using **vanilla JavaScript or modern frameworks** with minimal JavaScript payload to improve performance. Frameworks like **Astro** enable partial hydration, loading JavaScript only for interactive parts, which is ideal for simple apps like calculators[2].  
+- Follow **progressive enhancement**: start with static HTML/CSS, then add JavaScript for interactivity[1][2].
+
+**2. Recommended Expert Approaches:**  
+- Begin by designing a **static UI with HTML and CSS**, ensuring buttons and display areas are clearly defined and accessible[1].  
+- Capture user input via JavaScript event listeners on buttons, and implement calculation logic in modular, reusable functions for addition, subtraction, multiplication, and division[1].  
+- Use **TypeScript** for type safety and maintainability if the project scope grows[2].  
+- Adopt **component-based architecture** even in simple projects, separating display, input handling, and calculation logic[2].  
+- Use **ARIA roles and properties** to enhance accessibility for screen readers and keyboard navigation.
+
+**3. Tools and Frameworks Currently Preferred:**  
+- **HTML5, CSS3, and JavaScript (ES6+)** as the core stack for a simple calculator[1].  
+- Frameworks like **Astro** for optimized hydration and performance, allowing static HTML with interactive islands only where needed[2].  
+- Development tools: **VS Code** with linting and formatting extensions, **ESLint**, **Prettier**, and **Jest** or **Mocha** for testing JavaScript functions[2].  
+- For styling, CSS preprocessors like **Sass** or utility-first frameworks like **Tailwind CSS** can speed up styling while maintaining consistency.
+
+**4. Security Considerations:**  
+- Avoid using **`eval()`** or similar unsafe methods to parse and compute user input, as it can lead to code injection vulnerabilities. Instead, implement explicit parsing and calculation logic[1].  
+- Sanitize any user input if the calculator accepts typed input (e.g., from a text field) to prevent XSS attacks.  
+- Use **Content Security Policy (CSP)** headers to restrict script sources and prevent injection attacks.  
+- Ensure the app is served over **HTTPS** to protect data integrity and privacy.
+
+**5. Performance Optimizations:**  
+- Minimize JavaScript by only loading and executing code necessary for the calculator’s functionality; frameworks like Astro support this via partial hydration[2].  
+- Optimize CSS by using scoped styles or CSS modules to reduce render-blocking styles.  
+- Use **lazy loading** or defer non-critical scripts to improve initial load times.  
+- Optimize assets (icons, fonts) and avoid heavy dependencies.  
+- Monitor **Core Web Vitals** and Lighthouse scores to ensure fast time to interactive and responsiveness[2].
+
+**6. Common Mistakes to Avoid:**  
+- Overcomplicating the architecture for a simple calculator; keep the design modular but minimal[1].  
+- Using unsafe JavaScript evaluation methods (`eval()`) for calculations.  
+- Neglecting accessibility features such as keyboard navigation and screen reader support.  
+- Loading all JavaScript upfront instead of using hydration or lazy loading strategies, which harms performance[2].  
+- Ignoring responsive design, leading to poor usability on different device sizes.  
+- Failing to test edge cases in calculation logic (e.g., division by zero).
+
+**Summary Table:**
+
+| Aspect                  | Best Practice Highlights                                      | Tools/Frameworks                 | Pitfalls to Avoid                         |
+|-------------------------|---------------------------------------------------------------|---------------------------------|-------------------------------------------|
+| Layout                  | Semantic HTML5, Flexbox/Grid for responsive UI                | HTML5, CSS3, Sass, Tailwind CSS | Non-semantic tags, fixed layouts          |
+| Functionality           | Modular JS functions, no `eval()`, event-driven input capture | JavaScript ES6+, TypeScript     | Using `eval()`, monolithic code           |
+| User Interaction        | Accessible buttons with ARIA roles, keyboard support          | ARIA, Astro (partial hydration) | Ignoring accessibility                    |
+| Performance             | Minimal JS, lazy loading, optimized assets                    | Astro, Lighthouse, Webpack      | Loading all JS upfront, heavy dependencies|
+| Security                | Input sanitization, CSP, HTTPS                                | CSP headers, secure coding       | XSS vulnerabilities, insecure eval usage |
+| Development Workflow    | Use linters, formatters, testing frameworks                   | ESLint, Prettier, Jest          | Skipping testing and code consistency     |
+
+These practices align with current expert guidance emphasizing **performance**, **security**, and **user experience** while leveraging modern tools like Astro for efficient component hydration and minimal JavaScript payload[1][2].
+
+📚 Sources:
+[1] https://www.upgrad.com/blog/top-html-project-ideas-topics/
+[2] https://alexbobes.com/programming/a-deep-dive-into-astro-build/
+[3] https://elementor.com/blog/what-is-amp-year-guide-to-amp-pages-seo/
+[4] https://metana.io/blog/websockets-vs-http-which-to-choose-for-your-project/
+[5] https://www.spaceotechnologies.com/blog/web-application-frameworks/
+[6] https://onenine.com/modern-web-design-examples/
+[7] https://eluminoustechnologies.com/blog/web-development-tools/
+[8] https://devot.team/blog/full-stack-ai-developer
+[9] https://litslink.com/blog/android-app-development-language
+
+Please create an architecture proposal that incorporates these research findings.
+
+INFO:agents.specialized.research_agent:🔍 ResearchAgent executing: Best practices for: 
+Design the initial architecture for a simple HTML calculator, including layout,...

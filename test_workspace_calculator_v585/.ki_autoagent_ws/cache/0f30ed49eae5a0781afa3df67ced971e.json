@@ -1,0 +1,17 @@
+{
+  "timestamp": "2025-10-05T18:15:14.956696",
+  "key": "system_layers",
+  "value": {
+    "layers": [],
+    "violations": [],
+    "quality_score": 0.0,
+    "metrics": {
+      "total_files": 0,
+      "layered_files": 0,
+      "unlayered_files": 0,
+      "total_violations": 0,
+      "critical_violations": 0,
+      "warning_violations": 0
+    }
+  }
+}

@@ -265,6 +265,12 @@ class ExtendedAgentState(TypedDict):
     suggested_agent: Optional[str]  # Agent to collaborate with
     suggested_query: Optional[str]  # Query for suggested agent
 
+    # v5.8.6 Fix 5: Review-Fix Iteration Tracking
+    review_iteration: int  # Current review-fix iteration count (0-based)
+    max_review_iterations: int  # Maximum iterations allowed (default: 3)
+    last_quality_score: float  # Last quality score from Reviewer (0-1)
+    quality_threshold: float  # Minimum quality to accept (default: 0.8)
+
     # v5.2.0: Architecture Proposal System
     architecture_proposal: Optional[Dict[str, Any]]  # Draft proposal from Architect (summary, improvements, tech_stack, structure, risks, research_insights)
     proposal_status: Literal["none", "pending", "approved", "rejected", "modified"]  # Proposal workflow status
@@ -360,6 +366,12 @@ def create_initial_state(
         needs_replan=False,
         suggested_agent=None,
         suggested_query=None,
+
+        # v5.8.6 Fix 5: Review-Fix Iteration Tracking
+        review_iteration=0,
+        max_review_iterations=3,
+        last_quality_score=0.0,
+        quality_threshold=0.8,
 
         # v5.2.0: Architecture Proposal System
         architecture_proposal=None,

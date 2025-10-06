@@ -137,6 +137,24 @@ class ReviewerGPTAgent(ChatAgent):
                 # Run Playwright test
                 test_result = await self.test_html_application(html_file, app_type=app_type)
 
+                # v5.8.6 Fix 4: Save Playwright report to disk for debugging
+                try:
+                    import json
+                    from datetime import datetime
+                    workspace_path = context.get('workspace_path', '.')
+                    report_dir = os.path.join(workspace_path, 'playwright-reports')
+                    os.makedirs(report_dir, exist_ok=True)
+
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    report_file = os.path.join(report_dir, f'test-report-{timestamp}.json')
+
+                    with open(report_file, 'w') as f:
+                        json.dump(test_result, f, indent=2, default=str)
+
+                    logger.info(f"💾 Saved Playwright report to: {report_file}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to save Playwright report: {e}")
+
                 if test_result['success']:
                     logger.info(f"✅ Playwright test PASSED - Quality: {test_result['quality_score']:.2f}")
                     return TaskResult(
@@ -158,6 +176,30 @@ All browser tests passed successfully!""",
                     )
                 else:
                     logger.warning(f"❌ Playwright test FAILED - Errors found: {len(test_result['errors'])}")
+
+                    # v5.8.6 Fix 2: Create structured errors for Fixer
+                    structured_errors = []
+                    for error in test_result['errors']:
+                        structured_errors.append({
+                            "description": error,
+                            "severity": "high",
+                            "source": "playwright",
+                            "type": "browser_test",
+                            "file": html_file
+                        })
+
+                    # Add warnings as lower severity issues
+                    for warning in test_result.get('warnings', []):
+                        structured_errors.append({
+                            "description": warning,
+                            "severity": "medium",
+                            "source": "playwright",
+                            "type": "browser_warning",
+                            "file": html_file
+                        })
+
+                    logger.info(f"📋 Created {len(structured_errors)} structured errors for Fixer")
+
                     return TaskResult(
                         status="needs_fixes",
                         content=f"""❌ PLAYWRIGHT BROWSER TEST FAILED
@@ -176,7 +218,10 @@ All browser tests passed successfully!""",
 
 Please fix these issues and re-test.""",
                         agent=self.config.agent_id,
-                        metadata=test_result
+                        metadata={
+                            **test_result,
+                            "structured_errors": structured_errors  # v5.8.6 Fix 2
+                        }
                     )
 
             # Fallback to AI-powered code review for non-HTML tasks

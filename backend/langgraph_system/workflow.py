@@ -423,7 +423,15 @@ class AgentWorkflow:
                     self.real_agents["research"] = research
                     logger.info("✅ ResearchAgent initialized with Perplexity API")
                 except Exception as e:
-                    logger.warning(f"⚠️ Failed to initialize ResearchAgent: {e}")
+                    # ASIMOV RULE 1: Log failure clearly but don't crash entire system
+                    # Research is OPTIONAL for system, but REQUIRED for specific workflows
+                    logger.error(f"❌ Failed to initialize ResearchAgent: {e}")
+                    logger.error("❌ ResearchAgent will NOT be available")
+                    logger.error("⚠️  Impact: Cannot design NEW projects (requires research)")
+                    logger.error("⚠️  Workaround: Use Architect only for EXISTING projects with 'analyze'/'improve' keywords")
+                    logger.error("⚠️  Solution: Add PERPLEXITY_API_KEY to .env file")
+                    # Do NOT add research to real_agents - it stays None
+                    # This allows Architect to detect missing research and fail appropriately
 
             # Add DocuBotAgent for documentation
             if DOCBOT_AVAILABLE:
@@ -470,6 +478,25 @@ class AgentWorkflow:
                     logger.warning(f"⚠️ Failed to initialize OpusArbitratorAgent: {e}")
 
             logger.info(f"✅ Initialized {len(self.real_agents)} real agents")
+
+            # v5.8.7: Connect Research Agent to Architect for new project research
+            if "architect" in self.real_agents and "research" in self.real_agents:
+                try:
+                    self.real_agents["architect"].research_agent = self.real_agents["research"]
+                    logger.info("✅ Connected Research Agent to Architect for new project research")
+                    logger.info("✅ Architect can now design NEW projects with research-backed architecture")
+                except Exception as e:
+                    logger.error(f"❌ Failed to connect Research Agent to Architect: {e}")
+                    # This is critical - reset research_agent to None to ensure fail-fast
+                    self.real_agents["architect"].research_agent = None
+            elif "architect" in self.real_agents and "research" not in self.real_agents:
+                # Research Agent not available
+                logger.warning("⚠️  Research Agent not connected to Architect")
+                logger.warning("⚠️  Architect LIMITED to existing project analysis only")
+                logger.warning("⚠️  NEW project design will FAIL without Research Agent")
+                # Ensure research_agent is None for fail-fast behavior
+                self.real_agents["architect"].research_agent = None
+
         except Exception as e:
             logger.error(f"❌ Failed to initialize real agents: {e}")
             logger.exception(e)
@@ -1464,12 +1491,37 @@ class AgentWorkflow:
                 "fix needed", "must fix", "requires fix", "issue found"
             ])
 
-            if has_critical_issues:
-                logger.warning("⚠️ Critical issues found in review - requesting FixerBot collaboration")
-                state["needs_replan"] = True
-                state["suggested_agent"] = "fixer"
-                state["suggested_query"] = f"Fix the issues found in code review: {review_text[:200]}"
-                logger.info(f"  🔄 Set needs_replan=True, suggested_agent=fixer")
+            # v5.8.6 Fix 5: Track review iteration and quality score
+            review_iteration = state.get("review_iteration", 0)
+            max_iterations = state.get("max_review_iterations", 3)
+
+            # Extract quality score from review metadata
+            quality_score = 0.0
+            if hasattr(current_step, 'metadata') and current_step.metadata:
+                quality_score = current_step.metadata.get('quality_score', 0.0)
+            quality_threshold = state.get("quality_threshold", 0.8)
+
+            logger.info(f"📊 Review Iteration {review_iteration + 1}/{max_iterations} - Quality: {quality_score:.2f} (Threshold: {quality_threshold})")
+
+            # Determine if we need another fix iteration
+            if has_critical_issues and quality_score < quality_threshold:
+                if review_iteration < max_iterations:
+                    logger.warning(f"⚠️ Quality {quality_score:.2f} below threshold {quality_threshold} - requesting Fixer (iteration {review_iteration + 1})")
+                    state["needs_replan"] = True
+                    state["suggested_agent"] = "fixer"
+                    state["suggested_query"] = f"Fix the issues found in code review: {review_text[:200]}"
+                    state["review_iteration"] = review_iteration + 1
+                    state["last_quality_score"] = quality_score
+                    logger.info(f"  🔄 Set needs_replan=True, suggested_agent=fixer, review_iteration={review_iteration + 1}")
+                else:
+                    logger.error(f"❌ Max review iterations ({max_iterations}) reached - quality still {quality_score:.2f}")
+                    state["needs_replan"] = False
+                    state["review_iteration"] = 0
+                    logger.warning("⚠️ Accepting code despite quality issues - max iterations reached")
+            else:
+                logger.info(f"✅ Quality {quality_score:.2f} meets threshold {quality_threshold} - no more fixes needed")
+                state["needs_replan"] = False
+                state["review_iteration"] = 0  # Reset for next task
 
             # Store review patterns
             if isinstance(review_result, dict) and review_result.get("issues"):
@@ -1518,15 +1570,45 @@ class AgentWorkflow:
 
         # Get previous review results
         review_step = self._get_step_by_agent(state, "reviewer")
-        # Handle both dict and string results from reviewer
+        issues = []
+
+        # v5.8.6 Fix 3: Multi-tier error extraction
         if review_step and review_step.result:
-            if isinstance(review_step.result, dict):
-                issues = review_step.result.get("issues", [])
-            else:
-                # If result is a string, treat it as a single issue
-                issues = [{"description": str(review_step.result), "severity": "unknown"}]
+            result = review_step.result
+
+            # Priority 1: Check for structured issues at top level (future-proof)
+            if isinstance(result, dict) and result.get("issues"):
+                issues = result["issues"]
+                logger.info(f"🔧 Fixer found {len(issues)} structured issues from reviewer result")
+
+            # Priority 2: Check metadata for structured_errors (from Fix 1 & 2)
+            elif hasattr(review_step, 'metadata') and review_step.metadata and review_step.metadata.get("structured_errors"):
+                issues = review_step.metadata["structured_errors"]
+                logger.info(f"🔧 Fixer found {len(issues)} structured errors from reviewer metadata")
+
+            # Priority 3: Fallback - parse text result for Playwright errors
+            elif isinstance(result, str) or (isinstance(result, dict) and result.get("content")):
+                result_str = result if isinstance(result, str) else result.get("content", "")
+
+                # Check if this is a Playwright test failure
+                if "PLAYWRIGHT" in result_str.upper() and "FAILED" in result_str.upper():
+                    import re
+                    # Extract errors from the "**Errors Found:**" section
+                    error_section = re.search(r'\*\*Errors Found:\*\*\n(.+?)(?:\n\*\*|$)', result_str, re.DOTALL)
+                    if error_section:
+                        error_lines = re.findall(r'- (.+)', error_section.group(1))
+                        issues = [{"description": e.strip(), "severity": "high", "source": "playwright_text_parse"} for e in error_lines]
+                        logger.info(f"🔧 Fixer parsed {len(issues)} Playwright errors from text")
+                    else:
+                        # Fallback: treat entire message as one issue
+                        issues = [{"description": result_str[:500], "severity": "unknown"}]
+                        logger.warning("⚠️ Could not parse Playwright errors - using full text as single issue")
+                else:
+                    # Not Playwright - treat as generic issue
+                    issues = [{"description": result_str[:500], "severity": "unknown"}]
+                    logger.info("🔧 Fixer treating text result as single generic issue")
         else:
-            issues = []
+            logger.warning("⚠️ No review_step or result found for Fixer")
 
         try:
             # Fix issues
@@ -1547,6 +1629,18 @@ class AgentWorkflow:
                     solution=fix,
                     success=True
                 )
+
+            # v5.8.6 Fix 6: After Fixer completes, request re-review if in iteration loop
+            review_iteration = state.get("review_iteration", 0)
+
+            if review_iteration > 0:
+                # We're in an iteration loop - need to re-review
+                logger.info(f"🔄 Fixer completed fixes - requesting re-review (iteration {review_iteration})")
+
+                # Request re-review
+                state["needs_replan"] = True
+                state["suggested_agent"] = "reviewer"
+                state["suggested_query"] = f"Re-review code after fixes (iteration {review_iteration})"
 
         except Exception as e:
             logger.error(f"Fixer execution failed: {e}")
@@ -2120,6 +2214,20 @@ class AgentWorkflow:
 
         logger.info(f"🔀 Routing to next agent...")
         logger.info(f"📋 Execution plan has {len(state['execution_plan'])} steps")
+
+        # v5.8.6 Fix 7: Safety check for infinite review-fix loops
+        review_iteration = state.get("review_iteration", 0)
+        max_iterations = state.get("max_review_iterations", 3)
+
+        if review_iteration > max_iterations:
+            logger.error(f"❌ SAFETY: Review-Fix loop exceeded max iterations ({max_iterations})!")
+            logger.error(f"   Last quality score: {state.get('last_quality_score', 'unknown')}")
+            logger.error(f"   Forcing workflow to continue despite quality issues...")
+
+            # Force workflow to continue
+            state["needs_replan"] = False
+            state["suggested_agent"] = None
+            state["review_iteration"] = 0
 
         # v5.4.3: Check for timeouts first
         asyncio.create_task(self.check_and_handle_timeouts(state))
@@ -3562,6 +3670,12 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     context=context
                 )
                 result = await agent.execute(task_request)
+
+                # v5.8.6 Fix 1: Store metadata in step for later use by Fixer
+                if hasattr(result, 'metadata') and hasattr(step, '__dict__'):
+                    step.metadata = result.metadata
+                    logger.info(f"💾 Stored Reviewer metadata: {list(result.metadata.keys())}")
+
                 return result.content if hasattr(result, 'content') else str(result)
             except Exception as e:
                 logger.error(f"❌ Real reviewer agent failed: {e}")

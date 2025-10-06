@@ -105,14 +105,25 @@ class OrchestratorAgentV2(ChatAgent):
 
             # In Auto mode, always use multi-agent workflow for complex tasks
             if mode == 'auto':
-                # For infrastructure/complex questions, always use workflow
-                keywords = ['infrastructure', 'caching', 'optimize', 'improve', 'architecture',
-                           'performance', 'system', 'verstehen', 'analyse', 'verbessern']
+                # v5.8.7: Expanded keywords to catch implementation tasks
+                # For infrastructure/complex questions/implementation tasks, always use workflow
+                keywords = [
+                    # Implementation tasks
+                    'create', 'build', 'implement', 'develop', 'make', 'code', 'write',
+                    # Infrastructure/Analysis tasks
+                    'infrastructure', 'caching', 'optimize', 'improve', 'architecture',
+                    'performance', 'system', 'analyze', 'understand',
+                    # Design tasks
+                    'design', 'structure', 'plan', 'prototype',
+                    # German equivalents
+                    'erstellen', 'bauen', 'implementieren', 'entwickeln',
+                    'verstehen', 'analyse', 'verbessern', 'optimieren'
+                ]
                 if any(word in prompt.lower() for word in keywords):
                     matched_keywords = [w for w in keywords if w in prompt.lower()]
                     logger.info(f"Auto mode: Detected keywords: {matched_keywords}")
                     await self._send_progress(client_id, f"🎯 Detected complex task: {', '.join(matched_keywords)}", manager)
-                    logger.info(f"Auto mode: Triggering multi-agent workflow for infrastructure analysis")
+                    logger.info(f"Auto mode: Triggering multi-agent workflow for implementation/analysis")
                     return await self._handle_complex_task(request)
 
             # First, understand what the user is asking

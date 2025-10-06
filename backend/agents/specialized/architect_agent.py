@@ -228,6 +228,136 @@ class ArchitectAgent(ChatAgent):
         # Technology stack recommendations
         self.tech_stacks = self._load_tech_stacks()
 
+        # Research Agent connection (will be set by workflow/orchestrator)
+        self.research_agent = None
+
+    async def _is_workspace_empty(self, workspace_path: str) -> bool:
+        """
+        Check if workspace has no significant code files yet (new project detection)
+
+        Args:
+            workspace_path: Path to workspace directory
+
+        Returns:
+            True if workspace is empty/new, False if existing project
+        """
+        code_extensions = ['.py', '.js', '.ts', '.jsx', '.tsx', '.html', '.css',
+                          '.java', '.go', '.rs', '.cpp', '.c', '.php', '.rb']
+
+        try:
+            for root, dirs, files in os.walk(workspace_path):
+                # Skip common non-project directories
+                dirs[:] = [d for d in dirs if d not in [
+                    '.ki_autoagent_ws', 'node_modules', '.git', '__pycache__',
+                    'venv', 'env', '.venv', 'dist', 'build', '.cache'
+                ]]
+
+                # Check for code files
+                for file in files:
+                    if any(file.endswith(ext) for ext in code_extensions):
+                        logger.info(f"📂 Found existing code file: {file} - Not a new project")
+                        return False
+
+            logger.info(f"🆕 Workspace appears empty - New project mode")
+            return True
+
+        except Exception as e:
+            logger.warning(f"⚠️ Error checking workspace: {e} - Assuming existing project")
+            return False
+
+    async def _classify_task_complexity(self, prompt: str) -> Dict[str, Any]:
+        """
+        Classify task complexity and determine required architecture type
+
+        This method analyzes the user's request to determine:
+        - Complexity level (simple/medium/complex)
+        - Architecture type (frontend_only/fullstack/backend_only)
+        - Technology requirements
+
+        Args:
+            prompt: User's task description
+
+        Returns:
+            Dict with classification details
+        """
+        prompt_lower = prompt.lower()
+
+        # Frontend-only indicators
+        frontend_keywords = ['html', 'calculator', 'form', 'ui', 'interface',
+                            'button', 'page', 'website', 'landing page', 'portfolio']
+
+        # Simplicity indicators
+        simple_keywords = ['simple', 'basic', 'quick', 'small', 'minimal', 'single page']
+
+        # Backend indicators
+        backend_keywords = ['api', 'database', 'auth', 'authentication', 'server',
+                           'backend', 'rest', 'graphql', 'login', 'user management']
+
+        # Complexity indicators
+        complex_keywords = ['scalable', 'distributed', 'microservice', 'enterprise',
+                           'million users', 'high availability', 'kubernetes', 'k8s']
+
+        # Check indicators
+        is_frontend_only = any(kw in prompt_lower for kw in frontend_keywords)
+        is_simple = any(kw in prompt_lower for kw in simple_keywords)
+        needs_backend = any(kw in prompt_lower for kw in backend_keywords)
+        is_complex = any(kw in prompt_lower for kw in complex_keywords)
+
+        # Classification logic
+        if is_frontend_only and is_simple and not needs_backend:
+            classification = {
+                'complexity': 'simple',
+                'type': 'frontend_only',
+                'requires_backend': False,
+                'requires_database': False,
+                'suggested_stack': ['HTML5', 'CSS3', 'JavaScript (ES6+)'],
+                'file_structure': 'single_file',  # calculator.html or index.html
+                'reasoning': 'Simple frontend task - no backend infrastructure needed'
+            }
+        elif is_frontend_only and not needs_backend:
+            classification = {
+                'complexity': 'simple',
+                'type': 'frontend_only',
+                'requires_backend': False,
+                'requires_database': False,
+                'suggested_stack': ['HTML5', 'CSS3', 'JavaScript', 'Optional: React/Vue'],
+                'file_structure': 'modular',  # separate HTML/CSS/JS files
+                'reasoning': 'Frontend application with moderate complexity'
+            }
+        elif needs_backend and not is_complex:
+            classification = {
+                'complexity': 'medium',
+                'type': 'fullstack',
+                'requires_backend': True,
+                'requires_database': True,
+                'suggested_stack': ['React/Vue', 'Node.js/Python', 'PostgreSQL/MongoDB'],
+                'file_structure': 'fullstack',
+                'reasoning': 'Fullstack application with backend services'
+            }
+        elif is_complex:
+            classification = {
+                'complexity': 'complex',
+                'type': 'distributed',
+                'requires_backend': True,
+                'requires_database': True,
+                'suggested_stack': ['Microservices', 'Kubernetes', 'PostgreSQL', 'Redis', 'Message Queue'],
+                'file_structure': 'microservices',
+                'reasoning': 'Complex distributed system requiring high scalability'
+            }
+        else:
+            classification = {
+                'complexity': 'medium',
+                'type': 'standard_web',
+                'requires_backend': False,
+                'requires_database': False,
+                'suggested_stack': ['HTML5', 'CSS3', 'JavaScript', 'React/Vue (optional)'],
+                'file_structure': 'modular',
+                'reasoning': 'Standard web application'
+            }
+
+        logger.info(f"📊 Task classified as: {classification['complexity']} - {classification['type']}")
+        return classification
+
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute architecture design task - ENHANCED to use v4.0.0 tools and create files
@@ -284,6 +414,106 @@ class ArchitectAgent(ChatAgent):
             # Send initial progress
             await self._send_progress(client_id, "🏗️ Architect starting system analysis...", manager)
 
+            # v5.8.7: NEW PROJECT DETECTION - Check if workspace is empty
+            is_new_project = await self._is_workspace_empty(workspace_path)
+            logger.info(f"🔍 New project detection: {is_new_project}")
+
+            # v5.8.7: TASK COMPLEXITY CLASSIFICATION
+            task_classification = await self._classify_task_complexity(request.prompt)
+            logger.info(f"📊 Task classification: {task_classification}")
+
+            # v5.8.7: NEW PROJECT PATH - Use Research Agent for best practices
+            if is_new_project:
+                logger.info("🆕 New project detected - Using Research-Driven Architecture Design")
+                await self._send_progress(client_id, "🆕 New project detected - Researching best practices...", manager)
+
+                # 1. Research best practices using Research Agent
+                research_insights = None
+                if self.research_agent:
+                    try:
+                        logger.info(f"📚 Calling Research Agent for: {request.prompt}")
+                        await self._send_progress(client_id, "📚 Researching latest best practices via Perplexity AI...", manager)
+
+                        # v5.8.7 FIX: Use execute() instead of research_for_agent() for real Perplexity API
+                        from ..base.base_agent import TaskRequest as ResearchTaskRequest
+                        research_query = f"Best practices for: {request.prompt}. Include modern architecture patterns, tech stack recommendations, and implementation guidelines for 2025."
+
+                        research_task = ResearchTaskRequest(
+                            prompt=research_query,
+                            context={}
+                        )
+                        research_result = await self.research_agent.execute(research_task)
+
+                        # Extract content from TaskResult
+                        if hasattr(research_result, 'content'):
+                            research_insights = research_result.content
+                        else:
+                            research_insights = str(research_result)
+
+                        logger.info(f"✅ Research completed: {len(research_insights)} chars")
+                    except Exception as e:
+                        # ASIMOV RULE 1: NO FALLBACK - Research is REQUIRED for new projects
+                        logger.error(f"❌ Research Agent failed: {e}")
+                        logger.error("❌ ABORT: Cannot design new project architecture without research")
+
+                        from core.exceptions import SystemNotReadyError
+                        raise SystemNotReadyError(
+                            component="ArchitectAgent",
+                            reason=f"Research Agent failed for new project: {str(e)}",
+                            solution="Check Perplexity API key in .env or select a different workflow for existing projects",
+                            file=__file__,
+                            line=455
+                        )
+                else:
+                    # ASIMOV RULE 1: NO FALLBACK - Research Agent is REQUIRED for new projects
+                    logger.error("❌ Research Agent not available for new project!")
+                    logger.error("❌ ABORT: Cannot design new project architecture without best practices research")
+
+                    from core.exceptions import SystemNotReadyError
+                    raise SystemNotReadyError(
+                        component="ArchitectAgent",
+                        reason="Research Agent not available but required for new project architecture",
+                        solution="Initialize ResearchAgent with Perplexity API key, or use Architect only for existing projects with 'analyze' or 'improve' keywords",
+                        file=__file__,
+                        line=465
+                    )
+
+                # 2. Analyze requirements WITH research context
+                await self._send_progress(client_id, "🔍 Analyzing requirements with research insights...", manager)
+                requirements = await self.analyze_requirements_with_research(
+                    request.prompt,
+                    research_insights,
+                    task_classification
+                )
+
+                # 3. Design architecture based on requirements
+                await self._send_progress(client_id, "🏗️ Designing architecture...", manager)
+                design = await self.design_architecture(requirements)
+
+                # 4. Generate documentation with research insights
+                await self._send_progress(client_id, "📝 Generating architecture proposal...", manager)
+                documentation = await self.generate_documentation_with_research(
+                    design,
+                    research_insights,
+                    task_classification
+                )
+
+                execution_time = (datetime.now() - start_time).total_seconds()
+
+                return TaskResult(
+                    status="success",
+                    content=documentation,
+                    agent=self.config.agent_id,
+                    metadata={
+                        "new_project": True,
+                        "task_classification": task_classification,
+                        "research_used": research_insights is not None,
+                        "execution_time": execution_time
+                    },
+                    execution_time=execution_time
+                )
+
+            # v5.8.7: EXISTING PROJECT PATH - Continue with existing logic
             # Determine which tools to use based on the request
             prompt_lower = request.prompt.lower()
             logger.info(f"🔍 Received prompt: '{request.prompt}'")
@@ -451,6 +681,98 @@ class ArchitectAgent(ChatAgent):
                 line=368
             )
 
+    async def analyze_requirements_with_research(
+        self,
+        prompt: str,
+        research_insights: Optional[str],
+        task_classification: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Analyze project requirements with research insights and task classification
+
+        v5.8.7: Enhanced version that incorporates:
+        - Research Agent insights about best practices
+        - Task complexity classification
+        - Smart tech stack recommendations
+
+        Args:
+            prompt: User's project description
+            research_insights: Research findings from Research Agent (can be None)
+            task_classification: Task complexity classification
+
+        Returns:
+            Enhanced requirements dict with research-backed decisions
+        """
+        system_prompt = f"""
+        You are a senior system architect with access to latest best practices research.
+
+        Task Classification:
+        - Complexity: {task_classification['complexity']}
+        - Type: {task_classification['type']}
+        - Requires Backend: {task_classification['requires_backend']}
+        - Requires Database: {task_classification['requires_database']}
+        - Suggested Stack: {', '.join(task_classification['suggested_stack'])}
+
+        {"Research Insights:\n" + research_insights if research_insights else "No research available - use your knowledge of best practices."}
+
+        Based on the task classification and research, analyze requirements with appropriate scale:
+        - For 'simple' frontend-only tasks: Minimal infrastructure, single file or simple modular structure
+        - For 'medium' tasks: Standard web app with reasonable complexity
+        - For 'complex' tasks: Full enterprise architecture with scalability
+
+        IMPORTANT: Do not over-engineer simple tasks. A calculator doesn't need microservices!
+        """
+
+        analysis_prompt = f"""
+        Project Description:
+        {prompt}
+
+        Analyze and provide requirements in JSON format:
+        {{
+            "project_type": "type (e.g., 'frontend-only', 'fullstack', 'backend-api')",
+            "complexity": "{task_classification['complexity']}",
+            "architecture_type": "appropriate for complexity (e.g., 'single-file', 'modular', 'client-server', 'microservices')",
+            "scale": {{"users": "estimated", "concurrent_users": "estimated"}},
+            "performance": {{"latency": "requirement", "target_load_time": "seconds"}},
+            "security": ["requirement1", "requirement2"],
+            "integrations": ["system1", "system2"],
+            "constraints": ["constraint1", "constraint2"],
+            "key_features": ["feature1", "feature2"],
+            "tech_stack": {{
+                "frontend": ["tech1", "tech2"],
+                "backend": ["tech1", "tech2"] if backend needed,
+                "database": ["tech"] if database needed,
+                "justification": "why these technologies based on research"
+            }},
+            "file_structure": "{task_classification['file_structure']}",
+            "research_applied": ["insight1", "insight2"] if research available
+        }}
+        """
+
+        response = await self.openai.complete(
+            analysis_prompt,
+            system_prompt,
+            response_format={"type": "json_object"}
+        )
+
+        try:
+            requirements = json.loads(response)
+            # Inject classification for downstream use
+            requirements['_task_classification'] = task_classification
+            requirements['_research_used'] = research_insights is not None
+            logger.info(f"✅ Requirements analyzed with research: {requirements.get('project_type', 'unknown')}")
+            return requirements
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse requirements: {e}")
+            from core.exceptions import SystemNotReadyError
+            raise SystemNotReadyError(
+                component="ArchitectAgent",
+                reason=f"Failed to parse OpenAI response as JSON: {str(e)}",
+                solution="Check OpenAI API response format or retry the request",
+                file=__file__,
+                line=720
+            )
+
     async def design_architecture(
         self,
         requirements: Dict[str, Any]
@@ -605,6 +927,161 @@ class ArchitectAgent(ChatAgent):
 
         doc.append("\n---\n")
         doc.append("*Generated by ArchitectAgent (GPT-5)*")
+
+        return "\n".join(doc)
+
+    async def generate_documentation_with_research(
+        self,
+        design: ArchitectureDesign,
+        research_insights: Optional[str],
+        task_classification: Dict[str, Any]
+    ) -> str:
+        """
+        Generate enhanced architecture documentation with research insights
+
+        v5.8.7: Includes research findings and task classification context
+        to provide more informed architecture proposals
+
+        Args:
+            design: Architecture design specification
+            research_insights: Research findings (can be None)
+            task_classification: Task complexity classification
+
+        Returns:
+            Enhanced documentation string with research context
+        """
+        doc = []
+        doc.append(f"# 🏗️ Architecture Proposal\n")
+        doc.append(f"## Project: {design.project_name}\n")
+
+        # Task Classification Summary
+        doc.append("\n## 📊 Task Analysis\n")
+        doc.append(f"- **Complexity**: {task_classification['complexity'].title()}")
+        doc.append(f"- **Type**: {task_classification['type']}")
+        doc.append(f"- **Architecture**: {design.architecture_type}")
+        doc.append(f"- **Reasoning**: {task_classification['reasoning']}\n")
+
+        # Research Insights (if available)
+        if research_insights:
+            doc.append("\n## 🔍 Research Insights\n")
+            doc.append("*Based on latest best practices via Perplexity AI*\n")
+
+            # Smart extraction of key points from research
+            research_text = research_insights.strip()
+
+            # Check if research has structure (sections, bullets, etc.)
+            if any(marker in research_text for marker in ['##', '**', '- ', '* ', '1.', '2.']):
+                # Research is already formatted - use it as-is but limit length
+                research_lines = research_text.split('\n')
+                shown_lines = 0
+                for line in research_lines:
+                    if shown_lines >= 15:  # Show max 15 lines
+                        doc.append("\n*(Research insights truncated for brevity)*")
+                        break
+                    if line.strip():
+                        # Keep markdown formatting
+                        if line.strip().startswith('#'):
+                            doc.append(line.strip())
+                        elif line.strip().startswith('-') or line.strip().startswith('*'):
+                            doc.append(line.strip())
+                        elif line.strip()[0].isdigit() and '.' in line[:3]:
+                            doc.append(line.strip())
+                        else:
+                            doc.append(f"- {line.strip()}")
+                        shown_lines += 1
+            else:
+                # Research is plain text - extract sentences as bullets
+                sentences = research_text.replace('\n', ' ').split('. ')
+                key_sentences = [s.strip() + '.' for s in sentences[:8] if len(s.strip()) > 20]
+                for sentence in key_sentences:
+                    doc.append(f"- {sentence}")
+
+            doc.append("")
+
+        # File Structure
+        if task_classification.get('file_structure'):
+            doc.append("\n## 📁 Project Structure\n")
+            file_structure = task_classification['file_structure']
+            if file_structure == 'single_file':
+                doc.append(f"**Single File Approach** (Simple & Clean)\n")
+                doc.append(f"```")
+                doc.append(f"{design.project_name.lower().replace(' ', '_')}.html")
+                doc.append(f"  - HTML structure")
+                doc.append(f"  - CSS styling (inline or in <style> tag)")
+                doc.append(f"  - JavaScript logic (inline or in <script> tag)")
+                doc.append(f"```\n")
+            elif file_structure == 'modular':
+                doc.append(f"**Modular Structure** (Organized & Maintainable)\n")
+                doc.append(f"```")
+                doc.append(f"├── index.html       (Main HTML)")
+                doc.append(f"├── styles.css       (Styling)")
+                doc.append(f"└── script.js        (Logic)")
+                doc.append(f"```\n")
+            elif file_structure == 'fullstack':
+                doc.append(f"**Fullstack Structure**\n")
+                doc.append(f"```")
+                doc.append(f"├── frontend/")
+                doc.append(f"│   ├── src/")
+                doc.append(f"│   └── public/")
+                doc.append(f"├── backend/")
+                doc.append(f"│   ├── api/")
+                doc.append(f"│   └── services/")
+                doc.append(f"└── database/")
+                doc.append(f"```\n")
+
+        # Components
+        if design.components:
+            doc.append("\n## 📦 Components\n")
+            for component in design.components:
+                doc.append(f"### {component['name']}")
+                doc.append(f"- **Type**: {component['type']}")
+                doc.append(f"- **Technology**: {component['technology']}")
+                doc.append(f"- **Responsibility**: {component['responsibility']}\n")
+
+        # Technology Stack
+        doc.append("\n## 🛠️ Technology Stack\n")
+        suggested_stack = task_classification.get('suggested_stack', design.technologies)
+        for tech in suggested_stack:
+            doc.append(f"- {tech}")
+        doc.append("")
+
+        # Design Patterns (if applicable)
+        if design.patterns:
+            doc.append("\n## 📐 Design Patterns\n")
+            for pattern in design.patterns:
+                doc.append(f"- {pattern}")
+            doc.append("")
+
+        # Security Considerations
+        if design.security_considerations:
+            doc.append("\n## 🔒 Security Considerations\n")
+            doc.append(design.security_considerations + "\n")
+
+        # Implementation Notes
+        doc.append("\n## 💡 Implementation Notes\n")
+        if task_classification['complexity'] == 'simple':
+            doc.append("- Keep it simple - avoid over-engineering")
+            doc.append("- Single file or minimal modular structure")
+            doc.append("- Focus on clean, readable code")
+        elif task_classification['complexity'] == 'medium':
+            doc.append("- Modular structure for maintainability")
+            doc.append("- Consider scalability for future growth")
+            doc.append("- Follow established patterns")
+        else:
+            doc.append("- Enterprise-grade architecture")
+            doc.append("- High scalability and availability")
+            doc.append("- Comprehensive monitoring and logging")
+        doc.append("")
+
+        # Scalability (if relevant)
+        if task_classification.get('requires_backend'):
+            doc.append("\n## 📈 Scalability\n")
+            doc.append(design.scalability_notes + "\n")
+
+        doc.append("\n---\n")
+        doc.append(f"*Generated by ArchitectAgent v5.8.7 with Research Integration*")
+        if research_insights:
+            doc.append(f"\n*Research-backed design with latest best practices*")
 
         return "\n".join(doc)
 

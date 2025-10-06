@@ -17,7 +17,7 @@ if parent_dir not in sys.path:
 if grandparent_dir not in sys.path:
     sys.path.insert(0, grandparent_dir)
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Header
 from starlette.websockets import WebSocketState
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -28,6 +28,7 @@ import uuid
 from typing import Dict, Any, Optional, Set
 from datetime import datetime
 import uvicorn
+import secrets
 
 # Import LangGraph system
 from langgraph_system import (
@@ -72,6 +73,9 @@ logger = logging.getLogger(__name__)
 logger.info(f"🔍 DEBUG: Starting LangGraph server {__version_display__} on port 8001")
 logger.info(f"🔍 DEBUG: This is the ACTIVE server for {__release_tag__}")
 logger.info("🔍 DEBUG: WebSocket endpoint: ws://localhost:8001/ws/chat")
+
+# v5.8.7: Shutdown token for security - prevents accidental/malicious shutdowns
+SHUTDOWN_TOKEN: Optional[str] = None
 
 # WebSocket connection manager
 class ConnectionManager:
@@ -863,9 +867,23 @@ async def add_workflow_edge(source: str, target: str):
         raise HTTPException(status_code=400, detail="Failed to add edge")
 
 @app.post("/shutdown")
-async def shutdown():
-    """Gracefully shut down the server"""
-    logger.info("📤 Received shutdown request - initiating graceful shutdown...")
+async def shutdown(x_shutdown_token: Optional[str] = Header(None)):
+    """
+    Gracefully shut down the server
+    v5.8.7: Requires X-Shutdown-Token header for security
+    """
+    global SHUTDOWN_TOKEN
+
+    # Validate shutdown token
+    if not SHUTDOWN_TOKEN:
+        logger.warning("⚠️ Shutdown request rejected: Server has no shutdown token configured")
+        raise HTTPException(status_code=503, detail="Shutdown not configured")
+
+    if x_shutdown_token != SHUTDOWN_TOKEN:
+        logger.warning(f"🚫 Shutdown request rejected: Invalid token (got: {x_shutdown_token[:8] if x_shutdown_token else 'None'}...)")
+        raise HTTPException(status_code=403, detail="Invalid shutdown token")
+
+    logger.info("📤 Received valid shutdown request - initiating graceful shutdown...")
     asyncio.create_task(shutdown_server())
     return {"status": "success", "message": "Shutdown initiated"}
 
@@ -882,6 +900,12 @@ def main():
     import requests
     import time
 
+    global SHUTDOWN_TOKEN
+
+    # v5.8.7: Generate random shutdown token for security
+    SHUTDOWN_TOKEN = secrets.token_urlsafe(32)
+    logger.info(f"🔐 Generated shutdown token: {SHUTDOWN_TOKEN[:12]}...")
+
     # Check if KI Agent is already running
     def check_server_running(port):
         """Check if server is running on port"""
@@ -891,15 +915,32 @@ def main():
         return result == 0
 
     def graceful_shutdown(port):
-        """Attempt graceful shutdown of running server"""
+        """
+        Attempt graceful shutdown of running server
+        v5.8.7: Tries to send shutdown request. Old servers without token protection will accept.
+        New servers with token protection will reject (expected - we'll use fallback port).
+        """
         try:
             # Try to send shutdown signal via HTTP
-            response = requests.post(f"http://127.0.0.1:{port}/shutdown", timeout=2)
+            # Note: We can't send the correct token because the old server generated its own
+            # This will work for pre-v5.8.7 servers (no token), but fail for v5.8.7+ (different token)
+            response = requests.post(
+                f"http://127.0.0.1:{port}/shutdown",
+                timeout=2
+            )
             if response.status_code == 200:
                 logger.info(f"✅ Gracefully shut down server on port {port}")
                 time.sleep(1)  # Give it time to shut down
                 return True
-        except:
+            elif response.status_code == 403:
+                logger.info(f"ℹ️  Server on port {port} is protected with shutdown token (v5.8.7+)")
+                logger.info(f"   This is good - it means it's secure! Using fallback port instead.")
+                return False
+        except requests.exceptions.ConnectionError:
+            # Server already down
+            return True
+        except Exception as e:
+            logger.debug(f"Shutdown attempt failed: {e}")
             pass
         return False
 

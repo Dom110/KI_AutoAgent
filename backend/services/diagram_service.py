@@ -9,6 +9,9 @@ from enum import Enum
 import logging
 import json
 import re
+import base64
+import urllib.parse
+import urllib.request
 
 logger = logging.getLogger(__name__)
 
@@ -478,6 +481,86 @@ Return ONLY the Mermaid code (no ```mermaid wrapper, no explanations):"""
         except Exception as e:
             logger.error(f"AI diagram generation failed: {e}")
             return self._fallback_diagram_template(diagram_type)
+
+    def mermaid_to_svg(self, mermaid_code: str) -> Optional[str]:
+        """
+        Convert Mermaid diagram to SVG using mermaid.ink API (v5.8.7)
+
+        Args:
+            mermaid_code: Mermaid diagram code (with or without ```mermaid wrapper)
+
+        Returns:
+            SVG string or None if conversion fails
+        """
+        try:
+            # Remove ```mermaid wrapper if present
+            code = mermaid_code.strip()
+            if code.startswith('```mermaid'):
+                code = re.sub(r'^```mermaid\s*\n', '', code)
+                code = re.sub(r'\n```\s*$', '', code)
+
+            # Encode mermaid code to base64
+            encoded = base64.urlsafe_b64encode(code.encode('utf-8')).decode('utf-8')
+
+            # Use mermaid.ink API
+            url = f"https://mermaid.ink/svg/{encoded}"
+
+            logger.info(f"🎨 Converting Mermaid to SVG via mermaid.ink...")
+
+            # Fetch SVG
+            request = urllib.request.Request(url)
+            request.add_header('User-Agent', 'KI-AutoAgent/5.8.7')
+
+            with urllib.request.urlopen(request, timeout=10) as response:
+                svg_content = response.read().decode('utf-8')
+
+            if svg_content and '<svg' in svg_content:
+                logger.info("✅ Mermaid converted to SVG successfully")
+                return svg_content
+            else:
+                logger.warning("⚠️ Mermaid.ink returned invalid SVG")
+                return None
+
+        except urllib.error.HTTPError as e:
+            logger.error(f"❌ Mermaid.ink API error: {e.code} - {e.reason}")
+            return None
+        except urllib.error.URLError as e:
+            logger.error(f"❌ Network error converting Mermaid to SVG: {e.reason}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Failed to convert Mermaid to SVG: {e}")
+            return None
+
+    def render_mermaid_for_chat(self, mermaid_code: str, fallback_to_code: bool = True) -> str:
+        """
+        Render Mermaid diagram for chat display (v5.8.7)
+
+        Converts Mermaid to inline SVG data URI for rendering in chat.
+        Falls back to code block if conversion fails.
+
+        Args:
+            mermaid_code: Mermaid diagram code
+            fallback_to_code: If True, return original code block on failure
+
+        Returns:
+            Inline SVG data URI or original mermaid code block
+        """
+        svg = self.mermaid_to_svg(mermaid_code)
+
+        if svg:
+            # Create inline SVG data URI for embedding in markdown
+            # Use HTML img tag with data URI (works in VS Code webviews)
+            svg_b64 = base64.b64encode(svg.encode('utf-8')).decode('utf-8')
+            data_uri = f"data:image/svg+xml;base64,{svg_b64}"
+
+            # Return as markdown image with fallback text
+            return f"![Architecture Diagram]({data_uri})\n\n<details><summary>View Mermaid Source</summary>\n\n{mermaid_code}\n\n</details>"
+        else:
+            logger.warning("⚠️ SVG conversion failed - using mermaid code block")
+            if fallback_to_code:
+                return mermaid_code
+            else:
+                return "<!-- Diagram rendering failed -->"
 
     def _fallback_diagram_template(self, diagram_type: str) -> str:
         """
