@@ -1,0 +1,85 @@
+{
+  "analysis_metadata": {
+    "timestamp": "2025-10-07T00:00:00Z",
+    "analyzer": "Claude Sonnet 4.5",
+    "scope": "backend/",
+    "python_version_target": "3.13+",
+    "total_files_analyzed": 92,
+    "total_lines_of_code": 36421
+  },
+
+  "executive_summary": {
+    "overall_status": "NEEDS_MODERNIZATION",
+    "critical_issues": 0,
+    "high_priority_issues": 52,
+    "medium_priority_issues": 121,
+    "low_priority_issues": 76,
+    "estimated_total_effort_hours": 40,
+    "recommendation": "Prioritize Python 3.13 type hints modernization (High priority, Low effort). Address deep nesting and long functions in phases."
+  },
+
+  "issues_by_category": {
+    "1_python_modernization": {
+      "name": "Python 3.13 Type Hints Modernization",
+      "priority": "High",
+      "effort": "Low",
+      "count": 52,
+      "description": "52 files use deprecated typing imports (List, Dict, Optional, Union) instead of modern Python 3.10+ syntax",
+      "impact": "Code less readable and doesn't leverage Python 3.10+ features",
+      "estimated_hours": 4
+    },
+
+    "2_exception_handling": {
+      "name": "Generic Exception Handling",
+      "priority": "Medium",
+      "effort": "Medium",
+      "count": 1,
+      "description": "1 file uses generic 'except Exception:' which catches too broad exceptions",
+      "impact": "Catches unintended exceptions, makes debugging harder",
+      "estimated_hours": 2,
+      "files": ["core/indexing/code_indexer.py"]
+    },
+
+    "3_code_complexity": {
+      "name": "Deep Nesting (>4 levels)",
+      "priority": "Medium",
+      "effort": "High",
+      "count": 64,
+      "description": "64 files contain code with more than 4 levels of indentation",
+      "impact": "Hard to read, maintain, and test",
+      "estimated_hours": 16
+    },
+
+    "4_long_functions": {
+      "name": "Long Functions (>50 lines)",
+      "priority": "Medium",
+      "effort": "High",
+      "count": 56,
+      "description": "56 functions exceed 50 lines",
+      "impact": "Difficult to understand, test, and maintain",
+      "estimated_hours": 14
+    }
+  },
+
+  "recommendations": [
+    {
+      "priority": 1,
+      "title": "Python 3.13 Type Hints Modernization",
+      "effort": "4 hours",
+      "impact": "High",
+      "tool": "pyupgrade --py310-plus"
+    },
+    {
+      "priority": 2,
+      "title": "Refactor Deep Nesting",
+      "effort": "16 hours",
+      "impact": "Medium-High"
+    },
+    {
+      "priority": 3,
+      "title": "Split Large Files",
+      "effort": "8 hours",
+      "impact": "Medium"
+    }
+  ]
+}

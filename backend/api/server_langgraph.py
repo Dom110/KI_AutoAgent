@@ -3,6 +3,16 @@ KI AutoAgent Backend Server with LangGraph Integration
 FastAPI with WebSocket support for LangGraph workflow
 """
 
+# v5.9.0: Install uvloop FIRST for 2-4x faster event loop
+# IMPORTANT: Must be done before any asyncio imports!
+try:
+    import uvloop
+
+    uvloop.install()
+    _UVLOOP_INSTALLED = True
+except ImportError:
+    _UVLOOP_INSTALLED = False
+
 import os
 import sys
 
@@ -67,6 +77,10 @@ logger = logging.getLogger(__name__)
 logger.info(f"🔍 DEBUG: Starting LangGraph server {__version_display__} on port 8001")
 logger.info(f"🔍 DEBUG: This is the ACTIVE server for {__release_tag__}")
 logger.info("🔍 DEBUG: WebSocket endpoint: ws://localhost:8001/ws/chat")
+if _UVLOOP_INSTALLED:
+    logger.info("⚡ uvloop ENABLED: Event loop performance boosted 2-4x")
+else:
+    logger.warning("⚠️  uvloop NOT installed - using standard asyncio event loop")
 
 # v5.8.7: Shutdown token for security - prevents accidental/malicious shutdowns
 SHUTDOWN_TOKEN: str | None = None

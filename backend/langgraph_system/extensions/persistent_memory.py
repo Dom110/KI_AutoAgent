@@ -1,14 +1,27 @@
 """
 Persistent Memory System for Agents
 Combines SQLite for long-term storage with FAISS for semantic search
+
+TODO v5.9.0: Convert all sqlite3 calls to aiosqlite for non-blocking DB operations
+    - 10 locations use sync sqlite3.connect() which blocks the event loop
+    - All DB methods should be converted to async with aiosqlite
+    - Priority: HIGH (performance impact on concurrent agent operations)
+    - Estimated effort: 4-6 hours
 """
 
 import json
 import logging
-import sqlite3
+import sqlite3  # TODO v5.9.0: Replace with aiosqlite for async operations
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
+
+try:
+    import aiosqlite
+
+    AIOSQLITE_AVAILABLE = True
+except ImportError:
+    AIOSQLITE_AVAILABLE = False
 
 try:
     from langchain_community.vectorstores import FAISS

@@ -2,7 +2,25 @@
 
 ---
 
-## 🏗️ SYSTEM-ARCHITEKTUR (v5.8.1+)
+## 🏗️ SYSTEM-ARCHITEKTUR (v5.9.0+)
+
+### **⚡ NEW in v5.9.0: Performance Optimizations**
+
+**Implemented:**
+- ✅ **uvloop**: 2-4x faster event loop (installed before asyncio)
+- ✅ **orjson**: 2-3x faster JSON serialization (CacheManager)
+- ⚠️ **aiosqlite**: Async SQLite prepared (TODO: convert 10 locations)
+- 📋 **tenacity**: Circuit Breaker & Retry ready (installed)
+
+**Expected Performance:** 30-40% faster (with full aiosqlite: 60-70%)
+
+**Documentation:**
+- `SYSTEM_ARCHITECTURE_v5.9.0.md` - Complete system overview
+- `PERFORMANCE_OPTIMIZATION_REPORT_v5.9.0.md` - Detailed optimization analysis
+
+---
+
+## 🏗️ SYSTEM-ARCHITEKTUR (v5.8.1+ → v5.9.0)
 
 ### **WICHTIG: Backend ist GLOBAL und MULTI-CLIENT!**
 

@@ -5,6 +5,7 @@
 # Core Framework
 fastapi==0.117.1
 uvicorn[standard]==0.37.0
+uvloop==0.21.0  # High-performance event loop (2-4x faster than asyncio) (v5.9.0)
 websockets==10.4
 python-multipart==0.0.6
 
@@ -19,6 +20,7 @@ aiohttp==3.10.5  # For Perplexity API integration
 chromadb==0.4.15
 redis==6.4.0
 sqlalchemy==2.0.23
+aiosqlite==0.20.0  # Async SQLite for non-blocking DB operations (v5.9.0)
 msgpack>=1.1.0,<2.0.0  # For langgraph-checkpoint compatibility
 watchdog==6.0.0
 
@@ -35,6 +37,8 @@ httpx==0.28.1
 aiofiles==23.2.1
 starlette==0.48.0  # Required for FastAPI
 anyio==4.11.0  # Required for async support
+orjson==3.10.12  # Fast JSON serialization (2-3x faster than stdlib) (v5.9.0)
+tenacity==9.0.0  # Retry logic and Circuit Breaker pattern (v5.9.0)
 
 # Testing
 pytest==7.4.3
