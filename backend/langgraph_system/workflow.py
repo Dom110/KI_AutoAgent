@@ -88,6 +88,20 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Import custom exceptions
+from core.exceptions import (
+    WorkflowError,
+    WorkflowExecutionError,
+    WorkflowValidationError,
+    ParsingError,
+    DataValidationError,
+    ArchitectError,
+    CodesmithError,
+    ReviewerError,
+    FixerError,
+    ResearchError
+)
+
 REAL_AGENTS_AVAILABLE = False
 ORCHESTRATOR_AVAILABLE = False
 RESEARCH_AVAILABLE = False
@@ -3313,11 +3327,14 @@ Research:
                         "session_id": state.get("session_id")
                     }
                 )
-                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
+                result = await execute_agent_with_retry(agent, task_request, step.agent)
                 return result.content if hasattr(result, 'content') else str(result)
+            except (ConnectionError, TimeoutError) as e:
+                logger.error(f"❌ Architect agent connection failed: {e}")
+                raise ArchitectError(f"Connection failed: {e}")
             except Exception as e:
                 logger.error(f"❌ Real architect agent failed: {e}")
-                return f"Architect task completed with error: {str(e)}"
+                raise ArchitectError(f"Execution failed: {e}")
 
         # Fallback to stub
         logger.warning("⚠️ Using stub for architect task")
@@ -3529,16 +3546,28 @@ Return ONLY valid JSON with these exact keys."""
                     except json.JSONDecodeError as je2:
                         logger.error(f"❌ JSON still invalid after retry: {je2.msg} at position {je2.pos}")
                         logger.error(f"❌ Content around error: {repr(content[max(0, je2.pos-50):je2.pos+50])}")
-                        raise
+                        raise ParsingError(
+                            content=content,
+                            format="json",
+                            reason=f"{je2.msg} at position {je2.pos}"
+                        )
 
                 # Validate required keys
                 required_keys = ["summary", "improvements", "tech_stack", "structure", "risks", "research_insights"]
                 if not all(key in proposal for key in required_keys):
-                    raise ValueError(f"Missing required keys in proposal. Got: {list(proposal.keys())}")
+                    missing_keys = [k for k in required_keys if k not in proposal]
+                    raise DataValidationError(
+                        field="proposal_keys",
+                        value=list(proposal.keys()),
+                        reason=f"Missing required keys: {missing_keys}"
+                    )
 
                 logger.info("✅ Architecture proposal created successfully")
                 return proposal
 
+            except (ParsingError, DataValidationError):
+                # Re-raise specific exceptions
+                raise
             except Exception as e:
                 logger.error(f"❌ Failed to create structured proposal: {e}")
                 logger.warning("⚠️ Falling back to text-based proposal")
@@ -3779,7 +3808,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     prompt=step.task,
                     context=context
                 )
-                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
+                result = await execute_agent_with_retry(agent, task_request, step.agent)
 
                 # v5.5.3: Store metadata in step for later use by Reviewer
                 if hasattr(result, 'metadata') and hasattr(step, '__dict__'):
@@ -3787,9 +3816,12 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     logger.info(f"💾 Stored CodeSmith metadata: {list(result.metadata.keys())}")
 
                 return result.content if hasattr(result, 'content') else str(result)
+            except (ConnectionError, TimeoutError) as e:
+                logger.error(f"❌ CodeSmith agent connection failed: {e}")
+                raise CodesmithError(f"Connection failed: {e}")
             except Exception as e:
                 logger.error(f"❌ Real codesmith agent failed: {e}")
-                return f"CodeSmith task completed with error: {str(e)}"
+                raise CodesmithError(f"Execution failed: {e}")
 
         # Fallback to stub
         logger.warning("⚠️ Using stub for codesmith task")
@@ -3838,7 +3870,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     prompt=step.task,
                     context=context
                 )
-                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
+                result = await execute_agent_with_retry(agent, task_request, step.agent)
 
                 # v5.8.6 Fix 1: Store metadata in step for later use by Fixer
                 if hasattr(result, 'metadata') and hasattr(step, '__dict__'):
@@ -3846,9 +3878,12 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     logger.info(f"💾 Stored Reviewer metadata: {list(result.metadata.keys())}")
 
                 return result.content if hasattr(result, 'content') else str(result)
+            except (ConnectionError, TimeoutError) as e:
+                logger.error(f"❌ Reviewer agent connection failed: {e}")
+                raise ReviewerError(f"Connection failed: {e}")
             except Exception as e:
                 logger.error(f"❌ Real reviewer agent failed: {e}")
-                return f"Reviewer task completed with error: {str(e)}"
+                raise ReviewerError(f"Execution failed: {e}")
 
         # Fallback to stub
         logger.warning("⚠️ Using stub for reviewer task")
@@ -3894,11 +3929,14 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     prompt=step.task,
                     context=context
                 )
-                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
+                result = await execute_agent_with_retry(agent, task_request, step.agent)
                 return result.content if hasattr(result, 'content') else str(result)
+            except (ConnectionError, TimeoutError) as e:
+                logger.error(f"❌ Fixer agent connection failed: {e}")
+                raise FixerError(f"Connection failed: {e}")
             except Exception as e:
                 logger.error(f"❌ Real fixer agent failed: {e}")
-                return f"Fixer task completed with error: {str(e)}"
+                raise FixerError(f"Execution failed: {e}")
 
         # Fallback to stub
         logger.warning("⚠️ Using stub for fixer task")
@@ -3942,11 +3980,17 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     return result.content
                 else:
                     logger.error(f"❌ ResearchAgent failed: {result.content}")
-                    return f"Research failed: {result.content}"
+                    raise ResearchError(f"Research failed: {result.content}")
 
+            except (ConnectionError, TimeoutError) as e:
+                logger.error(f"❌ ResearchAgent connection failed: {e}")
+                raise ResearchError(f"Connection failed: {e}")
+            except ResearchError:
+                # Re-raise ResearchError
+                raise
             except Exception as e:
                 logger.error(f"❌ ResearchAgent execution error: {e}")
-                return f"Research error: {str(e)}"
+                raise ResearchError(f"Execution error: {e}")
 
         # Stub fallback
         logger.warning("⚠️ Using stub for research task")
