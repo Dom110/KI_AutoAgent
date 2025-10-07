@@ -2357,6 +2357,114 @@ class AgentWorkflow:
         # Standard routing for non-proposal cases
         return await self.route_to_next_agent(state)
 
+    # =================== v5.9.0: Parallel Step Execution ===================
+
+    async def _execute_parallel_steps(
+        self,
+        state: ExtendedAgentState,
+        parallel_group_id: str
+    ) -> dict[str, Any]:
+        """
+        Execute multiple steps in parallel using asyncio.gather()
+
+        v5.9.0: Implements true parallel execution for steps in the same parallel_group
+        that have no dependencies on each other.
+
+        Args:
+            state: Current workflow state
+            parallel_group_id: ID of the parallel group to execute
+
+        Returns:
+            Dict with state updates (execution_plan with completed steps)
+        """
+        logger.info(f"⚡ Starting parallel execution for group: {parallel_group_id}")
+
+        # Get all steps in this parallel group that are pending
+        parallel_steps = [
+            step for step in state["execution_plan"]
+            if hasattr(step, 'parallel_group')
+            and step.parallel_group == parallel_group_id
+            and step.status == "pending"
+            and self._dependencies_met(step, state["execution_plan"])
+        ]
+
+        if not parallel_steps:
+            logger.warning(f"⚠️ No executable steps found in parallel group {parallel_group_id}")
+            return {}
+
+        logger.info(f"⚡ Executing {len(parallel_steps)} steps in parallel:")
+        for step in parallel_steps:
+            logger.info(f"   • {step.id} ({step.agent}): {step.task[:60]}...")
+
+        # Create async tasks for each step
+        async def execute_single_step(step: ExecutionStep) -> tuple[str, str | Exception]:
+            """Execute a single step and return (step_id, result_or_error)"""
+            try:
+                # Mark step as in_progress
+                step_copy = dataclass_replace(step, status="in_progress", started_at=datetime.now())
+
+                # Execute based on agent type
+                if step.agent == "architect":
+                    result = await self._execute_architect_task(state, step_copy)
+                elif step.agent == "codesmith":
+                    result = await self._execute_codesmith_task(state, step_copy, [])
+                elif step.agent == "reviewer":
+                    result = await self._execute_reviewer_task(state, step_copy)
+                elif step.agent == "fixer":
+                    result = await self._execute_fixer_task(state, step_copy, [])
+                elif step.agent == "research":
+                    result = await self._execute_research_task(state, step_copy)
+                else:
+                    result = f"⚠️ Agent '{step.agent}' not implemented for parallel execution"
+
+                logger.info(f"✅ Parallel step {step.id} completed")
+                return (step.id, result)
+
+            except Exception as e:
+                logger.error(f"❌ Parallel step {step.id} failed: {e}")
+                return (step.id, e)
+
+        # Execute all steps in parallel
+        results = await asyncio.gather(
+            *[execute_single_step(step) for step in parallel_steps],
+            return_exceptions=True
+        )
+
+        # Update execution plan with results
+        updated_plan = list(state["execution_plan"])
+        completed_count = 0
+        failed_count = 0
+
+        for step_id, result in results:
+            # Find and update the step
+            for i, step in enumerate(updated_plan):
+                if step.id == step_id:
+                    if isinstance(result, Exception):
+                        # Step failed
+                        updated_plan[i] = dataclass_replace(
+                            step,
+                            status="failed",
+                            error=str(result),
+                            end_time=datetime.now()
+                        )
+                        failed_count += 1
+                    else:
+                        # Step succeeded
+                        updated_plan[i] = dataclass_replace(
+                            step,
+                            status="completed",
+                            result=result,
+                            end_time=datetime.now()
+                        )
+                        completed_count += 1
+                    break
+
+        logger.info(f"⚡ Parallel execution complete: {completed_count} succeeded, {failed_count} failed")
+
+        return {"execution_plan": updated_plan}
+
+    # =================== End v5.9.0 Parallel Execution ===================
+
     async def route_to_next_agent(self, state: ExtendedAgentState) -> str:
         """
         Determine next agent based on execution plan
@@ -2427,12 +2535,31 @@ class AgentWorkflow:
             # Don't route back - let the current node finish
             # Continue to check for pending steps
 
-        # CHECK 3: Find next pending step
+        # CHECK 3: Find next pending step (v5.9.0: with parallel execution support)
         for step in state["execution_plan"]:
             logger.info(f"  Step {step.id} ({step.agent}): {step.status}")
             if step.status == "pending":
                 # Check dependencies
                 if self._dependencies_met(step, state["execution_plan"]):
+                    # v5.9.0: Check if this step can run in parallel
+                    if hasattr(step, 'can_run_parallel') and step.can_run_parallel and hasattr(step, 'parallel_group'):
+                        logger.info(f"⚡ Step {step.id} is part of parallel group: {step.parallel_group}")
+
+                        # Execute entire parallel group
+                        parallel_updates = await self._execute_parallel_steps(state, step.parallel_group)
+
+                        if parallel_updates:
+                            # Apply parallel execution results to state
+                            state.update(parallel_updates)
+                            logger.info(f"⚡ Parallel group {step.parallel_group} execution complete")
+
+                            # Continue routing to find next pending step
+                            return await self.route_to_next_agent(state)
+                        else:
+                            # No steps were executed (maybe all had unmet dependencies)
+                            # Fall through to standard routing
+                            pass
+
                     agent = step.agent
                     # Validate agent has a workflow node
                     if agent not in AVAILABLE_NODES:
