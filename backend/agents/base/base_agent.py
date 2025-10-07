@@ -3,24 +3,19 @@ BaseAgent - Modern base class for all agents with Memory, SharedContext, and Com
 Inspired by the TypeScript implementation with all advanced features
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Callable, TYPE_CHECKING
-from dataclasses import dataclass, field
-from datetime import datetime
 import asyncio
-import logging
 import json
+import logging
 import os
 import sys
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING, Any
 
 # Import custom exceptions
-from core.exceptions import (
-    AgentError,
-    WorkflowError,
-    ParsingError,
-    DataValidationError
-)
 
 if TYPE_CHECKING:
     from agents.tools.file_tools import FileSystemTools
@@ -29,6 +24,7 @@ if TYPE_CHECKING:
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 try:
     from config.settings import settings
+
     SETTINGS_AVAILABLE = True
 except ImportError:
     SETTINGS_AVAILABLE = False
@@ -36,9 +32,10 @@ except ImportError:
 
 # Import core systems
 try:
+    from core.conversation_context_manager import get_conversation_context
     from core.memory_manager import get_memory_manager
     from core.shared_context_manager import get_shared_context
-    from core.conversation_context_manager import get_conversation_context
+
     CORE_SYSTEMS_AVAILABLE = True
 except ImportError:
     CORE_SYSTEMS_AVAILABLE = False
@@ -46,7 +43,6 @@ except ImportError:
 
 # Import Prime Directives
 try:
-    from .prime_directives import PrimeDirectives
     PRIME_DIRECTIVES_AVAILABLE = True
 except ImportError:
     PRIME_DIRECTIVES_AVAILABLE = False
@@ -54,8 +50,9 @@ except ImportError:
 
 # Import Pause and Git managers
 try:
-    from core.pause_handler import PauseHandler, PauseAction
     from core.git_checkpoint_manager import GitCheckpointManager
+    from core.pause_handler import PauseAction, PauseHandler
+
     PAUSE_AVAILABLE = True
 except ImportError:
     PAUSE_AVAILABLE = False
@@ -64,6 +61,7 @@ except ImportError:
 # Import File System Tools
 try:
     from agents.tools.file_tools import FileSystemTools
+
     FILE_TOOLS_AVAILABLE = True
 except ImportError:
     FILE_TOOLS_AVAILABLE = False
@@ -72,8 +70,10 @@ except ImportError:
 # Setup logging
 logger = logging.getLogger(__name__)
 
+
 class AgentCapability(Enum):
     """Agent capabilities enum"""
+
     TASK_DECOMPOSITION = "task_decomposition"
     PARALLEL_EXECUTION = "parallel_execution"
     CODE_GENERATION = "code_generation"
@@ -87,9 +87,11 @@ class AgentCapability(Enum):
     WEB_SEARCH = "web_search"
     RESEARCH = "research"
 
+
 @dataclass
 class AgentConfig:
     """Agent configuration"""
+
     agent_id: str
     name: str
     full_name: str
@@ -101,9 +103,11 @@ class AgentConfig:
     instructions_path: str | None = None
     icon: str = "🤖"
 
+
 @dataclass
 class TaskRequest:
     """Task request structure"""
+
     prompt: str
     context: dict[str, Any] = field(default_factory=dict)
     command: str | None = None
@@ -114,9 +118,11 @@ class TaskRequest:
     mode: str = "auto"
     agent: str | None = None
 
+
 @dataclass
 class TaskResult:
     """Task execution result"""
+
     status: str  # 'success', 'error', 'partial_success'
     content: str
     agent: str
@@ -126,15 +132,18 @@ class TaskResult:
     execution_time: float = 0.0
     tokens_used: int = 0
 
+
 @dataclass
 class AgentMessage:
     """Inter-agent communication message"""
+
     from_agent: str
     to_agent: str
     message_type: str  # 'request', 'response', 'broadcast', 'help_request'
     content: Any
     timestamp: datetime = field(default_factory=datetime.now)
     correlation_id: str | None = None
+
 
 class BaseAgent(ABC):
     """
@@ -179,10 +188,17 @@ class BaseAgent(ABC):
 
         # v5.9.0: Initialize Predictive Learning System
         try:
-            from langgraph_system.extensions.predictive_learning import PredictiveMemory
-            storage_path = os.path.join(os.path.expanduser("~/.ki_autoagent/data/predictive"), f"{config.name}_predictions.json")
+            from langgraph_system.extensions.predictive_learning import \
+                PredictiveMemory
+
+            storage_path = os.path.join(
+                os.path.expanduser("~/.ki_autoagent/data/predictive"),
+                f"{config.name}_predictions.json",
+            )
             os.makedirs(os.path.dirname(storage_path), exist_ok=True)
-            self.predictive_memory = PredictiveMemory(agent_name=config.name, storage_path=storage_path)
+            self.predictive_memory = PredictiveMemory(
+                agent_name=config.name, storage_path=storage_path
+            )
             self.predictive_memory.load_from_disk()
             logging.info(f"✨ Predictive Learning enabled for {config.name}")
         except Exception as e:
@@ -191,17 +207,22 @@ class BaseAgent(ABC):
 
         # v5.9.0: Initialize Curiosity-Driven Exploration System
         try:
-            from langgraph_system.extensions.curiosity_system import CuriosityModule
-            storage_path = os.path.join(os.path.expanduser("~/.ki_autoagent/data/curiosity"), f"{config.name}_curiosity.json")
+            from langgraph_system.extensions.curiosity_system import \
+                CuriosityModule
+
+            storage_path = os.path.join(
+                os.path.expanduser("~/.ki_autoagent/data/curiosity"),
+                f"{config.name}_curiosity.json",
+            )
             os.makedirs(os.path.dirname(storage_path), exist_ok=True)
             # Pass embedding function if available
             embedding_fn = None
-            if hasattr(self, 'openai') and hasattr(self.openai, 'get_embedding'):
+            if hasattr(self, "openai") and hasattr(self.openai, "get_embedding"):
                 embedding_fn = self.openai.get_embedding
             self.curiosity_module = CuriosityModule(
                 agent_name=config.name,
                 storage_path=storage_path,
-                embedding_function=embedding_fn
+                embedding_function=embedding_fn,
             )
             self.curiosity_module.load_from_disk()
             logging.info(f"🔍 Curiosity-Driven Exploration enabled for {config.name}")
@@ -211,14 +232,15 @@ class BaseAgent(ABC):
 
         # v5.9.0: Initialize Neurosymbolic Reasoning System
         try:
-            from langgraph_system.extensions.neurosymbolic_reasoning import NeurosymbolicReasoner
+            from langgraph_system.extensions.neurosymbolic_reasoning import \
+                NeurosymbolicReasoner
+
             # Pass LLM function if available (for neural reasoning)
             llm_fn = None
-            if hasattr(self, 'openai') and hasattr(self.openai, 'complete'):
+            if hasattr(self, "openai") and hasattr(self.openai, "complete"):
                 llm_fn = lambda prompt, ctx: self.openai.complete(prompt)
             self.neurosymbolic_reasoner = NeurosymbolicReasoner(
-                agent_name=config.name,
-                llm_function=llm_fn
+                agent_name=config.name, llm_function=llm_fn
             )
             logging.info(f"🧠 Neurosymbolic Reasoning enabled for {config.name}")
         except Exception as e:
@@ -227,9 +249,13 @@ class BaseAgent(ABC):
 
         # v5.9.0: Initialize Framework Comparison System (for Architect mainly)
         try:
-            from langgraph_system.extensions.framework_comparison import FrameworkComparator
+            from langgraph_system.extensions.framework_comparison import \
+                FrameworkComparator
+
             self.framework_comparator = FrameworkComparator()
-            logging.info(f"🔍 Framework Comparison (Systemvergleich) enabled for {config.name}")
+            logging.info(
+                f"🔍 Framework Comparison (Systemvergleich) enabled for {config.name}"
+            )
         except Exception as e:
             self.framework_comparator = None
             logging.warning(f"⚠️ Framework Comparison not available: {e}")
@@ -244,6 +270,7 @@ class BaseAgent(ABC):
         # Initialize pause and git checkpoint systems if available
         if PAUSE_AVAILABLE:
             from pathlib import Path
+
             project_path = str(Path.cwd())
             self.pause_handler = PauseHandler(project_path)
             self.git_manager = GitCheckpointManager(project_path)
@@ -253,15 +280,15 @@ class BaseAgent(ABC):
 
         # Initialize File System Tools if available
         if FILE_TOOLS_AVAILABLE:
-            workspace_path = getattr(config, 'workspace_path', os.getcwd())
+            workspace_path = getattr(config, "workspace_path", os.getcwd())
             self.file_tools = FileSystemTools(workspace_path)
 
             # Get write capabilities from config
             # Handle both list and dict format for capabilities
-            if hasattr(config, 'capabilities'):
+            if hasattr(config, "capabilities"):
                 if isinstance(config.capabilities, dict):
-                    self.can_write = config.capabilities.get('file_write', False)
-                    self.allowed_paths = config.capabilities.get('allowed_paths', [])
+                    self.can_write = config.capabilities.get("file_write", False)
+                    self.allowed_paths = config.capabilities.get("allowed_paths", [])
                 else:
                     # capabilities is a list (old format)
                     self.can_write = False
@@ -289,7 +316,9 @@ class BaseAgent(ABC):
             self.pause_handler = None
             self.git_manager = None
 
-        logger.info(f"🤖 {self.config.icon} {self.name} initialized (Model: {self.model})")
+        logger.info(
+            f"🤖 {self.config.icon} {self.name} initialized (Model: {self.model})"
+        )
 
     def _load_instructions(self) -> str:
         """
@@ -314,23 +343,35 @@ class BaseAgent(ABC):
 
         # Try both .ki_autoagent (new) and .ki-autoagent (legacy for backwards compatibility)
         base_instructions_paths = [
-            os.path.join(home_dir, ".ki_autoagent", "config", "instructions", instructions_filename),
-            os.path.join(home_dir, ".ki-autoagent", "config", "instructions", instructions_filename),
+            os.path.join(
+                home_dir,
+                ".ki_autoagent",
+                "config",
+                "instructions",
+                instructions_filename,
+            ),
+            os.path.join(
+                home_dir,
+                ".ki-autoagent",
+                "config",
+                "instructions",
+                instructions_filename,
+            ),
         ]
 
         base_instructions = None
-        base_path_used = None
 
         for base_path in base_instructions_paths:
             if os.path.exists(base_path):
                 try:
-                    with open(base_path, 'r', encoding='utf-8') as f:
+                    with open(base_path, encoding="utf-8") as f:
                         base_instructions = f.read()
-                        base_path_used = base_path
                         logger.info(f"✅ Base instructions loaded: {base_path}")
                         break
                 except Exception as e:
-                    logger.warning(f"Error reading base instructions from {base_path}: {e}")
+                    logger.warning(
+                        f"Error reading base instructions from {base_path}: {e}"
+                    )
 
         if not base_instructions:
             logger.warning(
@@ -345,19 +386,31 @@ class BaseAgent(ABC):
         if workspace_path:
             # Extract agent ID from filename
             # e.g. "architect-v2-instructions.md" → "architect"
-            agent_id = instructions_filename.split('-')[0]
+            agent_id = instructions_filename.split("-")[0]
 
             project_instructions_paths = [
-                os.path.join(workspace_path, ".ki_autoagent_ws", "instructions", f"{agent_id}-custom.md"),
-                os.path.join(workspace_path, ".kiautoagent", "instructions", f"{agent_id}-custom.md"),  # Legacy
+                os.path.join(
+                    workspace_path,
+                    ".ki_autoagent_ws",
+                    "instructions",
+                    f"{agent_id}-custom.md",
+                ),
+                os.path.join(
+                    workspace_path,
+                    ".kiautoagent",
+                    "instructions",
+                    f"{agent_id}-custom.md",
+                ),  # Legacy
             ]
 
             for project_path in project_instructions_paths:
                 if os.path.exists(project_path):
                     try:
-                        with open(project_path, 'r', encoding='utf-8') as f:
+                        with open(project_path, encoding="utf-8") as f:
                             project_instructions = f.read()
-                            logger.info(f"✅ Project instructions loaded: {project_path}")
+                            logger.info(
+                                f"✅ Project instructions loaded: {project_path}"
+                            )
 
                             # Merge: Base + Project
                             return (
@@ -368,7 +421,9 @@ class BaseAgent(ABC):
                                 f"{project_instructions}"
                             )
                     except Exception as e:
-                        logger.warning(f"Error reading project instructions from {project_path}: {e}")
+                        logger.warning(
+                            f"Error reading project instructions from {project_path}: {e}"
+                        )
 
         # Return base instructions only (no project-specific found)
         return base_instructions
@@ -387,10 +442,16 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
     def get_system_prompt(self) -> str:
         """Get complete system prompt with language directive"""
-        base_prompt = self.instructions if self.instructions else f"Du bist {self.name}, ein {self.role}."
+        base_prompt = (
+            self.instructions
+            if self.instructions
+            else f"Du bist {self.name}, ein {self.role}."
+        )
         return f"{self.language_directive}\n\n{base_prompt}"
 
-    async def initialize_systems(self, memory_manager=None, shared_context=None, communication_bus=None):
+    async def initialize_systems(
+        self, memory_manager=None, shared_context=None, communication_bus=None
+    ):
         """Initialize external systems after construction"""
         self.memory_manager = memory_manager
         self.shared_context = shared_context
@@ -406,20 +467,17 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         # Subscribe to messages for this agent
         await self.communication_bus.subscribe(
-            f"agent.{self.config.agent_id}",
-            self._handle_agent_message
+            f"agent.{self.config.agent_id}", self._handle_agent_message
         )
 
         # Subscribe to broadcast messages
         await self.communication_bus.subscribe(
-            "agent.broadcast",
-            self._handle_broadcast
+            "agent.broadcast", self._handle_broadcast
         )
 
         # Subscribe to help requests
         await self.communication_bus.subscribe(
-            "agent.help_request",
-            self._handle_help_request
+            "agent.help_request", self._handle_help_request
         )
 
     async def _handle_agent_message(self, message: AgentMessage):
@@ -428,7 +486,9 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         if message.message_type == "request":
             response = await self._process_agent_request(message)
-            await self.send_response(message.from_agent, response, message.correlation_id)
+            await self.send_response(
+                message.from_agent, response, message.correlation_id
+            )
         elif message.message_type == "response":
             await self._process_agent_response(message)
 
@@ -449,13 +509,12 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             await self.send_response(
                 message.from_agent,
                 await self._provide_help(message.content),
-                message.correlation_id
+                message.correlation_id,
             )
 
     @abstractmethod
     async def execute(self, request: TaskRequest) -> TaskResult:
         """Execute a task - must be implemented by subclasses"""
-        pass
 
     async def execute_with_memory(self, request: TaskRequest) -> TaskResult:
         """Execute task with memory enhancement, context integration, and PRIME DIRECTIVES"""
@@ -469,64 +528,83 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         if self.neurosymbolic_reasoner:
             # Build context for rule evaluation
             reasoning_context = {
-                'task': request.prompt,
-                'agent': self.name,
-                'context': request.context or {}
+                "task": request.prompt,
+                "agent": self.name,
+                "context": request.context or {},
             }
 
             # Apply Neurosymbolic Reasoning (includes Asimov Rules)
             reasoning_result = self.neurosymbolic_reasoner.reason(
-                task=request.prompt,
-                context=reasoning_context
+                task=request.prompt, context=reasoning_context
             )
 
             # 🔴 ASIMOV CONSTRAINT VIOLATIONS - FAIL FAST
-            if reasoning_result['symbolic_results']['constraints_violated']:
+            if reasoning_result["symbolic_results"]["constraints_violated"]:
                 logger.error(f"🔴 ASIMOV RULE VIOLATION detected for {self.name}")
-                violations_text = "\n".join([
-                    f"❌ {v['rule']}: {v['message']}"
-                    for v in reasoning_result['symbolic_results']['constraints_violated']
-                ])
+                violations_text = "\n".join(
+                    [
+                        f"❌ {v['rule']}: {v['message']}"
+                        for v in reasoning_result["symbolic_results"][
+                            "constraints_violated"
+                        ]
+                    ]
+                )
 
                 execution_time = (datetime.now() - start_time).total_seconds()
                 return TaskResult(
                     agent_id=self.config.agent_id,
                     agent=self.name,
                     content=f"🔴 ASIMOV RULE VIOLATION:\n\n{violations_text}\n\nTask cannot proceed. Asimov Rules are ABSOLUTE and INVIOLABLE.",
-                    status='asimov_violation',
-                    metadata={'asimov_violation': True, 'violations': reasoning_result['symbolic_results']['constraints_violated']},
-                    execution_time=execution_time
+                    status="asimov_violation",
+                    metadata={
+                        "asimov_violation": True,
+                        "violations": reasoning_result["symbolic_results"][
+                            "constraints_violated"
+                        ],
+                    },
+                    execution_time=execution_time,
                 )
 
             # 🔴 RESEARCH REQUIRED (Asimov Rule 7)
             research_required = any(
-                action.get('action_type') == 'require' and 'research' in str(action.get('description', '')).lower()
-                for action in reasoning_result['symbolic_results'].get('actions_taken', [])
+                action.get("action_type") == "require"
+                and "research" in str(action.get("description", "")).lower()
+                for action in reasoning_result["symbolic_results"].get(
+                    "actions_taken", []
+                )
             )
 
-            if research_required and not reasoning_context['context'].get('research_performed'):
-                logger.info(f"📚 ASIMOV RULE 7: Research required before claiming knowledge")
+            if research_required and not reasoning_context["context"].get(
+                "research_performed"
+            ):
+                logger.info(
+                    "📚 ASIMOV RULE 7: Research required before claiming knowledge"
+                )
 
                 # Perform mandatory research
                 research_results = await self._perform_mandatory_research(
                     request.prompt,
-                    topics=['latest_practices', 'verify_technology'],
-                    technologies_to_verify=[]
+                    topics=["latest_practices", "verify_technology"],
+                    technologies_to_verify=[],
                 )
 
                 # Add research to context
                 if not request.context:
                     request.context = {}
-                request.context['research_completed'] = True
-                request.context['research_results'] = research_results
-                logger.info(f"✅ Research completed. Found {len(research_results.get('findings', []))} relevant findings")
+                request.context["research_completed"] = True
+                request.context["research_results"] = research_results
+                logger.info(
+                    f"✅ Research completed. Found {len(research_results.get('findings', []))} relevant findings"
+                )
 
             # ⚠️ WARNINGS (e.g., Asimov Rule 5: Challenge Misconceptions)
-            if reasoning_result['symbolic_results'].get('warnings'):
-                warnings_text = "\n".join([
-                    f"⚠️ {w['rule']}: {w['warning']}"
-                    for w in reasoning_result['symbolic_results']['warnings']
-                ])
+            if reasoning_result["symbolic_results"].get("warnings"):
+                warnings_text = "\n".join(
+                    [
+                        f"⚠️ {w['rule']}: {w['warning']}"
+                        for w in reasoning_result["symbolic_results"]["warnings"]
+                    ]
+                )
                 logger.warning(f"⚠️ Asimov Rule Warnings:\n{warnings_text}")
 
                 # Return challenge to user
@@ -535,9 +613,12 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                     agent_id=self.config.agent_id,
                     agent=self.name,
                     content=f"🤔 I need to clarify before proceeding:\n\n{warnings_text}\n\nCould you please confirm or provide more details?",
-                    status='challenge',
-                    metadata={'asimov_challenge': True, 'warnings': reasoning_result['symbolic_results']['warnings']},
-                    execution_time=execution_time
+                    status="challenge",
+                    metadata={
+                        "asimov_challenge": True,
+                        "warnings": reasoning_result["symbolic_results"]["warnings"],
+                    },
+                    execution_time=execution_time,
                 )
 
         # Check for cancellation at start
@@ -547,7 +628,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 agent=self.name,
                 content="Task was cancelled by user",
                 status="cancelled",
-                execution_time=0
+                execution_time=0,
             )
 
         # Search memory for similar tasks
@@ -556,7 +637,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 request.prompt,
                 memory_type="episodic",
                 agent_id=self.config.agent_id,
-                k=5
+                k=5,
             )
             request.context["similar_tasks"] = [
                 {"content": task.entry.content, "relevance": task.relevance}
@@ -565,8 +646,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
             # Get relevant patterns
             patterns = await self.memory_manager.get_relevant_patterns(
-                context=request.prompt,
-                limit=3
+                context=request.prompt, limit=3
             )
             if patterns:
                 request.context["patterns"] = patterns
@@ -574,9 +654,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         # Get conversation context
         if self.conversation:
             conv_context = self.conversation.get_context_for_agent(
-                self.config.agent_id,
-                include_self=False,
-                limit=5
+                self.config.agent_id, include_self=False, limit=5
             )
             if conv_context:
                 request.context["conversation"] = conv_context
@@ -587,7 +665,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 self.config.agent_id,
                 "agent_status",
                 {"status": "executing", "task": request.prompt[:100]},
-                metadata={"timestamp": datetime.now().isoformat()}
+                metadata={"timestamp": datetime.now().isoformat()},
             )
 
         # Check cancellation before execution
@@ -597,7 +675,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 agent=self.name,
                 content="Task was cancelled by user",
                 status="cancelled",
-                execution_time=(datetime.now() - start_time).total_seconds()
+                execution_time=(datetime.now() - start_time).total_seconds(),
             )
 
         # Execute the task
@@ -616,7 +694,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                         agent=self.name,
                         content=f"Task stopped and rolled back: {rollback_result['message']}",
                         status="stopped",
-                        execution_time=(datetime.now() - start_time).total_seconds()
+                        execution_time=(datetime.now() - start_time).total_seconds(),
                     )
                 elif user_action == PauseAction.RESUME_WITH_INSTRUCTIONS:
                     # Get updated task with additional instructions
@@ -632,7 +710,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 agent=self.name,
                 content="Task was cancelled during execution",
                 status="cancelled",
-                execution_time=(datetime.now() - start_time).total_seconds()
+                execution_time=(datetime.now() - start_time).total_seconds(),
             )
 
         # Calculate execution time IMMEDIATELY after execution
@@ -650,13 +728,13 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                     "result": result.content[:2000],
                     "status": result.status,
                     "importance": 0.7 if result.status == "success" else 0.5,
-                    "tags": ["task_result", self.config.agent_id]
+                    "tags": ["task_result", self.config.agent_id],
                 }
                 self.memory_manager.store(
                     content=json.dumps(memory_data),
                     memory_type="procedural",  # WORKING → procedural
                     importance=0.7 if result.status == "success" else 0.5,
-                    metadata=memory_data
+                    metadata=memory_data,
                 )
             except Exception as mem_error:
                 logger.warning(f"⚠️ Memory storage failed (non-critical): {mem_error}")
@@ -669,7 +747,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                     description=request.prompt[:100],
                     language="python",  # Default, could be detected
                     code=result.content[:1000],
-                    use_cases=[request.prompt[:50]]
+                    use_cases=[request.prompt[:50]],
                 )
 
         # Update conversation context
@@ -681,7 +759,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 output_text=result.content,
                 metadata=result.metadata,
                 tokens_used=result.tokens_used,
-                execution_time=execution_time
+                execution_time=execution_time,
             )
 
         # Update shared context with result
@@ -692,9 +770,9 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 {
                     "result": result.content[:500],  # Store summary
                     "status": result.status,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 },
-                metadata={"execution_time": execution_time}
+                metadata={"execution_time": execution_time},
             )
 
         # Update tracking
@@ -707,11 +785,13 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             try:
                 checkpoint_result = await self.git_manager.create_checkpoint(
                     task_description=request.prompt[:200],  # Limit description length
-                    task_id=f"{self.config.agent_id}_{self.execution_count}"
+                    task_id=f"{self.config.agent_id}_{self.execution_count}",
                 )
-                if checkpoint_result['status'] == 'success':
-                    logger.info(f"✅ Git checkpoint created: {checkpoint_result['commit_hash'][:8]}")
-                    result.metadata['git_checkpoint'] = checkpoint_result['commit_hash']
+                if checkpoint_result["status"] == "success":
+                    logger.info(
+                        f"✅ Git checkpoint created: {checkpoint_result['commit_hash'][:8]}"
+                    )
+                    result.metadata["git_checkpoint"] = checkpoint_result["commit_hash"]
             except Exception as e:
                 logger.warning(f"Could not create Git checkpoint: {e}")
                 # ASIMOV RULE 1: No silent failure - log but continue
@@ -719,7 +799,9 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         return result
 
-    def calculate_dynamic_timeout(self, prompt: str, context: dict[str, Any | None] = None) -> float:
+    def calculate_dynamic_timeout(
+        self, prompt: str, context: dict[str, Any | None] = None
+    ) -> float:
         """
         Calculate dynamic timeout based on task complexity and keywords
         Returns timeout in seconds
@@ -729,43 +811,43 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         # Keywords that indicate complex tasks needing more time
         complex_keywords = {
-            'analyze': 180.0,
-            'analyse': 180.0,  # German variant
-            'architecture': 180.0,
-            'infrastructure': 240.0,
-            'improve': 180.0,
-            'verbessern': 180.0,  # German: improve
-            'system': 150.0,
-            'complex': 180.0,
-            'komplex': 180.0,  # German: complex
-            'comprehensive': 240.0,
-            'umfassend': 240.0,  # German: comprehensive
-            'refactor': 180.0,
-            'optimize': 180.0,
-            'optimieren': 180.0,  # German: optimize
-            'research': 150.0,
-            'forschen': 150.0,  # German: research
-            'understand': 180.0,
-            'verstehen': 180.0,  # German: understand
-            'debug': 150.0,
-            'security': 180.0,
-            'sicherheit': 180.0,  # German: security
-            'review': 150.0,
-            'überprüfen': 150.0,  # German: review
+            "analyze": 180.0,
+            "analyse": 180.0,  # German variant
+            "architecture": 180.0,
+            "infrastructure": 240.0,
+            "improve": 180.0,
+            "verbessern": 180.0,  # German: improve
+            "system": 150.0,
+            "complex": 180.0,
+            "komplex": 180.0,  # German: complex
+            "comprehensive": 240.0,
+            "umfassend": 240.0,  # German: comprehensive
+            "refactor": 180.0,
+            "optimize": 180.0,
+            "optimieren": 180.0,  # German: optimize
+            "research": 150.0,
+            "forschen": 150.0,  # German: research
+            "understand": 180.0,
+            "verstehen": 180.0,  # German: understand
+            "debug": 150.0,
+            "security": 180.0,
+            "sicherheit": 180.0,  # German: security
+            "review": 150.0,
+            "überprüfen": 150.0,  # German: review
         }
 
         # Keywords for simpler tasks
         simple_keywords = {
-            'list': 30.0,
-            'show': 30.0,
-            'zeigen': 30.0,  # German: show
-            'get': 30.0,
-            'holen': 30.0,  # German: get
-            'check': 45.0,
-            'prüfen': 45.0,  # German: check
-            'status': 30.0,
-            'count': 30.0,
-            'zählen': 30.0,  # German: count
+            "list": 30.0,
+            "show": 30.0,
+            "zeigen": 30.0,  # German: show
+            "get": 30.0,
+            "holen": 30.0,  # German: get
+            "check": 45.0,
+            "prüfen": 45.0,  # German: check
+            "status": 30.0,
+            "count": 30.0,
+            "zählen": 30.0,  # German: count
         }
 
         prompt_lower = prompt.lower()
@@ -788,13 +870,15 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             timeout = max(timeout, 120.0)
 
         # Consider context size if available
-        if context and 'files' in context and len(context.get('files', [])) > 10:
+        if context and "files" in context and len(context.get("files", [])) > 10:
             timeout = max(timeout, 180.0)
 
         # Apply minimum and maximum bounds
         timeout = max(30.0, min(timeout, 300.0))
 
-        logger.info(f"⏱️ Dynamic timeout calculated: {timeout}s for prompt length {len(prompt)}")
+        logger.info(
+            f"⏱️ Dynamic timeout calculated: {timeout}s for prompt length {len(prompt)}"
+        )
         return timeout
 
     def _get_workspace_from_request(self) -> str | None:
@@ -805,10 +889,10 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             Workspace path from request.context or None
         """
         if self._current_request and self._current_request.context:
-            return self._current_request.context.get('workspace_path')
+            return self._current_request.context.get("workspace_path")
         return None
 
-    def _get_file_tools_for_current_workspace(self) -> 'FileSystemTools | None':
+    def _get_file_tools_for_current_workspace(self) -> "FileSystemTools | None":
         """
         Get FileSystemTools instance with correct workspace from request context (v5.8.1)
 
@@ -818,11 +902,14 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         workspace = self._get_workspace_from_request()
         if workspace and FILE_TOOLS_AVAILABLE:
             from agents.tools.file_tools import FileSystemTools
+
             logger.info(f"📂 Using workspace from request.context: {workspace}")
             return FileSystemTools(workspace)
         return self.file_tools
 
-    async def write_implementation(self, file_path: str, content: str, create_dirs: bool = True) -> dict[str, Any]:
+    async def write_implementation(
+        self, file_path: str, content: str, create_dirs: bool = True
+    ) -> dict[str, Any]:
         """
         Write implementation to file with proper validation and error handling
 
@@ -840,20 +927,12 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         if not file_tools:
             error_msg = f"❌ File system tools not available for {self.name}"
             logger.error(error_msg)
-            return {
-                "status": "error",
-                "error": error_msg,
-                "agent": self.name
-            }
+            return {"status": "error", "error": error_msg, "agent": self.name}
 
         if not self.can_write:
             error_msg = f"❌ Agent {self.name} has no write permissions"
             logger.error(error_msg)
-            return {
-                "status": "error",
-                "error": error_msg,
-                "agent": self.name
-            }
+            return {"status": "error", "error": error_msg, "agent": self.name}
 
         try:
             # v5.8.1: Use workspace-aware file tools (not self.file_tools!)
@@ -862,10 +941,10 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 content=content,
                 agent_name=self.name,
                 allowed_paths=self.allowed_paths,
-                create_dirs=create_dirs
+                create_dirs=create_dirs,
             )
 
-            if result.get('status') == 'success':
+            if result.get("status") == "success":
                 logger.info(f"✅ {self.name} successfully wrote to {file_path}")
                 # Track in memory if available
                 # v5.5.3: Wrap memory storage in try/except to not corrupt the result
@@ -875,20 +954,24 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                         memory_data = {
                             "action": "file_write",
                             "path": file_path,
-                            "size": result.get('size', 0),
+                            "size": result.get("size", 0),
                             "agent": self.config.agent_id,
-                            "timestamp": datetime.now().isoformat()
+                            "timestamp": datetime.now().isoformat(),
                         }
                         self.memory_manager.store(
                             content=json.dumps(memory_data),
                             memory_type="procedural",  # WORKING → procedural
                             importance=0.6,
-                            metadata=memory_data
+                            metadata=memory_data,
                         )
                     except Exception as mem_error:
-                        logger.warning(f"⚠️ Memory storage failed (non-critical): {mem_error}")
+                        logger.warning(
+                            f"⚠️ Memory storage failed (non-critical): {mem_error}"
+                        )
             else:
-                logger.error(f"❌ {self.name} failed to write to {file_path}: {result.get('error')}")
+                logger.error(
+                    f"❌ {self.name} failed to write to {file_path}: {result.get('error')}"
+                )
 
             return result
 
@@ -899,10 +982,12 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 "status": "error",
                 "error": error_msg,
                 "agent": self.name,
-                "path": file_path
+                "path": file_path,
             }
 
-    async def create_file(self, file_path: str, content: str, overwrite: bool = False) -> dict[str, Any]:
+    async def create_file(
+        self, file_path: str, content: str, overwrite: bool = False
+    ) -> dict[str, Any]:
         """
         Create a new file with content
 
@@ -921,14 +1006,14 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             return {
                 "status": "error",
                 "error": "File system tools not available",
-                "agent": self.name
+                "agent": self.name,
             }
 
         if not self.can_write:
             return {
                 "status": "error",
                 "error": f"Agent {self.name} has no write permissions",
-                "agent": self.name
+                "agent": self.name,
             }
 
         try:
@@ -938,7 +1023,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 content=content,
                 agent_name=self.name,
                 allowed_paths=self.allowed_paths,
-                overwrite=overwrite
+                overwrite=overwrite,
             )
             return result
         except Exception as e:
@@ -946,10 +1031,12 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 "status": "error",
                 "error": str(e),
                 "agent": self.name,
-                "path": file_path
+                "path": file_path,
             }
 
-    async def _perform_mandatory_research(self, prompt: str, topics: list, technologies: list) -> dict[str, Any]:
+    async def _perform_mandatory_research(
+        self, prompt: str, topics: list, technologies: list
+    ) -> dict[str, Any]:
         """
         Perform mandatory research as required by Prime Directive 4
         This method calls the ResearchAgent to gather information
@@ -957,6 +1044,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         try:
             # Import research agent
             from agents.specialized.research_agent import ResearchAgent
+
             research_agent = ResearchAgent()
 
             findings = []
@@ -965,87 +1053,73 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             for topic in topics:
                 logger.info(f"🔍 Researching topic: {topic}")
 
-                if topic == 'latest_practices':
+                if topic == "latest_practices":
                     # Get latest best practices
                     result = await research_agent.get_latest_best_practices(prompt)
-                    findings.append({
-                        'type': 'best_practices',
-                        'data': result
-                    })
+                    findings.append({"type": "best_practices", "data": result})
 
-                elif topic == 'verify_technologies':
+                elif topic == "verify_technologies":
                     # Verify each technology
                     for tech in technologies:
-                        verification = await research_agent.verify_technology_exists(tech)
-                        findings.append({
-                            'type': 'technology_verification',
-                            'technology': tech,
-                            'data': verification
-                        })
+                        verification = await research_agent.verify_technology_exists(
+                            tech
+                        )
+                        findings.append(
+                            {
+                                "type": "technology_verification",
+                                "technology": tech,
+                                "data": verification,
+                            }
+                        )
 
-                elif topic in ['comparison', 'technology_choice']:
+                elif topic in ["comparison", "technology_choice"]:
                     # Research comparison
                     research = await research_agent.research_for_agent(
-                        self.config.agent_id,
-                        f"Compare options for: {prompt}"
+                        self.config.agent_id, f"Compare options for: {prompt}"
                     )
-                    findings.append({
-                        'type': 'comparison',
-                        'data': research
-                    })
+                    findings.append({"type": "comparison", "data": research})
 
-                elif topic in ['security', 'security_practices']:
+                elif topic in ["security", "security_practices"]:
                     # Security research
                     research = await research_agent.research_for_agent(
-                        self.config.agent_id,
-                        f"Security best practices for: {prompt}"
+                        self.config.agent_id, f"Security best practices for: {prompt}"
                     )
-                    findings.append({
-                        'type': 'security',
-                        'data': research
-                    })
+                    findings.append({"type": "security", "data": research})
 
-                elif topic == 'performance':
+                elif topic == "performance":
                     # Performance research
                     research = await research_agent.research_for_agent(
-                        self.config.agent_id,
-                        f"Performance optimization for: {prompt}"
+                        self.config.agent_id, f"Performance optimization for: {prompt}"
                     )
-                    findings.append({
-                        'type': 'performance',
-                        'data': research
-                    })
+                    findings.append({"type": "performance", "data": research})
 
                 else:
                     # General research
                     research = await research_agent.research_for_agent(
-                        self.config.agent_id,
-                        prompt
+                        self.config.agent_id, prompt
                     )
-                    findings.append({
-                        'type': 'general',
-                        'topic': topic,
-                        'data': research
-                    })
+                    findings.append(
+                        {"type": "general", "topic": topic, "data": research}
+                    )
 
             # Compile research results
             research_summary = self._compile_research_summary(findings)
 
             return {
-                'findings': findings,
-                'summary': research_summary,
-                'topics_researched': topics,
-                'technologies_verified': technologies,
-                'timestamp': datetime.now().isoformat()
+                "findings": findings,
+                "summary": research_summary,
+                "topics_researched": topics,
+                "technologies_verified": technologies,
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
             logger.error(f"Failed to perform mandatory research: {e}")
             return {
-                'error': str(e),
-                'findings': [],
-                'summary': "Research could not be completed",
-                'timestamp': datetime.now().isoformat()
+                "error": str(e),
+                "findings": [],
+                "summary": "Research could not be completed",
+                "timestamp": datetime.now().isoformat(),
             }
 
     def _compile_research_summary(self, findings: list) -> str:
@@ -1055,33 +1129,41 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         # Check for technology verifications
         unverified_techs = []
         for finding in findings:
-            if finding['type'] == 'technology_verification':
-                if finding['data'].get('exists') == 'uncertain':
-                    unverified_techs.append(finding['technology'])
+            if finding["type"] == "technology_verification":
+                if finding["data"].get("exists") == "uncertain":
+                    unverified_techs.append(finding["technology"])
 
         if unverified_techs:
-            summary_parts.append(f"⚠️ Could not verify existence of: {', '.join(unverified_techs)}")
+            summary_parts.append(
+                f"⚠️ Could not verify existence of: {', '.join(unverified_techs)}"
+            )
 
         # Check for security warnings
         security_warnings = []
         for finding in findings:
-            if finding['type'] == 'security':
-                warnings = finding['data'].get('warnings', [])
+            if finding["type"] == "security":
+                warnings = finding["data"].get("warnings", [])
                 security_warnings.extend(warnings)
 
         if security_warnings:
-            summary_parts.append(f"🔒 Security considerations: {'; '.join(security_warnings[:3])}")
+            summary_parts.append(
+                f"🔒 Security considerations: {'; '.join(security_warnings[:3])}"
+            )
 
         # Check for best practices
         practices = []
         for finding in findings:
-            if finding['type'] == 'best_practices':
-                practices.extend(finding['data'].get('practices', [])[:3])
+            if finding["type"] == "best_practices":
+                practices.extend(finding["data"].get("practices", [])[:3])
 
         if practices:
             summary_parts.append(f"✅ Best practices: {'; '.join(practices)}")
 
-        return " | ".join(summary_parts) if summary_parts else "Research completed successfully"
+        return (
+            " | ".join(summary_parts)
+            if summary_parts
+            else "Research completed successfully"
+        )
 
     async def collaborate_with(self, agent_id: str, task: str) -> Any:
         """Request collaboration from another agent"""
@@ -1096,7 +1178,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             to_agent=agent_id,
             message_type="request",
             content={"task": task, "requesting_collaboration": True},
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         # Send request
@@ -1105,8 +1187,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         # Wait for response (with timeout)
         try:
             response = await asyncio.wait_for(
-                self._wait_for_response(correlation_id),
-                timeout=30.0
+                self._wait_for_response(correlation_id), timeout=30.0
             )
             return response
         except asyncio.TimeoutError:
@@ -1125,7 +1206,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             to_agent="all",
             message_type="help_request",
             content={"task": task, "capabilities_needed": []},
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         # Store help request
@@ -1141,7 +1222,9 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         # TODO: Implement response collection
         return []
 
-    async def send_response(self, to_agent: str, content: Any, correlation_id: str | None = None):
+    async def send_response(
+        self, to_agent: str, content: Any, correlation_id: str | None = None
+    ):
         """Send response to another agent"""
         if not self.communication_bus:
             return
@@ -1151,7 +1234,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             to_agent=to_agent,
             message_type="response",
             content=content,
-            correlation_id=correlation_id
+            correlation_id=correlation_id,
         )
 
         await self.communication_bus.publish(f"agent.{to_agent}", message)
@@ -1165,7 +1248,6 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
     @abstractmethod
     async def _process_agent_request(self, message: AgentMessage) -> Any:
         """Process request from another agent"""
-        pass
 
     async def _process_agent_response(self, message: AgentMessage):
         """Process response from another agent"""
@@ -1187,13 +1269,17 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         return {"help": "Generic help from " + self.name}
 
     # ============ PAUSE/RESUME/STOP METHODS ============
-    async def pause_current_task(self, task_id: str = None, task_description: str = None) -> dict[str, Any]:
+    async def pause_current_task(
+        self, task_id: str = None, task_description: str = None
+    ) -> dict[str, Any]:
         """
         Pause the current task
         ASIMOV RULE 1: Must work, no silent failures
         """
         if not self.pause_handler:
-            raise Exception("Pause functionality not available - PauseHandler not initialized")
+            raise Exception(
+                "Pause functionality not available - PauseHandler not initialized"
+            )
 
         if not task_id:
             task_id = f"{self.config.agent_id}_{self.execution_count}"
@@ -1205,7 +1291,9 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
     async def resume_task(self, additional_instructions: str = None) -> dict[str, Any]:
         """Resume the paused task with optional additional instructions"""
         if not self.pause_handler:
-            raise Exception("Pause functionality not available - PauseHandler not initialized")
+            raise Exception(
+                "Pause functionality not available - PauseHandler not initialized"
+            )
 
         return await self.pause_handler.resume_task(additional_instructions)
 
@@ -1215,14 +1303,18 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         ASIMOV RULE 2: Complete rollback, no partial
         """
         if not self.pause_handler:
-            raise Exception("Pause functionality not available - PauseHandler not initialized")
+            raise Exception(
+                "Pause functionality not available - PauseHandler not initialized"
+            )
 
         return await self.pause_handler.stop_and_rollback()
 
     async def handle_clarification(self, response: dict[str, Any]) -> dict[str, Any]:
         """Handle user's response to clarification request"""
         if not self.pause_handler:
-            raise Exception("Pause functionality not available - PauseHandler not initialized")
+            raise Exception(
+                "Pause functionality not available - PauseHandler not initialized"
+            )
 
         return await self.pause_handler.handle_clarification_response(response)
 
@@ -1241,9 +1333,11 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             "status": "ready",
             "execution_count": self.execution_count,
             "total_tokens_used": self.total_tokens_used,
-            "last_execution": self.last_execution_time.isoformat() if self.last_execution_time else None,
+            "last_execution": self.last_execution_time.isoformat()
+            if self.last_execution_time
+            else None,
             "active_collaborations": len(self.collaboration_sessions),
-            "capabilities": [cap.value for cap in self.config.capabilities]
+            "capabilities": [cap.value for cap in self.config.capabilities],
         }
 
         # Add pause state if available
@@ -1252,7 +1346,9 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         return status
 
-    async def learn_from_task(self, task: str, result: Any, success: bool, context: str = None) -> str:
+    async def learn_from_task(
+        self, task: str, result: Any, success: bool, context: str = None
+    ) -> str:
         """
         Learn from task execution results
         Integrates with MemoryManager to store learning entries
@@ -1267,7 +1363,9 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             impact = "high"
 
         # Create learning description
-        description = f"{self.name} {'succeeded' if success else 'failed'} at: {task[:100]}..."
+        description = (
+            f"{self.name} {'succeeded' if success else 'failed'} at: {task[:100]}..."
+        )
 
         # Extract lesson
         if success:
@@ -1282,10 +1380,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         # Store learning
         learning_id = self.memory_manager.store_learning(
-            description=description,
-            lesson=lesson,
-            context=full_context,
-            impact=impact
+            description=description, lesson=lesson, context=full_context, impact=impact
         )
 
         logger.info(f"✅ {self.name} learned from task: {learning_id}")
@@ -1299,10 +1394,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             return []
 
         # Get relevant learnings
-        learnings = self.memory_manager.get_relevant_learnings(
-            context=task,
-            limit=5
-        )
+        learnings = self.memory_manager.get_relevant_learnings(context=task, limit=5)
 
         if learnings:
             logger.info(f"📚 {self.name} applying {len(learnings)} learnings to task")
@@ -1336,7 +1428,8 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         # Filter learnings for this agent
         agent_learnings = [
-            learning for learning in self.memory_manager.learning_entries
+            learning
+            for learning in self.memory_manager.learning_entries
             if self.config.agent_id in learning.context
         ]
 
@@ -1345,12 +1438,22 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         workspace_learnings = []
 
         for learning in agent_learnings:
-            context_str = learning.context if isinstance(learning.context, str) else str(learning.context)
+            context_str = (
+                learning.context
+                if isinstance(learning.context, str)
+                else str(learning.context)
+            )
 
             # Check if learning is global or workspace-specific
-            if "global" in context_str or "best-practice" in context_str or "security" in context_str:
+            if (
+                "global" in context_str
+                or "best-practice" in context_str
+                or "security" in context_str
+            ):
                 global_learnings.append(learning)
-            elif workspace_path and ("workspace" in context_str or "project" in context_str):
+            elif workspace_path and (
+                "workspace" in context_str or "project" in context_str
+            ):
                 workspace_learnings.append(learning)
             else:
                 # Default: based on scope parameter
@@ -1367,47 +1470,67 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         # Save global learnings
         if global_learnings:
-            global_learning_dir = os.path.join(home_dir, '.ki_autoagent', 'data', 'learning', 'global')
+            global_learning_dir = os.path.join(
+                home_dir, ".ki_autoagent", "data", "learning", "global"
+            )
             os.makedirs(global_learning_dir, exist_ok=True)
-            global_file = os.path.join(global_learning_dir, f"{self.config.agent_id}.json")
+            global_file = os.path.join(
+                global_learning_dir, f"{self.config.agent_id}.json"
+            )
 
-            with open(global_file, 'w') as f:
-                json.dump([
-                    {
-                        'id': l.id,
-                        'timestamp': l.timestamp,
-                        'description': l.description,
-                        'lesson': l.lesson,
-                        'context': l.context,
-                        'impact': l.impact,
-                        'applied_count': l.applied_count
-                    }
-                    for l in global_learnings
-                ], f, indent=2)
+            with open(global_file, "w") as f:
+                json.dump(
+                    [
+                        {
+                            "id": l.id,
+                            "timestamp": l.timestamp,
+                            "description": l.description,
+                            "lesson": l.lesson,
+                            "context": l.context,
+                            "impact": l.impact,
+                            "applied_count": l.applied_count,
+                        }
+                        for l in global_learnings
+                    ],
+                    f,
+                    indent=2,
+                )
 
-            logger.info(f"💾 Saved {len(global_learnings)} GLOBAL learnings for {self.name}")
+            logger.info(
+                f"💾 Saved {len(global_learnings)} GLOBAL learnings for {self.name}"
+            )
 
         # Save workspace learnings
         if workspace_learnings and workspace_path:
-            workspace_learning_dir = os.path.join(workspace_path, '.ki_autoagent_ws', 'learning')
+            workspace_learning_dir = os.path.join(
+                workspace_path, ".ki_autoagent_ws", "learning"
+            )
             os.makedirs(workspace_learning_dir, exist_ok=True)
-            workspace_file = os.path.join(workspace_learning_dir, f"{self.config.agent_id}.json")
+            workspace_file = os.path.join(
+                workspace_learning_dir, f"{self.config.agent_id}.json"
+            )
 
-            with open(workspace_file, 'w') as f:
-                json.dump([
-                    {
-                        'id': l.id,
-                        'timestamp': l.timestamp,
-                        'description': l.description,
-                        'lesson': l.lesson,
-                        'context': l.context,
-                        'impact': l.impact,
-                        'applied_count': l.applied_count
-                    }
-                    for l in workspace_learnings
-                ], f, indent=2)
+            with open(workspace_file, "w") as f:
+                json.dump(
+                    [
+                        {
+                            "id": l.id,
+                            "timestamp": l.timestamp,
+                            "description": l.description,
+                            "lesson": l.lesson,
+                            "context": l.context,
+                            "impact": l.impact,
+                            "applied_count": l.applied_count,
+                        }
+                        for l in workspace_learnings
+                    ],
+                    f,
+                    indent=2,
+                )
 
-            logger.info(f"💾 Saved {len(workspace_learnings)} WORKSPACE learnings for {self.name}")
+            logger.info(
+                f"💾 Saved {len(workspace_learnings)} WORKSPACE learnings for {self.name}"
+            )
 
         return True
 
@@ -1426,7 +1549,9 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         import os
 
         if not self.memory_manager:
-            logger.warning(f"{self.name}: No memory manager available to load learnings")
+            logger.warning(
+                f"{self.name}: No memory manager available to load learnings"
+            )
             return 0
 
         workspace_path = os.getenv("KI_WORKSPACE_PATH")
@@ -1439,7 +1564,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 return 0
 
             try:
-                with open(file_path, 'r') as f:
+                with open(file_path) as f:
                     learnings_data = json.load(f)
 
                 # Convert to LearningEntry objects
@@ -1448,22 +1573,27 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 loaded = 0
                 for data in learnings_data:
                     learning = LearningEntry(
-                        id=data['id'],
-                        timestamp=data['timestamp'],
-                        description=data['description'],
-                        lesson=data['lesson'],
-                        context=data['context'],
-                        impact=data['impact'],
-                        applied_count=data.get('applied_count', 0)
+                        id=data["id"],
+                        timestamp=data["timestamp"],
+                        description=data["description"],
+                        lesson=data["lesson"],
+                        context=data["context"],
+                        impact=data["impact"],
+                        applied_count=data.get("applied_count", 0),
                     )
 
                     # Check if not already in memory (avoid duplicates)
-                    if not any(l.id == learning.id for l in self.memory_manager.learning_entries):
+                    if not any(
+                        l.id == learning.id
+                        for l in self.memory_manager.learning_entries
+                    ):
                         self.memory_manager.learning_entries.append(learning)
                         loaded += 1
 
                 if loaded > 0:
-                    logger.info(f"📚 Loaded {loaded} {source_name} learnings for {self.name}")
+                    logger.info(
+                        f"📚 Loaded {loaded} {source_name} learnings for {self.name}"
+                    )
                 return loaded
 
             except Exception as e:
@@ -1471,14 +1601,20 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 return 0
 
         # 1. Load GLOBAL learnings (always)
-        global_learning_dir = os.path.join(home_dir, '.ki_autoagent', 'data', 'learning', 'global')
+        global_learning_dir = os.path.join(
+            home_dir, ".ki_autoagent", "data", "learning", "global"
+        )
         global_file = os.path.join(global_learning_dir, f"{self.config.agent_id}.json")
         total_loaded += load_from_file(global_file, "GLOBAL")
 
         # 2. Load WORKSPACE learnings (if in workspace)
         if workspace_path:
-            workspace_learning_dir = os.path.join(workspace_path, '.ki_autoagent_ws', 'learning')
-            workspace_file = os.path.join(workspace_learning_dir, f"{self.config.agent_id}.json")
+            workspace_learning_dir = os.path.join(
+                workspace_path, ".ki_autoagent_ws", "learning"
+            )
+            workspace_file = os.path.join(
+                workspace_learning_dir, f"{self.config.agent_id}.json"
+            )
             total_loaded += load_from_file(workspace_file, "WORKSPACE")
 
         if total_loaded > 0:
@@ -1496,7 +1632,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         action: str,
         expected_outcome: str,
         confidence: float,
-        context: dict[str, Any | None] = None
+        context: dict[str, Any | None] = None,
     ):
         """
         Make a prediction before taking action
@@ -1527,7 +1663,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             action=action,
             expected_outcome=expected_outcome,
             confidence=confidence,
-            context=context
+            context=context,
         )
 
     def record_reality(
@@ -1535,7 +1671,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         task_id: str,
         actual_outcome: str,
         success: bool,
-        metadata: dict[str, Any | None] = None
+        metadata: dict[str, Any | None] = None,
     ):
         """
         Record what actually happened after action execution
@@ -1562,14 +1698,16 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             task_id=task_id,
             actual_outcome=actual_outcome,
             success=success,
-            metadata=metadata
+            metadata=metadata,
         )
 
         # Save predictions to disk after each reality recording
         if error:
             self.predictive_memory.save_to_disk()
 
-    def adjust_confidence_based_on_history(self, action: str, base_confidence: float) -> float:
+    def adjust_confidence_based_on_history(
+        self, action: str, base_confidence: float
+    ) -> float:
         """
         Adjust confidence based on historical prediction accuracy
 
@@ -1587,7 +1725,9 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         adjusted = base_confidence * adjustment
 
         if adjustment < 0.8:
-            logger.info(f"⚠️ Confidence adjusted from {base_confidence:.2f} to {adjusted:.2f} based on history")
+            logger.info(
+                f"⚠️ Confidence adjusted from {base_confidence:.2f} to {adjusted:.2f} based on history"
+            )
 
         return adjusted
 
@@ -1608,7 +1748,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         task_description: str,
         task_embedding: list[float | None] = None,
         outcome: str | None = None,
-        category: str | None = None
+        category: str | None = None,
     ):
         """
         Record that agent encountered a task
@@ -1639,7 +1779,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             task_description=task_description,
             task_embedding=task_embedding,
             outcome=outcome,
-            category=category
+            category=category,
         )
 
         # Save curiosity data to disk
@@ -1650,7 +1790,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         task_description: str,
         base_priority: float,
         task_embedding: list[float | None] = None,
-        category: str | None = None
+        category: str | None = None,
     ) -> float:
         """
         Calculate final task priority considering both importance and novelty
@@ -1681,7 +1821,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             task_description=task_description,
             base_priority=base_priority,
             task_embedding=task_embedding,
-            category=category
+            category=category,
         )
 
         return final_priority
@@ -1717,9 +1857,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
     # ========================================================================
 
     def apply_neurosymbolic_reasoning(
-        self,
-        task: str,
-        context: dict[str, Any | None] = None
+        self, task: str, context: dict[str, Any | None] = None
     ) -> dict[str, Any]:
         """
         Apply hybrid reasoning combining rules (symbolic) and AI (neural)
@@ -1756,7 +1894,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             return {
                 "symbolic_results": {},
                 "neural_guidance": None,
-                "final_approach": {"can_proceed": True}
+                "final_approach": {"can_proceed": True},
             }
 
         return self.neurosymbolic_reasoner.reason(task, context)
@@ -1812,9 +1950,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
     # ========================================================================
 
     def compare_architecture_with_frameworks(
-        self,
-        decision: str,
-        context: dict[str, Any | None] = None
+        self, decision: str, context: dict[str, Any | None] = None
     ) -> dict[str, Any]:
         """
         Compare an architecture decision with other agent frameworks
@@ -1851,12 +1987,11 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 "similar_patterns": [],
                 "recommendations": [],
                 "best_practices": [],
-                "risk_assessment": []
+                "risk_assessment": [],
             }
 
         return self.framework_comparator.compare_architecture_decision(
-            decision=decision,
-            context=context or {}
+            decision=decision, context=context or {}
         )
 
     def get_framework_profile(self, framework_name: str) -> dict[str, Any | None]:
@@ -1890,7 +2025,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             "weaknesses": profile.weaknesses,
             "best_for": profile.best_for,
             "architecture_pattern": profile.architecture_pattern,
-            "popularity_score": profile.popularity_score
+            "popularity_score": profile.popularity_score,
         }
 
     def list_known_frameworks(self) -> list[str]:

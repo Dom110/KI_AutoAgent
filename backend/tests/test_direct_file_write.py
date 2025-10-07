@@ -4,9 +4,11 @@ Direct test to see if agents can actually write files
 """
 
 import asyncio
-import sys
 import os
-sys.path.append('backend')
+import sys
+
+sys.path.append("backend")
+
 
 async def test_direct_file_write():
     """Test if CodeSmithAgent can write files directly"""
@@ -36,19 +38,19 @@ async def test_direct_file_write():
         print(f"\n📝 Attempting to write to: {file_path}")
         result = await agent.implement_code_to_file(spec, file_path)
 
-        print(f"\n📊 Result:")
+        print("\n📊 Result:")
         print(f"   Status: {result.get('status')}")
         print(f"   Error: {result.get('error', 'None')}")
 
-        if result.get('status') == 'success':
+        if result.get("status") == "success":
             print(f"   File: {result.get('file')}")
             print(f"   Lines: {result.get('lines')}")
-            print(f"\n✅ SUCCESS! File was written!")
+            print("\n✅ SUCCESS! File was written!")
 
             # Check if file actually exists
             if os.path.exists(file_path):
                 print(f"✅ File exists at: {file_path}")
-                with open(file_path, 'r') as f:
+                with open(file_path) as f:
                     content = f.read()
                 print(f"\n📄 File content ({len(content)} chars):")
                 print("-" * 40)
@@ -57,19 +59,21 @@ async def test_direct_file_write():
 
                 # Clean up test file
                 os.remove(file_path)
-                print(f"🧹 Cleaned up test file")
+                print("🧹 Cleaned up test file")
             else:
                 print(f"❌ File does NOT exist at: {file_path}")
         else:
-            print(f"\n❌ FAILED! Agent could not write file")
-            if 'traceback' in result:
-                print(f"\n📋 Traceback:")
-                print(result['traceback'])
+            print("\n❌ FAILED! Agent could not write file")
+            if "traceback" in result:
+                print("\n📋 Traceback:")
+                print(result["traceback"])
 
     except Exception as e:
         print(f"❌ Test failed with error: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     asyncio.run(test_direct_file_write())

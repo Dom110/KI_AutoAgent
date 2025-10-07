@@ -3,38 +3,42 @@ Safe Orchestrator Executor - v5.5.2
 Sicheres Ausführen des Orchestrators mit Loop-Prevention
 """
 
-import logging
 import asyncio
 import hashlib
-from typing import Dict, Any, Optional, List, Tuple
-from datetime import datetime, timedelta
+import logging
 from dataclasses import dataclass, field
-import json
+from datetime import datetime
+from typing import Any
 
-from .query_classifier import EnhancedQueryClassifier, ExecutionGuard, DetailedClassification
 from .development_query_handler import DevelopmentQueryHandler
-from .state import ExecutionStep, WorkflowState
+from .query_classifier import (DetailedClassification, EnhancedQueryClassifier,
+                               ExecutionGuard)
+from .state import ExecutionStep
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class ExecutionAttempt:
     """Einzelner Ausführungsversuch"""
+
     query: str
     query_hash: str
     timestamp: datetime
     depth: int
-    result: Optional[str] = None
-    error: Optional[str] = None
+    result: str | None = None
+    error: str | None = None
     was_blocked: bool = False
-    block_reason: Optional[str] = None
+    block_reason: str | None = None
+
 
 @dataclass
 class ExecutionHistory:
     """Historie aller Ausführungsversuche"""
-    attempts: List[ExecutionAttempt] = field(default_factory=list)
-    query_hashes: Dict[str, int] = field(default_factory=dict)  # hash -> count
-    depth_stack: List[str] = field(default_factory=list)  # Stack of query hashes
+
+    attempts: list[ExecutionAttempt] = field(default_factory=list)
+    query_hashes: dict[str, int] = field(default_factory=dict)  # hash -> count
+    depth_stack: list[str] = field(default_factory=list)  # Stack of query hashes
     max_depth_reached: int = 0
     total_blocked: int = 0
 
@@ -77,7 +81,7 @@ class SafeOrchestratorExecutor:
         normalized = query.lower().strip()
         return hashlib.md5(normalized.encode()).hexdigest()[:8]
 
-    def _detect_loop_pattern(self, recent_hashes: List[str]) -> bool:
+    def _detect_loop_pattern(self, recent_hashes: list[str]) -> bool:
         """
         Erkennt Loop-Patterns in den letzten Queries
         Z.B. A->B->A oder A->B->C->A
@@ -92,14 +96,16 @@ class SafeOrchestratorExecutor:
         # Check für zyklische Patterns
         for i in range(1, min(4, len(recent_hashes) // 2 + 1)):
             pattern = recent_hashes[-i:]
-            previous = recent_hashes[-2*i:-i] if 2*i <= len(recent_hashes) else []
+            previous = recent_hashes[-2 * i : -i] if 2 * i <= len(recent_hashes) else []
             if pattern == previous:
                 self.logger.warning(f"Loop pattern detected: {pattern}")
                 return True
 
         return False
 
-    def _get_safe_fallback_response(self, query: str, classification: DetailedClassification) -> str:
+    def _get_safe_fallback_response(
+        self, query: str, classification: DetailedClassification
+    ) -> str:
         """Generiert eine sichere Fallback-Antwort"""
 
         if classification.prefilled_response:
@@ -131,21 +137,14 @@ Ich kann Ihnen bei folgenden Aufgaben helfen:
 Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
 
     async def _execute_with_timeout(
-        self,
-        func: callable,
-        *args,
-        timeout: int = None,
-        **kwargs
-    ) -> Tuple[bool, Any]:
+        self, func: callable, *args, timeout: int = None, **kwargs
+    ) -> tuple[bool, Any]:
         """Führt eine Funktion mit Timeout aus"""
 
         timeout = timeout or self.TIMEOUT_SECONDS
 
         try:
-            result = await asyncio.wait_for(
-                func(*args, **kwargs),
-                timeout=timeout
-            )
+            result = await asyncio.wait_for(func(*args, **kwargs), timeout=timeout)
             return True, result
         except asyncio.TimeoutError:
             self.logger.error(f"Timeout after {timeout}s executing {func.__name__}")
@@ -158,9 +157,9 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
         self,
         query: str,
         state,
-        orchestrator_func: Optional[callable] = None,
-        timeout: Optional[int] = None
-    ) -> Tuple[bool, Any, str]:
+        orchestrator_func: callable | None = None,
+        timeout: int | None = None,
+    ) -> tuple[bool, Any, str]:
         """
         Hauptmethode für sichere Orchestrator-Ausführung
 
@@ -186,7 +185,7 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
             query=query,
             query_hash=query_hash,
             timestamp=datetime.now(),
-            depth=current_depth
+            depth=current_depth,
         )
 
         # 4. Sicherheitschecks
@@ -202,13 +201,19 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
         if query_hash in self.history.query_hashes:
             if self.history.query_hashes[query_hash] >= self.MAX_RETRIES_PER_QUERY:
                 attempt.was_blocked = True
-                attempt.block_reason = f"Query bereits {self.MAX_RETRIES_PER_QUERY}x versucht"
+                attempt.block_reason = (
+                    f"Query bereits {self.MAX_RETRIES_PER_QUERY}x versucht"
+                )
                 self.history.add_attempt(attempt)
 
-                return False, None, self._get_safe_fallback_response(query, classification)
+                return (
+                    False,
+                    None,
+                    self._get_safe_fallback_response(query, classification),
+                )
 
         # 4c. Loop Detection
-        recent_hashes = self.history.depth_stack[-self.LOOP_DETECTION_WINDOW:]
+        recent_hashes = self.history.depth_stack[-self.LOOP_DETECTION_WINDOW :]
         if self._detect_loop_pattern(recent_hashes + [query_hash]):
             attempt.was_blocked = True
             attempt.block_reason = "Loop-Pattern erkannt"
@@ -238,7 +243,10 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
 
             elif classification.suggested_action == "clarification":
                 # Klärung erforderlich
-                result = classification.prefilled_response or self._get_safe_fallback_response(query, classification)
+                result = (
+                    classification.prefilled_response
+                    or self._get_safe_fallback_response(query, classification)
+                )
                 attempt.result = result
                 self.history.add_attempt(attempt)
                 return True, result, "Klärung angefordert"
@@ -260,19 +268,26 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
                                 task=query,
                                 status="pending",
                                 dependencies=[],
-                                can_run_parallel=False
+                                can_run_parallel=False,
                             )
                             steps.append(step)
 
                         attempt.result = f"Routing zu Agenten: {', '.join(agents)}"
                         self.history.add_attempt(attempt)
-                        return True, {"steps": steps, "response": response}, "An Agenten weitergeleitet"
+                        return (
+                            True,
+                            {"steps": steps, "response": response},
+                            "An Agenten weitergeleitet",
+                        )
                     else:
                         attempt.result = response
                         self.history.add_attempt(attempt)
                         return True, response, "Entwicklungs-Hilfe bereitgestellt"
 
-            elif classification.suggested_action == "safe_execution" and orchestrator_func:
+            elif (
+                classification.suggested_action == "safe_execution"
+                and orchestrator_func
+            ):
                 # Sichere Orchestrator-Ausführung mit Timeout
                 self.logger.info(f"Safe execution for query: {query[:50]}...")
 
@@ -280,7 +295,7 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
                     orchestrator_func,
                     query,
                     state,
-                    timeout=timeout or self.TIMEOUT_SECONDS
+                    timeout=timeout or self.TIMEOUT_SECONDS,
                 )
 
                 if success:
@@ -291,7 +306,11 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
                     # Timeout oder Fehler
                     attempt.error = "Timeout or execution error"
                     self.history.add_attempt(attempt)
-                    return False, None, self._get_safe_fallback_response(query, classification)
+                    return (
+                        False,
+                        None,
+                        self._get_safe_fallback_response(query, classification),
+                    )
 
             else:
                 # Fallback für unbekannte Actions
@@ -311,7 +330,7 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
             if self.history.depth_stack and self.history.depth_stack[-1] == query_hash:
                 self.history.depth_stack.pop()
 
-    def get_execution_stats(self) -> Dict[str, Any]:
+    def get_execution_stats(self) -> dict[str, Any]:
         """Gibt Statistiken über die Ausführungen zurück"""
 
         total_attempts = len(self.history.attempts)
@@ -325,27 +344,27 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
 
         # Finde häufigste Queries
         most_common_queries = sorted(
-            self.history.query_hashes.items(),
-            key=lambda x: x[1],
-            reverse=True
+            self.history.query_hashes.items(), key=lambda x: x[1], reverse=True
         )[:5]
 
         # Blockierungsgründe sammeln
         block_reasons = {}
         for attempt in self.history.attempts:
             if attempt.was_blocked and attempt.block_reason:
-                reason = attempt.block_reason.split(':')[0]  # Nur den Hauptgrund
+                reason = attempt.block_reason.split(":")[0]  # Nur den Hauptgrund
                 block_reasons[reason] = block_reasons.get(reason, 0) + 1
 
         return {
             "total_attempts": total_attempts,
             "blocked_attempts": blocked_attempts,
-            "block_percentage": (blocked_attempts / total_attempts * 100) if total_attempts > 0 else 0,
+            "block_percentage": (blocked_attempts / total_attempts * 100)
+            if total_attempts > 0
+            else 0,
             "unique_queries": unique_queries,
             "max_depth_reached": self.history.max_depth_reached,
             "average_depth": avg_depth,
             "most_common_queries": most_common_queries,
-            "block_reasons": block_reasons
+            "block_reasons": block_reasons,
         }
 
     def should_use_safe_execution(self, query: str, state) -> bool:
@@ -359,15 +378,18 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
             execution_plan = state.get("execution_plan", [])
             state_dict = state
         else:
-            execution_plan = state.execution_plan if hasattr(state, "execution_plan") else []
+            execution_plan = (
+                state.execution_plan if hasattr(state, "execution_plan") else []
+            )
             state_dict = state.dict() if hasattr(state, "dict") else state.__dict__
 
         # Immer Safe Execution verwenden wenn:
         # 1. Orchestrator bereits aktiv war (Depth > 0)
         if execution_plan and any(
             step.agent == "orchestrator" and step.status == "completed"
-            if hasattr(step, "agent") else
-            step.get("agent") == "orchestrator" and step.get("status") == "completed"
+            if hasattr(step, "agent")
+            else step.get("agent") == "orchestrator"
+            and step.get("status") == "completed"
             for step in execution_plan
         ):
             return True
@@ -402,10 +424,8 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
         self.logger.info("Execution history reset")
 
     async def create_safe_execution_plan(
-        self,
-        query: str,
-        state
-    ) -> List[ExecutionStep]:
+        self, query: str, state
+    ) -> list[ExecutionStep]:
         """
         Erstellt einen sicheren Execution Plan ohne tatsächliche Orchestrator-Ausführung
         Nutzt Klassifikation und vordefinierte Patterns
@@ -432,10 +452,12 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
                 step = ExecutionStep(
                     step_id=f"safe_plan_{agent}_{timestamp}_{i}",
                     agent=agent,
-                    task=query if i == 0 else f"Continue with {classification.dev_type} task",
+                    task=query
+                    if i == 0
+                    else f"Continue with {classification.dev_type} task",
                     status="pending",
-                    dependencies=[] if i == 0 else [steps[i-1].step_id],
-                    can_run_parallel=False
+                    dependencies=[] if i == 0 else [steps[i - 1].step_id],
+                    can_run_parallel=False,
                 )
                 steps.append(step)
 
@@ -456,10 +478,10 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
                 step = ExecutionStep(
                     step_id=f"safe_plan_{agent}_{timestamp}_{i}",
                     agent=agent,
-                    task=query if i == 0 else f"Review and improve",
+                    task=query if i == 0 else "Review and improve",
                     status="pending",
-                    dependencies=[] if i == 0 else [steps[i-1].step_id],
-                    can_run_parallel=False
+                    dependencies=[] if i == 0 else [steps[i - 1].step_id],
+                    can_run_parallel=False,
                 )
                 steps.append(step)
 
@@ -471,7 +493,7 @@ Bitte geben Sie mehr Details an, damit ich Ihnen gezielt helfen kann."""
                 task=query,
                 status="pending",
                 dependencies=[],
-                can_run_parallel=False
+                can_run_parallel=False,
             )
             steps.append(step)
 

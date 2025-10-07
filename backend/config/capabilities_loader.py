@@ -3,13 +3,14 @@ Agent Capabilities Loader
 Loads and applies file write permissions from configuration
 """
 
-import os
-import yaml
 import logging
-from typing import Dict, Any, Optional
-from pathlib import Path
+import os
+from typing import Any
+
+import yaml
 
 logger = logging.getLogger(__name__)
+
 
 class CapabilitiesLoader:
     """Load and manage agent capabilities"""
@@ -23,30 +24,31 @@ class CapabilitiesLoader:
         """
         if config_path is None:
             config_path = os.path.join(
-                os.path.dirname(__file__),
-                'agent_capabilities.yaml'
+                os.path.dirname(__file__), "agent_capabilities.yaml"
             )
         self.config_path = config_path
         self.capabilities = self._load_capabilities()
 
-    def _load_capabilities(self) -> Dict[str, Any]:
+    def _load_capabilities(self) -> dict[str, Any]:
         """Load capabilities from YAML config"""
         try:
             if not os.path.exists(self.config_path):
                 logger.warning(f"Capabilities config not found: {self.config_path}")
                 return {}
 
-            with open(self.config_path, 'r') as f:
+            with open(self.config_path) as f:
                 config = yaml.safe_load(f)
 
-            logger.info(f"✅ Loaded capabilities for {len(config.get('agents', {}))} agents")
+            logger.info(
+                f"✅ Loaded capabilities for {len(config.get('agents', {}))} agents"
+            )
             return config
 
         except Exception as e:
             logger.error(f"❌ Failed to load capabilities config: {e}")
             return {}
 
-    def get_agent_capabilities(self, agent_name: str) -> Dict[str, Any]:
+    def get_agent_capabilities(self, agent_name: str) -> dict[str, Any]:
         """
         Get capabilities for a specific agent
 
@@ -57,28 +59,24 @@ class CapabilitiesLoader:
             Dict with agent capabilities
         """
         if not self.capabilities:
-            return {
-                'file_write': False,
-                'allowed_paths': []
-            }
+            return {"file_write": False, "allowed_paths": []}
 
-        agents = self.capabilities.get('agents', {})
+        agents = self.capabilities.get("agents", {})
 
         # Try exact match first
         if agent_name in agents:
-            return agents[agent_name].get('capabilities', {})
+            return agents[agent_name].get("capabilities", {})
 
         # Try without 'Agent' suffix
-        agent_base = agent_name.replace('Agent', '')
+        agent_base = agent_name.replace("Agent", "")
         if agent_base in agents:
-            return agents[agent_base].get('capabilities', {})
+            return agents[agent_base].get("capabilities", {})
 
         # Default to no write permissions
-        logger.info(f"No capabilities defined for {agent_name}, defaulting to read-only")
-        return {
-            'file_write': False,
-            'allowed_paths': []
-        }
+        logger.info(
+            f"No capabilities defined for {agent_name}, defaulting to read-only"
+        )
+        return {"file_write": False, "allowed_paths": []}
 
     def apply_to_config(self, agent_config: Any) -> Any:
         """
@@ -90,7 +88,7 @@ class CapabilitiesLoader:
         Returns:
             Modified config with capabilities
         """
-        agent_name = getattr(agent_config, 'name', None)
+        agent_name = getattr(agent_config, "name", None)
         if not agent_name:
             return agent_config
 
@@ -98,7 +96,7 @@ class CapabilitiesLoader:
 
         # Add capabilities to config
         # Store the old capabilities if they exist (for compatibility)
-        old_capabilities = getattr(agent_config, 'capabilities', [])
+        old_capabilities = getattr(agent_config, "capabilities", [])
 
         # Set new capabilities dict
         agent_config.capabilities = capabilities
@@ -107,7 +105,9 @@ class CapabilitiesLoader:
         if isinstance(old_capabilities, list) and old_capabilities:
             agent_config.old_capabilities = old_capabilities
 
-        logger.debug(f"Applied capabilities to {agent_name}: write={capabilities.get('file_write', False)}")
+        logger.debug(
+            f"Applied capabilities to {agent_name}: write={capabilities.get('file_write', False)}"
+        )
         return agent_config
 
     def can_agent_write(self, agent_name: str, file_path: str = None) -> bool:
@@ -124,7 +124,7 @@ class CapabilitiesLoader:
         capabilities = self.get_agent_capabilities(agent_name)
 
         # Check general write permission
-        if not capabilities.get('file_write', False):
+        if not capabilities.get("file_write", False):
             return False
 
         # If no specific path, just return write permission
@@ -132,7 +132,7 @@ class CapabilitiesLoader:
             return True
 
         # Check if path is allowed
-        allowed_paths = capabilities.get('allowed_paths', [])
+        allowed_paths = capabilities.get("allowed_paths", [])
         if not allowed_paths:
             return False
 
@@ -142,28 +142,27 @@ class CapabilitiesLoader:
         # Check each allowed path pattern
         for pattern in allowed_paths:
             # Handle glob patterns
-            if '**' in pattern or '*' in pattern:
-                from pathlib import Path
+            if "**" in pattern or "*" in pattern:
                 import fnmatch
 
                 # Normalize pattern
                 norm_pattern = pattern
-                if norm_pattern.startswith('./'):
+                if norm_pattern.startswith("./"):
                     norm_pattern = norm_pattern[2:]
 
                 # Check different matching strategies
-                if '**' in norm_pattern:
+                if "**" in norm_pattern:
                     # Handle recursive glob
                     # Convert ./backend/**/*.py to check if path matches
-                    parts = norm_pattern.split('**')
+                    parts = norm_pattern.split("**")
                     if len(parts) == 2:
-                        prefix = parts[0].rstrip('/')
-                        suffix = parts[1].lstrip('/')
+                        prefix = parts[0].rstrip("/")
+                        suffix = parts[1].lstrip("/")
 
                         # Check if path starts with prefix and matches suffix pattern
                         if file_path.startswith(prefix):
-                            remaining = file_path[len(prefix):].lstrip('/')
-                            if fnmatch.fnmatch(remaining, suffix.lstrip('/')):
+                            remaining = file_path[len(prefix) :].lstrip("/")
+                            if fnmatch.fnmatch(remaining, suffix.lstrip("/")):
                                 return True
                 else:
                     # Simple glob pattern
@@ -177,12 +176,14 @@ class CapabilitiesLoader:
 
         return False
 
-    def get_all_capabilities(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_capabilities(self) -> dict[str, dict[str, Any]]:
         """Get capabilities for all agents"""
-        return self.capabilities.get('agents', {})
+        return self.capabilities.get("agents", {})
+
 
 # Singleton instance
 _capabilities_loader = None
+
 
 def get_capabilities_loader() -> CapabilitiesLoader:
     """Get or create the singleton capabilities loader"""
@@ -190,6 +191,7 @@ def get_capabilities_loader() -> CapabilitiesLoader:
     if _capabilities_loader is None:
         _capabilities_loader = CapabilitiesLoader()
     return _capabilities_loader
+
 
 def apply_capabilities_to_agent(agent_config: Any) -> Any:
     """

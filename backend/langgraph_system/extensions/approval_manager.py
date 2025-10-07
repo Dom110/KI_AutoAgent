@@ -4,11 +4,11 @@ Handles Plan-First mode with user approval
 """
 
 import asyncio
-import uuid
 import logging
-from typing import Dict, Any, Literal, Optional, List
+import uuid
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from dataclasses import dataclass, asdict
+from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +16,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ApprovalRequest:
     """Represents an approval request"""
+
     approval_id: str
     client_id: str
     plan: Any
     created_at: datetime
     expires_at: datetime
     status: Literal["pending", "approved", "rejected", "modified", "expired"]
-    response: Optional[Dict[str, Any]] = None
-    feedback: Optional[str] = None
-    modifications: Optional[Dict[str, Any]] = None
+    response: dict[str, Any] | None = None
+    feedback: str | None = None
+    modifications: dict[str, Any] | None = None
 
 
 class ApprovalManager:
@@ -43,16 +44,16 @@ class ApprovalManager:
         """
         self.websocket_manager = websocket_manager
         self.timeout_seconds = timeout_seconds
-        self.pending_approvals: Dict[str, asyncio.Future] = {}
-        self.approval_requests: Dict[str, ApprovalRequest] = {}
-        self.approval_history: List[ApprovalRequest] = []
+        self.pending_approvals: dict[str, asyncio.Future] = {}
+        self.approval_requests: dict[str, ApprovalRequest] = {}
+        self.approval_history: list[ApprovalRequest] = []
 
     async def request_approval(
         self,
         client_id: str,
         plan: Any,
-        timeout: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        timeout: int | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ApprovalRequest:
         """
         Request approval from user for an execution plan
@@ -76,7 +77,7 @@ class ApprovalManager:
             plan=plan,
             created_at=datetime.now(),
             expires_at=datetime.now() + timedelta(seconds=timeout),
-            status="pending"
+            status="pending",
         )
 
         # Store request
@@ -119,9 +120,7 @@ class ApprovalManager:
         return request
 
     async def _send_approval_request_to_ui(
-        self,
-        request: ApprovalRequest,
-        metadata: Optional[Dict[str, Any]] = None
+        self, request: ApprovalRequest, metadata: dict[str, Any] | None = None
     ):
         """Send approval request to UI via WebSocket"""
         message = {
@@ -131,66 +130,53 @@ class ApprovalManager:
             "metadata": metadata or {},
             "expires_at": request.expires_at.isoformat(),
             "actions": [
-                {
-                    "id": "approve",
-                    "label": "✅ Approve",
-                    "style": "primary"
-                },
-                {
-                    "id": "reject",
-                    "label": "❌ Reject",
-                    "style": "danger"
-                },
-                {
-                    "id": "modify",
-                    "label": "✏️ Modify",
-                    "style": "warning"
-                }
-            ]
+                {"id": "approve", "label": "✅ Approve", "style": "primary"},
+                {"id": "reject", "label": "❌ Reject", "style": "danger"},
+                {"id": "modify", "label": "✏️ Modify", "style": "warning"},
+            ],
         }
 
         if self.websocket_manager:
             await self.websocket_manager.send_json(request.client_id, message)
 
-    def _format_plan_for_ui(self, plan: Any) -> Dict[str, Any]:
+    def _format_plan_for_ui(self, plan: Any) -> dict[str, Any]:
         """Format execution plan for UI display"""
         if isinstance(plan, list):
             # Format list of execution steps
             return {
                 "type": "execution_steps",
-                "steps": [self._format_step(step) for step in plan]
+                "steps": [self._format_step(step) for step in plan],
             }
-        elif hasattr(plan, '__dict__'):
+        elif hasattr(plan, "__dict__"):
             # Format object with attributes
             return {
                 "type": "structured_plan",
-                "content": asdict(plan) if hasattr(plan, '__dataclass_fields__') else vars(plan)
+                "content": asdict(plan)
+                if hasattr(plan, "__dataclass_fields__")
+                else vars(plan),
             }
         else:
             # Return as-is
-            return {
-                "type": "raw",
-                "content": str(plan)
-            }
+            return {"type": "raw", "content": str(plan)}
 
-    def _format_step(self, step: Any) -> Dict[str, Any]:
+    def _format_step(self, step: Any) -> dict[str, Any]:
         """Format individual execution step"""
-        if hasattr(step, '__dict__'):
-            step_dict = asdict(step) if hasattr(step, '__dataclass_fields__') else vars(step)
+        if hasattr(step, "__dict__"):
+            step_dict = (
+                asdict(step) if hasattr(step, "__dataclass_fields__") else vars(step)
+            )
             return {
                 "id": step_dict.get("id", "unknown"),
                 "agent": step_dict.get("agent", "unknown"),
                 "task": step_dict.get("task", ""),
                 "expected_output": step_dict.get("expected_output", ""),
                 "dependencies": step_dict.get("dependencies", []),
-                "status": step_dict.get("status", "pending")
+                "status": step_dict.get("status", "pending"),
             }
         return {"content": str(step)}
 
     async def handle_user_response(
-        self,
-        approval_id: str,
-        response: Dict[str, Any]
+        self, approval_id: str, response: dict[str, Any]
     ) -> bool:
         """
         Handle user response to approval request
@@ -210,22 +196,22 @@ class ApprovalManager:
         future = self.pending_approvals[approval_id]
         if not future.done():
             future.set_result(response)
-            logger.info(f"Approval {approval_id} resolved with action: {response.get('action')}")
+            logger.info(
+                f"Approval {approval_id} resolved with action: {response.get('action')}"
+            )
             return True
 
         return False
 
-    def get_approval_status(self, approval_id: str) -> Optional[str]:
+    def get_approval_status(self, approval_id: str) -> str | None:
         """Get the status of an approval request"""
         if approval_id in self.approval_requests:
             return self.approval_requests[approval_id].status
         return None
 
     def get_approval_history(
-        self,
-        client_id: Optional[str] = None,
-        limit: int = 10
-    ) -> List[ApprovalRequest]:
+        self, client_id: str | None = None, limit: int = 10
+    ) -> list[ApprovalRequest]:
         """Get approval history, optionally filtered by client"""
         history = self.approval_history
 
@@ -239,15 +225,13 @@ class ApprovalManager:
     async def auto_approve(self, approval_id: str) -> bool:
         """Auto-approve a pending request (for testing or automation)"""
         return await self.handle_user_response(
-            approval_id,
-            {"action": "approved", "auto": True}
+            approval_id, {"action": "approved", "auto": True}
         )
 
     async def auto_reject(self, approval_id: str, reason: str = "") -> bool:
         """Auto-reject a pending request"""
         return await self.handle_user_response(
-            approval_id,
-            {"action": "rejected", "feedback": reason, "auto": True}
+            approval_id, {"action": "rejected", "feedback": reason, "auto": True}
         )
 
     def cleanup_expired(self):
@@ -273,12 +257,11 @@ class ApprovalManager:
 
         logger.info(f"Cleaned up {len(expired_ids)} expired approval requests")
 
-    def get_pending_approvals(self, client_id: Optional[str] = None) -> List[ApprovalRequest]:
+    def get_pending_approvals(
+        self, client_id: str | None = None
+    ) -> list[ApprovalRequest]:
         """Get all pending approval requests"""
-        pending = [
-            r for r in self.approval_requests.values()
-            if r.status == "pending"
-        ]
+        pending = [r for r in self.approval_requests.values() if r.status == "pending"]
 
         if client_id:
             pending = [r for r in pending if r.client_id == client_id]
@@ -286,15 +269,12 @@ class ApprovalManager:
         return pending
 
     async def modify_plan(
-        self,
-        approval_id: str,
-        modifications: Dict[str, Any],
-        feedback: str = ""
+        self, approval_id: str, modifications: dict[str, Any], feedback: str = ""
     ) -> bool:
         """Handle plan modification request from user"""
         response = {
             "action": "modified",
             "modifications": modifications,
-            "feedback": feedback
+            "feedback": feedback,
         }
         return await self.handle_user_response(approval_id, response)

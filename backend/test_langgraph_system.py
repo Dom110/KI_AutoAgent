@@ -5,36 +5,29 @@ Tests all major components: workflow, tools, memory, approval
 """
 
 import asyncio
-import sys
 import os
-from datetime import datetime
+import sys
 
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from langgraph_system import (
-    create_agent_workflow,
-    ExtendedAgentState,
-    create_initial_state
-)
-from langgraph_system.extensions import (
-    ToolRegistry,
-    tool,
-    ApprovalManager,
-    PersistentAgentMemory,
-    DynamicWorkflowManager
-)
+from langgraph_system import create_agent_workflow, create_initial_state
+from langgraph_system.extensions import (ApprovalManager,
+                                         DynamicWorkflowManager,
+                                         PersistentAgentMemory, ToolRegistry,
+                                         tool)
+
 
 # Test colors for output
 class Colors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
 
 
 def print_test_header(title: str):
@@ -103,17 +96,14 @@ async def test_approval_manager():
     # Test auto-approval
     approval_id = "test_approval"
     asyncio.create_task(
-        asyncio.sleep(1).then(
-            lambda: manager.auto_approve(approval_id)
-        ) if hasattr(asyncio.sleep(1), 'then') else
-        auto_approve_after_delay(manager, approval_id)
+        asyncio.sleep(1).then(lambda: manager.auto_approve(approval_id))
+        if hasattr(asyncio.sleep(1), "then")
+        else auto_approve_after_delay(manager, approval_id)
     )
 
     # Request approval
     request = await manager.request_approval(
-        client_id="test_client",
-        plan={"steps": ["Step 1", "Step 2"]},
-        timeout=10
+        client_id="test_client", plan={"steps": ["Step 1", "Step 2"]}, timeout=10
     )
 
     print_info(f"Approval status: {request.status}")
@@ -136,10 +126,7 @@ async def test_persistent_memory():
     """Test the persistent memory system"""
     print_test_header("Testing Persistent Memory System")
 
-    memory = PersistentAgentMemory(
-        agent_name="test_agent",
-        db_path="test_memories.db"
-    )
+    memory = PersistentAgentMemory(agent_name="test_agent", db_path="test_memories.db")
 
     # Store memories
     memory_id = memory.store_memory(
@@ -147,7 +134,7 @@ async def test_persistent_memory():
         memory_type="episodic",
         importance=0.8,
         metadata={"test": True},
-        session_id="test_session"
+        session_id="test_session",
     )
 
     print_info(f"Stored memory with ID: {memory_id}")
@@ -158,9 +145,7 @@ async def test_persistent_memory():
 
     # Learn pattern
     success = memory.learn_pattern(
-        pattern="test_pattern",
-        solution="test_solution",
-        success=True
+        pattern="test_pattern", solution="test_solution", success=True
     )
 
     if success:
@@ -190,10 +175,7 @@ async def test_dynamic_workflow():
         return state
 
     success = manager.add_node(
-        name="test_node",
-        func=test_node,
-        node_type="standard",
-        description="Test node"
+        name="test_node", func=test_node, node_type="standard", description="Test node"
     )
 
     if success:
@@ -222,8 +204,7 @@ async def test_workflow_execution():
 
     # Create workflow
     workflow = create_agent_workflow(
-        db_path="test_workflow.db",
-        memory_db_path="test_memories.db"
+        db_path="test_workflow.db", memory_db_path="test_memories.db"
     )
 
     print_info("Workflow created")
@@ -235,7 +216,7 @@ async def test_workflow_execution():
             session_id="test_session",
             client_id="test_client",
             workspace_path="/test",
-            plan_first_mode=False
+            plan_first_mode=False,
         )
 
         print_info(f"Workflow status: {state['status']}")
@@ -262,7 +243,7 @@ async def test_state_creation():
         client_id="test_client",
         workspace_path="/test",
         plan_first_mode=True,
-        debug_mode=True
+        debug_mode=True,
     )
 
     print_info(f"State created with session: {state['session_id']}")
@@ -270,7 +251,7 @@ async def test_state_creation():
     print_info(f"Debug mode: {state['debug_mode']}")
     print_info(f"Status: {state['status']}")
 
-    if state['session_id'] == "test_session":
+    if state["session_id"] == "test_session":
         print_success("State creation successful")
         return True
     else:

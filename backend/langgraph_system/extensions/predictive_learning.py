@@ -17,11 +17,11 @@ Example:
     Learning: Update model to better predict edge case failures
 """
 
-import logging
-from typing import Dict, Any, Optional, List
-from datetime import datetime
-from dataclasses import dataclass, field
 import json
+import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -29,15 +29,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Prediction:
     """A prediction made by an agent before taking action"""
+
     task_id: str
     agent_name: str
     action: str  # What the agent is about to do
     expected_outcome: str  # What the agent expects to happen
     confidence: float  # How confident (0.0 to 1.0)
     timestamp: datetime = field(default_factory=datetime.now)
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "agent_name": self.agent_name,
@@ -45,32 +46,34 @@ class Prediction:
             "expected_outcome": self.expected_outcome,
             "confidence": self.confidence,
             "timestamp": self.timestamp.isoformat(),
-            "context": self.context
+            "context": self.context,
         }
 
 
 @dataclass
 class Reality:
     """The actual outcome after action execution"""
+
     task_id: str
     actual_outcome: str  # What actually happened
     success: bool  # Did it succeed?
     timestamp: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "actual_outcome": self.actual_outcome,
             "success": self.success,
             "timestamp": self.timestamp.isoformat(),
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
 
 @dataclass
 class PredictionError:
     """The error between prediction and reality"""
+
     task_id: str
     agent_name: str
     prediction: Prediction
@@ -80,7 +83,7 @@ class PredictionError:
     learning_opportunity: str  # What can be learned
     timestamp: datetime = field(default_factory=datetime.now)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "agent_name": self.agent_name,
@@ -89,7 +92,7 @@ class PredictionError:
             "error_magnitude": self.error_magnitude,
             "surprise_factor": self.surprise_factor,
             "learning_opportunity": self.learning_opportunity,
-            "timestamp": self.timestamp.isoformat()
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
@@ -105,7 +108,7 @@ class PredictiveMemory:
     5. Improve future predictions
     """
 
-    def __init__(self, agent_name: str, storage_path: Optional[str] = None):
+    def __init__(self, agent_name: str, storage_path: str | None = None):
         """
         Initialize predictive memory for an agent
 
@@ -117,13 +120,13 @@ class PredictiveMemory:
         self.storage_path = storage_path
 
         # Active predictions waiting for reality
-        self.pending_predictions: Dict[str, Prediction] = {}
+        self.pending_predictions: dict[str, Prediction] = {}
 
         # Historical prediction errors for learning
-        self.error_history: List[PredictionError] = []
+        self.error_history: list[PredictionError] = []
 
         # Learned patterns from repeated errors
-        self.learned_patterns: Dict[str, Any] = {}
+        self.learned_patterns: dict[str, Any] = {}
 
         logger.info(f"✨ PredictiveMemory initialized for agent: {agent_name}")
 
@@ -133,7 +136,7 @@ class PredictiveMemory:
         action: str,
         expected_outcome: str,
         confidence: float,
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None,
     ) -> Prediction:
         """
         Agent makes a prediction before taking action
@@ -154,7 +157,7 @@ class PredictiveMemory:
             action=action,
             expected_outcome=expected_outcome,
             confidence=confidence,
-            context=context or {}
+            context=context or {},
         )
 
         self.pending_predictions[task_id] = prediction
@@ -170,8 +173,8 @@ class PredictiveMemory:
         task_id: str,
         actual_outcome: str,
         success: bool,
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Optional[PredictionError]:
+        metadata: dict[str, Any] | None = None,
+    ) -> PredictionError | None:
         """
         Record what actually happened and calculate prediction error
 
@@ -187,7 +190,9 @@ class PredictiveMemory:
         # Check if we had a prediction for this task
         prediction = self.pending_predictions.pop(task_id, None)
         if not prediction:
-            logger.warning(f"⚠️ No prediction found for task {task_id} - cannot calculate error")
+            logger.warning(
+                f"⚠️ No prediction found for task {task_id} - cannot calculate error"
+            )
             return None
 
         # Create reality record
@@ -195,7 +200,7 @@ class PredictiveMemory:
             task_id=task_id,
             actual_outcome=actual_outcome,
             success=success,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         # Calculate prediction error
@@ -214,12 +219,14 @@ class PredictiveMemory:
         logger.info(f"   Surprise Factor: {error.surprise_factor:.2f}")
 
         if error.error_magnitude > 0.5:
-            logger.warning(f"⚠️ Large prediction error detected!")
+            logger.warning("⚠️ Large prediction error detected!")
             logger.warning(f"   Learning opportunity: {error.learning_opportunity}")
 
         return error
 
-    def _calculate_error(self, prediction: Prediction, reality: Reality) -> PredictionError:
+    def _calculate_error(
+        self, prediction: Prediction, reality: Reality
+    ) -> PredictionError:
         """
         Calculate the prediction error
 
@@ -229,11 +236,13 @@ class PredictiveMemory:
         # Simple heuristic: if success != expected, high error
         # In production, use more sophisticated comparison (embeddings, etc.)
 
-        expected_success = "success" in prediction.expected_outcome.lower() or \
-                          "pass" in prediction.expected_outcome.lower() or \
-                          "work" in prediction.expected_outcome.lower()
+        expected_success = (
+            "success" in prediction.expected_outcome.lower()
+            or "pass" in prediction.expected_outcome.lower()
+            or "work" in prediction.expected_outcome.lower()
+        )
 
-        outcome_matches = (expected_success == reality.success)
+        outcome_matches = expected_success == reality.success
 
         # Error magnitude: 0.0 if perfect prediction, 1.0 if completely wrong
         if outcome_matches:
@@ -249,8 +258,10 @@ class PredictiveMemory:
 
         # Learning opportunity
         if error_magnitude > 0.5:
-            learning_opportunity = f"Expected '{prediction.expected_outcome}' but got '{reality.actual_outcome}'. " \
-                                 f"Context: {prediction.context}"
+            learning_opportunity = (
+                f"Expected '{prediction.expected_outcome}' but got '{reality.actual_outcome}'. "
+                f"Context: {prediction.context}"
+            )
         else:
             learning_opportunity = "Prediction was accurate, no learning needed"
 
@@ -261,7 +272,7 @@ class PredictiveMemory:
             reality=reality,
             error_magnitude=error_magnitude,
             surprise_factor=surprise_factor,
-            learning_opportunity=learning_opportunity
+            learning_opportunity=learning_opportunity,
         )
 
     def _learn_from_error(self, error: PredictionError):
@@ -278,7 +289,7 @@ class PredictiveMemory:
                 "total_predictions": 0,
                 "total_errors": 0,
                 "error_sum": 0.0,
-                "common_failures": []
+                "common_failures": [],
             }
 
         pattern = self.learned_patterns[action_type]
@@ -301,7 +312,9 @@ class PredictiveMemory:
         pattern["accuracy"] = accuracy
 
         logger.info(f"📚 Learning pattern for '{action_type[:30]}...'")
-        logger.info(f"   Accuracy: {accuracy:.2%} ({pattern['total_predictions']} predictions)")
+        logger.info(
+            f"   Accuracy: {accuracy:.2%} ({pattern['total_predictions']} predictions)"
+        )
 
     def get_prediction_confidence_adjustment(self, action: str) -> float:
         """
@@ -324,14 +337,14 @@ class PredictiveMemory:
         # If historical accuracy is low, reduce confidence
         return accuracy
 
-    def get_error_summary(self) -> Dict[str, Any]:
+    def get_error_summary(self) -> dict[str, Any]:
         """Get summary of prediction errors for analysis"""
         if not self.error_history:
             return {
                 "total_predictions": 0,
                 "total_errors": 0,
                 "average_error": 0.0,
-                "average_surprise": 0.0
+                "average_surprise": 0.0,
             }
 
         total = len(self.error_history)
@@ -345,7 +358,7 @@ class PredictiveMemory:
             "error_rate": errors_count / total if total > 0 else 0.0,
             "average_error": avg_error,
             "average_surprise": avg_surprise,
-            "learned_patterns": len(self.learned_patterns)
+            "learned_patterns": len(self.learned_patterns),
         }
 
     def save_to_disk(self):
@@ -357,10 +370,10 @@ class PredictiveMemory:
             "agent_name": self.agent_name,
             "error_history": [e.to_dict() for e in self.error_history],
             "learned_patterns": self.learned_patterns,
-            "summary": self.get_error_summary()
+            "summary": self.get_error_summary(),
         }
 
-        with open(self.storage_path, 'w') as f:
+        with open(self.storage_path, "w") as f:
             json.dump(data, f, indent=2)
 
         logger.info(f"💾 Saved predictive memory to {self.storage_path}")
@@ -371,7 +384,7 @@ class PredictiveMemory:
             return
 
         try:
-            with open(self.storage_path, 'r') as f:
+            with open(self.storage_path) as f:
                 data = json.load(f)
 
             self.learned_patterns = data.get("learned_patterns", {})

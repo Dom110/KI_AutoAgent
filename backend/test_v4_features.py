@@ -3,13 +3,14 @@
 Test v4.0.0 features without API calls
 """
 
-import sys
 import os
+import sys
 
 # Ensure we're in the backend directory
-if not os.path.exists('agents'):
+if not os.path.exists("agents"):
     print("❌ Error: Must run from backend directory")
     sys.exit(1)
+
 
 def test_v4_features():
     """Test v4.0.0 features are properly integrated"""
@@ -22,9 +23,12 @@ def test_v4_features():
     # Test 1: Check execution_time fix in base_agent
     print("\n1️⃣ Testing execution_time fix in base_agent.py")
     try:
-        with open('agents/base/base_agent.py', 'r') as f:
+        with open("agents/base/base_agent.py") as f:
             content = f.read()
-            if 'execution_time = 0  # Initialize to prevent UnboundLocalError' in content:
+            if (
+                "execution_time = 0  # Initialize to prevent UnboundLocalError"
+                in content
+            ):
                 print("  ✅ execution_time initialization found")
                 passed += 1
             else:
@@ -37,9 +41,9 @@ def test_v4_features():
     # Test 2: Check execution_time in agent_registry
     print("\n2️⃣ Testing execution_time fix in agent_registry.py")
     try:
-        with open('agents/agent_registry.py', 'r') as f:
+        with open("agents/agent_registry.py") as f:
             content = f.read()
-            if 'execution_time=0  # Ensure execution_time is set' in content:
+            if "execution_time=0  # Ensure execution_time is set" in content:
                 print("  ✅ execution_time in error response found")
                 passed += 1
             else:
@@ -52,14 +56,16 @@ def test_v4_features():
     # Test 3: Check import guards in architect_agent
     print("\n3️⃣ Testing import guards in architect_agent.py")
     try:
-        with open('agents/specialized/architect_agent.py', 'r') as f:
+        with open("agents/specialized/architect_agent.py") as f:
             content = f.read()
-            has_guards = all([
-                'INDEXING_AVAILABLE' in content,
-                'ANALYSIS_AVAILABLE' in content,
-                'DIAGRAM_AVAILABLE' in content,
-                'except ImportError' in content
-            ])
+            has_guards = all(
+                [
+                    "INDEXING_AVAILABLE" in content,
+                    "ANALYSIS_AVAILABLE" in content,
+                    "DIAGRAM_AVAILABLE" in content,
+                    "except ImportError" in content,
+                ]
+            )
             if has_guards:
                 print("  ✅ All import guards present")
                 passed += 1
@@ -73,13 +79,13 @@ def test_v4_features():
     # Test 4: Check new methods in architect_agent
     print("\n4️⃣ Testing new methods in architect_agent.py")
     try:
-        with open('agents/specialized/architect_agent.py', 'r') as f:
+        with open("agents/specialized/architect_agent.py") as f:
             content = f.read()
             methods = [
-                'async def understand_system',
-                'async def analyze_infrastructure_improvements',
-                'async def generate_architecture_flowchart',
-                'def _generate_improvement_suggestions'
+                "async def understand_system",
+                "async def analyze_infrastructure_improvements",
+                "async def generate_architecture_flowchart",
+                "def _generate_improvement_suggestions",
             ]
             missing = []
             for method in methods:
@@ -99,13 +105,11 @@ def test_v4_features():
     # Test 5: Check import availability
     print("\n5️⃣ Testing module imports")
     try:
-        from agents.specialized.architect_agent import (
-            ArchitectAgent,
-            INDEXING_AVAILABLE,
-            ANALYSIS_AVAILABLE,
-            DIAGRAM_AVAILABLE
-        )
-        print(f"  ✅ ArchitectAgent imported")
+        from agents.specialized.architect_agent import (ANALYSIS_AVAILABLE,
+                                                        DIAGRAM_AVAILABLE,
+                                                        INDEXING_AVAILABLE)
+
+        print("  ✅ ArchitectAgent imported")
         print(f"     Indexing available: {INDEXING_AVAILABLE}")
         print(f"     Analysis available: {ANALYSIS_AVAILABLE}")
         print(f"     Diagrams available: {DIAGRAM_AVAILABLE}")
@@ -117,9 +121,9 @@ def test_v4_features():
     # Test 6: Check CLAUDE.md version update
     print("\n6️⃣ Testing version documentation")
     try:
-        with open('../CLAUDE.md', 'r') as f:
+        with open("../CLAUDE.md") as f:
             content = f.read()
-            if 'v4.0.0' in content and 'COGNITIVE ARCHITECTURE' in content:
+            if "v4.0.0" in content and "COGNITIVE ARCHITECTURE" in content:
                 print("  ✅ v4.0.0 documented in CLAUDE.md")
                 passed += 1
             else:
@@ -144,6 +148,7 @@ def test_v4_features():
         print(f"\n⚠️  {failed} issues found, but core fixes are in place.")
 
     return failed == 0
+
 
 if __name__ == "__main__":
     print("=" * 50)

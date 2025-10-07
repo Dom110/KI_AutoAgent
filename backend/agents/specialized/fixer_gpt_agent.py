@@ -4,18 +4,18 @@ Provides fresh perspective when primary Claude fixer fails
 """
 
 import logging
-import os
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from typing import Any
 
-from ..base.chat_agent import ChatAgent
-from ..base.base_agent import (
-    AgentConfig, TaskRequest, TaskResult, AgentCapability
-)
-from utils.openai_service import OpenAIService
 from backend.config.settings import Settings
+from utils.openai_service import OpenAIService
+
+from ..base.base_agent import (AgentCapability, AgentConfig, TaskRequest,
+                               TaskResult)
+from ..base.chat_agent import ChatAgent
 
 logger = logging.getLogger(__name__)
+
 
 class FixerGPTAgent(ChatAgent):
     """
@@ -44,7 +44,7 @@ class FixerGPTAgent(ChatAgent):
         """
         # Get model from settings if not specified
         if model is None:
-            model = getattr(Settings, 'ALTERNATIVE_FIXER_MODEL', 'gpt-4o')
+            model = getattr(Settings, "ALTERNATIVE_FIXER_MODEL", "gpt-4o")
 
         config = AgentConfig(
             agent_id="fixer_gpt",
@@ -52,14 +52,11 @@ class FixerGPTAgent(ChatAgent):
             full_name="Alternative Bug Fixer (GPT)",
             description="Alternative bug fixer using GPT for fresh perspective",
             model=model,
-            capabilities=[
-                AgentCapability.BUG_FIXING,
-                AgentCapability.CODE_GENERATION
-            ],
-            temperature=getattr(Settings, 'ALTERNATIVE_FIXER_TEMPERATURE', 0.7),
-            max_tokens=getattr(Settings, 'ALTERNATIVE_FIXER_MAX_TOKENS', 4096),
+            capabilities=[AgentCapability.BUG_FIXING, AgentCapability.CODE_GENERATION],
+            temperature=getattr(Settings, "ALTERNATIVE_FIXER_TEMPERATURE", 0.7),
+            max_tokens=getattr(Settings, "ALTERNATIVE_FIXER_MAX_TOKENS", 4096),
             icon="🔧🔄",
-            instructions_path=".ki_autoagent/instructions/fixer-gpt-instructions.md"
+            instructions_path=".ki_autoagent/instructions/fixer-gpt-instructions.md",
         )
         super().__init__(config)
 
@@ -67,7 +64,7 @@ class FixerGPTAgent(ChatAgent):
         self.openai_service = OpenAIService()
         logger.info(f"✅ FixerGPT initialized with model: {model}")
 
-    async def _get_architect_analysis(self) -> Optional[Dict[str, Any]]:
+    async def _get_architect_analysis(self) -> dict[str, Any] | None:
         """
         Get Architect's system analysis from shared_context (v5.8.2)
         Returns system_knowledge with metrics, dead_code, security, etc.
@@ -77,7 +74,7 @@ class FixerGPTAgent(ChatAgent):
             return None
 
         try:
-            analysis = self.shared_context.get('architect:system_knowledge')
+            analysis = self.shared_context.get("architect:system_knowledge")
             if analysis:
                 logger.info("✅ FixerGPT: Got Architect analysis from shared_context")
                 return analysis
@@ -89,10 +86,7 @@ class FixerGPTAgent(ChatAgent):
             return None
 
     def _create_fresh_perspective_prompt(
-        self,
-        issue: str,
-        previous_attempts: List[Dict],
-        research_results: List[Dict]
+        self, issue: str, previous_attempts: list[dict], research_results: list[dict]
     ) -> str:
         """
         Create system prompt emphasizing fresh perspective
@@ -128,7 +122,7 @@ Sometimes a fresh AI sees what another AI missed."""
 
         return system_prompt
 
-    def _format_previous_attempts(self, attempts: List[Dict]) -> str:
+    def _format_previous_attempts(self, attempts: list[dict]) -> str:
         """Format previous attempts for context"""
         if not attempts:
             return "No previous attempts recorded."
@@ -138,11 +132,11 @@ Sometimes a fresh AI sees what another AI missed."""
             formatted += f"\nAttempt {i}:"
             formatted += f"\n  Agent: {attempt.get('from', 'unknown')}"
             formatted += f"\n  Approach: {attempt.get('query', 'unknown')[:150]}..."
-            formatted += f"\n  Result: Failed\n"
+            formatted += "\n  Result: Failed\n"
 
         return formatted
 
-    def _format_research_results(self, research: List[Dict]) -> str:
+    def _format_research_results(self, research: list[dict]) -> str:
         """Format research results for context"""
         if not research:
             return "No research results available."
@@ -170,19 +164,21 @@ Sometimes a fresh AI sees what another AI missed."""
         - Consider alternative solutions
         """
         try:
-            logger.info(f"🔧🔄 FixerGPT executing with fresh perspective...")
+            logger.info("🔧🔄 FixerGPT executing with fresh perspective...")
 
             prompt = request.prompt
             context = request.context or {}
 
             # Extract context
-            previous_attempts = context.get('previous_attempts', [])
-            research_results = context.get('research_results', [])
-            issue_description = context.get('issue', prompt)
+            previous_attempts = context.get("previous_attempts", [])
+            research_results = context.get("research_results", [])
+            issue_description = context.get("issue", prompt)
 
             # Log what we received
-            logger.info(f"📊 Context: {len(previous_attempts)} previous attempts, "
-                       f"{len(research_results)} research results")
+            logger.info(
+                f"📊 Context: {len(previous_attempts)} previous attempts, "
+                f"{len(research_results)} research results"
+            )
 
             # v5.8.2: Get Architect's analysis for refactoring suggestions
             architect_analysis = await self._get_architect_analysis()
@@ -190,26 +186,28 @@ Sometimes a fresh AI sees what another AI missed."""
             # Build refactoring context from Architect's metrics
             refactoring_context = ""
             if architect_analysis:
-                metrics = architect_analysis.get('metrics', {})
-                metrics_summary = metrics.get('summary', {})
-                quality_score = metrics_summary.get('quality_score', 0)
-                avg_complexity = metrics_summary.get('average_complexity', 0)
+                metrics = architect_analysis.get("metrics", {})
+                metrics_summary = metrics.get("summary", {})
+                quality_score = metrics_summary.get("quality_score", 0)
+                metrics_summary.get("average_complexity", 0)
 
                 # Find high-complexity functions
-                all_metrics = metrics.get('files', {})
+                all_metrics = metrics.get("files", {})
                 high_complexity_funcs = []
                 for file_path, file_metrics in all_metrics.items():
-                    for func in file_metrics.get('functions', []):
-                        if func.get('complexity', 0) > 15:
-                            high_complexity_funcs.append({
-                                'name': func.get('name'),
-                                'complexity': func.get('complexity'),
-                                'file': file_path,
-                                'line': func.get('line_number')
-                            })
+                    for func in file_metrics.get("functions", []):
+                        if func.get("complexity", 0) > 15:
+                            high_complexity_funcs.append(
+                                {
+                                    "name": func.get("name"),
+                                    "complexity": func.get("complexity"),
+                                    "file": file_path,
+                                    "line": func.get("line_number"),
+                                }
+                            )
 
                 if high_complexity_funcs:
-                    refactoring_context += f"""
+                    refactoring_context += """
 📊 HIGH COMPLEXITY FUNCTIONS DETECTED (CC > 15):
 Consider refactoring these functions to reduce complexity:
 """
@@ -234,7 +232,7 @@ Focus on improving maintainability through refactoring.
             system_prompt = self._create_fresh_perspective_prompt(
                 issue=issue_description,
                 previous_attempts=previous_attempts,
-                research_results=research_results
+                research_results=research_results,
             )
 
             # Format context sections
@@ -270,13 +268,13 @@ Provide the fix now:"""
                 model=self.config.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
                 temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens
+                max_tokens=self.config.max_tokens,
             )
 
-            fix_result = response.get('content', '')
+            fix_result = response.get("content", "")
 
             logger.info(f"✅ FixerGPT completed - {len(fix_result)} characters")
 
@@ -290,8 +288,8 @@ Provide the fix now:"""
                     "previous_attempts_count": len(previous_attempts),
                     "research_count": len(research_results),
                     "approach": "fresh_perspective",
-                    "timestamp": datetime.now().isoformat()
-                }
+                    "timestamp": datetime.now().isoformat(),
+                },
             )
 
         except Exception as e:
@@ -300,10 +298,12 @@ Provide the fix now:"""
                 status="error",
                 content=f"FixerGPT error: {str(e)}",
                 agent=self.config.agent_id,
-                metadata={"error_type": type(e).__name__}
+                metadata={"error_type": type(e).__name__},
             )
 
-    async def analyze_fix_pattern(self, issue: str, previous_fixes: List[str]) -> Dict[str, Any]:
+    async def analyze_fix_pattern(
+        self, issue: str, previous_fixes: list[str]
+    ) -> dict[str, Any]:
         """
         Analyze why previous fixes failed
         Uses GPT's pattern recognition to identify what's been missed
@@ -337,22 +337,22 @@ Provide concise analysis:"""
             response = await self.openai_service.chat_completion(
                 model=self.config.model,
                 messages=[
-                    {"role": "system", "content": "You are an expert at analyzing failed fix attempts."},
-                    {"role": "user", "content": analysis_prompt}
+                    {
+                        "role": "system",
+                        "content": "You are an expert at analyzing failed fix attempts.",
+                    },
+                    {"role": "user", "content": analysis_prompt},
                 ],
                 temperature=0.3,  # Lower temp for analysis
-                max_tokens=1000
+                max_tokens=1000,
             )
 
             return {
-                "analysis": response.get('content', ''),
+                "analysis": response.get("content", ""),
                 "model": self.config.model,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
             logger.error(f"Pattern analysis error: {e}")
-            return {
-                "analysis": f"Analysis failed: {str(e)}",
-                "error": True
-            }
+            return {"analysis": f"Analysis failed: {str(e)}", "error": True}

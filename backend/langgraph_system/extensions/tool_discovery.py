@@ -6,16 +6,16 @@ Automatic tool discovery and registration for agents
 import inspect
 import json
 import logging
-from typing import Dict, List, Callable, Any, Optional, get_type_hints
-from functools import wraps
+from collections.abc import Callable
 from dataclasses import asdict
+from typing import Any, get_type_hints
 
 from ..state import ToolDefinition
 
 logger = logging.getLogger(__name__)
 
 
-def tool(name: str = None, description: str = None, tags: List[str] = None):
+def tool(name: str = None, description: str = None, tags: list[str] = None):
     """
     Decorator to mark a method as a tool for discovery
 
@@ -24,12 +24,14 @@ def tool(name: str = None, description: str = None, tags: List[str] = None):
         async def fix_bugs(self, code: str, errors: List[str]) -> str:
             ...
     """
+
     def decorator(func):
         func._is_tool = True
         func._tool_name = name or func.__name__
         func._tool_description = description or func.__doc__ or ""
         func._tool_tags = tags or []
         return func
+
     return decorator
 
 
@@ -39,12 +41,12 @@ class ToolRegistry:
     """
 
     def __init__(self):
-        self.tools: Dict[str, ToolDefinition] = {}
-        self.agent_tools: Dict[str, List[str]] = {}
-        self.shared_tools: List[str] = []
-        self.tool_usage_stats: Dict[str, Dict[str, Any]] = {}
+        self.tools: dict[str, ToolDefinition] = {}
+        self.agent_tools: dict[str, list[str]] = {}
+        self.shared_tools: list[str] = []
+        self.tool_usage_stats: dict[str, dict[str, Any]] = {}
 
-    def auto_discover_tools(self, agent_instance: Any) -> List[ToolDefinition]:
+    def auto_discover_tools(self, agent_instance: Any) -> list[ToolDefinition]:
         """
         Automatically discover tools from an agent instance
 
@@ -60,10 +62,10 @@ class ToolRegistry:
             tool_def = None
 
             # Check if decorated with @tool
-            if hasattr(method, '_is_tool'):
+            if hasattr(method, "_is_tool"):
                 tool_def = self._create_tool_from_decorated(method, agent_name)
             # Check if starts with 'tool_'
-            elif method_name.startswith('tool_'):
+            elif method_name.startswith("tool_"):
                 tool_def = self._create_tool_from_prefix(method, agent_name)
 
             if tool_def:
@@ -73,7 +75,9 @@ class ToolRegistry:
 
         return discovered_tools
 
-    def _create_tool_from_decorated(self, method: Callable, agent_name: str) -> ToolDefinition:
+    def _create_tool_from_decorated(
+        self, method: Callable, agent_name: str
+    ) -> ToolDefinition:
         """Create tool definition from decorated method"""
         return ToolDefinition(
             name=method._tool_name,
@@ -81,22 +85,24 @@ class ToolRegistry:
             parameters=self._extract_parameters(method),
             callable=method,
             agent_owner=agent_name,
-            tags=getattr(method, '_tool_tags', [])
+            tags=getattr(method, "_tool_tags", []),
         )
 
-    def _create_tool_from_prefix(self, method: Callable, agent_name: str) -> ToolDefinition:
+    def _create_tool_from_prefix(
+        self, method: Callable, agent_name: str
+    ) -> ToolDefinition:
         """Create tool definition from method with 'tool_' prefix"""
-        tool_name = method.__name__.replace('tool_', '')
+        tool_name = method.__name__.replace("tool_", "")
         return ToolDefinition(
             name=tool_name,
             description=method.__doc__ or f"Tool: {tool_name}",
             parameters=self._extract_parameters(method),
             callable=method,
             agent_owner=agent_name,
-            tags=[]
+            tags=[],
         )
 
-    def _extract_parameters(self, method: Callable) -> Dict[str, Any]:
+    def _extract_parameters(self, method: Callable) -> dict[str, Any]:
         """Extract parameter schema from method signature"""
         sig = inspect.signature(method)
         params = {}
@@ -107,13 +113,13 @@ class ToolRegistry:
             type_hints = {}
 
         for param_name, param in sig.parameters.items():
-            if param_name in ['self', 'cls']:
+            if param_name in ["self", "cls"]:
                 continue
 
             param_info = {
                 "type": "string",  # Default
                 "required": param.default == inspect.Parameter.empty,
-                "description": ""
+                "description": "",
             }
 
             # Get type from type hints
@@ -137,14 +143,14 @@ class ToolRegistry:
             float: "number",
             bool: "boolean",
             list: "array",
-            List: "array",
+            list: "array",
             dict: "object",
-            Dict: "object",
-            Any: "any"
+            dict: "object",
+            Any: "any",
         }
 
         # Handle generic types
-        if hasattr(python_type, '__origin__'):
+        if hasattr(python_type, "__origin__"):
             origin = python_type.__origin__
             return type_map.get(origin, "any")
 
@@ -167,10 +173,10 @@ class ToolRegistry:
                 "calls": 0,
                 "successes": 0,
                 "failures": 0,
-                "total_time": 0.0
+                "total_time": 0.0,
             }
 
-    def discover_tools_for_agent(self, agent_name: str) -> List[ToolDefinition]:
+    def discover_tools_for_agent(self, agent_name: str) -> list[ToolDefinition]:
         """Get all available tools for a specific agent"""
         available = []
 
@@ -188,10 +194,7 @@ class ToolRegistry:
         return available
 
     async def call_tool(
-        self,
-        tool_name: str,
-        arguments: Dict[str, Any],
-        track_usage: bool = True
+        self, tool_name: str, arguments: dict[str, Any], track_usage: bool = True
     ) -> Any:
         """Execute a tool with given arguments"""
         if tool_name not in self.tools:
@@ -202,6 +205,7 @@ class ToolRegistry:
 
         if track_usage:
             import time
+
             start_time = time.time()
             self.tool_usage_stats[tool_name]["calls"] += 1
 
@@ -226,10 +230,11 @@ class ToolRegistry:
         finally:
             if track_usage and start_time:
                 import time
+
                 elapsed = time.time() - start_time
                 self.tool_usage_stats[tool_name]["total_time"] += elapsed
 
-    def get_tool_schema(self, tool_name: str) -> Dict[str, Any]:
+    def get_tool_schema(self, tool_name: str) -> dict[str, Any]:
         """Get OpenAPI-style schema for a tool"""
         if tool_name not in self.tools:
             return None
@@ -242,22 +247,18 @@ class ToolRegistry:
                 "type": "object",
                 "properties": tool.parameters,
                 "required": [
-                    k for k, v in tool.parameters.items()
-                    if v.get("required", False)
-                ]
+                    k for k, v in tool.parameters.items() if v.get("required", False)
+                ],
             },
             "tags": tool.tags,
-            "owner": tool.agent_owner
+            "owner": tool.agent_owner,
         }
 
-    def list_all_tools(self) -> List[Dict[str, Any]]:
+    def list_all_tools(self) -> list[dict[str, Any]]:
         """List all registered tools with their schemas"""
-        return [
-            self.get_tool_schema(tool_name)
-            for tool_name in self.tools.keys()
-        ]
+        return [self.get_tool_schema(tool_name) for tool_name in self.tools.keys()]
 
-    def get_usage_stats(self, tool_name: Optional[str] = None) -> Dict[str, Any]:
+    def get_usage_stats(self, tool_name: str | None = None) -> dict[str, Any]:
         """Get usage statistics for tools"""
         if tool_name:
             return self.tool_usage_stats.get(tool_name, {})
@@ -269,13 +270,14 @@ class ToolRegistry:
             "tools": [asdict(tool) for tool in self.tools.values()],
             "agent_mapping": self.agent_tools,
             "shared_tools": self.shared_tools,
-            "usage_stats": self.tool_usage_stats
+            "usage_stats": self.tool_usage_stats,
         }
 
         if format == "json":
             return json.dumps(tools_data, indent=2, default=str)
         elif format == "yaml":
             import yaml
+
             return yaml.dump(tools_data)
         else:
             raise ValueError(f"Unsupported export format: {format}")
@@ -286,6 +288,7 @@ class ToolRegistry:
             tools_data = json.loads(data)
         elif format == "yaml":
             import yaml
+
             tools_data = yaml.safe_load(data)
         else:
             raise ValueError(f"Unsupported import format: {format}")

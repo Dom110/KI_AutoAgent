@@ -5,31 +5,27 @@ Provides the same functionality as the TypeScript version
 
 import asyncio
 import json
-import os
-from typing import Any
-from dataclasses import dataclass, field
-from datetime import datetime
 import logging
-
-from ..base.chat_agent import ChatAgent
-from ..base.base_agent import (
-    AgentConfig, TaskRequest, TaskResult, AgentCapability
-)
-from utils.openai_service import OpenAIService
+import os
+from dataclasses import dataclass, field
+from typing import Any
 
 # Import custom exceptions
-from core.exceptions import (
-    OrchestratorError,
-    TaskDecompositionError,
-    WorkflowValidationError,
-    ParsingError
-)
+from core.exceptions import (OrchestratorError, ParsingError,
+                             TaskDecompositionError, WorkflowValidationError)
+from utils.openai_service import OpenAIService
+
+from ..base.base_agent import (AgentCapability, AgentConfig, TaskRequest,
+                               TaskResult)
+from ..base.chat_agent import ChatAgent
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class SubTask:
     """Subtask for decomposition"""
+
     id: str
     description: str
     agent: str
@@ -40,15 +36,18 @@ class SubTask:
     status: str = "pending"
     result: str | None = None
 
+
 @dataclass
 class TaskDecomposition:
     """Complete task decomposition"""
+
     main_goal: str
     complexity: str
     subtasks: list[SubTask]
     estimated_duration: float
     execution_mode: str  # 'sequential' or 'parallel'
     summary: str
+
 
 class OrchestratorAgentV2(ChatAgent):
     """
@@ -64,12 +63,12 @@ class OrchestratorAgentV2(ChatAgent):
             model="gpt-4o-2024-11-20",  # Using GPT-4o
             capabilities=[
                 AgentCapability.TASK_DECOMPOSITION,
-                AgentCapability.PARALLEL_EXECUTION
+                AgentCapability.PARALLEL_EXECUTION,
             ],
             temperature=0.7,
             max_tokens=4000,
             icon="🎯",
-            instructions_path=".ki_autoagent/instructions/orchestrator-v2-instructions.md"
+            instructions_path=".ki_autoagent/instructions/orchestrator-v2-instructions.md",
         )
         super().__init__(config)
 
@@ -87,24 +86,26 @@ class OrchestratorAgentV2(ChatAgent):
         self.active_workflows: dict[str, Any] = {}
 
         # Planning mode for Plan-First feature
-        self.planning_mode = 'immediate'  # 'immediate' or 'detailed'
+        self.planning_mode = "immediate"  # 'immediate' or 'detailed'
 
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute orchestration with real AI
         """
         try:
-            logger.info(f"🚀 Orchestrator execute started with prompt: {request.prompt[:100]}...")
+            logger.info(
+                f"🚀 Orchestrator execute started with prompt: {request.prompt[:100]}..."
+            )
             prompt = request.prompt
-            mode = request.mode if hasattr(request, 'mode') else 'auto'
+            mode = request.mode if hasattr(request, "mode") else "auto"
             logger.info(f"📋 Mode: {mode}")
 
             # Extract client_id and manager for progress updates
             client_id = None
             manager = None
-            if hasattr(request, 'context') and isinstance(request.context, dict):
-                client_id = request.context.get('client_id')
-                manager = request.context.get('manager')  # Extract manager from context
+            if hasattr(request, "context") and isinstance(request.context, dict):
+                client_id = request.context.get("client_id")
+                manager = request.context.get("manager")  # Extract manager from context
                 logger.info(f"📡 Client ID: {client_id}")
                 logger.debug(f"📊 Manager passed: {manager is not None}")
 
@@ -112,40 +113,72 @@ class OrchestratorAgentV2(ChatAgent):
             await self._send_progress(client_id, "🤔 Analyzing your request...", manager)
 
             # In Auto mode, always use multi-agent workflow for complex tasks
-            if mode == 'auto':
+            if mode == "auto":
                 # v5.8.7: Expanded keywords to catch implementation tasks
                 # For infrastructure/complex questions/implementation tasks, always use workflow
                 keywords = [
                     # Implementation tasks
-                    'create', 'build', 'implement', 'develop', 'make', 'code', 'write',
+                    "create",
+                    "build",
+                    "implement",
+                    "develop",
+                    "make",
+                    "code",
+                    "write",
                     # Infrastructure/Analysis tasks
-                    'infrastructure', 'caching', 'optimize', 'improve', 'architecture',
-                    'performance', 'system', 'analyze', 'understand',
+                    "infrastructure",
+                    "caching",
+                    "optimize",
+                    "improve",
+                    "architecture",
+                    "performance",
+                    "system",
+                    "analyze",
+                    "understand",
                     # Design tasks
-                    'design', 'structure', 'plan', 'prototype',
+                    "design",
+                    "structure",
+                    "plan",
+                    "prototype",
                     # German equivalents
-                    'erstellen', 'bauen', 'implementieren', 'entwickeln',
-                    'verstehen', 'analyse', 'verbessern', 'optimieren'
+                    "erstellen",
+                    "bauen",
+                    "implementieren",
+                    "entwickeln",
+                    "verstehen",
+                    "analyse",
+                    "verbessern",
+                    "optimieren",
                 ]
                 if any(word in prompt.lower() for word in keywords):
                     matched_keywords = [w for w in keywords if w in prompt.lower()]
                     logger.info(f"Auto mode: Detected keywords: {matched_keywords}")
-                    await self._send_progress(client_id, f"🎯 Detected complex task: {', '.join(matched_keywords)}", manager)
-                    logger.info(f"Auto mode: Triggering multi-agent workflow for implementation/analysis")
+                    await self._send_progress(
+                        client_id,
+                        f"🎯 Detected complex task: {', '.join(matched_keywords)}",
+                        manager,
+                    )
+                    logger.info(
+                        "Auto mode: Triggering multi-agent workflow for implementation/analysis"
+                    )
                     return await self._handle_complex_task(request)
 
             # First, understand what the user is asking
-            logger.info(f"🔍 Analyzing intent...")
-            await self._send_progress(client_id, "🔍 Understanding what you're asking...", manager)
+            logger.info("🔍 Analyzing intent...")
+            await self._send_progress(
+                client_id, "🔍 Understanding what you're asking...", manager
+            )
 
             # Extract conversation history for context
             conversation_history = ""
-            if hasattr(request, 'context') and isinstance(request.context, dict):
-                conv_history = request.context.get('conversation_history', '')
+            if hasattr(request, "context") and isinstance(request.context, dict):
+                conv_history = request.context.get("conversation_history", "")
                 if conv_history:
                     conversation_history = conv_history
 
-            intent = await self._analyze_intent(prompt, client_id, manager, conversation_history)
+            intent = await self._analyze_intent(
+                prompt, client_id, manager, conversation_history
+            )
             logger.info(f"✅ Intent identified: {intent}")
             await self._send_progress(client_id, f"📝 Intent: {intent}", manager)
 
@@ -179,14 +212,20 @@ class OrchestratorAgentV2(ChatAgent):
         Args:
             mode: 'immediate' for direct execution or 'detailed' for Plan-First mode
         """
-        if mode in ['immediate', 'detailed']:
+        if mode in ["immediate", "detailed"]:
             self.planning_mode = mode
             logger.info(f"📋 Planning mode set to: {mode}")
         else:
             logger.warning(f"⚠️ Invalid planning mode: {mode}. Using 'immediate'.")
-            self.planning_mode = 'immediate'
+            self.planning_mode = "immediate"
 
-    async def _analyze_intent(self, prompt: str, client_id: str = None, manager=None, conversation_history: str = "") -> str:
+    async def _analyze_intent(
+        self,
+        prompt: str,
+        client_id: str = None,
+        manager=None,
+        conversation_history: str = "",
+    ) -> str:
         """
         Analyze user intent using AI with conversation context
         """
@@ -217,19 +256,30 @@ Current request: {prompt}
 
 Based on the conversation context, what is the user's intent?"""
 
-        logger.info(f"📡 Calling AI service for intent analysis...")
-        await self._send_progress(client_id, "📡 Calling OpenAI GPT-4o for analysis...", manager)
+        logger.info("📡 Calling AI service for intent analysis...")
+        await self._send_progress(
+            client_id, "📡 Calling OpenAI GPT-4o for analysis...", manager
+        )
         try:
             # Use longer timeout for complex infrastructure queries
-            timeout = 120.0 if any(word in prompt.lower() for word in ['infrastructure', 'analyze', 'architecture', 'improve']) else 30.0
+            timeout = (
+                120.0
+                if any(
+                    word in prompt.lower()
+                    for word in ["infrastructure", "analyze", "architecture", "improve"]
+                )
+                else 30.0
+            )
             response = await self.ai_service.get_completion(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt_with_context,
                 temperature=0.3,
-                timeout=timeout
+                timeout=timeout,
             )
             logger.info(f"📥 AI service response: {response}")
-            await self._send_progress(client_id, f"✅ AI identified: {response}", manager)
+            await self._send_progress(
+                client_id, f"✅ AI identified: {response}", manager
+            )
         except Exception as e:
             logger.error(f"❌ AI service error during intent analysis: {e}")
             await self._send_progress(client_id, f"❌ Error: {str(e)}", manager)
@@ -237,9 +287,11 @@ Based on the conversation context, what is the user's intent?"""
 
         # Check if we got an error response
         if "error" in response.lower():
-            raise Exception(f"Intent analysis failed: {response}\nPlease check API keys and model configuration.")
+            raise Exception(
+                f"Intent analysis failed: {response}\nPlease check API keys and model configuration."
+            )
 
-        intent = response.strip().lower().replace("'", "").replace('"', '')
+        intent = response.strip().lower().replace("'", "").replace('"', "")
 
         # Fallback to complex_task if unclear
         if intent not in ["self_description", "simple_question", "complex_task"]:
@@ -292,13 +344,12 @@ I'm here to make your development process faster, smarter, and more efficient. H
             status="success",
             content=description,
             agent=self.config.agent_id,
-            metadata={
-                "intent": "self_description",
-                "response_type": "informational"
-            }
+            metadata={"intent": "self_description", "response_type": "informational"},
         )
 
-    async def _answer_directly(self, prompt: str, conversation_history: str = "") -> TaskResult:
+    async def _answer_directly(
+        self, prompt: str, conversation_history: str = ""
+    ) -> TaskResult:
         """
         Answer a simple question directly using AI with conversation context
         """
@@ -320,17 +371,14 @@ Current question: {prompt}"""
             user_prompt=user_prompt,
             temperature=0.7,
             max_tokens=2000,
-            timeout=60.0  # Standard timeout for simple questions
+            timeout=60.0,  # Standard timeout for simple questions
         )
 
         return TaskResult(
             status="success",
             content=response,
             agent=self.config.agent_id,
-            metadata={
-                "intent": "simple_question",
-                "response_type": "direct_answer"
-            }
+            metadata={"intent": "simple_question", "response_type": "direct_answer"},
         )
 
     async def _handle_complex_task(self, request: TaskRequest) -> TaskResult:
@@ -343,38 +391,54 @@ Current question: {prompt}"""
         client_id = None
         manager = None
         conversation_history = ""
-        if hasattr(request, 'context') and isinstance(request.context, dict):
-            client_id = request.context.get('client_id')
-            manager = request.context.get('manager')
-            conversation_history = request.context.get('conversation_history', '')
+        if hasattr(request, "context") and isinstance(request.context, dict):
+            client_id = request.context.get("client_id")
+            manager = request.context.get("manager")
+            conversation_history = request.context.get("conversation_history", "")
 
         # Decompose the task using AI with conversation context
         logger.info("🔧 Starting task decomposition...")
-        await self._send_progress(client_id, "🔧 Breaking down your request into subtasks...", manager)
-        decomposition = await self._decompose_task_with_ai(prompt, client_id, manager, conversation_history)
+        await self._send_progress(
+            client_id, "🔧 Breaking down your request into subtasks...", manager
+        )
+        decomposition = await self._decompose_task_with_ai(
+            prompt, client_id, manager, conversation_history
+        )
 
         # Check if Plan-First mode is enabled
-        if self.planning_mode == 'detailed':
+        if self.planning_mode == "detailed":
             # Generate and show execution plan before running
             plan_text = await self._format_execution_plan(decomposition)
-            logger.info(f"📋 Plan-First mode: Showing execution plan")
-            await self._send_progress(client_id, f"📋 Plan-First mode enabled. Here's the execution plan:\n\n{plan_text}", manager)
+            logger.info("📋 Plan-First mode: Showing execution plan")
+            await self._send_progress(
+                client_id,
+                f"📋 Plan-First mode enabled. Here's the execution plan:\n\n{plan_text}",
+                manager,
+            )
 
             # Wait for user approval (in real implementation, would wait for approval message)
             # For now, add a notification that the plan is ready
-            await self._send_progress(client_id, "⏸️ Review the plan above. Click 'Execute' to proceed or provide feedback to adjust.", manager)
+            await self._send_progress(
+                client_id,
+                "⏸️ Review the plan above. Click 'Execute' to proceed or provide feedback to adjust.",
+                manager,
+            )
 
             # In a full implementation, we would wait here for user approval
             # For now, we'll continue with execution
 
         # Execute the workflow with request context
         logger.info(f"🎯 Executing workflow with {len(decomposition.subtasks)} subtasks")
-        await self._send_progress(client_id, f"🎯 Executing {len(decomposition.subtasks)} subtasks...", manager)
+        await self._send_progress(
+            client_id, f"🎯 Executing {len(decomposition.subtasks)} subtasks...", manager
+        )
         results = await self._execute_workflow(decomposition, request)
 
         # Format the final response
         logger.info("📦 Synthesizing final results...")
-        await self._send_progress(client_id, "📦 Synthesizing results from all agents...", manager)
+        await self._send_progress(
+            client_id, "📦 Synthesizing results from all agents...", manager
+        )
         final_response = await self._synthesize_results(decomposition, results, prompt)
 
         return TaskResult(
@@ -384,34 +448,85 @@ Current question: {prompt}"""
             metadata={
                 "intent": "complex_task",
                 "subtask_count": len(decomposition.subtasks),
-                "execution_mode": decomposition.execution_mode
-            }
+                "execution_mode": decomposition.execution_mode,
+            },
         )
 
-    async def _decompose_task_with_ai(self, prompt: str, client_id: str = None, manager=None, conversation_history: str = "") -> TaskDecomposition:
+    async def _decompose_task_with_ai(
+        self,
+        prompt: str,
+        client_id: str = None,
+        manager=None,
+        conversation_history: str = "",
+    ) -> TaskDecomposition:
         """
         Use AI to decompose task into subtasks with conversation context
         """
         # Check if this is an infrastructure improvement task or a continuation
-        keywords = ['infrastructure', 'caching', 'optimize', 'improve', 'architecture', 'performance', 'verbessern', 'system']
-        continuation_words = ['fang an', 'start', 'begin', 'los', 'go ahead', 'do it', 'implement', 'einführen']
+        keywords = [
+            "infrastructure",
+            "caching",
+            "optimize",
+            "improve",
+            "architecture",
+            "performance",
+            "verbessern",
+            "system",
+        ]
+        continuation_words = [
+            "fang an",
+            "start",
+            "begin",
+            "los",
+            "go ahead",
+            "do it",
+            "implement",
+            "einführen",
+        ]
 
         # Check if user is asking to continue/start something from previous conversation
-        if any(word in prompt.lower() for word in continuation_words) and conversation_history:
+        if (
+            any(word in prompt.lower() for word in continuation_words)
+            and conversation_history
+        ):
             # Check conversation history for infrastructure/implementation context
-            if any(word in conversation_history.lower() for word in ['redis', 'docker', 'cache', 'implement', 'einführen', 'verbessern']):
-                logger.info(f"🏗️ Continuation of infrastructure task detected from conversation history")
-                await self._send_progress(client_id, f"🏗️ Continuing infrastructure implementation task", manager)
-                return await self._create_infrastructure_workflow(prompt, client_id, manager, conversation_history)
+            if any(
+                word in conversation_history.lower()
+                for word in [
+                    "redis",
+                    "docker",
+                    "cache",
+                    "implement",
+                    "einführen",
+                    "verbessern",
+                ]
+            ):
+                logger.info(
+                    "🏗️ Continuation of infrastructure task detected from conversation history"
+                )
+                await self._send_progress(
+                    client_id,
+                    "🏗️ Continuing infrastructure implementation task",
+                    manager,
+                )
+                return await self._create_infrastructure_workflow(
+                    prompt, client_id, manager, conversation_history
+                )
 
         if any(word in prompt.lower() for word in keywords):
             matched = [w for w in keywords if w in prompt.lower()]
             logger.info(f"🏗️ Infrastructure keywords detected: {matched}")
-            await self._send_progress(client_id, f"🏗️ Infrastructure task detected: {', '.join(matched)}", manager)
-            return await self._create_infrastructure_workflow(prompt, client_id, manager, conversation_history)
+            await self._send_progress(
+                client_id,
+                f"🏗️ Infrastructure task detected: {', '.join(matched)}",
+                manager,
+            )
+            return await self._create_infrastructure_workflow(
+                prompt, client_id, manager, conversation_history
+            )
 
         # Get workspace path for context
-        workspace_path = os.getenv('VSCODE_WORKSPACE', os.getcwd())
+        os.getenv("VSCODE_WORKSPACE", os.getcwd())
 
         system_prompt = """You are an INTELLIGENT task decomposer for the KI_AutoAgent system.
 
@@ -514,26 +629,39 @@ Consider the conversation context when breaking down the task.
 IMPORTANT: Return ONLY valid JSON, no additional text."""
 
         # Use longer timeout for complex task decomposition
-        timeout = 180.0 if any(word in prompt.lower() for word in ['infrastructure', 'analyze', 'architecture', 'improve', 'complex']) else 60.0
+        timeout = (
+            180.0
+            if any(
+                word in prompt.lower()
+                for word in [
+                    "infrastructure",
+                    "analyze",
+                    "architecture",
+                    "improve",
+                    "complex",
+                ]
+            )
+            else 60.0
+        )
         response = await self.ai_service.get_completion(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             temperature=0.5,
             max_tokens=2000,
-            timeout=timeout
+            timeout=timeout,
         )
 
         # Debug logging
         logger.info(f"📊 Raw decomposition response (first 200 chars): {response[:200]}")
 
         # Try to extract JSON from response (sometimes GPT adds text around it)
-        json_match = None
-        if response.strip().startswith('{'):
+        if response.strip().startswith("{"):
             json_str = response
         else:
             # Try to find JSON in the response
             import re
-            json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+
+            json_pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
             matches = re.findall(json_pattern, response, re.DOTALL)
             if matches:
                 json_str = matches[0]
@@ -553,7 +681,7 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
                     agent=st["agent"],
                     priority=st["priority"],
                     dependencies=st.get("dependencies", []),
-                    expected_output=st.get("expected_output", "")
+                    expected_output=st.get("expected_output", ""),
                 )
                 for st in data["subtasks"]
             ]
@@ -564,7 +692,7 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
                 subtasks=subtasks,
                 estimated_duration=data.get("estimated_duration", 10.0),
                 execution_mode=data.get("execution_mode", "sequential"),
-                summary=data.get("summary", "")
+                summary=data.get("summary", ""),
             )
 
         except json.JSONDecodeError as e:
@@ -572,25 +700,39 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
             raise ParsingError(
                 content=response[:500],
                 format="json",
-                reason=f"Task decomposition parsing failed: {e}"
+                reason=f"Task decomposition parsing failed: {e}",
             )
         except KeyError as e:
             logger.error(f"Missing required field in task decomposition: {e}")
-            raise TaskDecompositionError(f"Invalid decomposition structure: missing {e}")
+            raise TaskDecompositionError(
+                f"Invalid decomposition structure: missing {e}"
+            )
 
-    async def _create_infrastructure_workflow(self, prompt: str, client_id: str = None, manager=None, conversation_history: str = "") -> TaskDecomposition:
+    async def _create_infrastructure_workflow(
+        self,
+        prompt: str,
+        client_id: str = None,
+        manager=None,
+        conversation_history: str = "",
+    ) -> TaskDecomposition:
         """
         Create active workflow for infrastructure improvements with conversation context
         """
         # Get workspace path from context if available
         import os
-        workspace_path = os.getenv('VSCODE_WORKSPACE', os.getcwd())
+
+        os.getenv("VSCODE_WORKSPACE", os.getcwd())
 
         # Enhance the goal based on conversation history
         goal_description = prompt
-        if conversation_history and any(word in prompt.lower() for word in ['fang an', 'start', 'begin', 'los']):
+        if conversation_history and any(
+            word in prompt.lower() for word in ["fang an", "start", "begin", "los"]
+        ):
             # User is asking to start implementing something discussed earlier
-            if 'redis.config' in conversation_history or 'docker-compose' in conversation_history:
+            if (
+                "redis.config" in conversation_history
+                or "docker-compose" in conversation_history
+            ):
                 goal_description = "Implement the requested improvements: redis.config, docker-compose.yml, and cache_manager.py"
 
         workflow = TaskDecomposition(
@@ -604,7 +746,7 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
                     agent="architect",
                     priority=1,
                     dependencies=[],
-                    expected_output="Complete system analysis saved to .ki_autoagent/system_analysis.json"
+                    expected_output="Complete system analysis saved to .ki_autoagent/system_analysis.json",
                 ),
                 SubTask(
                     id="research_best_practices",
@@ -612,7 +754,7 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
                     agent="research",
                     priority=2,
                     dependencies=[],
-                    expected_output="State-of-the-art research findings saved to .ki_autoagent/research_results.md"
+                    expected_output="State-of-the-art research findings saved to .ki_autoagent/research_results.md",
                 ),
                 SubTask(
                     id="analyze_improvements",
@@ -620,7 +762,7 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
                     agent="architect",
                     priority=3,
                     dependencies=["analyze_system"],
-                    expected_output="Detailed improvements document saved to .ki_autoagent/improvements.md"
+                    expected_output="Detailed improvements document saved to .ki_autoagent/improvements.md",
                 ),
                 SubTask(
                     id="create_diagrams",
@@ -628,7 +770,7 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
                     agent="architect",
                     priority=4,
                     dependencies=["analyze_improvements"],
-                    expected_output="Architecture diagrams saved to .ki_autoagent/architecture_current.mermaid and architecture_improved.mermaid"
+                    expected_output="Architecture diagrams saved to .ki_autoagent/architecture_current.mermaid and architecture_improved.mermaid",
                 ),
                 SubTask(
                     id="implement_caching",
@@ -636,7 +778,7 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
                     agent="codesmith",
                     priority=5,
                     dependencies=["analyze_improvements", "research_best_practices"],
-                    expected_output="Created redis.config, docker-compose.yml, and backend/core/cache_manager.py"
+                    expected_output="Created redis.config, docker-compose.yml, and backend/core/cache_manager.py",
                 ),
                 SubTask(
                     id="create_tests",
@@ -644,18 +786,26 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
                     agent="codesmith",
                     priority=6,
                     dependencies=["implement_caching"],
-                    expected_output="Test files created in backend/tests/test_cache_manager.py"
-                )
+                    expected_output="Test files created in backend/tests/test_cache_manager.py",
+                ),
             ],
             estimated_duration=300.0,
-            summary="Active infrastructure improvement with file creation and implementation"
+            summary="Active infrastructure improvement with file creation and implementation",
         )
 
-        logger.info(f"🏗️ Infrastructure workflow created with {len(workflow.subtasks)} tasks")
-        await self._send_progress(client_id, f"🏗️ Created workflow with {len(workflow.subtasks)} analysis tasks", manager)
+        logger.info(
+            f"🏗️ Infrastructure workflow created with {len(workflow.subtasks)} tasks"
+        )
+        await self._send_progress(
+            client_id,
+            f"🏗️ Created workflow with {len(workflow.subtasks)} analysis tasks",
+            manager,
+        )
         return workflow
 
-    async def _execute_workflow(self, decomposition: TaskDecomposition, original_request: TaskRequest = None) -> dict[str, Any]:
+    async def _execute_workflow(
+        self, decomposition: TaskDecomposition, original_request: TaskRequest = None
+    ) -> dict[str, Any]:
         """
         Execute the workflow with real agent dispatching
         """
@@ -664,10 +814,13 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
         # Get agent registry
         if not self.agent_registry:
             from agents.agent_registry import get_agent_registry
+
             self.agent_registry = get_agent_registry()
 
         # Log workflow start
-        logger.info(f"🚀 Starting workflow with {len(decomposition.subtasks)} tasks in {decomposition.execution_mode} mode")
+        logger.info(
+            f"🚀 Starting workflow with {len(decomposition.subtasks)} tasks in {decomposition.execution_mode} mode"
+        )
 
         # Execute based on mode
         if decomposition.execution_mode == "parallel":
@@ -675,7 +828,9 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
             tasks = []
             for subtask in decomposition.subtasks:
                 if not subtask.dependencies:  # Only start tasks with no dependencies
-                    logger.info(f"▶️ Starting parallel task: {subtask.id} with agent {subtask.agent}")
+                    logger.info(
+                        f"▶️ Starting parallel task: {subtask.id} with agent {subtask.agent}"
+                    )
                     tasks.append(self._execute_subtask(subtask, original_request))
 
             if tasks:
@@ -685,7 +840,9 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
                     if isinstance(result, Exception):
                         error_msg = f"ERROR: {str(result)}"
                         results[subtask.id] = error_msg
-                        logger.error(f"❌ Parallel task failed: {subtask.id} - {error_msg}")
+                        logger.error(
+                            f"❌ Parallel task failed: {subtask.id} - {error_msg}"
+                        )
                     else:
                         results[subtask.id] = result
                         logger.info(f"✅ Completed parallel task: {subtask.id}")
@@ -693,25 +850,31 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
         else:
             # Execute sequentially
             for i, subtask in enumerate(decomposition.subtasks, 1):
-                logger.info(f"▶️ Step {i}/{len(decomposition.subtasks)}: Executing {subtask.id} with agent {subtask.agent}")
+                logger.info(
+                    f"▶️ Step {i}/{len(decomposition.subtasks)}: Executing {subtask.id} with agent {subtask.agent}"
+                )
                 try:
                     result = await self._execute_subtask(subtask, original_request)
                     results[subtask.id] = result
                     subtask.result = result
-                    logger.info(f"✅ Step {i}/{len(decomposition.subtasks)} completed: {subtask.id}")
+                    logger.info(
+                        f"✅ Step {i}/{len(decomposition.subtasks)} completed: {subtask.id}"
+                    )
                 except Exception as e:
                     # If a subtask fails, stop the workflow
                     error_msg = f"❌ Workflow stopped at step {i}/{len(decomposition.subtasks)}: {str(e)}"
                     logger.error(error_msg)
                     results[subtask.id] = f"ERROR: {str(e)}"
                     # Return results so far with error
-                    results['workflow_error'] = error_msg
+                    results["workflow_error"] = error_msg
                     break  # Stop executing further tasks
 
         logger.info(f"🎯 Workflow complete with {len(results)} results")
         return results
 
-    async def _execute_subtask(self, subtask: SubTask, original_request: TaskRequest = None) -> str:
+    async def _execute_subtask(
+        self, subtask: SubTask, original_request: TaskRequest = None
+    ) -> str:
         """
         Execute a single subtask with the appropriate agent
         """
@@ -723,46 +886,65 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
 
                 # Preserve original context including client_id
                 context = {"expected_output": subtask.expected_output}
-                if original_request and hasattr(original_request, 'context'):
+                if original_request and hasattr(original_request, "context"):
                     # Merge original context - ensure it's a dict
                     if isinstance(original_request.context, dict):
                         context.update(original_request.context)
                     elif isinstance(original_request.context, str):
-                        logger.warning(f"Original request context was string: {original_request.context}, converting to dict")
+                        logger.warning(
+                            f"Original request context was string: {original_request.context}, converting to dict"
+                        )
                         # Try to parse as JSON or just add as a value
                         try:
                             import json
+
                             context.update(json.loads(original_request.context))
                         except (json.JSONDecodeError, TypeError, ValueError) as e:
-                            logger.debug(f"Could not parse context as JSON: {e}, using as string")
-                            context['original_context'] = original_request.context
+                            logger.debug(
+                                f"Could not parse context as JSON: {e}, using as string"
+                            )
+                            context["original_context"] = original_request.context
                     else:
-                        logger.warning(f"Unexpected context type: {type(original_request.context)}")
+                        logger.warning(
+                            f"Unexpected context type: {type(original_request.context)}"
+                        )
 
-                request = TaskRequest(
-                    prompt=subtask.description,
-                    context=context
-                )
+                request = TaskRequest(prompt=subtask.description, context=context)
 
                 # Dynamic timeout based on task complexity
                 # Infrastructure analysis and complex tasks need more time
                 timeout = 120.0  # Default 2 minutes for complex tasks
 
                 # For simple queries, use shorter timeout
-                if any(word in request.prompt.lower() for word in ['list', 'what', 'which', 'show']):
+                if any(
+                    word in request.prompt.lower()
+                    for word in ["list", "what", "which", "show"]
+                ):
                     timeout = 30.0
                 # For infrastructure analysis or complex tasks, use longer timeout
-                elif any(word in request.prompt.lower() for word in ['infrastructure', 'analyze', 'improve', 'architecture', 'optimize', 'refactor']):
+                elif any(
+                    word in request.prompt.lower()
+                    for word in [
+                        "infrastructure",
+                        "analyze",
+                        "improve",
+                        "architecture",
+                        "optimize",
+                        "refactor",
+                    ]
+                ):
                     timeout = 180.0  # 3 minutes for infrastructure analysis
 
                 result = await asyncio.wait_for(
                     self.agent_registry.dispatch_task(subtask.agent, request),
-                    timeout=timeout
+                    timeout=timeout,
                 )
 
                 # Check if the result is an error
-                if hasattr(result, 'status') and result.status == 'error':
-                    error_msg = f"Agent {subtask.agent} returned error: {result.content}"
+                if hasattr(result, "status") and result.status == "error":
+                    error_msg = (
+                        f"Agent {subtask.agent} returned error: {result.content}"
+                    )
                     logger.error(error_msg)
                     raise Exception(error_msg)
 
@@ -800,12 +982,11 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
             "docubot": "You are a documentation expert. Document the UI components and their usage.",
             "fixer": "You are a CSS/TypeScript specialist. Fix UI bugs and optimize performance.",
             "tradestrat": "You are a trading strategy expert. Design algorithmic trading systems.",
-            "opus-arbitrator": "You are the supreme arbitrator. Resolve conflicts with binding decisions."
+            "opus-arbitrator": "You are the supreme arbitrator. Resolve conflicts with binding decisions.",
         }
 
         system_prompt = agent_prompts.get(
-            subtask.agent,
-            "You are a helpful AI assistant. Complete the given task."
+            subtask.agent, "You are a helpful AI assistant. Complete the given task."
         )
 
         # Add specific instructions for concrete implementations
@@ -828,7 +1009,7 @@ DO NOT provide general advice. PROVIDE ACTUAL CODE."""
             user_prompt=enhanced_prompt,
             temperature=0.7,
             max_tokens=1500,
-            timeout=90.0  # UI component suggestions need moderate timeout
+            timeout=90.0,  # UI component suggestions need moderate timeout
         )
 
         return response
@@ -839,41 +1020,48 @@ DO NOT provide general advice. PROVIDE ACTUAL CODE."""
         """
         plan_lines = ["## 📋 Execution Plan\n"]
 
-        if hasattr(decomposition, 'execution_mode'):
+        if hasattr(decomposition, "execution_mode"):
             plan_lines.append(f"**Workflow Type:** {decomposition.execution_mode}\n")
 
         plan_lines.append("### Tasks to Execute:\n")
 
         for i, subtask in enumerate(decomposition.subtasks, 1):
             agent_emoji = {
-                'ArchitectAgent': '🏗️',
-                'CodeSmithAgent': '💻',
-                'ReviewerGPT': '🔎',
-                'FixerBot': '🔧',
-                'DocuBot': '📚',
-                'DocBot': '📚',  # Support both DocuBot and DocBot
-                'ResearchAgent': '🔍',
-                'TradeStrat': '📈',
-                'OpusArbitrator': '⚖️',
-                'PerformanceBot': '⚡'
-            }.get(subtask.agent, '🤖')
+                "ArchitectAgent": "🏗️",
+                "CodeSmithAgent": "💻",
+                "ReviewerGPT": "🔎",
+                "FixerBot": "🔧",
+                "DocuBot": "📚",
+                "DocBot": "📚",  # Support both DocuBot and DocBot
+                "ResearchAgent": "🔍",
+                "TradeStrat": "📈",
+                "OpusArbitrator": "⚖️",
+                "PerformanceBot": "⚡",
+            }.get(subtask.agent, "🤖")
 
             plan_lines.append(f"**{i}. {agent_emoji} {subtask.agent}**")
             plan_lines.append(f"   - **Task:** {subtask.description}")
             plan_lines.append(f"   - **Expected Output:** {subtask.expected_output}")
 
             if subtask.dependencies:
-                deps = ', '.join(subtask.dependencies)
+                deps = ", ".join(subtask.dependencies)
                 plan_lines.append(f"   - **Dependencies:** {deps}")
             plan_lines.append("")
 
-        if hasattr(decomposition, 'execution_mode') and decomposition.execution_mode == 'parallel':
+        if (
+            hasattr(decomposition, "execution_mode")
+            and decomposition.execution_mode == "parallel"
+        ):
             plan_lines.append("### Execution Strategy:")
-            plan_lines.append("- Tasks without dependencies will run **in parallel** for faster completion")
+            plan_lines.append(
+                "- Tasks without dependencies will run **in parallel** for faster completion"
+            )
             plan_lines.append("- Dependent tasks will wait for their prerequisites")
         else:
             plan_lines.append("### Execution Strategy:")
-            plan_lines.append("- Tasks will run **sequentially** in the order shown above")
+            plan_lines.append(
+                "- Tasks will run **sequentially** in the order shown above"
+            )
 
         plan_lines.append("\n### Estimated Complexity:")
         total_tasks = len(decomposition.subtasks)
@@ -884,13 +1072,13 @@ DO NOT provide general advice. PROVIDE ACTUAL CODE."""
         else:
             plan_lines.append("- **Complex** workflow with multiple coordinated tasks")
 
-        return '\n'.join(plan_lines)
+        return "\n".join(plan_lines)
 
     async def _synthesize_results(
         self,
         decomposition: TaskDecomposition,
         results: dict[str, Any],
-        original_prompt: str
+        original_prompt: str,
     ) -> str:
         """
         Synthesize all subtask results into a final response
@@ -940,7 +1128,7 @@ Please synthesize these results into a comprehensive response."""
                 user_prompt=user_prompt,
                 temperature=0.7,
                 max_tokens=2000,  # Reduced from 3000
-                timeout=120.0  # Complex synthesis needs more time
+                timeout=120.0,  # Complex synthesis needs more time
             )
 
         # Add execution metadata
@@ -950,7 +1138,9 @@ Please synthesize these results into a comprehensive response."""
 
     async def _send_progress(self, client_id: str, message: str, manager=None):
         """Send progress update to WebSocket client with deduplication"""
-        logger.debug(f"🔍 _send_progress called with client_id={client_id}, message={message}")
+        logger.debug(
+            f"🔍 _send_progress called with client_id={client_id}, message={message}"
+        )
         if not client_id:
             logger.debug("⚠️ No client_id, skipping progress message")
             return
@@ -958,7 +1148,9 @@ Please synthesize these results into a comprehensive response."""
         # Check for duplicate message
         last_message = self._last_progress_messages.get(client_id)
         if last_message == message:
-            logger.debug(f"⚠️ Skipping duplicate progress message for {client_id}: {message[:50]}...")
+            logger.debug(
+                f"⚠️ Skipping duplicate progress message for {client_id}: {message[:50]}..."
+            )
             return
 
         # Update last message
@@ -968,7 +1160,9 @@ Please synthesize these results into a comprehensive response."""
             # First try to use manager from parameter (passed through context)
             if not manager:
                 # Fall back to importing (though this may not work due to circular imports)
-                logger.debug("📦 Manager not passed, attempting to import from api.server")
+                logger.debug(
+                    "📦 Manager not passed, attempting to import from api.server"
+                )
                 try:
                     from api.server import manager
                 except ImportError:
@@ -976,26 +1170,38 @@ Please synthesize these results into a comprehensive response."""
                     return
 
             from datetime import datetime
+
             logger.debug(f"✅ Manager available: {manager}")
-            logger.debug(f"📊 Active connections: {list(manager.active_connections.keys()) if manager else 'No manager'}")
+            logger.debug(
+                f"📊 Active connections: {list(manager.active_connections.keys()) if manager else 'No manager'}"
+            )
 
             if manager and client_id in manager.active_connections:
                 try:
-                    logger.info(f"📡 About to send progress via manager.send_json to {client_id}")
-                    await manager.send_json(client_id, {
-                        "type": "agent_progress",
-                        "agent": "orchestrator",
-                        "content": message,
-                        "timestamp": datetime.now().isoformat()
-                    })
-                    logger.info(f"📤 Successfully sent progress to client {client_id}: {message}")
+                    logger.info(
+                        f"📡 About to send progress via manager.send_json to {client_id}"
+                    )
+                    await manager.send_json(
+                        client_id,
+                        {
+                            "type": "agent_progress",
+                            "agent": "orchestrator",
+                            "content": message,
+                            "timestamp": datetime.now().isoformat(),
+                        },
+                    )
+                    logger.info(
+                        f"📤 Successfully sent progress to client {client_id}: {message}"
+                    )
                 except Exception as send_err:
                     logger.error(f"❌ Failed to send via manager.send_json: {send_err}")
             else:
                 if not manager:
-                    logger.warning(f"⚠️ No manager instance available")
+                    logger.warning("⚠️ No manager instance available")
                 else:
-                    logger.warning(f"⚠️ Client {client_id} not in active connections: {list(manager.active_connections.keys())}")
+                    logger.warning(
+                        f"⚠️ Client {client_id} not in active connections: {list(manager.active_connections.keys())}"
+                    )
         except Exception as e:
             logger.error(f"❌ Could not send progress update: {e}")
 
@@ -1003,8 +1209,7 @@ Please synthesize these results into a comprehensive response."""
         """Process request from another agent"""
         # Convert agent request to TaskRequest
         request = TaskRequest(
-            prompt=message.get("prompt", ""),
-            context=message.get("context", {})
+            prompt=message.get("prompt", ""), context=message.get("context", {})
         )
         result = await self.execute(request)
         return result.content

@@ -3,11 +3,11 @@ Smart File Watcher Service
 Monitors file changes and invalidates caches when files are modified
 """
 
-import time
-from pathlib import Path
-from typing import Dict, Set, Optional, Callable
-from datetime import datetime
 import logging
+import time
+from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -30,12 +30,12 @@ class SmartFileWatcher:
         self.project_root = Path(project_root)
         self.cache = cache
         self.debounce_seconds = debounce_seconds
-        self._watched_files: Dict[Path, float] = {}  # path -> mtime
-        self._callbacks: Dict[Path, Set[Callable]] = {}  # path -> callbacks
+        self._watched_files: dict[Path, float] = {}  # path -> mtime
+        self._callbacks: dict[Path, set[Callable]] = {}  # path -> callbacks
         self._running = False
         logger.info(f"👁️  SmartFileWatcher initialized for: {self.project_root}")
 
-    def watch_file(self, file_path: str, callback: Optional[Callable] = None) -> None:
+    def watch_file(self, file_path: str, callback: Callable | None = None) -> None:
         """
         Start watching a file for changes
 
@@ -61,8 +61,9 @@ class SmartFileWatcher:
 
         logger.debug(f"👁️  Watching file: {full_path}")
 
-    def watch_directory(self, dir_path: str, pattern: str = "**/*.py",
-                       callback: Optional[Callable] = None) -> None:
+    def watch_directory(
+        self, dir_path: str, pattern: str = "**/*.py", callback: Callable | None = None
+    ) -> None:
         """
         Watch all files matching pattern in directory
 
@@ -83,7 +84,7 @@ class SmartFileWatcher:
 
         logger.info(f"👁️  Watching directory: {full_dir} ({pattern})")
 
-    def check_changes(self) -> Dict[str, datetime]:
+    def check_changes(self) -> dict[str, datetime]:
         """
         Check all watched files for changes
 
@@ -141,7 +142,7 @@ class SmartFileWatcher:
         self._running = False
         logger.info("👁️  Stopped watching all files")
 
-    def get_watched_files(self) -> Set[str]:
+    def get_watched_files(self) -> set[str]:
         """Get set of all watched file paths"""
         return {str(p) for p in self._watched_files.keys()}
 
@@ -159,7 +160,9 @@ class SmartFileWatcher:
         Call check_changes() manually or use start_monitoring() for continuous mode
         """
         self._running = True
-        logger.info(f"👁️  File watcher started (call check_changes() to check for updates)")
+        logger.info(
+            "👁️  File watcher started (call check_changes() to check for updates)"
+        )
 
     def stop(self) -> None:
         """Stop file watching"""
@@ -174,7 +177,9 @@ class SmartFileWatcher:
             interval_seconds: Check interval in seconds
         """
         self._running = True
-        logger.info(f"👁️  Started continuous monitoring (interval: {interval_seconds}s)")
+        logger.info(
+            f"👁️  Started continuous monitoring (interval: {interval_seconds}s)"
+        )
 
         try:
             while self._running:

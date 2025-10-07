@@ -4,10 +4,10 @@ Detects architectural layers and validates layer separation
 Critical for architecture validation and refactoring guidance
 """
 
-import os
 import logging
-from typing import Dict, List, Any, Set, Tuple
+import os
 from collections import defaultdict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -31,26 +31,65 @@ class LayerAnalyzer:
 
     # Layer definitions with keywords
     LAYER_PATTERNS = {
-        'presentation': {
-            'keywords': ['ui', 'view', 'controller', 'frontend', 'react', 'vue', 'angular', 'template', 'component'],
-            'level': 3,  # Top layer
-            'allowed_dependencies': ['business', 'infrastructure']
+        "presentation": {
+            "keywords": [
+                "ui",
+                "view",
+                "controller",
+                "frontend",
+                "react",
+                "vue",
+                "angular",
+                "template",
+                "component",
+            ],
+            "level": 3,  # Top layer
+            "allowed_dependencies": ["business", "infrastructure"],
         },
-        'business': {
-            'keywords': ['service', 'business', 'domain', 'logic', 'use_case', 'usecase', 'handler', 'processor'],
-            'level': 2,  # Middle layer
-            'allowed_dependencies': ['data', 'infrastructure']
+        "business": {
+            "keywords": [
+                "service",
+                "business",
+                "domain",
+                "logic",
+                "use_case",
+                "usecase",
+                "handler",
+                "processor",
+            ],
+            "level": 2,  # Middle layer
+            "allowed_dependencies": ["data", "infrastructure"],
         },
-        'data': {
-            'keywords': ['database', 'db', 'repository', 'dao', 'model', 'orm', 'entity', 'migration', 'schema'],
-            'level': 1,  # Bottom layer
-            'allowed_dependencies': ['infrastructure']
+        "data": {
+            "keywords": [
+                "database",
+                "db",
+                "repository",
+                "dao",
+                "model",
+                "orm",
+                "entity",
+                "migration",
+                "schema",
+            ],
+            "level": 1,  # Bottom layer
+            "allowed_dependencies": ["infrastructure"],
         },
-        'infrastructure': {
-            'keywords': ['utils', 'util', 'helper', 'config', 'settings', 'logger', 'cache', 'queue', 'external'],
-            'level': 0,  # Base layer
-            'allowed_dependencies': []  # Infrastructure should not depend on other layers
-        }
+        "infrastructure": {
+            "keywords": [
+                "utils",
+                "util",
+                "helper",
+                "config",
+                "settings",
+                "logger",
+                "cache",
+                "queue",
+                "external",
+            ],
+            "level": 0,  # Base layer
+            "allowed_dependencies": [],  # Infrastructure should not depend on other layers
+        },
     }
 
     def __init__(self):
@@ -58,7 +97,7 @@ class LayerAnalyzer:
         self.violations = []
         self.quality_score = 0.0
 
-    async def detect_system_layers(self, code_index: Dict[str, Any]) -> Dict[str, Any]:
+    async def detect_system_layers(self, code_index: dict[str, Any]) -> dict[str, Any]:
         """
         Detect system layers from code index
 
@@ -98,8 +137,8 @@ class LayerAnalyzer:
         """
         logger.info("Detecting system layers...")
 
-        ast_data = code_index.get('ast', {}).get('files', {})
-        import_graph = code_index.get('import_graph', {})
+        ast_data = code_index.get("ast", {}).get("files", {})
+        import_graph = code_index.get("import_graph", {})
 
         if not ast_data:
             logger.warning("No AST data available for layer analysis")
@@ -126,17 +165,17 @@ class LayerAnalyzer:
         metrics = self._calculate_metrics(file_layers, violations, ast_data)
 
         result = {
-            'layers': layers,
-            'violations': violations,
-            'quality_score': quality_score,
-            'metrics': metrics,
-            'timestamp': None  # Will be set by caller
+            "layers": layers,
+            "violations": violations,
+            "quality_score": quality_score,
+            "metrics": metrics,
+            "timestamp": None,  # Will be set by caller
         }
 
         logger.info(f"Layer analysis complete: Quality score = {quality_score:.2f}")
         return result
 
-    def _classify_files_into_layers(self, ast_data: Dict[str, Any]) -> Dict[str, str]:
+    def _classify_files_into_layers(self, ast_data: dict[str, Any]) -> dict[str, str]:
         """
         Classify each file into an architectural layer
 
@@ -166,7 +205,7 @@ class LayerAnalyzer:
         layer_scores = defaultdict(int)
 
         for layer_name, layer_config in self.LAYER_PATTERNS.items():
-            keywords = layer_config['keywords']
+            keywords = layer_config["keywords"]
 
             for keyword in keywords:
                 # Check in full path
@@ -174,7 +213,10 @@ class LayerAnalyzer:
                     layer_scores[layer_name] += 1
 
                 # Bonus points for folder name match
-                if f"/{keyword}/" in file_path_lower or f"/{keyword}s/" in file_path_lower:
+                if (
+                    f"/{keyword}/" in file_path_lower
+                    or f"/{keyword}s/" in file_path_lower
+                ):
                     layer_scores[layer_name] += 2
 
                 # Bonus points for file name match
@@ -188,9 +230,11 @@ class LayerAnalyzer:
             return best_layer
 
         # Default to infrastructure
-        return 'infrastructure'
+        return "infrastructure"
 
-    def _build_layer_structure(self, file_layers: Dict[str, str]) -> List[Dict[str, Any]]:
+    def _build_layer_structure(
+        self, file_layers: dict[str, str]
+    ) -> list[dict[str, Any]]:
         """
         Build layer structure with components
         """
@@ -204,25 +248,25 @@ class LayerAnalyzer:
         for layer_name, layer_config in self.LAYER_PATTERNS.items():
             components = layer_components.get(layer_name, [])
 
-            layers.append({
-                'name': layer_name,
-                'level': layer_config['level'],
-                'components': components,
-                'component_count': len(components),
-                'allowed_dependencies': layer_config['allowed_dependencies'],
-                'violations': []  # Will be filled in next step
-            })
+            layers.append(
+                {
+                    "name": layer_name,
+                    "level": layer_config["level"],
+                    "components": components,
+                    "component_count": len(components),
+                    "allowed_dependencies": layer_config["allowed_dependencies"],
+                    "violations": [],  # Will be filled in next step
+                }
+            )
 
         # Sort by level (top to bottom)
-        layers.sort(key=lambda x: x['level'], reverse=True)
+        layers.sort(key=lambda x: x["level"], reverse=True)
 
         return layers
 
     def _detect_layer_violations(
-        self,
-        file_layers: Dict[str, str],
-        import_graph: Dict[str, List[str]]
-    ) -> List[Dict[str, Any]]:
+        self, file_layers: dict[str, str], import_graph: dict[str, list[str]]
+    ) -> list[dict[str, Any]]:
         """
         Detect violations of layer architecture
 
@@ -234,7 +278,7 @@ class LayerAnalyzer:
         violations = []
 
         for from_file, imported_files in import_graph.items():
-            from_layer = file_layers.get(from_file, 'infrastructure')
+            from_layer = file_layers.get(from_file, "infrastructure")
 
             for imported_file in imported_files:
                 # Try to resolve imported file to actual file path
@@ -242,19 +286,19 @@ class LayerAnalyzer:
                 if not to_file:
                     continue
 
-                to_layer = file_layers.get(to_file, 'infrastructure')
+                to_layer = file_layers.get(to_file, "infrastructure")
 
                 # Check if this is a violation
-                violation = self._check_layer_violation(from_file, from_layer, to_file, to_layer)
+                violation = self._check_layer_violation(
+                    from_file, from_layer, to_file, to_layer
+                )
                 if violation:
                     violations.append(violation)
 
         return violations
 
     def _resolve_import_to_file(
-        self,
-        import_name: str,
-        file_layers: Dict[str, str]
+        self, import_name: str, file_layers: dict[str, str]
     ) -> str:
         """
         Resolve import name to actual file path
@@ -264,7 +308,7 @@ class LayerAnalyzer:
         # Try to find matching file in file_layers
         for file_path in file_layers.keys():
             # Convert file path to import path
-            import_path = file_path.replace('/', '.').replace('.py', '')
+            import_path = file_path.replace("/", ".").replace(".py", "")
 
             if import_name in import_path or import_path in import_name:
                 return file_path
@@ -272,12 +316,8 @@ class LayerAnalyzer:
         return None
 
     def _check_layer_violation(
-        self,
-        from_file: str,
-        from_layer: str,
-        to_file: str,
-        to_layer: str
-    ) -> Dict[str, Any]:
+        self, from_file: str, from_layer: str, to_file: str, to_layer: str
+    ) -> dict[str, Any]:
         """
         Check if importing from_layer → to_layer is a violation
 
@@ -293,36 +333,36 @@ class LayerAnalyzer:
         from_config = self.LAYER_PATTERNS.get(from_layer, {})
         to_config = self.LAYER_PATTERNS.get(to_layer, {})
 
-        from_level = from_config.get('level', 0)
-        to_level = to_config.get('level', 0)
-        allowed_deps = from_config.get('allowed_dependencies', [])
+        from_level = from_config.get("level", 0)
+        to_level = to_config.get("level", 0)
+        allowed_deps = from_config.get("allowed_dependencies", [])
 
         # Violation 1: Importing from higher layer (upward dependency)
         if to_level > from_level:
             return {
-                'from': from_file,
-                'to': to_file,
-                'from_layer': from_layer,
-                'to_layer': to_layer,
-                'severity': 'error',
-                'type': 'upward_dependency',
-                'suggestion': f'{from_layer} should not depend on {to_layer}. Refactor to use {allowed_deps[0] if allowed_deps else "infrastructure"}.'
+                "from": from_file,
+                "to": to_file,
+                "from_layer": from_layer,
+                "to_layer": to_layer,
+                "severity": "error",
+                "type": "upward_dependency",
+                "suggestion": f'{from_layer} should not depend on {to_layer}. Refactor to use {allowed_deps[0] if allowed_deps else "infrastructure"}.',
             }
 
         # Violation 2: Importing from disallowed layer
         if to_layer not in allowed_deps:
             # Infrastructure is always allowed (unless you're infrastructure)
-            if to_layer == 'infrastructure':
+            if to_layer == "infrastructure":
                 return None
 
             return {
-                'from': from_file,
-                'to': to_file,
-                'from_layer': from_layer,
-                'to_layer': to_layer,
-                'severity': 'warning',
-                'type': 'disallowed_dependency',
-                'suggestion': f'{from_layer} should not directly depend on {to_layer}. Allowed: {allowed_deps}.'
+                "from": from_file,
+                "to": to_file,
+                "from_layer": from_layer,
+                "to_layer": to_layer,
+                "severity": "warning",
+                "type": "disallowed_dependency",
+                "suggestion": f"{from_layer} should not directly depend on {to_layer}. Allowed: {allowed_deps}.",
             }
 
         # No violation
@@ -330,9 +370,9 @@ class LayerAnalyzer:
 
     def _calculate_quality_score(
         self,
-        file_layers: Dict[str, str],
-        violations: List[Dict[str, Any]],
-        ast_data: Dict[str, Any]
+        file_layers: dict[str, str],
+        violations: list[dict[str, Any]],
+        ast_data: dict[str, Any],
     ) -> float:
         """
         Calculate architecture quality score (0.0 - 1.0)
@@ -351,8 +391,8 @@ class LayerAnalyzer:
         base_score = layered_files / total_files
 
         # Deduct for violations
-        error_violations = len([v for v in violations if v['severity'] == 'error'])
-        warning_violations = len([v for v in violations if v['severity'] == 'warning'])
+        error_violations = len([v for v in violations if v["severity"] == "error"])
+        warning_violations = len([v for v in violations if v["severity"] == "warning"])
 
         violation_penalty = (error_violations * 0.1) + (warning_violations * 0.05)
         violation_penalty = min(violation_penalty, 0.5)  # Cap at 50% penalty
@@ -372,10 +412,10 @@ class LayerAnalyzer:
 
     def _calculate_metrics(
         self,
-        file_layers: Dict[str, str],
-        violations: List[Dict[str, Any]],
-        ast_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        file_layers: dict[str, str],
+        violations: list[dict[str, Any]],
+        ast_data: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Calculate layer analysis metrics
         """
@@ -384,8 +424,8 @@ class LayerAnalyzer:
         unlayered_files = total_files - layered_files
 
         # Count violations by severity
-        critical_violations = len([v for v in violations if v['severity'] == 'error'])
-        warning_violations = len([v for v in violations if v['severity'] == 'warning'])
+        critical_violations = len([v for v in violations if v["severity"] == "error"])
+        warning_violations = len([v for v in violations if v["severity"] == "warning"])
 
         # Layer distribution
         layer_distribution = defaultdict(int)
@@ -393,27 +433,27 @@ class LayerAnalyzer:
             layer_distribution[layer] += 1
 
         return {
-            'total_files': total_files,
-            'layered_files': layered_files,
-            'unlayered_files': unlayered_files,
-            'total_violations': len(violations),
-            'critical_violations': critical_violations,
-            'warning_violations': warning_violations,
-            'layer_distribution': dict(layer_distribution)
+            "total_files": total_files,
+            "layered_files": layered_files,
+            "unlayered_files": unlayered_files,
+            "total_violations": len(violations),
+            "critical_violations": critical_violations,
+            "warning_violations": warning_violations,
+            "layer_distribution": dict(layer_distribution),
         }
 
-    def _empty_layer_analysis(self) -> Dict[str, Any]:
+    def _empty_layer_analysis(self) -> dict[str, Any]:
         """Return empty layer analysis structure"""
         return {
-            'layers': [],
-            'violations': [],
-            'quality_score': 0.0,
-            'metrics': {
-                'total_files': 0,
-                'layered_files': 0,
-                'unlayered_files': 0,
-                'total_violations': 0,
-                'critical_violations': 0,
-                'warning_violations': 0
-            }
+            "layers": [],
+            "violations": [],
+            "quality_score": 0.0,
+            "metrics": {
+                "total_files": 0,
+                "layered_files": 0,
+                "unlayered_files": 0,
+                "total_violations": 0,
+                "critical_violations": 0,
+                "warning_violations": 0,
+            },
         }

@@ -5,18 +5,16 @@ Tests the full chain: Request → Agent → File Write
 """
 
 import asyncio
-import json
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 
 # Add parent directories to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents.specialized.architect_agent import ArchitectAgent
 from agents.specialized.codesmith_agent import CodeSmithAgent
-from agents.base.base_agent import TaskRequest
 
 
 async def test_architect_creates_redis_config():
@@ -39,23 +37,22 @@ async def test_architect_creates_redis_config():
             agent.can_write = True
 
         # Try to create Redis config
-        result = await agent.create_redis_config({
-            'maxmemory': '2gb',
-            'policy': 'volatile-lru'
-        })
+        result = await agent.create_redis_config(
+            {"maxmemory": "2gb", "policy": "volatile-lru"}
+        )
 
         print(f"   Result: {result.get('status')}")
 
-        if result['status'] == 'success':
+        if result["status"] == "success":
             # Check if file was created
-            config_path = os.path.join(temp_dir, 'redis.config')
+            config_path = os.path.join(temp_dir, "redis.config")
             if os.path.exists(config_path):
                 print(f"   ✅ File created at: {config_path}")
 
                 # Verify content
-                with open(config_path, 'r') as f:
+                with open(config_path) as f:
                     content = f.read()
-                if 'maxmemory 2gb' in content:
+                if "maxmemory 2gb" in content:
                     print("   ✅ Configuration correctly written")
                 else:
                     print("   ❌ Configuration content incorrect")
@@ -90,22 +87,21 @@ async def test_codesmith_writes_code():
 
         # Try to implement code
         result = await agent.implement_code_to_file(
-            spec="Create a function that returns 'Hello World'",
-            file_path="hello.py"
+            spec="Create a function that returns 'Hello World'", file_path="hello.py"
         )
 
         print(f"   Result: {result.get('status')}")
 
-        if result['status'] == 'success':
+        if result["status"] == "success":
             # Check if file was created
-            code_path = os.path.join(temp_dir, 'hello.py')
+            code_path = os.path.join(temp_dir, "hello.py")
             if os.path.exists(code_path):
                 print(f"   ✅ File created at: {code_path}")
 
                 # Verify content
-                with open(code_path, 'r') as f:
+                with open(code_path) as f:
                     content = f.read()
-                if 'def' in content or 'return' in content:
+                if "def" in content or "return" in content:
                     print(f"   ✅ Code generated ({len(content)} bytes)")
                     print(f"   Preview: {content[:100]}...")
                 else:
@@ -129,7 +125,7 @@ async def test_agent_via_api():
     async with aiohttp.ClientSession() as session:
         # Test if backend is running
         try:
-            async with session.get('http://localhost:8000/agents') as resp:
+            async with session.get("http://localhost:8000/agents") as resp:
                 agents = await resp.json()
                 print(f"   ✅ Backend running with {len(agents)} agents")
 
@@ -160,6 +156,7 @@ async def main():
     except Exception as e:
         print(f"\n❌ Test failed with error: {e}")
         import traceback
+
         traceback.print_exc()
 
 

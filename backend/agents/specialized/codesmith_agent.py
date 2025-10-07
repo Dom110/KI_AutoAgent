@@ -3,35 +3,37 @@ CodeSmithAgent - Code generation and implementation specialist
 Uses Claude 4.1 Sonnet for superior code generation
 """
 
-import asyncio
 import json
+import logging
 import re
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime
-import logging
+from typing import Any
 
+from utils.claude_code_service import ClaudeCodeConfig, ClaudeCodeService
+
+from ..base.base_agent import (AgentCapability, AgentConfig, TaskRequest,
+                               TaskResult)
 from ..base.chat_agent import ChatAgent
-from ..base.base_agent import (
-    AgentConfig, TaskRequest, TaskResult, AgentCapability
-)
-from utils.claude_code_service import ClaudeCodeService, ClaudeCodeConfig
 
 logger = logging.getLogger(__name__)
 
+import os
 # Import new analysis tools
 import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+sys.path.append(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 # Import indexing tools - OPTIONAL (NEW FEATURE)
 # DOCUMENTED REASON: New indexing features for enhanced code analysis
 # CodeSmith works without indexing using AI-only code generation
-from core.exceptions import DependencyError
 INDEXING_AVAILABLE = False
 try:
-    from core.indexing.tree_sitter_indexer import TreeSitterIndexer
     from core.indexing.code_indexer import CodeIndexer
+    from core.indexing.tree_sitter_indexer import TreeSitterIndexer
+
     INDEXING_AVAILABLE = True
     logger.info("✅ Code indexing tools available")
 except ImportError as e:
@@ -44,8 +46,9 @@ except ImportError as e:
 # CodeSmith works without these using AI-only mode
 ANALYSIS_AVAILABLE = False
 try:
-    from core.analysis.vulture_analyzer import VultureAnalyzer
     from core.analysis.radon_metrics import RadonMetrics
+    from core.analysis.vulture_analyzer import VultureAnalyzer
+
     ANALYSIS_AVAILABLE = True
     logger.info("✅ Code analysis tools available")
 except ImportError as e:
@@ -59,22 +62,26 @@ except ImportError as e:
 DIAGRAM_AVAILABLE = False
 try:
     from services.diagram_service import DiagramService
+
     DIAGRAM_AVAILABLE = True
     logger.info("✅ Diagram service available")
 except ImportError as e:
     logger.warning(f"⚠️  Diagram service not available (new feature): {e}")
     DiagramService = None
 
+
 @dataclass
 class CodeImplementation:
     """Code implementation details"""
+
     language: str
     filename: str
     code: str
-    tests: Optional[str] = None
-    documentation: Optional[str] = None
-    dependencies: List[str] = None
+    tests: str | None = None
+    documentation: str | None = None
+    dependencies: list[str] = None
     complexity: str = "medium"  # simple, medium, complex
+
 
 class CodeSmithAgent(ChatAgent):
     """
@@ -93,19 +100,17 @@ class CodeSmithAgent(ChatAgent):
             full_name="Code Implementation Specialist",
             description="Expert in code generation, implementation, and optimization using Claude",
             model="claude-4.1-sonnet-20250920",
-            capabilities=[
-                AgentCapability.CODE_GENERATION,
-                AgentCapability.BUG_FIXING
-            ],
+            capabilities=[AgentCapability.CODE_GENERATION, AgentCapability.BUG_FIXING],
             temperature=0.6,  # Lower for more consistent code
             max_tokens=4000,
             icon="💻",
-            instructions_path=".ki_autoagent/instructions/codesmith-v2-instructions.md"
+            instructions_path=".ki_autoagent/instructions/codesmith-v2-instructions.md",
         )
 
         # Apply capabilities from config file before calling parent init
         try:
             from config.capabilities_loader import apply_capabilities_to_agent
+
             config = apply_capabilities_to_agent(config)
         except ImportError:
             pass  # Capabilities loader not available
@@ -137,7 +142,9 @@ class CodeSmithAgent(ChatAgent):
         else:
             self.tree_sitter = None
             self.code_indexer = None
-            logger.warning("Code indexing tools not available - some features will be limited")
+            logger.warning(
+                "Code indexing tools not available - some features will be limited"
+            )
 
         if ANALYSIS_AVAILABLE:
             self.vulture = VultureAnalyzer()
@@ -145,13 +152,17 @@ class CodeSmithAgent(ChatAgent):
         else:
             self.vulture = None
             self.metrics = None
-            logger.warning("Analysis tools not available - some features will be limited")
+            logger.warning(
+                "Analysis tools not available - some features will be limited"
+            )
 
         if DIAGRAM_AVAILABLE:
             self.diagram_service = DiagramService()
         else:
             self.diagram_service = None
-            logger.warning("Diagram service not available - visualization features disabled")
+            logger.warning(
+                "Diagram service not available - visualization features disabled"
+            )
 
         # Code intelligence cache
         self.code_knowledge = None
@@ -178,7 +189,7 @@ class CodeSmithAgent(ChatAgent):
 
         try:
             prompt = request.prompt
-            workspace_path = request.context.get('workspace_path', os.getcwd())
+            workspace_path = request.context.get("workspace_path", os.getcwd())
 
             logger.info(f"🚀 CodeSmith executing: {prompt[:100]}...")
             logger.info(f"📂 Workspace: {workspace_path}")
@@ -189,31 +200,47 @@ class CodeSmithAgent(ChatAgent):
                 try:
                     # Search for recent architect analyses in this workspace
                     arch_memories = self.memory_manager.search(
-                        query=prompt,
-                        memory_type="procedural",
-                        limit=5
+                        query=prompt, memory_type="procedural", limit=5
                     )
 
                     # Filter for architect-generated memories
-                    relevant_arch = [m for m in arch_memories if '"agent": "architect"' in m.get('content', '')]
+                    relevant_arch = [
+                        m
+                        for m in arch_memories
+                        if '"agent": "architect"' in m.get("content", "")
+                    ]
 
                     if relevant_arch:
-                        logger.info(f"🏗️ Found {len(relevant_arch)} architecture memories")
-                        architecture_context = "\n\n# ARCHITECTURE KNOWLEDGE (from Architect):\n"
+                        logger.info(
+                            f"🏗️ Found {len(relevant_arch)} architecture memories"
+                        )
+                        architecture_context = (
+                            "\n\n# ARCHITECTURE KNOWLEDGE (from Architect):\n"
+                        )
                         for mem in relevant_arch[:3]:  # Top 3 most relevant
                             try:
-                                mem_data = json.loads(mem['content'])
-                                architecture_context += f"\n## {mem_data.get('task', 'Analysis')}:\n"
-                                architecture_context += f"{mem_data.get('result', '')[:1000]}\n"
+                                mem_data = json.loads(mem["content"])
+                                architecture_context += (
+                                    f"\n## {mem_data.get('task', 'Analysis')}:\n"
+                                )
+                                architecture_context += (
+                                    f"{mem_data.get('result', '')[:1000]}\n"
+                                )
                             except (json.JSONDecodeError, KeyError):
                                 continue
 
-                        logger.info(f"📚 Loaded {len(architecture_context)} chars of architecture context")
+                        logger.info(
+                            f"📚 Loaded {len(architecture_context)} chars of architecture context"
+                        )
                     else:
-                        logger.info("ℹ️ No architecture memories found - will rely on AI analysis")
+                        logger.info(
+                            "ℹ️ No architecture memories found - will rely on AI analysis"
+                        )
 
                 except Exception as mem_error:
-                    logger.warning(f"⚠️ Memory retrieval failed (non-critical): {mem_error}")
+                    logger.warning(
+                        f"⚠️ Memory retrieval failed (non-critical): {mem_error}"
+                    )
                     architecture_context = ""
 
             # STEP 1: AI analyzes what user wants to create
@@ -224,7 +251,7 @@ class CodeSmithAgent(ChatAgent):
             files_plan = await self._plan_project_files(
                 project_spec=project_spec,
                 workspace_path=workspace_path,
-                user_prompt=prompt
+                user_prompt=prompt,
             )
 
             # STEP 3: Generate and write each file
@@ -232,7 +259,7 @@ class CodeSmithAgent(ChatAgent):
             files_failed = []
 
             for file_spec in files_plan:
-                file_path = file_spec['path']
+                file_path = file_spec["path"]
 
                 try:
                     # Generate file content with AI (v5.9.0: includes architecture context)
@@ -240,7 +267,7 @@ class CodeSmithAgent(ChatAgent):
                         file_spec=file_spec,
                         project_spec=project_spec,
                         user_prompt=prompt,
-                        architecture_context=architecture_context
+                        architecture_context=architecture_context,
                     )
 
                     # Write file to workspace
@@ -249,26 +276,25 @@ class CodeSmithAgent(ChatAgent):
 
                     # Use write_implementation for proper validation and permissions
                     result = await self.write_implementation(
-                        file_path=file_path,
-                        content=content,
-                        create_dirs=True
+                        file_path=file_path, content=content, create_dirs=True
                     )
 
-                    if result.get('status') == 'success':
+                    if result.get("status") == "success":
                         files_created.append(file_path)
                         logger.info(f"✅ Created: {file_path}")
                     else:
-                        files_failed.append({
-                            'path': file_path,
-                            'error': result.get('error', 'Unknown error')
-                        })
-                        logger.error(f"❌ Failed to create {file_path}: {result.get('error')}")
+                        files_failed.append(
+                            {
+                                "path": file_path,
+                                "error": result.get("error", "Unknown error"),
+                            }
+                        )
+                        logger.error(
+                            f"❌ Failed to create {file_path}: {result.get('error')}"
+                        )
 
                 except Exception as e:
-                    files_failed.append({
-                        'path': file_path,
-                        'error': str(e)
-                    })
+                    files_failed.append({"path": file_path, "error": str(e)})
                     logger.error(f"❌ Exception creating {file_path}: {e}")
 
             # STEP 4: Return results
@@ -285,9 +311,9 @@ class CodeSmithAgent(ChatAgent):
                     agent=self.config.agent_id,
                     execution_time=execution_time,
                     metadata={
-                        "project_type": project_spec['project_type'],
-                        "files_failed": files_failed
-                    }
+                        "project_type": project_spec["project_type"],
+                        "files_failed": files_failed,
+                    },
                 )
 
             # Build success message
@@ -298,8 +324,7 @@ class CodeSmithAgent(ChatAgent):
             file_types = {}
             for file_path in files_created:
                 file_type = next(
-                    (f['type'] for f in files_plan if f['path'] == file_path),
-                    'other'
+                    (f["type"] for f in files_plan if f["path"] == file_path), "other"
                 )
                 if file_type not in file_types:
                     file_types[file_type] = []
@@ -323,13 +348,13 @@ class CodeSmithAgent(ChatAgent):
                 agent=self.config.agent_id,
                 execution_time=execution_time,
                 metadata={
-                    "project_type": project_spec['project_type'],
-                    "framework": project_spec['framework'],
-                    "language": project_spec['language'],
+                    "project_type": project_spec["project_type"],
+                    "framework": project_spec["framework"],
+                    "language": project_spec["language"],
                     "files_created": files_created,
                     "files_failed": files_failed,
-                    "total_files": len(files_plan)
-                }
+                    "total_files": len(files_plan),
+                },
             )
 
         except ValueError as e:
@@ -340,12 +365,13 @@ class CodeSmithAgent(ChatAgent):
                 content=str(e),
                 agent=self.config.agent_id,
                 execution_time=execution_time,
-                metadata={"error_type": "unclear_request"}
+                metadata={"error_type": "unclear_request"},
             )
 
         except Exception as e:
             logger.error(f"❌ Code generation failed: {e}")
             import traceback
+
             traceback.print_exc()
 
             execution_time = (datetime.now() - start_time).total_seconds()
@@ -353,10 +379,10 @@ class CodeSmithAgent(ChatAgent):
                 status="error",
                 content=f"Failed to generate code: {str(e)}",
                 agent=self.config.agent_id,
-                execution_time=execution_time
+                execution_time=execution_time,
             )
 
-    async def analyze_code_request(self, prompt: str) -> Dict[str, Any]:
+    async def analyze_code_request(self, prompt: str) -> dict[str, Any]:
         """
         Analyze code generation request
         """
@@ -400,18 +426,15 @@ class CodeSmithAgent(ChatAgent):
             "functionality": self._extract_functionality(response),
             "include_tests": "test" in prompt.lower() or "testing" in prompt.lower(),
             "include_docs": "document" in prompt.lower() or "doc" in prompt.lower(),
-            "complexity": self._assess_complexity(prompt)
+            "complexity": self._assess_complexity(prompt),
         }
 
-    async def generate_implementation(
-        self,
-        spec: Dict[str, Any]
-    ) -> CodeImplementation:
+    async def generate_implementation(self, spec: dict[str, Any]) -> CodeImplementation:
         """
         Generate code implementation
         """
         language = spec["language"]
-        lang_config = self.language_configs.get(language, {})
+        self.language_configs.get(language, {})
 
         system_prompt = f"""
         You are Claude, an expert {language} programmer.
@@ -441,13 +464,13 @@ class CodeSmithAgent(ChatAgent):
             raise Exception("Claude CLI not available for code generation")
 
         code = await self.claude_cli.generate_code(
-            specification=spec['prompt'],
+            specification=spec["prompt"],
             language=language,
-            context=str(spec.get('functionality', ''))
+            context=str(spec.get("functionality", "")),
         )
 
         # Extract filename
-        filename = self._generate_filename(spec['prompt'], language)
+        filename = self._generate_filename(spec["prompt"], language)
 
         # Extract dependencies
         dependencies = self._extract_dependencies(code, language)
@@ -457,7 +480,7 @@ class CodeSmithAgent(ChatAgent):
             filename=filename,
             code=code,
             dependencies=dependencies,
-            complexity=spec.get('complexity', 'medium')
+            complexity=spec.get("complexity", "medium"),
         )
 
     async def generate_tests(self, implementation: CodeImplementation) -> str:
@@ -534,10 +557,7 @@ class CodeSmithAgent(ChatAgent):
         return documentation
 
     async def refactor_code(
-        self,
-        code: str,
-        language: str,
-        improvements: List[str] = None
+        self, code: str, language: str, improvements: list[str] = None
     ) -> str:
         """
         Refactor existing code for improvements
@@ -612,7 +632,7 @@ class CodeSmithAgent(ChatAgent):
 
         return fixed_code
 
-    async def _analyze_user_request(self, prompt: str) -> Dict[str, Any]:
+    async def _analyze_user_request(self, prompt: str) -> dict[str, Any]:
         """
         🧠 Use AI to understand what project user wants to create
         NO templates, NO hardcoded logic - pure AI analysis
@@ -654,41 +674,46 @@ CRITICAL RULES:
             # Parse JSON response
             # Remove markdown code blocks if present
             response = response.strip()
-            if response.startswith('```'):
+            if response.startswith("```"):
                 # Extract JSON from markdown code block
-                lines = response.split('\n')
-                response = '\n'.join(lines[1:-1]) if len(lines) > 2 else response
-                response = response.replace('```json', '').replace('```', '').strip()
+                lines = response.split("\n")
+                response = "\n".join(lines[1:-1]) if len(lines) > 2 else response
+                response = response.replace("```json", "").replace("```", "").strip()
 
             project_spec = json.loads(response)
 
             # Check clarity score
-            clarity = project_spec.get('clarity_score', 0)
+            clarity = project_spec.get("clarity_score", 0)
             if clarity < 50:
                 error_msg = f"❌ Request unclear (clarity: {clarity}/100). Please be more specific about:\n"
-                error_msg += f"- What type of application? (web app, API, CLI tool, etc.)\n"
-                error_msg += f"- What technology/framework? (React, Python, Node.js, etc.)\n"
-                error_msg += f"- What should it do?\n\n"
-                if project_spec.get('description'):
+                error_msg += (
+                    "- What type of application? (web app, API, CLI tool, etc.)\n"
+                )
+                error_msg += (
+                    "- What technology/framework? (React, Python, Node.js, etc.)\n"
+                )
+                error_msg += "- What should it do?\n\n"
+                if project_spec.get("description"):
                     error_msg += f"What I understood: {project_spec['description']}"
                 raise ValueError(error_msg)
 
-            logger.info(f"✅ Project analysis: {project_spec['project_type']} using {project_spec['framework'] or project_spec['language']}")
+            logger.info(
+                f"✅ Project analysis: {project_spec['project_type']} using {project_spec['framework'] or project_spec['language']}"
+            )
             return project_spec
 
         except json.JSONDecodeError as e:
             logger.error(f"❌ Failed to parse AI response as JSON: {e}")
-            raise ValueError(f"AI analysis failed. Please rephrase your request more clearly.")
+            raise ValueError(
+                "AI analysis failed. Please rephrase your request more clearly."
+            )
         except Exception as e:
             logger.error(f"❌ Project analysis failed: {e}")
             raise
 
     async def _plan_project_files(
-        self,
-        project_spec: Dict[str, Any],
-        workspace_path: str,
-        user_prompt: str
-    ) -> List[Dict[str, Any]]:
+        self, project_spec: dict[str, Any], workspace_path: str, user_prompt: str
+    ) -> list[dict[str, Any]]:
         """
         📋 Plan which files to create based on project type
         Uses AI to generate file structure based on project_spec
@@ -731,15 +756,15 @@ IMPORTANT:
 
             # Parse JSON response
             response = response.strip()
-            if response.startswith('```'):
-                lines = response.split('\n')
-                response = '\n'.join(lines[1:-1]) if len(lines) > 2 else response
-                response = response.replace('```json', '').replace('```', '').strip()
+            if response.startswith("```"):
+                lines = response.split("\n")
+                response = "\n".join(lines[1:-1]) if len(lines) > 2 else response
+                response = response.replace("```json", "").replace("```", "").strip()
 
             files_plan = json.loads(response)
 
             # Sort by priority (highest first)
-            files_plan.sort(key=lambda x: x.get('priority', 5), reverse=True)
+            files_plan.sort(key=lambda x: x.get("priority", 5), reverse=True)
 
             logger.info(f"✅ Planned {len(files_plan)} files to create")
             for file_spec in files_plan[:5]:  # Log first 5
@@ -751,17 +776,19 @@ IMPORTANT:
 
         except json.JSONDecodeError as e:
             logger.error(f"❌ Failed to parse file plan JSON: {e}")
-            raise ValueError("Failed to plan file structure. AI response was not valid JSON.")
+            raise ValueError(
+                "Failed to plan file structure. AI response was not valid JSON."
+            )
         except Exception as e:
             logger.error(f"❌ File planning failed: {e}")
             raise
 
     async def _generate_file_content(
         self,
-        file_spec: Dict[str, Any],
-        project_spec: Dict[str, Any],
+        file_spec: dict[str, Any],
+        project_spec: dict[str, Any],
         user_prompt: str,
-        architecture_context: str = ""
+        architecture_context: str = "",
     ) -> str:
         """
         ✍️ Use AI to generate production-ready code for each file
@@ -770,7 +797,7 @@ IMPORTANT:
         v5.8.2: COMPLETELY GENERIC - generates ANY file type
         v5.9.0: Uses architecture knowledge from Architect agent
         """
-        file_path = file_spec['path']
+        file_path = file_spec["path"]
         logger.info(f"✍️ Generating content for {file_path}...")
 
         # v5.9.0: Add architecture context if available
@@ -811,11 +838,11 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
 
             # Remove markdown code blocks if AI added them despite instructions
             content = content.strip()
-            if content.startswith('```'):
-                lines = content.split('\n')
+            if content.startswith("```"):
+                lines = content.split("\n")
                 # Remove first line (```language) and last line (```)
-                if lines[0].startswith('```') and lines[-1].strip() == '```':
-                    content = '\n'.join(lines[1:-1])
+                if lines[0].startswith("```") and lines[-1].strip() == "```":
+                    content = "\n".join(lines[1:-1])
 
             logger.info(f"✅ Generated {len(content)} characters for {file_path}")
             return content
@@ -824,13 +851,12 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
             logger.error(f"❌ Failed to generate content for {file_path}: {e}")
             raise
 
-
     def format_implementation(self, implementation: CodeImplementation) -> str:
         """
         Format implementation for output
         """
         output = []
-        output.append(f"# 💻 Code Implementation\n")
+        output.append("# 💻 Code Implementation\n")
         output.append(f"**Language**: {implementation.language}")
         output.append(f"**Filename**: `{implementation.filename}`")
         output.append(f"**Complexity**: {implementation.complexity}\n")
@@ -893,7 +919,7 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
         Extract main functionality from analysis
         """
         # Simple extraction - could be enhanced
-        lines = response.split('\n')
+        lines = response.split("\n")
         for line in lines:
             if "functionality" in line.lower():
                 return line.strip()
@@ -908,7 +934,9 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
 
         if any(word in prompt_lower for word in ["simple", "basic", "hello world"]):
             return "simple"
-        elif any(word in prompt_lower for word in ["complex", "advanced", "sophisticated"]):
+        elif any(
+            word in prompt_lower for word in ["complex", "advanced", "sophisticated"]
+        ):
             return "complex"
         else:
             return "medium"
@@ -939,7 +967,7 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
 
         return name + extensions.get(language, ".txt")
 
-    def _extract_dependencies(self, code: str, language: str) -> List[str]:
+    def _extract_dependencies(self, code: str, language: str) -> list[str]:
         """
         Extract dependencies from code
         """
@@ -947,9 +975,9 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
 
         if language == "python":
             # Extract import statements
-            import_pattern = r'^(?:import|from)\s+(\S+)'
+            import_pattern = r"^(?:import|from)\s+(\S+)"
             matches = re.findall(import_pattern, code, re.MULTILINE)
-            dependencies = [m.split('.')[0] for m in matches]
+            dependencies = [m.split(".")[0] for m in matches]
 
         elif language in ["javascript", "typescript"]:
             # Extract require/import statements
@@ -958,7 +986,7 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
             dependencies = matches
 
         # Filter out standard library modules
-        dependencies = list(set(d for d in dependencies if not d.startswith('_')))
+        dependencies = list({d for d in dependencies if not d.startswith("_")})
 
         return dependencies[:10]  # Limit to 10 dependencies
 
@@ -981,7 +1009,7 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
 
         return frameworks.get(language, "unit test")
 
-    def _load_code_patterns(self) -> List[Dict[str, Any]]:
+    def _load_code_patterns(self) -> list[dict[str, Any]]:
         """
         Load code patterns library
         """
@@ -989,21 +1017,21 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
             {
                 "pattern": "singleton",
                 "languages": ["python", "java", "csharp"],
-                "use_case": "Ensure single instance of a class"
+                "use_case": "Ensure single instance of a class",
             },
             {
                 "pattern": "factory",
                 "languages": ["python", "java", "typescript"],
-                "use_case": "Create objects without specifying exact class"
+                "use_case": "Create objects without specifying exact class",
             },
             {
                 "pattern": "observer",
                 "languages": ["javascript", "typescript", "python"],
-                "use_case": "Event-driven programming"
-            }
+                "use_case": "Event-driven programming",
+            },
         ]
 
-    def _load_language_configs(self) -> Dict[str, Dict[str, Any]]:
+    def _load_language_configs(self) -> dict[str, dict[str, Any]]:
         """
         Load language-specific configurations
         """
@@ -1022,10 +1050,10 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
                 "style_guide": "Airbnb",
                 "strict_mode": True,
                 "target": "ES2022",
-            }
+            },
         }
 
-    async def analyze_codebase(self, root_path: str = '.') -> Dict[str, Any]:
+    async def analyze_codebase(self, root_path: str = ".") -> dict[str, Any]:
         """
         Perform deep code analysis for intelligent code generation
 
@@ -1038,8 +1066,8 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
         if not INDEXING_AVAILABLE:
             logger.warning("Code indexing not available - returning empty analysis")
             return {
-                'error': 'Code analysis tools not installed',
-                'message': 'Please install requirements: pip install -r requirements.txt'
+                "error": "Code analysis tools not installed",
+                "message": "Please install requirements: pip install -r requirements.txt",
             }
 
         logger.info("Analyzing codebase for pattern extraction...")
@@ -1048,7 +1076,7 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
         self.code_knowledge = await self.code_indexer.build_full_index(root_path)
 
         # Extract code patterns for reuse
-        patterns = self.code_knowledge.get('patterns', {})
+        self.code_knowledge.get("patterns", {})
 
         # Find dead code that can be removed
         dead_code = await self.vulture.find_dead_code(root_path)
@@ -1056,8 +1084,8 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
         # Calculate code metrics
         metrics = await self.metrics.calculate_all_metrics(root_path)
 
-        self.code_knowledge['dead_code'] = dead_code
-        self.code_knowledge['metrics'] = metrics
+        self.code_knowledge["dead_code"] = dead_code
+        self.code_knowledge["metrics"] = metrics
 
         return self.code_knowledge
 
@@ -1098,15 +1126,17 @@ BEGIN YOUR RESPONSE WITH THE CODE DIRECTLY (no preamble, no markdown blocks, jus
                 return ""
 
         # Extract relevant patterns
-        patterns = self.code_knowledge.get('patterns', {})
-        architecture = self.code_knowledge.get('architecture', {})
+        patterns = self.code_knowledge.get("patterns", {})
+        architecture = self.code_knowledge.get("architecture", {})
 
         # Build context-aware prompt
-        design_patterns_list = patterns.get('design_patterns', [])
+        design_patterns_list = patterns.get("design_patterns", [])
         # Convert to strings if they are dicts
         if design_patterns_list and isinstance(design_patterns_list[0], dict):
-            pattern_names = [p.get('name', str(p)) if isinstance(p, dict) else str(p)
-                            for p in design_patterns_list]
+            pattern_names = [
+                p.get("name", str(p)) if isinstance(p, dict) else str(p)
+                for p in design_patterns_list
+            ]
         else:
             pattern_names = [str(p) for p in design_patterns_list]
 
@@ -1126,7 +1156,9 @@ BEGIN YOUR RESPONSE WITH THE CODE DIRECTLY (no preamble, no markdown blocks, jus
         response = await self.claude_cli.complete(context_prompt)
         return response
 
-    async def refactor_complex_code(self, file_path: str = None) -> List[Dict[str, Any]]:
+    async def refactor_complex_code(
+        self, file_path: str = None
+    ) -> list[dict[str, Any]]:
         """
         Identify and refactor complex code sections
 
@@ -1135,14 +1167,14 @@ BEGIN YOUR RESPONSE WITH THE CODE DIRECTLY (no preamble, no markdown blocks, jus
         if not self.code_knowledge:
             await self.analyze_codebase()
 
-        metrics = self.code_knowledge.get('metrics', {})
+        metrics = self.code_knowledge.get("metrics", {})
 
         # Find refactoring candidates
         candidates = await self.metrics.identify_refactoring_candidates(metrics)
 
         refactorings = []
         for candidate in candidates[:3]:  # Limit to top 3
-            if candidate['type'] == 'function':
+            if candidate["type"] == "function":
                 # Generate refactoring suggestion
                 prompt = f"""
                 Refactor this complex function:
@@ -1157,15 +1189,19 @@ BEGIN YOUR RESPONSE WITH THE CODE DIRECTLY (no preamble, no markdown blocks, jus
 
                 refactored_code = await self.claude_cli.process_message(prompt)
 
-                refactorings.append({
-                    'original': candidate,
-                    'refactored_code': refactored_code,
-                    'improvement': 'Reduced complexity'
-                })
+                refactorings.append(
+                    {
+                        "original": candidate,
+                        "refactored_code": refactored_code,
+                        "improvement": "Reduced complexity",
+                    }
+                )
 
         return refactorings
 
-    async def _refresh_cache_if_needed(self, files_created: List[str], request: TaskRequest):
+    async def _refresh_cache_if_needed(
+        self, files_created: list[str], request: TaskRequest
+    ):
         """
         Refresh cache after implementing new functions or modifying code
 
@@ -1176,6 +1212,7 @@ BEGIN YOUR RESPONSE WITH THE CODE DIRECTLY (no preamble, no markdown blocks, jus
         try:
             # Get the architect agent from registry
             from agents.agent_registry import get_agent_registry
+
             registry = get_agent_registry()
             architect = registry.get_agent("architect")
 
@@ -1187,33 +1224,45 @@ BEGIN YOUR RESPONSE WITH THE CODE DIRECTLY (no preamble, no markdown blocks, jus
             components_to_refresh = []
 
             for file_path in files_created:
-                if any(ext in file_path for ext in ['.py', '.js', '.ts', '.java', '.go']):
-                    components_to_refresh.append('code_index')
-                    components_to_refresh.append('functions')
+                if any(
+                    ext in file_path for ext in [".py", ".js", ".ts", ".java", ".go"]
+                ):
+                    components_to_refresh.append("code_index")
+                    components_to_refresh.append("functions")
                     break
 
             # If we created configuration files, refresh metrics
-            if any('config' in f or 'settings' in f for f in files_created):
-                components_to_refresh.append('metrics')
+            if any("config" in f or "settings" in f for f in files_created):
+                components_to_refresh.append("metrics")
 
             # If we have components to refresh, do it
             if components_to_refresh:
                 # Get client_id and manager from context if available
-                client_id = request.context.get('client_id') if isinstance(request.context, dict) else None
-                manager = request.context.get('manager') if isinstance(request.context, dict) else None
+                client_id = (
+                    request.context.get("client_id")
+                    if isinstance(request.context, dict)
+                    else None
+                )
+                manager = (
+                    request.context.get("manager")
+                    if isinstance(request.context, dict)
+                    else None
+                )
 
-                logger.info(f"🔄 Refreshing cache for components: {list(set(components_to_refresh))}")
+                logger.info(
+                    f"🔄 Refreshing cache for components: {list(set(components_to_refresh))}"
+                )
                 await architect.refresh_cache_after_implementation(
                     client_id=client_id,
                     manager=manager,
-                    components=list(set(components_to_refresh))
+                    components=list(set(components_to_refresh)),
                 )
                 logger.info("✅ Cache refreshed after code implementation")
         except Exception as e:
             logger.warning(f"Could not refresh cache after implementation: {e}")
             # Don't fail the whole operation if cache refresh fails
 
-    async def optimize_performance_hotspots(self) -> List[Dict[str, str]]:
+    async def optimize_performance_hotspots(self) -> list[dict[str, str]]:
         """
         Find and optimize performance bottlenecks in the code
 
@@ -1222,8 +1271,8 @@ BEGIN YOUR RESPONSE WITH THE CODE DIRECTLY (no preamble, no markdown blocks, jus
         if not self.code_knowledge:
             await self.analyze_codebase()
 
-        patterns = self.code_knowledge.get('patterns', {})
-        perf_issues = patterns.get('performance_issues', [])
+        patterns = self.code_knowledge.get("patterns", {})
+        perf_issues = patterns.get("performance_issues", [])
 
         optimizations = []
 
@@ -1242,11 +1291,13 @@ BEGIN YOUR RESPONSE WITH THE CODE DIRECTLY (no preamble, no markdown blocks, jus
 
             optimized = await self.claude_cli.process_message(optimization_prompt)
 
-            optimizations.append({
-                'issue': issue,
-                'optimized_code': optimized,
-                'expected_improvement': 'Significant performance gain'
-            })
+            optimizations.append(
+                {
+                    "issue": issue,
+                    "optimized_code": optimized,
+                    "expected_improvement": "Significant performance gain",
+                }
+            )
 
         return optimizations
 
@@ -1260,13 +1311,13 @@ BEGIN YOUR RESPONSE WITH THE CODE DIRECTLY (no preamble, no markdown blocks, jus
             await self.analyze_codebase()
 
         # Find functions without tests
-        all_functions = self.code_knowledge.get('ast', {}).get('functions', {})
+        all_functions = self.code_knowledge.get("ast", {}).get("functions", {})
 
         # Simple heuristic: functions without 'test_' prefix likely need tests
         untested = []
         for func_key, func_info in all_functions.items():
-            func_name = func_info.get('name', '')
-            if not func_name.startswith('test_') and not func_name.startswith('_'):
+            func_name = func_info.get("name", "")
+            if not func_name.startswith("test_") and not func_name.startswith("_"):
                 untested.append(func_info)
 
         if not untested:
@@ -1293,9 +1344,9 @@ BEGIN YOUR RESPONSE WITH THE CODE DIRECTLY (no preamble, no markdown blocks, jus
         if not self.code_knowledge:
             await self.analyze_codebase()
 
-        dead_code = self.code_knowledge.get('dead_code', {})
+        dead_code = self.code_knowledge.get("dead_code", {})
 
-        if not dead_code.get('summary', {}).get('total_dead_code'):
+        if not dead_code.get("summary", {}).get("total_dead_code"):
             return "No dead code found!"
 
         # Generate cleanup script
@@ -1336,22 +1387,31 @@ Run this script to safely comment out dead code for review.
         Prevents talking about JD Edwards, Oracle, etc.
         """
         hallucination_indicators = [
-            'JD Edwards', 'jd edwards', 'JDEdwards',
-            'Oracle', 'oracle',
-            'EnterpriseOne', 'enterprise one',
-            'P4310', 'Form Extension', 'form extension',
-            'ERP', 'SAP', 'PeopleSoft'
+            "JD Edwards",
+            "jd edwards",
+            "JDEdwards",
+            "Oracle",
+            "oracle",
+            "EnterpriseOne",
+            "enterprise one",
+            "P4310",
+            "Form Extension",
+            "form extension",
+            "ERP",
+            "SAP",
+            "PeopleSoft",
         ]
 
         content_lower = content.lower()
         for indicator in hallucination_indicators:
             if indicator.lower() in content_lower:
-                logger.error(f"🚨 HALLUCINATION DETECTED: Found '{indicator}' in response!")
-                logger.error(f"🚨 This is KI_AutoAgent, not an enterprise system!")
+                logger.error(
+                    f"🚨 HALLUCINATION DETECTED: Found '{indicator}' in response!"
+                )
+                logger.error("🚨 This is KI_AutoAgent, not an enterprise system!")
                 return True
 
         return False
-
 
     def _enforce_asimov_rule_1(self, file_path: str):
         """
@@ -1367,7 +1427,7 @@ Run this script to safely comment out dead code for review.
             )
 
         # Check for fallback patterns in the path
-        fallback_patterns = ['fallback', 'temp', 'tmp', 'test', 'dummy']
+        fallback_patterns = ["fallback", "temp", "tmp", "test", "dummy"]
         if any(pattern in file_path.lower() for pattern in fallback_patterns):
             logger.warning(f"⚠️ Suspicious file path detected: {file_path}")
 
@@ -1408,11 +1468,13 @@ Answer (YES/NO):"""
             full_prompt = f"System: You are an expert code implementation assistant.\n\n{ai_prompt}"
             response = await self.claude_cli.complete(full_prompt)
 
-            result = response.strip().upper().startswith('YES')
+            result = response.strip().upper().startswith("YES")
             if result:
                 logger.info("🧠 AI detected: Implementation request → Will create files")
             else:
-                logger.info("🧠 AI detected: Non-implementation request → No files needed")
+                logger.info(
+                    "🧠 AI detected: Non-implementation request → No files needed"
+                )
             return result
 
         except Exception as e:
@@ -1428,10 +1490,12 @@ Answer (YES/NO):"""
         try:
             # Check for button-related keywords first
             prompt_lower = prompt.lower()
-            if 'button' in prompt_lower and 'orchestrator' in prompt_lower:
+            if "button" in prompt_lower and "orchestrator" in prompt_lower:
                 # We KNOW where buttons go in KI_AutoAgent
-                file_path = 'vscode-extension/src/ui/MultiAgentChatPanel.ts'
-                logger.info(f"🎯 Direct path determination: Button near Orchestrator → {file_path}")
+                file_path = "vscode-extension/src/ui/MultiAgentChatPanel.ts"
+                logger.info(
+                    f"🎯 Direct path determination: Button near Orchestrator → {file_path}"
+                )
                 return os.path.join(workspace_path, file_path)
 
             # Get project structure context
@@ -1439,22 +1503,38 @@ Answer (YES/NO):"""
             try:
                 for root, dirs, files in os.walk(workspace_path):
                     # Skip node_modules and other large directories
-                    dirs[:] = [d for d in dirs if d not in ['.git', 'node_modules', 'venv', '__pycache__']]
+                    dirs[:] = [
+                        d
+                        for d in dirs
+                        if d not in [".git", "node_modules", "venv", "__pycache__"]
+                    ]
                     for file in files[:50]:  # Limit to first 50 files for context
-                        rel_path = os.path.relpath(os.path.join(root, file), workspace_path)
-                        if not rel_path.startswith('.'):
+                        rel_path = os.path.relpath(
+                            os.path.join(root, file), workspace_path
+                        )
+                        if not rel_path.startswith("."):
                             project_files.append(rel_path)
                     if len(project_files) > 100:
                         break
             except:
                 project_files = []
 
-            project_structure = "\n".join(project_files[:30]) if project_files else "Empty project"
+            project_structure = (
+                "\n".join(project_files[:30]) if project_files else "Empty project"
+            )
 
             # Check if this is a standalone web app request
-            is_web_app = any(keyword in prompt_lower for keyword in [
-                'webapplikation', 'web app', 'html', 'tetris', 'game', 'website'
-            ])
+            is_web_app = any(
+                keyword in prompt_lower
+                for keyword in [
+                    "webapplikation",
+                    "web app",
+                    "html",
+                    "tetris",
+                    "game",
+                    "website",
+                ]
+            )
 
             if is_web_app:
                 # For standalone web apps, use simple HTML file in workspace root
@@ -1493,7 +1573,7 @@ Filename:"""
                 file_path = f"{feature_name}.py"
 
             # Clean up any absolute path - we want relative only
-            if file_path.startswith('/'):
+            if file_path.startswith("/"):
                 file_path = os.path.basename(file_path)
 
             # Build full path in workspace
@@ -1512,8 +1592,8 @@ Filename:"""
 
         # Look for file paths in the prompt
         patterns = [
-            r'(?:file|create|write|update|in)\s+([a-zA-Z0-9_/.-]+\.(?:py|js|ts|tsx|jsx|yml|yaml|json|md|txt))',
-            r'([a-zA-Z0-9_/.-]+\.(?:py|js|ts|tsx|jsx|yml|yaml|json|md|txt))',
+            r"(?:file|create|write|update|in)\s+([a-zA-Z0-9_/.-]+\.(?:py|js|ts|tsx|jsx|yml|yaml|json|md|txt))",
+            r"([a-zA-Z0-9_/.-]+\.(?:py|js|ts|tsx|jsx|yml|yaml|json|md|txt))",
         ]
 
         for pattern in patterns:
@@ -1528,31 +1608,31 @@ Filename:"""
         prompt_lower = prompt.lower()
 
         # Determine directory
-        if 'test' in prompt_lower:
-            directory = 'backend/tests/'
-        elif 'button' in prompt_lower or 'ui' in prompt_lower:
-            directory = 'vscode-extension/src/ui/'
-        elif 'agent' in prompt_lower:
-            directory = 'backend/agents/'
-        elif 'api' in prompt_lower or 'endpoint' in prompt_lower:
-            directory = 'backend/api/'
-        elif 'service' in prompt_lower:
-            directory = 'backend/services/'
+        if "test" in prompt_lower:
+            directory = "backend/tests/"
+        elif "button" in prompt_lower or "ui" in prompt_lower:
+            directory = "vscode-extension/src/ui/"
+        elif "agent" in prompt_lower:
+            directory = "backend/agents/"
+        elif "api" in prompt_lower or "endpoint" in prompt_lower:
+            directory = "backend/api/"
+        elif "service" in prompt_lower:
+            directory = "backend/services/"
         else:
-            directory = 'backend/'
+            directory = "backend/"
 
         # Extract feature name
         feature_name = self._extract_feature_name(prompt)
 
         # Determine extension
-        if 'typescript' in prompt_lower or 'button' in prompt_lower:
-            extension = '.ts'
-        elif 'react' in prompt_lower:
-            extension = '.tsx'
-        elif 'config' in prompt_lower:
-            extension = '.yml'
+        if "typescript" in prompt_lower or "button" in prompt_lower:
+            extension = ".ts"
+        elif "react" in prompt_lower:
+            extension = ".tsx"
+        elif "config" in prompt_lower:
+            extension = ".yml"
         else:
-            extension = '.py'
+            extension = ".py"
 
         return f"{directory}{feature_name}{extension}"
 
@@ -1561,24 +1641,43 @@ Filename:"""
         import re
 
         # Remove common words
-        stop_words = ['implement', 'create', 'add', 'build', 'write', 'erstelle',
-                     'the', 'a', 'an', 'for', 'with', 'to', 'in', 'feature',
-                     'function', 'button', 'einen', 'der', 'die', 'das']
+        stop_words = [
+            "implement",
+            "create",
+            "add",
+            "build",
+            "write",
+            "erstelle",
+            "the",
+            "a",
+            "an",
+            "for",
+            "with",
+            "to",
+            "in",
+            "feature",
+            "function",
+            "button",
+            "einen",
+            "der",
+            "die",
+            "das",
+        ]
 
-        words = re.findall(r'\w+', prompt.lower())
+        words = re.findall(r"\w+", prompt.lower())
         feature_words = [w for w in words if w not in stop_words and len(w) > 2]
 
         if feature_words:
             # Take first meaningful word
-            feature = feature_words[0].replace('-', '_')
+            feature = feature_words[0].replace("-", "_")
             # For buttons, add _button suffix
-            if 'button' in prompt.lower():
+            if "button" in prompt.lower():
                 feature = f"{feature}_button"
             return feature
 
-        return 'new_feature'
+        return "new_feature"
 
-    async def implement_code_to_file(self, spec: str, file_path: str) -> Dict[str, Any]:
+    async def implement_code_to_file(self, spec: str, file_path: str) -> dict[str, Any]:
         """
         Generate code and write it to a file
 
@@ -1589,7 +1688,7 @@ Filename:"""
         Returns:
             Dict with status and details
         """
-        logger.info(f"🔧 implement_code_to_file called")
+        logger.info("🔧 implement_code_to_file called")
         logger.info(f"  📁 Target file: {file_path}")
         logger.info(f"  📝 Spec length: {len(spec)} characters")
 
@@ -1603,7 +1702,7 @@ Filename:"""
                 return {
                     "status": "error",
                     "error": "Failed to generate code - empty result",
-                    "agent": self.name
+                    "agent": self.name,
                 }
 
             logger.info(f"✅ Code generated: {len(code)} characters")
@@ -1612,32 +1711,39 @@ Filename:"""
             logger.info(f"📝 Writing code to file: {file_path}")
             result = await self.write_implementation(file_path, code)
 
-            if result.get('status') == 'success':
-                logger.info(f"✅ CodeSmithAgent successfully implemented code to {file_path}")
+            if result.get("status") == "success":
+                logger.info(
+                    f"✅ CodeSmithAgent successfully implemented code to {file_path}"
+                )
 
                 # Add to response
-                result['code'] = code[:500] + "..." if len(code) > 500 else code
-                result['lines'] = len(code.split('\n'))
+                result["code"] = code[:500] + "..." if len(code) > 500 else code
+                result["lines"] = len(code.split("\n"))
 
                 # Track in shared context if available
                 # v5.5.3: Wrap in try/except to not corrupt successful result
                 # v5.7.0: Fixed - use update() method instead of non-existent update_context()
                 if self.shared_context:
                     try:
-                        self.shared_context.update({
-                            f"{self.config.agent_id}_last_implementation": {
-                                "file": file_path,
-                                "spec": spec[:200],
-                                "timestamp": datetime.now().isoformat()
+                        self.shared_context.update(
+                            {
+                                f"{self.config.agent_id}_last_implementation": {
+                                    "file": file_path,
+                                    "spec": spec[:200],
+                                    "timestamp": datetime.now().isoformat(),
+                                }
                             }
-                        })
+                        )
                     except Exception as ctx_error:
-                        logger.warning(f"⚠️ Shared context update failed (non-critical): {ctx_error}")
+                        logger.warning(
+                            f"⚠️ Shared context update failed (non-critical): {ctx_error}"
+                        )
 
             return result
 
         except Exception as e:
             import traceback
+
             error_details = traceback.format_exc()
             logger.error(f"❌ CodeSmithAgent failed to implement code: {e}")
             logger.error(f"📋 Stack trace:\n{error_details}")
@@ -1648,5 +1754,5 @@ Filename:"""
                 "error": str(e),
                 "agent": self.name,
                 "path": file_path,
-                "traceback": error_details
+                "traceback": error_details,
             }

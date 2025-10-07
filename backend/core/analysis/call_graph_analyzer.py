@@ -5,8 +5,8 @@ Critical for impact analysis, dead code detection, and refactoring safety
 """
 
 import logging
-from typing import Dict, List, Any, Set, Tuple
 from collections import defaultdict, deque
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class CallGraphAnalyzer:
         self.hot_functions = []
         self.unused_functions = []
 
-    async def build_call_graph(self, code_index: Dict[str, Any]) -> Dict[str, Any]:
+    async def build_call_graph(self, code_index: dict[str, Any]) -> dict[str, Any]:
         """
         Build complete function call graph from code index
 
@@ -64,7 +64,7 @@ class CallGraphAnalyzer:
         """
         logger.info("Building function call graph...")
 
-        ast_data = code_index.get('ast', {}).get('files', {})
+        ast_data = code_index.get("ast", {}).get("files", {})
         if not ast_data:
             logger.warning("No AST data available for call graph analysis")
             return self._empty_call_graph()
@@ -74,7 +74,9 @@ class CallGraphAnalyzer:
         logger.info(f"Function registry: {len(function_registry)} functions")
 
         # Step 2: Build call graph (who calls whom)
-        call_graph, reverse_call_graph = self._build_call_relationships(ast_data, function_registry)
+        call_graph, reverse_call_graph = self._build_call_relationships(
+            ast_data, function_registry
+        )
         self.call_graph = call_graph
         self.reverse_call_graph = reverse_call_graph
 
@@ -84,7 +86,9 @@ class CallGraphAnalyzer:
         logger.info(f"Entry points detected: {len(entry_points)}")
 
         # Step 4: Find unused functions (not called, not entry points)
-        unused_functions = self._find_unused_functions(function_registry, reverse_call_graph, entry_points)
+        unused_functions = self._find_unused_functions(
+            function_registry, reverse_call_graph, entry_points
+        )
         self.unused_functions = unused_functions
         logger.info(f"Unused functions: {len(unused_functions)}")
 
@@ -104,20 +108,22 @@ class CallGraphAnalyzer:
         metrics = self._calculate_metrics(nodes, edges, call_graph)
 
         result = {
-            'nodes': nodes,
-            'edges': edges,
-            'entry_points': entry_points,
-            'hot_paths': hot_paths,
-            'unused_functions': unused_functions,
-            'clusters': clusters,
-            'metrics': metrics,
-            'timestamp': None  # Will be set by caller
+            "nodes": nodes,
+            "edges": edges,
+            "entry_points": entry_points,
+            "hot_paths": hot_paths,
+            "unused_functions": unused_functions,
+            "clusters": clusters,
+            "metrics": metrics,
+            "timestamp": None,  # Will be set by caller
         }
 
         logger.info(f"Call graph built: {len(nodes)} nodes, {len(edges)} edges")
         return result
 
-    def _build_function_registry(self, ast_data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def _build_function_registry(
+        self, ast_data: dict[str, Any]
+    ) -> dict[str, dict[str, Any]]:
         """
         Build registry of all functions in codebase
 
@@ -127,25 +133,23 @@ class CallGraphAnalyzer:
         registry = {}
 
         for file_path, file_data in ast_data.items():
-            functions = file_data.get('functions', [])
+            functions = file_data.get("functions", [])
             for func in functions:
                 func_id = f"{file_path}:{func['name']}"
                 registry[func_id] = {
-                    'file': file_path,
-                    'name': func['name'],
-                    'line': func.get('line', 0),
-                    'async': func.get('async', False),
-                    'parameters': func.get('parameters', []),
-                    'calls': func.get('calls', [])
+                    "file": file_path,
+                    "name": func["name"],
+                    "line": func.get("line", 0),
+                    "async": func.get("async", False),
+                    "parameters": func.get("parameters", []),
+                    "calls": func.get("calls", []),
                 }
 
         return registry
 
     def _build_call_relationships(
-        self,
-        ast_data: Dict[str, Any],
-        function_registry: Dict[str, Dict[str, Any]]
-    ) -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
+        self, ast_data: dict[str, Any], function_registry: dict[str, dict[str, Any]]
+    ) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
         """
         Build call graph and reverse call graph
 
@@ -158,11 +162,11 @@ class CallGraphAnalyzer:
         reverse_call_graph = defaultdict(list)
 
         for func_id, func_data in function_registry.items():
-            file_path = func_data['file']
-            func_name = func_data['name']
+            file_path = func_data["file"]
+            func_data["name"]
 
             # Get all functions this function calls
-            calls = func_data.get('calls', [])
+            calls = func_data.get("calls", [])
 
             for called_func_name in calls:
                 # Try to resolve called function to full func_id
@@ -180,7 +184,7 @@ class CallGraphAnalyzer:
         self,
         func_name: str,
         current_file: str,
-        function_registry: Dict[str, Dict[str, Any]]
+        function_registry: dict[str, dict[str, Any]],
     ) -> str:
         """
         Resolve function name to full function ID
@@ -205,9 +209,9 @@ class CallGraphAnalyzer:
 
     def _detect_entry_points(
         self,
-        function_registry: Dict[str, Dict[str, Any]],
-        reverse_call_graph: Dict[str, List[str]]
-    ) -> List[str]:
+        function_registry: dict[str, dict[str, Any]],
+        reverse_call_graph: dict[str, list[str]],
+    ) -> list[str]:
         """
         Detect entry points (functions not called by other functions)
 
@@ -218,10 +222,18 @@ class CallGraphAnalyzer:
         """
         entry_points = []
 
-        entry_point_names = {'main', 'init', 'setup', 'run', 'start', '__init__', '__main__'}
+        entry_point_names = {
+            "main",
+            "init",
+            "setup",
+            "run",
+            "start",
+            "__init__",
+            "__main__",
+        }
 
         for func_id, func_data in function_registry.items():
-            func_name = func_data['name']
+            func_name = func_data["name"]
 
             # Check if function name is a known entry point
             if func_name in entry_point_names:
@@ -229,20 +241,26 @@ class CallGraphAnalyzer:
                 continue
 
             # Check if function is not called by anyone (potential entry point)
-            if func_id not in reverse_call_graph or len(reverse_call_graph[func_id]) == 0:
+            if (
+                func_id not in reverse_call_graph
+                or len(reverse_call_graph[func_id]) == 0
+            ):
                 # Only consider it entry point if it's in a main/server/app file
-                file_path = func_data['file']
-                if any(keyword in file_path for keyword in ['main', 'server', 'app', '__main__']):
+                file_path = func_data["file"]
+                if any(
+                    keyword in file_path
+                    for keyword in ["main", "server", "app", "__main__"]
+                ):
                     entry_points.append(func_id)
 
         return entry_points
 
     def _find_unused_functions(
         self,
-        function_registry: Dict[str, Dict[str, Any]],
-        reverse_call_graph: Dict[str, List[str]],
-        entry_points: List[str]
-    ) -> List[str]:
+        function_registry: dict[str, dict[str, Any]],
+        reverse_call_graph: dict[str, list[str]],
+        entry_points: list[str],
+    ) -> list[str]:
         """
         Find functions that are never called
 
@@ -253,13 +271,24 @@ class CallGraphAnalyzer:
         """
         unused = []
 
-        special_methods = {'__init__', '__str__', '__repr__', '__call__', '__enter__', '__exit__'}
+        special_methods = {
+            "__init__",
+            "__str__",
+            "__repr__",
+            "__call__",
+            "__enter__",
+            "__exit__",
+        }
 
         for func_id, func_data in function_registry.items():
-            func_name = func_data['name']
+            func_name = func_data["name"]
 
             # Skip special methods
-            if func_name in special_methods or func_name.startswith('__') and func_name.endswith('__'):
+            if (
+                func_name in special_methods
+                or func_name.startswith("__")
+                and func_name.endswith("__")
+            ):
                 continue
 
             # Skip entry points
@@ -267,16 +296,17 @@ class CallGraphAnalyzer:
                 continue
 
             # Check if called by anyone
-            if func_id not in reverse_call_graph or len(reverse_call_graph[func_id]) == 0:
+            if (
+                func_id not in reverse_call_graph
+                or len(reverse_call_graph[func_id]) == 0
+            ):
                 unused.append(func_id)
 
         return unused
 
     def _detect_hot_paths(
-        self,
-        call_graph: Dict[str, List[str]],
-        entry_points: List[str]
-    ) -> List[Dict[str, Any]]:
+        self, call_graph: dict[str, list[str]], entry_points: list[str]
+    ) -> list[dict[str, Any]]:
         """
         Detect hot paths (most frequently traversed call sequences)
 
@@ -290,23 +320,22 @@ class CallGraphAnalyzer:
 
             for path in paths:
                 if len(path) >= 2:
-                    hot_paths.append({
-                        'path': path,
-                        'frequency': 1,  # TODO: Calculate actual frequency from execution logs
-                        'depth': len(path)
-                    })
+                    hot_paths.append(
+                        {
+                            "path": path,
+                            "frequency": 1,  # TODO: Calculate actual frequency from execution logs
+                            "depth": len(path),
+                        }
+                    )
 
         # Sort by depth (longer paths = more interesting)
-        hot_paths.sort(key=lambda x: x['depth'], reverse=True)
+        hot_paths.sort(key=lambda x: x["depth"], reverse=True)
 
         return hot_paths[:10]  # Return top 10 hot paths
 
     def _bfs_paths(
-        self,
-        start: str,
-        call_graph: Dict[str, List[str]],
-        max_depth: int = 4
-    ) -> List[List[str]]:
+        self, start: str, call_graph: dict[str, list[str]], max_depth: int = 4
+    ) -> list[list[str]]:
         """
         BFS to find all paths from start node up to max_depth
         """
@@ -335,10 +364,10 @@ class CallGraphAnalyzer:
 
     def _build_nodes(
         self,
-        function_registry: Dict[str, Dict[str, Any]],
-        call_graph: Dict[str, List[str]],
-        reverse_call_graph: Dict[str, List[str]]
-    ) -> List[Dict[str, Any]]:
+        function_registry: dict[str, dict[str, Any]],
+        call_graph: dict[str, list[str]],
+        reverse_call_graph: dict[str, list[str]],
+    ) -> list[dict[str, Any]]:
         """
         Build node list with metrics
         """
@@ -351,24 +380,24 @@ class CallGraphAnalyzer:
             # Check if recursive
             is_recursive = func_id in call_graph.get(func_id, [])
 
-            nodes.append({
-                'function_id': func_id,
-                'name': func_data['name'],
-                'file': func_data['file'],
-                'line': func_data['line'],
-                'calls': calls_count,
-                'called_by': called_by_count,
-                'is_recursive': is_recursive,
-                'async': func_data.get('async', False)
-            })
+            nodes.append(
+                {
+                    "function_id": func_id,
+                    "name": func_data["name"],
+                    "file": func_data["file"],
+                    "line": func_data["line"],
+                    "calls": calls_count,
+                    "called_by": called_by_count,
+                    "is_recursive": is_recursive,
+                    "async": func_data.get("async", False),
+                }
+            )
 
         return nodes
 
     def _build_edges(
-        self,
-        call_graph: Dict[str, List[str]],
-        ast_data: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, call_graph: dict[str, list[str]], ast_data: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """
         Build edge list
         """
@@ -377,30 +406,32 @@ class CallGraphAnalyzer:
         for from_func, to_funcs in call_graph.items():
             for to_func in to_funcs:
                 # Get async status from AST
-                file_path = from_func.split(':')[0]
-                func_name = from_func.split(':')[1]
+                file_path = from_func.split(":")[0]
+                func_name = from_func.split(":")[1]
                 is_async = False
 
                 file_data = ast_data.get(file_path, {})
-                for func in file_data.get('functions', []):
-                    if func['name'] == func_name:
-                        is_async = func.get('async', False)
+                for func in file_data.get("functions", []):
+                    if func["name"] == func_name:
+                        is_async = func.get("async", False)
                         break
 
-                edges.append({
-                    'from': from_func,
-                    'to': to_func,
-                    'count': 1,  # TODO: Count actual call frequency
-                    'async': is_async
-                })
+                edges.append(
+                    {
+                        "from": from_func,
+                        "to": to_func,
+                        "count": 1,  # TODO: Count actual call frequency
+                        "async": is_async,
+                    }
+                )
 
         return edges
 
     def _analyze_clusters(
         self,
-        call_graph: Dict[str, List[str]],
-        function_registry: Dict[str, Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        call_graph: dict[str, list[str]],
+        function_registry: dict[str, dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         """
         Find clusters of related functions (high cohesion)
         """
@@ -408,7 +439,7 @@ class CallGraphAnalyzer:
         file_clusters = defaultdict(list)
 
         for func_id in function_registry:
-            file_path = func_id.split(':')[0]
+            file_path = func_id.split(":")[0]
             file_clusters[file_path].append(func_id)
 
         clusters = []
@@ -428,27 +459,29 @@ class CallGraphAnalyzer:
                 total_calls = internal_calls + external_calls
                 cohesion = internal_calls / total_calls if total_calls > 0 else 0
 
-                clusters.append({
-                    'id': f'cluster_{i}',
-                    'file': file_path,
-                    'functions': functions,
-                    'size': len(functions),
-                    'cohesion': round(cohesion, 2),
-                    'internal_calls': internal_calls,
-                    'external_calls': external_calls
-                })
+                clusters.append(
+                    {
+                        "id": f"cluster_{i}",
+                        "file": file_path,
+                        "functions": functions,
+                        "size": len(functions),
+                        "cohesion": round(cohesion, 2),
+                        "internal_calls": internal_calls,
+                        "external_calls": external_calls,
+                    }
+                )
 
         # Sort by cohesion (highest first)
-        clusters.sort(key=lambda x: x['cohesion'], reverse=True)
+        clusters.sort(key=lambda x: x["cohesion"], reverse=True)
 
         return clusters
 
     def _calculate_metrics(
         self,
-        nodes: List[Dict[str, Any]],
-        edges: List[Dict[str, Any]],
-        call_graph: Dict[str, List[str]]
-    ) -> Dict[str, Any]:
+        nodes: list[dict[str, Any]],
+        edges: list[dict[str, Any]],
+        call_graph: dict[str, list[str]],
+    ) -> dict[str, Any]:
         """
         Calculate overall call graph metrics
         """
@@ -458,7 +491,7 @@ class CallGraphAnalyzer:
         # Calculate max depth (longest call chain)
         max_depth = 0
         for node in nodes:
-            func_id = node['function_id']
+            func_id = node["function_id"]
             depth = self._calculate_call_depth(func_id, call_graph)
             max_depth = max(max_depth, depth)
 
@@ -466,19 +499,16 @@ class CallGraphAnalyzer:
         avg_calls = total_calls / total_functions if total_functions > 0 else 0
 
         return {
-            'total_functions': total_functions,
-            'total_calls': total_calls,
-            'max_call_depth': max_depth,
-            'avg_calls_per_function': round(avg_calls, 2),
-            'functions_with_no_calls': len([n for n in nodes if n['calls'] == 0]),
-            'functions_not_called': len([n for n in nodes if n['called_by'] == 0])
+            "total_functions": total_functions,
+            "total_calls": total_calls,
+            "max_call_depth": max_depth,
+            "avg_calls_per_function": round(avg_calls, 2),
+            "functions_with_no_calls": len([n for n in nodes if n["calls"] == 0]),
+            "functions_not_called": len([n for n in nodes if n["called_by"] == 0]),
         }
 
     def _calculate_call_depth(
-        self,
-        func_id: str,
-        call_graph: Dict[str, List[str]],
-        visited: Set[str] = None
+        self, func_id: str, call_graph: dict[str, list[str]], visited: set[str] = None
     ) -> int:
         """
         Calculate maximum call depth from this function (DFS)
@@ -496,25 +526,28 @@ class CallGraphAnalyzer:
             return 1
 
         max_child_depth = max(
-            (self._calculate_call_depth(child, call_graph, visited.copy()) for child in children),
-            default=0
+            (
+                self._calculate_call_depth(child, call_graph, visited.copy())
+                for child in children
+            ),
+            default=0,
         )
 
         return 1 + max_child_depth
 
-    def _empty_call_graph(self) -> Dict[str, Any]:
+    def _empty_call_graph(self) -> dict[str, Any]:
         """Return empty call graph structure"""
         return {
-            'nodes': [],
-            'edges': [],
-            'entry_points': [],
-            'hot_paths': [],
-            'unused_functions': [],
-            'clusters': [],
-            'metrics': {
-                'total_functions': 0,
-                'total_calls': 0,
-                'max_call_depth': 0,
-                'avg_calls_per_function': 0
-            }
+            "nodes": [],
+            "edges": [],
+            "entry_points": [],
+            "hot_paths": [],
+            "unused_functions": [],
+            "clusters": [],
+            "metrics": {
+                "total_functions": 0,
+                "total_calls": 0,
+                "max_call_depth": 0,
+                "avg_calls_per_function": 0,
+            },
         }

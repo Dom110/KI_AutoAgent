@@ -4,26 +4,28 @@ Uses Google Gemini 2.0 Flash for native video comprehension (audio + visual)
 Supports batch processing with custom instructions
 """
 
-import os
-import sys
 import json
 import logging
-from pathlib import Path
-from typing import Dict, Any, List, Optional
+import os
+import sys
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 # Fix import paths
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
-from agents.base.chat_agent import ChatAgent
-from agents.base.base_agent import (
-    AgentConfig, TaskRequest, TaskResult, AgentCapability
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
+
+from agents.base.base_agent import (AgentCapability, AgentConfig, TaskRequest,
+                                    TaskResult)
+from agents.base.chat_agent import ChatAgent
 from services.gemini_video_service import GeminiVideoService
 
 # Import Settings for configuration
 try:
     from config.settings import settings
+
     SETTINGS_AVAILABLE = True
 except ImportError:
     SETTINGS_AVAILABLE = False
@@ -32,6 +34,7 @@ except ImportError:
 # Try to import GPT-4o service for custom instruction execution
 try:
     from utils.openai_service import OpenAIService
+
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
@@ -71,7 +74,9 @@ class VideoAgent(ChatAgent):
             model = settings.VIDEOAGENT_MODEL
             temperature = settings.VIDEOAGENT_TEMPERATURE
             max_tokens = settings.VIDEOAGENT_MAX_TOKENS
-            output_dir = Path(settings.VIDEOAGENT_OUTPUT_DIR.replace("~", str(Path.home())))
+            output_dir = Path(
+                settings.VIDEOAGENT_OUTPUT_DIR.replace("~", str(Path.home()))
+            )
             logger.info(f"✅ VideoAgent using Settings configuration: {model}")
         else:
             # Fallback to hardcoded defaults
@@ -79,7 +84,9 @@ class VideoAgent(ChatAgent):
             temperature = 0.7
             max_tokens = 8000
             output_dir = Path.home() / ".ki_autoagent" / "data" / "video_output"
-            logger.warning("⚠️  VideoAgent using hardcoded defaults (Settings not available)")
+            logger.warning(
+                "⚠️  VideoAgent using hardcoded defaults (Settings not available)"
+            )
 
         config = AgentConfig(
             agent_id="video",
@@ -89,12 +96,12 @@ class VideoAgent(ChatAgent):
             model=model,
             capabilities=[
                 AgentCapability.WEB_RESEARCH,  # For video content research
-                AgentCapability.DOCUMENTATION  # For generating documentation
+                AgentCapability.DOCUMENTATION,  # For generating documentation
             ],
             temperature=temperature,
             max_tokens=max_tokens,
             icon="🎥",
-            instructions_path="$HOME/.ki_autoagent/config/instructions/video-instructions.md"
+            instructions_path="$HOME/.ki_autoagent/config/instructions/video-instructions.md",
         )
         super().__init__(config)
 
@@ -146,7 +153,7 @@ class VideoAgent(ChatAgent):
         start_time = datetime.now()
         self._current_request = request
 
-        logger.info(f"🎥 VideoAgent starting execution")
+        logger.info("🎥 VideoAgent starting execution")
 
         try:
             # MODE 3: Batch Processing
@@ -173,15 +180,14 @@ class VideoAgent(ChatAgent):
                 status="error",
                 content=f"Video analysis failed: {str(e)}",
                 agent=self.config.agent_id,
-                metadata={
-                    "error": str(e),
-                    "execution_time": execution_time
-                },
+                metadata={"error": str(e), "execution_time": execution_time},
                 execution_time=execution_time,
-                tokens_used=0
+                tokens_used=0,
             )
 
-    async def _execute_predefined(self, request: TaskRequest, start_time: datetime) -> TaskResult:
+    async def _execute_predefined(
+        self, request: TaskRequest, start_time: datetime
+    ) -> TaskResult:
         """
         Execute predefined task (transcript, summary, analysis)
         """
@@ -211,7 +217,7 @@ class VideoAgent(ChatAgent):
             result=result,
             video_path=video_path,
             output_name=output_name,
-            instruction=f"Predefined task: {task}"
+            instruction=f"Predefined task: {task}",
         )
 
         execution_time = (datetime.now() - start_time).total_seconds()
@@ -225,16 +231,18 @@ class VideoAgent(ChatAgent):
                 "task": task,
                 "output_files": [
                     str(self.output_dir / f"{output_name}.json"),
-                    str(self.output_dir / f"{output_name}.md")
+                    str(self.output_dir / f"{output_name}.md"),
                 ],
                 "tokens_used": self.total_tokens_used,
-                "cost_usd": self.total_cost
+                "cost_usd": self.total_cost,
             },
             execution_time=execution_time,
-            tokens_used=self.total_tokens_used
+            tokens_used=self.total_tokens_used,
         )
 
-    async def _execute_custom(self, request: TaskRequest, start_time: datetime) -> TaskResult:
+    async def _execute_custom(
+        self, request: TaskRequest, start_time: datetime
+    ) -> TaskResult:
         """
         Execute custom instruction on video
         Example: "Erstelle eine Trading Strategie aus diesem Video"
@@ -253,7 +261,9 @@ class VideoAgent(ChatAgent):
         video_data = await self._analyze_video_basic(video_path)
 
         # Execute custom instruction using GPT-4o
-        result = await self._apply_custom_instruction(video_data, custom_instruction, video_path)
+        result = await self._apply_custom_instruction(
+            video_data, custom_instruction, video_path
+        )
 
         # Generate dual output
         await self._generate_dual_output(
@@ -261,7 +271,7 @@ class VideoAgent(ChatAgent):
             result=result,
             video_path=video_path,
             output_name=output_name,
-            instruction=custom_instruction
+            instruction=custom_instruction,
         )
 
         execution_time = (datetime.now() - start_time).total_seconds()
@@ -275,16 +285,18 @@ class VideoAgent(ChatAgent):
                 "custom_instruction": custom_instruction,
                 "output_files": [
                     str(self.output_dir / f"{output_name}.json"),
-                    str(self.output_dir / f"{output_name}.md")
+                    str(self.output_dir / f"{output_name}.md"),
                 ],
                 "tokens_used": self.total_tokens_used,
-                "cost_usd": self.total_cost
+                "cost_usd": self.total_cost,
             },
             execution_time=execution_time,
-            tokens_used=self.total_tokens_used
+            tokens_used=self.total_tokens_used,
         )
 
-    async def _execute_batch(self, request: TaskRequest, start_time: datetime) -> TaskResult:
+    async def _execute_batch(
+        self, request: TaskRequest, start_time: datetime
+    ) -> TaskResult:
         """
         Batch process multiple videos with custom instructions
 
@@ -305,16 +317,16 @@ class VideoAgent(ChatAgent):
 
         for i, video_spec in enumerate(videos, 1):
             try:
-                logger.info(f"🎬 Processing video {i}/{len(videos)}: {video_spec['path']}")
+                logger.info(
+                    f"🎬 Processing video {i}/{len(videos)}: {video_spec['path']}"
+                )
 
                 # Analyze video
                 video_data = await self._analyze_video_basic(video_spec["path"])
 
                 # Apply custom instruction
                 result = await self._apply_custom_instruction(
-                    video_data,
-                    video_spec["instruction"],
-                    video_spec["path"]
+                    video_data, video_spec["instruction"], video_spec["path"]
                 )
 
                 # Generate dual output
@@ -323,21 +335,20 @@ class VideoAgent(ChatAgent):
                     result=result,
                     video_path=video_spec["path"],
                     output_name=video_spec["output_name"],
-                    instruction=video_spec["instruction"]
+                    instruction=video_spec["instruction"],
                 )
 
-                results.append({
-                    "video": video_spec["path"],
-                    "output_name": video_spec["output_name"],
-                    "status": "success"
-                })
+                results.append(
+                    {
+                        "video": video_spec["path"],
+                        "output_name": video_spec["output_name"],
+                        "status": "success",
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"❌ Failed to process {video_spec['path']}: {e}")
-                failed.append({
-                    "video": video_spec["path"],
-                    "error": str(e)
-                })
+                failed.append({"video": video_spec["path"], "error": str(e)})
 
         execution_time = (datetime.now() - start_time).total_seconds()
 
@@ -363,13 +374,13 @@ Total Cost: ${self.total_cost:.4f}
                 "failures": failed,
                 "output_dir": str(self.output_dir),
                 "tokens_used": self.total_tokens_used,
-                "cost_usd": self.total_cost
+                "cost_usd": self.total_cost,
             },
             execution_time=execution_time,
-            tokens_used=self.total_tokens_used
+            tokens_used=self.total_tokens_used,
         )
 
-    async def _analyze_video_basic(self, video_path: str) -> Dict[str, Any]:
+    async def _analyze_video_basic(self, video_path: str) -> dict[str, Any]:
         """
         Extract basic video data using Gemini:
         - Transcript with timestamps
@@ -398,7 +409,7 @@ Include all spoken words accurately."""
         transcript = await self.gemini_service.analyze_complete(
             video_path=video_path,
             prompt=transcript_prompt,
-            cleanup_after=False  # Keep video for additional analysis
+            cleanup_after=False,  # Keep video for additional analysis
         )
 
         # Visual Analysis
@@ -413,9 +424,7 @@ Include all spoken words accurately."""
 Provide a structured analysis."""
 
         visual_analysis = await self.gemini_service.analyze_complete(
-            video_path=video_path,
-            prompt=visual_prompt,
-            cleanup_after=False
+            video_path=video_path, prompt=visual_prompt, cleanup_after=False
         )
 
         # Summary
@@ -432,7 +441,7 @@ Keep it concise but informative (3-5 paragraphs)."""
         summary = await self.gemini_service.analyze_complete(
             video_path=video_path,
             prompt=summary_prompt,
-            cleanup_after=True  # Final analysis, cleanup now
+            cleanup_after=True,  # Final analysis, cleanup now
         )
 
         video_data = {
@@ -440,17 +449,14 @@ Keep it concise but informative (3-5 paragraphs)."""
             "transcript": transcript,
             "visual_analysis": visual_analysis,
             "summary": summary,
-            "analyzed_at": datetime.utcnow().isoformat()
+            "analyzed_at": datetime.utcnow().isoformat(),
         }
 
         logger.info("✅ Video analysis complete")
         return video_data
 
     async def _apply_custom_instruction(
-        self,
-        video_data: Dict[str, Any],
-        instruction: str,
-        video_path: str
+        self, video_data: dict[str, Any], instruction: str, video_path: str
     ) -> str:
         """
         Apply custom instruction to video data using GPT-4o
@@ -493,11 +499,11 @@ The response should be ready to use (e.g., if instruction asks for trading strat
 
     async def _generate_dual_output(
         self,
-        video_data: Dict[str, Any],
+        video_data: dict[str, Any],
         result: str,
         video_path: str,
         output_name: str,
-        instruction: str
+        instruction: str,
     ) -> None:
         """
         Generate BOTH JSON (for agents) and Markdown (for humans)
@@ -519,13 +525,13 @@ The response should be ready to use (e.g., if instruction asks for trading strat
             "video_data": {
                 "transcript": video_data.get("transcript", ""),
                 "visual_analysis": video_data.get("visual_analysis", ""),
-                "summary": video_data.get("summary", "")
+                "summary": video_data.get("summary", ""),
             },
             "metadata": {
                 "analyzed_at": video_data.get("analyzed_at"),
                 "generated_at": datetime.utcnow().isoformat(),
-                "agent": self.config.agent_id
-            }
+                "agent": self.config.agent_id,
+            },
         }
 
         json_path = self.output_dir / f"{output_name}.json"
@@ -578,7 +584,7 @@ The response should be ready to use (e.g., if instruction asks for trading strat
             f.write(md_content)
         logger.info(f"✅ Markdown saved: {md_path}")
 
-    def _format_analysis_result(self, video_data: Dict[str, Any]) -> str:
+    def _format_analysis_result(self, video_data: dict[str, Any]) -> str:
         """Format complete analysis result"""
         return f"""Video Analysis Complete
 
@@ -597,7 +603,15 @@ See output files for complete details.
         Simple heuristic - can be improved with langdetect library
         """
         # German keywords
-        german_keywords = ["erstelle", "baue", "analysiere", "video", "strategie", "aus", "diesem"]
+        german_keywords = [
+            "erstelle",
+            "baue",
+            "analysiere",
+            "video",
+            "strategie",
+            "aus",
+            "diesem",
+        ]
         german_count = sum(1 for word in german_keywords if word in text.lower())
 
         if german_count >= 2:
@@ -632,13 +646,10 @@ See output files for complete details.
             if isinstance(content, dict):
                 task_request = TaskRequest(
                     prompt=content.get("prompt", "Analyze video"),
-                    context=content.get("context", {})
+                    context=content.get("context", {}),
                 )
             else:
-                task_request = TaskRequest(
-                    prompt=str(content),
-                    context={}
-                )
+                task_request = TaskRequest(prompt=str(content), context={})
 
             # Execute video analysis
             result = await self.execute(task_request)
@@ -649,7 +660,7 @@ See output files for complete details.
                 "content": result.content,
                 "metadata": result.metadata,
                 "from_agent": "video",
-                "to_agent": message.from_agent
+                "to_agent": message.from_agent,
             }
 
         except Exception as e:
@@ -657,5 +668,5 @@ See output files for complete details.
             return {
                 "error": str(e),
                 "from_agent": "video",
-                "to_agent": message.from_agent
+                "to_agent": message.from_agent,
             }

@@ -3,44 +3,41 @@ Main workflow creation for KI AutoAgent using LangGraph
 Integrates all agents with extended features
 """
 
-import logging
 import asyncio
-from typing import Any
-from datetime import datetime
+import logging
 from dataclasses import replace as dataclass_replace
+from datetime import datetime
+from typing import Any
 
-from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, StateGraph
+
 # Try to import async checkpointer for better asyncio support
 try:
-    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
     ASYNC_CHECKPOINTER_AVAILABLE = True
 except ImportError:
-    from langgraph.checkpoint.sqlite import SqliteSaver
     ASYNC_CHECKPOINTER_AVAILABLE = False
     logger.warning("AsyncSqliteSaver not available, using sync version")
 
 # v5.8.3: Import LangGraph Store for cross-session agent learning
 try:
     from langgraph.store.memory import InMemoryStore
+
     LANGGRAPH_STORE_AVAILABLE = True
 except ImportError:
     LANGGRAPH_STORE_AVAILABLE = False
     logger.warning("LangGraph Store not available - agent learning disabled")
 
-from .state import ExtendedAgentState, create_initial_state, ExecutionStep, TaskLedger, ProgressLedger
-from .extensions import (
-    ToolRegistry,
-    ApprovalManager,
-    PersistentAgentMemory,
-    DynamicWorkflowManager,
-    get_tool_registry
-)
 from .cache_manager import CacheManager
+from .extensions import (ApprovalManager, DynamicWorkflowManager,
+                         PersistentAgentMemory, get_tool_registry)
+from .state import (ExecutionStep, ExtendedAgentState, ProgressLedger,
+                    TaskLedger, create_initial_state)
 
 # v5.8.4: Import retry logic for resilience
 try:
-    from .retry_logic import retry_with_backoff, RetryExhaustedError
+    from .retry_logic import RetryExhaustedError, retry_with_backoff
+
     RETRY_LOGIC_AVAILABLE = True
 except ImportError as e:
     logger.warning(f"⚠️ Retry logic not available: {e}")
@@ -52,6 +49,7 @@ logger = logging.getLogger(__name__)
 # v5.5.1: Import Intelligent Query Handler
 try:
     from .intelligent_query_handler import IntelligentQueryHandler
+
     INTELLIGENT_HANDLER_AVAILABLE = True
     logger.info("✅ Intelligent Query Handler loaded")
 except ImportError as e:
@@ -62,6 +60,7 @@ except ImportError as e:
 # v5.5.0: Import Self-Diagnosis System
 try:
     from .workflow_self_diagnosis import WorkflowSelfDiagnosisSystem
+
     SELF_DIAGNOSIS_AVAILABLE = True
     logger.info("✅ Self-Diagnosis System loaded successfully")
 except ImportError as e:
@@ -71,9 +70,10 @@ except ImportError as e:
 
 # v5.5.2: Import Safe Orchestrator Executor
 try:
-    from .safe_orchestrator_executor import SafeOrchestratorExecutor
-    from .query_classifier import EnhancedQueryClassifier
     from .development_query_handler import DevelopmentQueryHandler
+    from .query_classifier import EnhancedQueryClassifier
+    from .safe_orchestrator_executor import SafeOrchestratorExecutor
+
     SAFE_EXECUTOR_AVAILABLE = True
     logger.info("✅ Safe Orchestrator Executor loaded successfully")
 except ImportError as e:
@@ -83,34 +83,27 @@ except ImportError as e:
     EnhancedQueryClassifier = None
     DevelopmentQueryHandler = None
 
+import os
 # Import real agents
 import sys
-import os
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import custom exceptions
-from core.exceptions import (
-    WorkflowError,
-    WorkflowExecutionError,
-    WorkflowValidationError,
-    ParsingError,
-    DataValidationError,
-    ArchitectError,
-    CodesmithError,
-    ReviewerError,
-    FixerError,
-    ResearchError
-)
+from core.exceptions import (ArchitectError, CodesmithError,
+                             DataValidationError, FixerError, ParsingError,
+                             ResearchError, ReviewerError)
 
 REAL_AGENTS_AVAILABLE = False
 ORCHESTRATOR_AVAILABLE = False
 RESEARCH_AVAILABLE = False
 try:
+    from agents.base.base_agent import BaseAgent, TaskRequest, TaskResult
     from agents.specialized.architect_agent import ArchitectAgent
     from agents.specialized.codesmith_agent import CodeSmithAgent
-    from agents.specialized.reviewer_gpt_agent import ReviewerGPTAgent
     from agents.specialized.fixerbot_agent import FixerBotAgent
-    from agents.base.base_agent import BaseAgent, TaskRequest, TaskResult
+    from agents.specialized.reviewer_gpt_agent import ReviewerGPTAgent
+
     REAL_AGENTS_AVAILABLE = True
     logger.info("✅ Real agents imported successfully")
 except ImportError as e:
@@ -119,69 +112,79 @@ except ImportError as e:
 
 # Import Orchestrator for complex task decomposition
 try:
-    from agents.specialized.orchestrator_agent import OrchestratorAgent
+    # Fixed 2025-10-07: Use orchestrator_agent_v2 (old orchestrator_agent.py deleted)
+    # See: backend/agents/specialized/DELETED_ORCHESTRATOR_AGENT.md for reference
+    from agents.specialized.orchestrator_agent_v2 import \
+        OrchestratorAgentV2 as OrchestratorAgent
+
     ORCHESTRATOR_AVAILABLE = True
     logger.info("✅ Orchestrator agent imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ Could not import Orchestrator: {e}")
-    logger.warning(f"⚠️ Complex task decomposition will use fallback logic")
+    logger.warning("⚠️ Complex task decomposition will use fallback logic")
 
 # Import ResearchAgent for web research
 try:
     from agents.specialized.research_agent import ResearchAgent
+
     RESEARCH_AVAILABLE = True
     logger.info("✅ Research agent imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ Could not import ResearchAgent: {e}")
-    logger.warning(f"⚠️ Web research will not be available")
+    logger.warning("⚠️ Web research will not be available")
 
 # Import DocuBotAgent for documentation generation
 try:
     from agents.specialized.docubot_agent import DocuBotAgent
+
     DOCBOT_AVAILABLE = True
     logger.info("✅ DocuBot agent imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ Could not import DocuBotAgent: {e}")
-    logger.warning(f"⚠️ Documentation generation will use stub")
+    logger.warning("⚠️ Documentation generation will use stub")
 
 # Import PerformanceBot for performance optimization
 try:
     from agents.specialized.performance_bot import PerformanceBot
+
     PERFORMANCE_AVAILABLE = True
     logger.info("✅ Performance agent imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ Could not import PerformanceBot: {e}")
-    logger.warning(f"⚠️ Performance optimization will use stub")
+    logger.warning("⚠️ Performance optimization will use stub")
 
 # Import TradeStratAgent for trading strategies
 try:
     from agents.specialized.tradestrat_agent import TradeStratAgent
+
     TRADESTRAT_AVAILABLE = True
     logger.info("✅ TradeStrat agent imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ Could not import TradeStratAgent: {e}")
-    logger.warning(f"⚠️ Trading strategies will use stub")
+    logger.warning("⚠️ Trading strategies will use stub")
 
 # Import OpusArbitratorAgent for conflict resolution
 try:
     from agents.specialized.opus_arbitrator_agent import OpusArbitratorAgent
+
     OPUS_AVAILABLE = True
     logger.info("✅ OpusArbitrator agent imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ Could not import OpusArbitratorAgent: {e}")
-    logger.warning(f"⚠️ Conflict resolution will use stub")
+    logger.warning("⚠️ Conflict resolution will use stub")
 
 
 # ============================================================================
 # v5.8.3: Helper Functions for Immutable State Updates
 # ============================================================================
 
+
 def update_step_status(
     state: ExtendedAgentState,
     step_id: str,
     status: str,
     result: Any = None,
-    error: str = None
+    error: str = None,
 ) -> dict[str, Any]:
     """
     Create state update for a single step's status/result/error
@@ -249,7 +252,7 @@ async def execute_agent_with_retry(
     agent: "BaseAgent",
     task_request: "TaskRequest",
     agent_name: str = "unknown",
-    max_attempts: int = 2
+    max_attempts: int = 2,
 ) -> "TaskResult":
     """
     Execute agent with retry logic and AI system integration
@@ -271,12 +274,18 @@ async def execute_agent_with_retry(
     from datetime import datetime
 
     # 🔍 DEBUG: GUARANTEED LOG - Function was called!
-    logger.info(f"🎯 execute_agent_with_retry CALLED for {agent_name} - prompt: {task_request.prompt[:60]}...")
+    logger.info(
+        f"🎯 execute_agent_with_retry CALLED for {agent_name} - prompt: {task_request.prompt[:60]}..."
+    )
 
     # 🧠 PRE-EXECUTION: Check Asimov Rules BEFORE execution
-    if hasattr(agent, 'neurosymbolic_reasoner') and agent.neurosymbolic_reasoner:
-        reasoning_result = agent.neurosymbolic_reasoner.reason(task_request.prompt, {"agent": agent_name})
-        constraints_violated = reasoning_result.get("symbolic_results", {}).get("constraints_violated", [])
+    if hasattr(agent, "neurosymbolic_reasoner") and agent.neurosymbolic_reasoner:
+        reasoning_result = agent.neurosymbolic_reasoner.reason(
+            task_request.prompt, {"agent": agent_name}
+        )
+        constraints_violated = reasoning_result.get("symbolic_results", {}).get(
+            "constraints_violated", []
+        )
 
         if constraints_violated:
             first_violation = constraints_violated[0]
@@ -289,20 +298,24 @@ async def execute_agent_with_retry(
                 status="error",
                 content=f"Cannot execute: Violates {violation_rule_name}",
                 agent=agent_name,
-                metadata={"asimov_violation": True, "rule": violation_rule_name, "reasoning": reasoning_result}
+                metadata={
+                    "asimov_violation": True,
+                    "rule": violation_rule_name,
+                    "reasoning": reasoning_result,
+                },
             )
 
     # 📚 PRE-EXECUTION: Make prediction
     confidence = 0.5
     task_id = f"{agent_name}_{hash(task_request.prompt)}"
-    if hasattr(agent, 'predictive_memory') and agent.predictive_memory:
+    if hasattr(agent, "predictive_memory") and agent.predictive_memory:
         try:
             prediction = agent.predictive_memory.make_prediction(
                 task_id=task_id,
                 action=f"Execute task: {task_request.prompt[:50]}...",
                 expected_outcome="Task completion",
                 confidence=0.7,  # Default confidence
-                context={"agent": agent_name, "prompt": task_request.prompt}
+                context={"agent": agent_name, "prompt": task_request.prompt},
             )
             confidence = prediction.confidence
             logger.info(f"📊 {agent_name} prediction confidence: {confidence:.2f}")
@@ -312,28 +325,42 @@ async def execute_agent_with_retry(
     # 🔍 PRE-EXECUTION: Calculate curiosity
     curiosity_score = 0.5
     novelty_score = None
-    if hasattr(agent, 'curiosity_module') and agent.curiosity_module:
+    if hasattr(agent, "curiosity_module") and agent.curiosity_module:
         try:
-            final_priority, novelty_score = agent.curiosity_module.calculate_task_priority(
+            (
+                final_priority,
+                novelty_score,
+            ) = agent.curiosity_module.calculate_task_priority(
                 task_description=task_request.prompt,
                 base_priority=0.5,  # Default base priority
                 task_embedding=None,
-                category=None
+                category=None,
             )
             curiosity_score = novelty_score.novelty
-            logger.info(f"🔍 {agent_name} curiosity/novelty score: {curiosity_score:.2f}")
+            logger.info(
+                f"🔍 {agent_name} curiosity/novelty score: {curiosity_score:.2f}"
+            )
         except Exception as e:
             logger.warning(f"⚠️ Curiosity calculation failed: {e}")
 
     # 🔄 PRE-EXECUTION: Framework comparison if relevant
     comparison_result = None
-    if hasattr(agent, 'framework_comparator') and agent.framework_comparator:
-        keywords = ['framework', 'autogen', 'crewai', 'langgraph', 'multi-agent', 'architecture']
+    if hasattr(agent, "framework_comparator") and agent.framework_comparator:
+        keywords = [
+            "framework",
+            "autogen",
+            "crewai",
+            "langgraph",
+            "multi-agent",
+            "architecture",
+        ]
         if any(kw in task_request.prompt.lower() for kw in keywords):
             try:
-                comparison_result = agent.framework_comparator.compare_architecture_decision(
-                    decision=task_request.prompt,
-                    context={"agent": agent_name, "task": "architecture_decision"}
+                comparison_result = (
+                    agent.framework_comparator.compare_architecture_decision(
+                        decision=task_request.prompt,
+                        context={"agent": agent_name, "task": "architecture_decision"},
+                    )
                 )
                 logger.info(f"🔄 {agent_name} performed framework comparison")
             except Exception as e:
@@ -352,9 +379,9 @@ async def execute_agent_with_retry(
                 task_request,
                 max_attempts=max_attempts,
                 base_delay=2.0,  # Start with 2s delay
-                max_delay=10.0,   # Max 10s delay
+                max_delay=10.0,  # Max 10s delay
                 exponential_base=2.0,  # Double the delay each time
-                retry_on=(ConnectionError, TimeoutError, asyncio.TimeoutError)
+                retry_on=(ConnectionError, TimeoutError, asyncio.TimeoutError),
             )
         except RetryExhaustedError as e:
             logger.error(f"❌ {agent_name} failed after {max_attempts} attempts: {e}")
@@ -366,17 +393,19 @@ async def execute_agent_with_retry(
     execution_time = (datetime.now() - start_time).total_seconds()
 
     # 📚 POST-EXECUTION: Update predictive learning
-    if hasattr(agent, 'predictive_memory') and agent.predictive_memory:
+    if hasattr(agent, "predictive_memory") and agent.predictive_memory:
         try:
             agent.predictive_memory.record_reality(
                 task_id=task_id,
-                actual_outcome=result.content if result.status == "success" else "Task failed",
+                actual_outcome=result.content
+                if result.status == "success"
+                else "Task failed",
                 success=(result.status == "success"),
                 metadata={
                     "status": result.status,
                     "execution_time": execution_time,
-                    "agent": agent_name
-                }
+                    "agent": agent_name,
+                },
             )
             agent.predictive_memory.save_to_disk()
             logger.info(f"💾 {agent_name} predictive memory updated and saved")
@@ -384,14 +413,14 @@ async def execute_agent_with_retry(
             logger.warning(f"⚠️ Failed to record reality: {e}")
 
     # 🔍 POST-EXECUTION: Update curiosity
-    if hasattr(agent, 'curiosity_module') and agent.curiosity_module:
+    if hasattr(agent, "curiosity_module") and agent.curiosity_module:
         try:
             agent.curiosity_module.record_task_encounter(
                 task_id=task_id,
                 task_description=task_request.prompt,
                 task_embedding=None,
                 outcome="success" if result.status == "success" else "failure",
-                category=agent_name
+                category=agent_name,
             )
             agent.curiosity_module.save_to_disk()
             logger.info(f"💾 {agent_name} curiosity updated and saved")
@@ -399,14 +428,14 @@ async def execute_agent_with_retry(
             logger.warning(f"⚠️ Failed to update curiosity: {e}")
 
     # Add AI system metadata to result
-    if not hasattr(result, 'metadata'):
+    if not hasattr(result, "metadata"):
         result.metadata = {}
 
     result.metadata["ai_systems"] = {
         "predictive_confidence": confidence,
         "curiosity_score": curiosity_score,
         "framework_comparison": comparison_result,
-        "asimov_compliant": True
+        "asimov_compliant": True,
     }
 
     # Add framework comparison to content if relevant
@@ -434,7 +463,7 @@ class AgentWorkflow:
         self,
         websocket_manager=None,
         db_path: str = "langgraph_state.db",
-        memory_db_path: str = "agent_memories.db"
+        memory_db_path: str = "agent_memories.db",
     ):
         """
         Initialize the agent workflow system
@@ -513,7 +542,9 @@ class AgentWorkflow:
         if LANGGRAPH_STORE_AVAILABLE:
             try:
                 self.memory_store = InMemoryStore()
-                logger.info("🧠 LangGraph Store initialized - agents can now learn across sessions")
+                logger.info(
+                    "🧠 LangGraph Store initialized - agents can now learn across sessions"
+                )
             except Exception as e:
                 logger.error(f"Failed to initialize LangGraph Store: {e}")
                 self.memory_store = None
@@ -530,13 +561,12 @@ class AgentWorkflow:
             "research",
             "tradestrat",
             "opus_arbitrator",
-            "performance"
+            "performance",
         ]
 
         for agent in agents:
             self.agent_memories[agent] = PersistentAgentMemory(
-                agent_name=agent,
-                db_path=self.memory_db_path
+                agent_name=agent, db_path=self.memory_db_path
             )
 
     def _init_real_agents(self):
@@ -552,7 +582,7 @@ class AgentWorkflow:
                 "architect": ArchitectAgent(),
                 "codesmith": CodeSmithAgent(),
                 "reviewer": ReviewerGPTAgent(),
-                "fixer": FixerBotAgent()
+                "fixer": FixerBotAgent(),
             }
 
             # Add Orchestrator for complex task decomposition (Phase 2)
@@ -561,7 +591,9 @@ class AgentWorkflow:
                     orchestrator = OrchestratorAgent()
                     # Connect to memory system
                     if "orchestrator" in self.agent_memories:
-                        orchestrator.memory_manager = self.agent_memories["orchestrator"]
+                        orchestrator.memory_manager = self.agent_memories[
+                            "orchestrator"
+                        ]
                     self.real_agents["orchestrator"] = orchestrator
                     logger.info("✅ Orchestrator initialized with AI decomposition")
                 except Exception as e:
@@ -581,8 +613,12 @@ class AgentWorkflow:
                     # Research is OPTIONAL for system, but REQUIRED for specific workflows
                     logger.error(f"❌ Failed to initialize ResearchAgent: {e}")
                     logger.error("❌ ResearchAgent will NOT be available")
-                    logger.error("⚠️  Impact: Cannot design NEW projects (requires research)")
-                    logger.error("⚠️  Workaround: Use Architect only for EXISTING projects with 'analyze'/'improve' keywords")
+                    logger.error(
+                        "⚠️  Impact: Cannot design NEW projects (requires research)"
+                    )
+                    logger.error(
+                        "⚠️  Workaround: Use Architect only for EXISTING projects with 'analyze'/'improve' keywords"
+                    )
                     logger.error("⚠️  Solution: Add PERPLEXITY_API_KEY to .env file")
                     # Do NOT add research to real_agents - it stays None
                     # This allows Architect to detect missing research and fail appropriately
@@ -636,18 +672,30 @@ class AgentWorkflow:
             # v5.8.7: Connect Research Agent to Architect for new project research
             if "architect" in self.real_agents and "research" in self.real_agents:
                 try:
-                    self.real_agents["architect"].research_agent = self.real_agents["research"]
-                    logger.info("✅ Connected Research Agent to Architect for new project research")
-                    logger.info("✅ Architect can now design NEW projects with research-backed architecture")
+                    self.real_agents["architect"].research_agent = self.real_agents[
+                        "research"
+                    ]
+                    logger.info(
+                        "✅ Connected Research Agent to Architect for new project research"
+                    )
+                    logger.info(
+                        "✅ Architect can now design NEW projects with research-backed architecture"
+                    )
                 except Exception as e:
-                    logger.error(f"❌ Failed to connect Research Agent to Architect: {e}")
+                    logger.error(
+                        f"❌ Failed to connect Research Agent to Architect: {e}"
+                    )
                     # This is critical - reset research_agent to None to ensure fail-fast
                     self.real_agents["architect"].research_agent = None
             elif "architect" in self.real_agents and "research" not in self.real_agents:
                 # Research Agent not available
                 logger.warning("⚠️  Research Agent not connected to Architect")
-                logger.warning("⚠️  Architect LIMITED to existing project analysis only")
-                logger.warning("⚠️  NEW project design will FAIL without Research Agent")
+                logger.warning(
+                    "⚠️  Architect LIMITED to existing project analysis only"
+                )
+                logger.warning(
+                    "⚠️  NEW project design will FAIL without Research Agent"
+                )
                 # Ensure research_agent is None for fail-fast behavior
                 self.real_agents["architect"].research_agent = None
 
@@ -678,7 +726,7 @@ class AgentWorkflow:
                 "research": 90,
                 "docbot": 60,
                 "performance": 90,
-                "tradestrat": 60
+                "tradestrat": 60,
             }
             estimated_duration += agent_durations.get(step.agent, 60)
 
@@ -689,7 +737,7 @@ class AgentWorkflow:
             progress_summary="Task decomposition complete, ready for execution",
             created_at=now,
             last_updated=now,
-            total_estimated_duration=estimated_duration
+            total_estimated_duration=estimated_duration,
         )
 
     def extract_success_criteria(self, task: str) -> list[str]:
@@ -728,62 +776,77 @@ class AgentWorkflow:
             blocked_steps=0,
             current_phase="planning",
             estimated_completion=None,
-            overall_progress_percentage=0.0
+            overall_progress_percentage=0.0,
         )
         ledger.update_from_steps(steps)
         return ledger
 
-    async def check_and_handle_timeouts(self, state: ExtendedAgentState) -> ExtendedAgentState:
+    async def check_and_handle_timeouts(
+        self, state: ExtendedAgentState
+    ) -> ExtendedAgentState:
         """
         v5.4.3: Check for timed-out steps and handle retries
         """
-        steps_modified = False
         updated_steps = []  # Initialize the list that was missing
         messages_to_add = []  # Also initialize messages list
 
         for step in state["execution_plan"]:
             # Check timeout for in_progress steps
             if step.status == "in_progress" and step.is_timeout():
-                logger.warning(f"⏱️ Step {step.id} ({step.agent}) timed out after {step.timeout_seconds}s")
+                logger.warning(
+                    f"⏱️ Step {step.id} ({step.agent}) timed out after {step.timeout_seconds}s"
+                )
 
                 # Record the attempt
                 new_attempts = step.attempts.copy() if step.attempts else []
-                new_attempts.append({
-                    "attempt": step.retry_count + 1,
-                    "status": "timeout",
-                    "duration": step.timeout_seconds,
-                    "timestamp": datetime.now().isoformat()
-                })
+                new_attempts.append(
+                    {
+                        "attempt": step.retry_count + 1,
+                        "status": "timeout",
+                        "duration": step.timeout_seconds,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
 
                 # Check if can retry
                 if step.can_retry():
                     delay = step.get_retry_delay()
-                    logger.info(f"🔄 Retrying step {step.id} after {delay}s delay (attempt {step.retry_count + 1}/{step.max_retries})")
+                    logger.info(
+                        f"🔄 Retrying step {step.id} after {delay}s delay (attempt {step.retry_count + 1}/{step.max_retries})"
+                    )
                     # v5.8.3: Immutable retry update
-                    updated_steps.append(dataclass_replace(
-                        step,
-                        status="pending",
-                        retry_count=step.retry_count + 1,
-                        started_at=None,
-                        attempts=new_attempts
-                    ))
+                    updated_steps.append(
+                        dataclass_replace(
+                            step,
+                            status="pending",
+                            retry_count=step.retry_count + 1,
+                            started_at=None,
+                            attempts=new_attempts,
+                        )
+                    )
 
                     # Add retry message
-                    messages_to_add.append({
-                        "role": "system",
-                        "content": f"Step {step.id} timed out. Retrying (attempt {step.retry_count + 1}/{step.max_retries})"
-                    })
+                    messages_to_add.append(
+                        {
+                            "role": "system",
+                            "content": f"Step {step.id} timed out. Retrying (attempt {step.retry_count + 1}/{step.max_retries})",
+                        }
+                    )
                 else:
                     # Max retries reached, mark as failed
-                    logger.error(f"❌ Step {step.id} failed after {step.max_retries} retries")
+                    logger.error(
+                        f"❌ Step {step.id} failed after {step.max_retries} retries"
+                    )
                     # v5.8.3: Immutable failure update
-                    updated_steps.append(dataclass_replace(
-                        step,
-                        status="failed",
-                        error=f"Timeout after {step.max_retries} attempts",
-                        end_time=datetime.now(),
-                        attempts=new_attempts
-                    ))
+                    updated_steps.append(
+                        dataclass_replace(
+                            step,
+                            status="failed",
+                            error=f"Timeout after {step.max_retries} attempts",
+                            end_time=datetime.now(),
+                            attempts=new_attempts,
+                        )
+                    )
             else:
                 # Keep step as-is
                 updated_steps.append(step)
@@ -794,7 +857,9 @@ class AgentWorkflow:
             result["messages"] = messages_to_add
         return result
 
-    def identify_parallel_groups(self, steps: list[ExecutionStep]) -> dict[str, list[ExecutionStep]]:
+    def identify_parallel_groups(
+        self, steps: list[ExecutionStep]
+    ) -> dict[str, list[ExecutionStep]]:
         """
         v5.4.3: Identify steps that can run in parallel
         Groups steps with no dependencies on each other
@@ -836,7 +901,9 @@ class AgentWorkflow:
 
         return parallel_groups
 
-    def _has_dependency_conflict(self, step1: ExecutionStep, step2: ExecutionStep, all_steps: list[ExecutionStep]) -> bool:
+    def _has_dependency_conflict(
+        self, step1: ExecutionStep, step2: ExecutionStep, all_steps: list[ExecutionStep]
+    ) -> bool:
         """
         Check if two steps have dependency conflicts preventing parallel execution
         """
@@ -854,7 +921,9 @@ class AgentWorkflow:
 
         return False
 
-    def _get_all_dependencies(self, step: ExecutionStep, all_steps: list[ExecutionStep]) -> set:
+    def _get_all_dependencies(
+        self, step: ExecutionStep, all_steps: list[ExecutionStep]
+    ) -> set:
         """
         Get all transitive dependencies of a step
         """
@@ -885,7 +954,7 @@ class AgentWorkflow:
         tool: str = "",
         tool_status: str = "",
         tool_result: Any = None,
-        tool_details: dict[str, Any] = None
+        tool_details: dict[str, Any] = None,
     ):
         """
         Send agent activity messages to UI for visualization
@@ -921,7 +990,7 @@ class AgentWorkflow:
             message = {
                 "type": f"agent_{activity_type}",
                 "agent": agent,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             if content:
@@ -982,26 +1051,36 @@ class AgentWorkflow:
 
             # Log detailed collaboration history
             history = list(state.get("collaboration_history", []))
-            history.append({
-                "from": current_agent,
-                "to": suggested_agent,
-                "query": suggested_query[:100],
-                "count": collab_count,
-                "timestamp": datetime.now().isoformat()
-            })
+            history.append(
+                {
+                    "from": current_agent,
+                    "to": suggested_agent,
+                    "query": suggested_query[:100],
+                    "count": collab_count,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
             state["collaboration_history"] = history
 
-            logger.info(f"📊 Collaboration #{collab_count}: {current_agent} → {suggested_agent}")
-            logger.info(f"📊 Reviewer↔Fixer cycles: {state.get('reviewer_fixer_cycles', 0)}")
+            logger.info(
+                f"📊 Collaboration #{collab_count}: {current_agent} → {suggested_agent}"
+            )
+            logger.info(
+                f"📊 Reviewer↔Fixer cycles: {state.get('reviewer_fixer_cycles', 0)}"
+            )
 
             # 🚨 CHECK ESCALATION NEEDED (v5.1.0)
-            escalation_result = self._check_escalation_needed(state, suggested_agent, suggested_query)
+            escalation_result = self._check_escalation_needed(
+                state, suggested_agent, suggested_query
+            )
             if escalation_result["escalate"]:
                 # Override suggested agent based on escalation logic
                 suggested_agent = escalation_result["new_agent"]
                 suggested_query = escalation_result["new_query"]
                 state["escalation_level"] = escalation_result["level"]
-                logger.warning(f"⚠️ ESCALATION LEVEL {escalation_result['level']}: {escalation_result['reason']}")
+                logger.warning(
+                    f"⚠️ ESCALATION LEVEL {escalation_result['level']}: {escalation_result['reason']}"
+                )
 
             # Create new step for the suggested agent
             existing_plan = state.get("execution_plan", [])
@@ -1012,7 +1091,7 @@ class AgentWorkflow:
                 agent=suggested_agent,
                 task=suggested_query,
                 status="pending",
-                dependencies=[]  # No dependencies, can execute immediately
+                dependencies=[],  # No dependencies, can execute immediately
             )
 
             # Add to execution plan
@@ -1024,14 +1103,20 @@ class AgentWorkflow:
             state["suggested_agent"] = None
             state["suggested_query"] = None
 
-            logger.info(f"  ✅ Added Step {next_step_id}: {suggested_agent} - {suggested_query[:50]}")
+            logger.info(
+                f"  ✅ Added Step {next_step_id}: {suggested_agent} - {suggested_query[:50]}"
+            )
             state["status"] = "executing"
             return state
 
         # 🔄 CHECK: Are we resuming from approval?
         if state.get("resume_from_approval"):
-            logger.info("✅ RESUMING FROM APPROVAL - Skipping planning, using existing execution plan")
-            logger.info(f"📋 Existing execution plan has {len(state.get('execution_plan', []))} steps")
+            logger.info(
+                "✅ RESUMING FROM APPROVAL - Skipping planning, using existing execution plan"
+            )
+            logger.info(
+                f"📋 Existing execution plan has {len(state.get('execution_plan', []))} steps"
+            )
 
             # Clear the resume flag
             state["resume_from_approval"] = False
@@ -1039,7 +1124,9 @@ class AgentWorkflow:
             # Log the execution plan status
             if state.get("execution_plan"):
                 for i, step in enumerate(state["execution_plan"][:5]):  # First 5 steps
-                    logger.info(f"   Step {i+1}: {step.agent} - {step.status} - {step.task[:50]}...")
+                    logger.info(
+                        f"   Step {i+1}: {step.agent} - {step.status} - {step.task[:50]}..."
+                    )
 
             # Set status to executing
             state["status"] = "executing"
@@ -1059,10 +1146,9 @@ class AgentWorkflow:
             learned = memory.get_learned_solution(last_message)
             if learned:
                 logger.info("📚 Found learned solution from past experience")
-                state["learned_patterns"].append({
-                    "pattern": last_message,
-                    "solution": learned
-                })
+                state["learned_patterns"].append(
+                    {"pattern": last_message, "solution": learned}
+                )
 
         # Create execution plan
         plan = await self._create_execution_plan(state)
@@ -1073,17 +1159,23 @@ class AgentWorkflow:
             original_task = state["messages"][-1]["content"]
             task_ledger = self.create_task_ledger(original_task, plan)
             state["task_ledger"] = task_ledger
-            logger.info(f"📖 Created Task Ledger with {len(task_ledger.completion_criteria)} success criteria")
+            logger.info(
+                f"📖 Created Task Ledger with {len(task_ledger.completion_criteria)} success criteria"
+            )
 
         # v5.4.3: Create Progress Ledger
         progress_ledger = self.create_progress_ledger(plan)
         state["progress_ledger"] = progress_ledger
-        logger.info(f"📊 Created Progress Ledger - {progress_ledger.total_steps} total steps")
+        logger.info(
+            f"📊 Created Progress Ledger - {progress_ledger.total_steps} total steps"
+        )
 
         # v5.4.3: Identify parallel execution opportunities
         parallel_groups = self.identify_parallel_groups(plan)
         if parallel_groups:
-            logger.info(f"⚡ Identified {len(parallel_groups)} parallel execution groups")
+            logger.info(
+                f"⚡ Identified {len(parallel_groups)} parallel execution groups"
+            )
             for group_id, steps in parallel_groups.items():
                 step_ids = [s.id for s in steps]
                 logger.info(f"   {group_id}: Steps {step_ids} can run in parallel")
@@ -1093,19 +1185,25 @@ class AgentWorkflow:
             logger.info("🔍 Running Pre-Execution Validation (v5.5.0)")
             try:
                 # Run comprehensive validation with auto-fix
-                is_safe, validated_state = await self.self_diagnosis.pre_execution_check(
-                    state,
-                    auto_fix=True  # Allow automatic fixes for critical issues
+                (
+                    is_safe,
+                    validated_state,
+                ) = await self.self_diagnosis.pre_execution_check(
+                    state, auto_fix=True  # Allow automatic fixes for critical issues
                 )
 
                 if not is_safe:
-                    logger.error("❌ Pre-Execution Validation FAILED - Plan is NOT safe to execute")
+                    logger.error(
+                        "❌ Pre-Execution Validation FAILED - Plan is NOT safe to execute"
+                    )
 
                     # Add error message to state
-                    state["messages"].append({
-                        "role": "system",
-                        "content": "⚠️ Pre-execution validation failed. The execution plan has critical issues that need review. Please check the logs for details."
-                    })
+                    state["messages"].append(
+                        {
+                            "role": "system",
+                            "content": "⚠️ Pre-execution validation failed. The execution plan has critical issues that need review. Please check the logs for details.",
+                        }
+                    )
 
                     # Mark workflow as failed
                     state["status"] = "validation_failed"
@@ -1116,14 +1214,16 @@ class AgentWorkflow:
                         agent="orchestrator",
                         task="Validation failed - please review and fix the issues",
                         status="completed",
-                        result="Pre-execution validation detected critical issues. Manual intervention required."
+                        result="Pre-execution validation detected critical issues. Manual intervention required.",
                     )
                     state["execution_plan"] = [fallback_step]
 
                     logger.error("🔄 Created fallback plan due to validation failure")
                     return state
                 else:
-                    logger.info("✅ Pre-Execution Validation PASSED - Plan is safe to execute")
+                    logger.info(
+                        "✅ Pre-Execution Validation PASSED - Plan is safe to execute"
+                    )
                     # Use the validated (potentially fixed) state
                     state = validated_state
 
@@ -1132,11 +1232,16 @@ class AgentWorkflow:
                 # Continue without validation on error
                 logger.warning("⚠️ Continuing without validation due to error")
         else:
-            logger.warning("⚠️ Self-Diagnosis System not available - skipping validation")
+            logger.warning(
+                "⚠️ Self-Diagnosis System not available - skipping validation"
+            )
 
         # Set default approval type to none
         # This will be overridden to "architecture_proposal" by architect_node if needed
-        if not state.get("approval_type") or state.get("approval_type") == "execution_plan":
+        if (
+            not state.get("approval_type")
+            or state.get("approval_type") == "execution_plan"
+        ):
             state["approval_type"] = "none"
             logger.info("📋 Set approval_type to 'none' (no approval needed)")
 
@@ -1160,7 +1265,7 @@ class AgentWorkflow:
             memory_type="episodic",
             importance=0.7,
             metadata={"plan_size": len(plan)},
-            session_id=state.get("session_id")
+            session_id=state.get("session_id"),
         )
 
         return state
@@ -1182,7 +1287,9 @@ class AgentWorkflow:
 
             if proposal_status == "pending":
                 # Pause workflow - wait for user approval
-                logger.info("📋 Architecture proposal pending - workflow will pause here")
+                logger.info(
+                    "📋 Architecture proposal pending - workflow will pause here"
+                )
                 state["status"] = "waiting_architecture_approval"
                 state["waiting_for_approval"] = True
                 logger.info("⏸️  Workflow pausing - user must approve via WebSocket")
@@ -1221,32 +1328,49 @@ class AgentWorkflow:
         # Check if first step is architect - if so, let it create proposal
         first_step = None
         execution_plan = state.get("execution_plan", [])
-        logger.info(f"🔌 WebSocket DEBUG: Checking execution plan with {len(execution_plan)} steps")
+        logger.info(
+            f"🔌 WebSocket DEBUG: Checking execution plan with {len(execution_plan)} steps"
+        )
         for step in execution_plan:
-            logger.info(f"🔌 WebSocket DEBUG: Step {step.id}: agent={step.agent}, status={step.status}")
-            if step.status == "pending" and self._dependencies_met(step, state["execution_plan"]):
+            logger.info(
+                f"🔌 WebSocket DEBUG: Step {step.id}: agent={step.agent}, status={step.status}"
+            )
+            if step.status == "pending" and self._dependencies_met(
+                step, state["execution_plan"]
+            ):
                 first_step = step
-                logger.info(f"🔌 WebSocket DEBUG: Found first pending step: {step.agent}")
+                logger.info(
+                    f"🔌 WebSocket DEBUG: Found first pending step: {step.agent}"
+                )
                 break
 
         if first_step and first_step.agent == "architect":
             # Don't auto-approve - let architect create proposal first
             logger.info("🏗️ First step is architect - allowing proposal creation")
-            logger.info(f"🔌 WebSocket DEBUG: Architect will create proposal for client_id: {state.get('client_id')}")
-            logger.info(f"🔌 WebSocket DEBUG: Current session_id: {state.get('session_id')}")
-            logger.info(f"🔌 WebSocket DEBUG: WebSocket manager available: {self.websocket_manager is not None}")
-            state["approval_status"] = "approved"  # Allow workflow to continue to architect
+            logger.info(
+                f"🔌 WebSocket DEBUG: Architect will create proposal for client_id: {state.get('client_id')}"
+            )
+            logger.info(
+                f"🔌 WebSocket DEBUG: Current session_id: {state.get('session_id')}"
+            )
+            logger.info(
+                f"🔌 WebSocket DEBUG: WebSocket manager available: {self.websocket_manager is not None}"
+            )
+            state[
+                "approval_status"
+            ] = "approved"  # Allow workflow to continue to architect
             state["waiting_for_approval"] = False
             # v5.8.3: Immutable update with current_step_id
 
-            state.update(merge_state_updates(
-
-                update_step_status(state, first_step.id, "in_progress"),
-
-                {"current_step_id": first_step.id}
-
-            ))
-            logger.info(f"📍 Set current_step_id to: {first_step.id} for agent: architect")
+            state.update(
+                merge_state_updates(
+                    update_step_status(state, first_step.id, "in_progress"),
+                    {"current_step_id": first_step.id},
+                )
+            )
+            logger.info(
+                f"📍 Set current_step_id to: {first_step.id} for agent: architect"
+            )
         else:
             # No architecture proposal needed - auto-approve
             logger.info("📌 Auto-approving - no architecture proposal needed")
@@ -1257,14 +1381,15 @@ class AgentWorkflow:
             if first_step:
                 # v5.8.3: Immutable update with current_step_id
 
-                state.update(merge_state_updates(
-
-                    update_step_status(state, first_step.id, "in_progress"),
-
-                    {"current_step_id": first_step.id}
-
-                ))
-                logger.info(f"📍 Set current_step_id to: {first_step.id} for agent: {first_step.agent}")
+                state.update(
+                    merge_state_updates(
+                        update_step_status(state, first_step.id, "in_progress"),
+                        {"current_step_id": first_step.id},
+                    )
+                )
+                logger.info(
+                    f"📍 Set current_step_id to: {first_step.id} for agent: {first_step.agent}"
+                )
 
         return state
 
@@ -1289,13 +1414,17 @@ class AgentWorkflow:
 
         # Find current task
         current_step = self._get_current_step(state)
-        logger.info(f"🔍 Architect: current_step_id={state.get('current_step_id')}, current_step={current_step}")
+        logger.info(
+            f"🔍 Architect: current_step_id={state.get('current_step_id')}, current_step={current_step}"
+        )
         if not current_step:
-            logger.warning(f"⚠️ Architect: No current step found, returning early")
+            logger.warning("⚠️ Architect: No current step found, returning early")
             return state
 
         # Recall relevant memories
-        similar = memory.recall_similar(current_step.task, k=5, memory_types=["semantic", "procedural"])
+        similar = memory.recall_similar(
+            current_step.task, k=5, memory_types=["semantic", "procedural"]
+        )
         state["recalled_memories"].extend(similar)
 
         try:
@@ -1311,11 +1440,10 @@ class AgentWorkflow:
                 # v5.8.3: Immutable update
 
                 return merge_state_updates(
-
-                    update_step_status(state, current_step.id, "completed", result=final_result),
-
-                    {"messages": state["messages"]}
-
+                    update_step_status(
+                        state, current_step.id, "completed", result=final_result
+                    ),
+                    {"messages": state["messages"]},
                 )
                 # Store in memory
                 memory.store_memory(
@@ -1323,7 +1451,7 @@ class AgentWorkflow:
                     memory_type="procedural",
                     importance=0.9,
                     metadata={"result": final_result, "user_approved": True},
-                    session_id=state.get("session_id")
+                    session_id=state.get("session_id"),
                 )
 
                 logger.info("✅ Architecture finalized after approval")
@@ -1331,7 +1459,9 @@ class AgentWorkflow:
 
             # CASE 2: Proposal rejected/modified → Revise
             if proposal_status in ["rejected", "modified"]:
-                logger.info(f"✏️ Proposal {proposal_status} - revising based on feedback")
+                logger.info(
+                    f"✏️ Proposal {proposal_status} - revising based on feedback"
+                )
                 user_feedback = state.get("user_feedback_on_proposal", "")
 
                 revised_proposal = await self._revise_proposal(state, user_feedback)
@@ -1344,25 +1474,30 @@ class AgentWorkflow:
                 formatted_msg = self._format_proposal_for_user(revised_proposal)
 
                 # Send to user
-                state["messages"].append({
-                    "role": "assistant",
-                    "content": formatted_msg,
-                    "type": "architecture_proposal_revised",
-                    "proposal": revised_proposal
-                })
+                state["messages"].append(
+                    {
+                        "role": "assistant",
+                        "content": formatted_msg,
+                        "type": "architecture_proposal_revised",
+                        "proposal": revised_proposal,
+                    }
+                )
 
                 # Send via WebSocket (v5.8.1: ensure consistent format)
                 if self.websocket_manager:
-                    await self.websocket_manager.send_json(state["client_id"], {
-                        "type": "architecture_proposal_revised",
-                        "proposal": revised_proposal,
-                        "content": formatted_msg,  # v5.8.1: use 'content' for consistency
-                        "session_id": state.get("session_id"),
-                        "metadata": {
-                            "waiting_for_approval": True,
-                            "approval_type": "architecture_proposal"
-                        }
-                    })
+                    await self.websocket_manager.send_json(
+                        state["client_id"],
+                        {
+                            "type": "architecture_proposal_revised",
+                            "proposal": revised_proposal,
+                            "content": formatted_msg,  # v5.8.1: use 'content' for consistency
+                            "session_id": state.get("session_id"),
+                            "metadata": {
+                                "waiting_for_approval": True,
+                                "approval_type": "architecture_proposal",
+                            },
+                        },
+                    )
 
                 logger.info("📋 Revised proposal sent to user")
                 return state
@@ -1371,14 +1506,16 @@ class AgentWorkflow:
             # v5.2.0: PHASE 2 - No proposal yet → Do research & create proposal
             # ============================================================
             if not state.get("architecture_proposal"):
-                logger.info("📋 No proposal exists - performing research and creating proposal")
+                logger.info(
+                    "📋 No proposal exists - performing research and creating proposal"
+                )
 
                 # v5.8.1: Send thinking message
                 await self._send_agent_activity(
                     state,
                     "thinking",
                     "architect",
-                    content="Analyzing requirements and researching best practices..."
+                    content="Analyzing requirements and researching best practices...",
                 )
 
                 # Step 1: Call ResearchAgent for web research
@@ -1386,7 +1523,7 @@ class AgentWorkflow:
                     id=f"research_{current_step.id}",
                     task=f"Research best practices and latest technologies for: {current_step.task}",
                     agent="research",
-                    status="pending"
+                    status="pending",
                 )
 
                 logger.info("🔍 Step 1: Calling ResearchAgent for web research...")
@@ -1394,34 +1531,44 @@ class AgentWorkflow:
                     state,
                     "progress",
                     "research",
-                    content=f"Researching: {current_step.task[:100]}..."
+                    content=f"Researching: {current_step.task[:100]}...",
                 )
 
-                research_result = await self._execute_research_task(state, research_step)
+                research_result = await self._execute_research_task(
+                    state, research_step
+                )
                 logger.info(f"✅ Research completed: {research_result[:200]}...")
 
                 # Step 2: Call Architect with research results
-                logger.info("🏗️ Step 2: Architect analyzing requirements with research insights...")
+                logger.info(
+                    "🏗️ Step 2: Architect analyzing requirements with research insights..."
+                )
                 await self._send_agent_activity(
                     state,
                     "progress",
                     "architect",
-                    content="Analyzing requirements with research insights..."
+                    content="Analyzing requirements with research insights...",
                 )
 
-                architect_analysis = await self._execute_architect_task_with_research(state, current_step, research_result)
-                logger.info(f"✅ Architect analysis completed: {architect_analysis[:200]}...")
+                architect_analysis = await self._execute_architect_task_with_research(
+                    state, current_step, research_result
+                )
+                logger.info(
+                    f"✅ Architect analysis completed: {architect_analysis[:200]}..."
+                )
 
                 # v5.8.1: Send progress message
                 await self._send_agent_activity(
                     state,
                     "progress",
                     "architect",
-                    content="Creating architecture proposal..."
+                    content="Creating architecture proposal...",
                 )
 
                 # Step 3: Create proposal based on architect analysis (which includes research)
-                proposal = await self._create_architecture_proposal(state, architect_analysis)
+                proposal = await self._create_architecture_proposal(
+                    state, architect_analysis
+                )
                 state["architecture_proposal"] = proposal
                 state["proposal_status"] = "pending"
                 state["needs_approval"] = True
@@ -1431,18 +1578,26 @@ class AgentWorkflow:
                 formatted_msg = self._format_proposal_for_user(proposal)
 
                 # Step 4: Send to user
-                state["messages"].append({
-                    "role": "assistant",
-                    "content": formatted_msg,
-                    "type": "architecture_proposal",
-                    "proposal": proposal
-                })
+                state["messages"].append(
+                    {
+                        "role": "assistant",
+                        "content": formatted_msg,
+                        "type": "architecture_proposal",
+                        "proposal": proposal,
+                    }
+                )
 
                 # Send as regular chat message so user sees it
                 if self.websocket_manager:
-                    logger.info(f"🔌 WebSocket DEBUG: Sending architecture proposal to client_id: {state.get('client_id')}")
-                    logger.info(f"🔌 WebSocket DEBUG: Session ID: {state.get('session_id')}")
-                    logger.info(f"🔌 WebSocket DEBUG: Proposal size: {len(str(proposal))} chars")
+                    logger.info(
+                        f"🔌 WebSocket DEBUG: Sending architecture proposal to client_id: {state.get('client_id')}"
+                    )
+                    logger.info(
+                        f"🔌 WebSocket DEBUG: Session ID: {state.get('session_id')}"
+                    )
+                    logger.info(
+                        f"🔌 WebSocket DEBUG: Proposal size: {len(str(proposal))} chars"
+                    )
 
                     # Send as architecture_proposal (v5.8.1 fix: UI expects this type!)
                     message_to_send = {
@@ -1453,28 +1608,39 @@ class AgentWorkflow:
                         "session_id": state.get("session_id"),
                         "metadata": {
                             "waiting_for_approval": True,
-                            "approval_type": "architecture_proposal"
-                        }
+                            "approval_type": "architecture_proposal",
+                        },
                     }
 
                     try:
-                        await self.websocket_manager.send_json(state["client_id"], message_to_send)
-                        logger.info("✅ WebSocket DEBUG: Architecture proposal sent successfully")
+                        await self.websocket_manager.send_json(
+                            state["client_id"], message_to_send
+                        )
+                        logger.info(
+                            "✅ WebSocket DEBUG: Architecture proposal sent successfully"
+                        )
 
                         # Mark in state that we're waiting for chat approval
                         state["waiting_for_chat_approval"] = True
 
                         # Store in active workflows for later retrieval
-                        if not hasattr(self.websocket_manager, 'active_workflows'):
+                        if not hasattr(self.websocket_manager, "active_workflows"):
                             self.websocket_manager.active_workflows = {}
-                        self.websocket_manager.active_workflows[state.get("session_id")] = state
-                        logger.info(f"📝 WebSocket DEBUG: Stored state in websocket_manager.active_workflows for session: {state.get('session_id')}")
+                        self.websocket_manager.active_workflows[
+                            state.get("session_id")
+                        ] = state
+                        logger.info(
+                            f"📝 WebSocket DEBUG: Stored state in websocket_manager.active_workflows for session: {state.get('session_id')}"
+                        )
                     except Exception as e:
                         logger.error(f"❌ WebSocket DEBUG: Failed to send proposal: {e}")
                         import traceback
+
                         logger.error(f"📍 Traceback: {traceback.format_exc()}")
                 else:
-                    logger.warning("⚠️ WebSocket DEBUG: No websocket_manager available!")
+                    logger.warning(
+                        "⚠️ WebSocket DEBUG: No websocket_manager available!"
+                    )
 
                 # Update step status to pending (waiting for approval)
                 # v5.8.3: Immutable update
@@ -1485,8 +1651,11 @@ class AgentWorkflow:
                     content=f"Architecture research: {current_step.task}",
                     memory_type="procedural",
                     importance=0.7,
-                    metadata={"research": research_result[:500], "proposal_created": True},
-                    session_id=state.get("session_id")
+                    metadata={
+                        "research": research_result[:500],
+                        "proposal_created": True,
+                    },
+                    session_id=state.get("session_id"),
                 )
 
                 logger.info("📋 Architecture proposal created and sent to user")
@@ -1495,34 +1664,37 @@ class AgentWorkflow:
             # ============================================================
             # FALLBACK: Should not reach here
             # ============================================================
-            logger.warning("⚠️ Unexpected architect_node state - falling back to old behavior")
+            logger.warning(
+                "⚠️ Unexpected architect_node state - falling back to old behavior"
+            )
             result = await self._execute_architect_task(state, current_step)
             # v5.8.3: Immutable update
 
             return merge_state_updates(
-
                 update_step_status(state, current_step.id, "completed", result=result),
-
-                {"messages": state["messages"]}
-
+                {"messages": state["messages"]},
             )
             memory.store_memory(
                 content=f"Architecture design: {current_step.task}",
                 memory_type="procedural",
                 importance=0.8,
                 metadata={"result": result},
-                session_id=state.get("session_id")
+                session_id=state.get("session_id"),
             )
 
         except Exception as e:
             logger.error(f"❌ Architect execution failed: {e}", exc_info=True)
             # v5.8.3: Immutable exception handling
-            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
-            state["errors"].append({
-                "agent": "architect",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            })
+            state.update(
+                update_step_status(state, current_step.id, "failed", error=str(e))
+            )
+            state["errors"].append(
+                {
+                    "agent": "architect",
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         return state
 
@@ -1540,8 +1712,12 @@ class AgentWorkflow:
         # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
         # (routing functions can't modify state, so current_step_id is unreliable)
         current_step = next(
-            (s for s in state["execution_plan"] if s.agent == "codesmith" and s.status == "in_progress"),
-            None
+            (
+                s
+                for s in state["execution_plan"]
+                if s.agent == "codesmith" and s.status == "in_progress"
+            ),
+            None,
         )
         if not current_step:
             logger.error("❌ No in_progress codesmith step found!")
@@ -1554,34 +1730,31 @@ class AgentWorkflow:
             state,
             "thinking",
             "codesmith",
-            content=f"Implementing: {current_step.task[:100]}..."
+            content=f"Implementing: {current_step.task[:100]}...",
         )
 
         # Check for code patterns
         patterns = memory.recall_similar(
-            current_step.task,
-            k=5,
-            memory_types=["procedural"]
+            current_step.task, k=5, memory_types=["procedural"]
         )
 
         try:
             # Execute code generation
             result = await self._execute_codesmith_task(state, current_step, patterns)
             # v5.8.3: Immutable update
-            state.update(update_step_status(state, current_step.id, "completed", result=result))
+            state.update(
+                update_step_status(state, current_step.id, "completed", result=result)
+            )
             logger.info(f"✅ CodeSmith node set step {current_step.id} to completed")
 
             # v5.8.1: Send completion message
             await self._send_agent_activity(
-                state,
-                "complete",
-                "codesmith",
-                content=f"✅ Implementation completed"
+                state, "complete", "codesmith", content="✅ Implementation completed"
             )
 
             # ✅ FIX: Create NEW list to trigger LangGraph state update
             state["execution_plan"] = list(state["execution_plan"])
-            logger.info(f"✅ CodeSmith node updated execution_plan state")
+            logger.info("✅ CodeSmith node updated execution_plan state")
 
             # 🔍 ANALYZE RESULT: Check if research needed
             # TODO: Enable when research_node is implemented
@@ -1605,14 +1778,19 @@ class AgentWorkflow:
                 content=f"Generated code for: {current_step.task}",
                 memory_type="procedural",
                 importance=0.7,
-                metadata={"code_size": len(str(result)), "needs_research": needs_research},
-                session_id=state.get("session_id")
+                metadata={
+                    "code_size": len(str(result)),
+                    "needs_research": needs_research,
+                },
+                session_id=state.get("session_id"),
             )
 
         except Exception as e:
             logger.error(f"CodeSmith execution failed: {e}")
             # v5.8.3: Immutable exception handling
-            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
+            state.update(
+                update_step_status(state, current_step.id, "failed", error=str(e))
+            )
         return state
 
     async def reviewer_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1626,8 +1804,12 @@ class AgentWorkflow:
 
         # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
         current_step = next(
-            (s for s in state["execution_plan"] if s.agent == "reviewer" and s.status == "in_progress"),
-            None
+            (
+                s
+                for s in state["execution_plan"]
+                if s.agent == "reviewer" and s.status == "in_progress"
+            ),
+            None,
         )
         if not current_step:
             logger.error("❌ No in_progress reviewer step found!")
@@ -1639,14 +1821,32 @@ class AgentWorkflow:
             # Perform review
             review_result = await self._execute_reviewer_task(state, current_step)
             # v5.8.3: Immutable update
-            state.update(update_step_status(state, current_step.id, "completed", result=review_result))
+            state.update(
+                update_step_status(
+                    state, current_step.id, "completed", result=review_result
+                )
+            )
 
             # 🔍 ANALYZE REVIEW: Check if critical issues found
-            review_text = str(review_result).lower() if isinstance(review_result, str) else str(review_result.get("review", "")).lower()
-            has_critical_issues = any(keyword in review_text for keyword in [
-                "critical", "bug", "error", "vulnerability", "security issue",
-                "fix needed", "must fix", "requires fix", "issue found"
-            ])
+            review_text = (
+                str(review_result).lower()
+                if isinstance(review_result, str)
+                else str(review_result.get("review", "")).lower()
+            )
+            has_critical_issues = any(
+                keyword in review_text
+                for keyword in [
+                    "critical",
+                    "bug",
+                    "error",
+                    "vulnerability",
+                    "security issue",
+                    "fix needed",
+                    "must fix",
+                    "requires fix",
+                    "issue found",
+                ]
+            )
 
             # v5.8.6 Fix 5: Track review iteration and quality score
             review_iteration = state.get("review_iteration", 0)
@@ -1654,29 +1854,43 @@ class AgentWorkflow:
 
             # Extract quality score from review metadata
             quality_score = 0.0
-            if hasattr(current_step, 'metadata') and current_step.metadata:
-                quality_score = current_step.metadata.get('quality_score', 0.0)
+            if hasattr(current_step, "metadata") and current_step.metadata:
+                quality_score = current_step.metadata.get("quality_score", 0.0)
             quality_threshold = state.get("quality_threshold", 0.8)
 
-            logger.info(f"📊 Review Iteration {review_iteration + 1}/{max_iterations} - Quality: {quality_score:.2f} (Threshold: {quality_threshold})")
+            logger.info(
+                f"📊 Review Iteration {review_iteration + 1}/{max_iterations} - Quality: {quality_score:.2f} (Threshold: {quality_threshold})"
+            )
 
             # Determine if we need another fix iteration
             if has_critical_issues and quality_score < quality_threshold:
                 if review_iteration < max_iterations:
-                    logger.warning(f"⚠️ Quality {quality_score:.2f} below threshold {quality_threshold} - requesting Fixer (iteration {review_iteration + 1})")
+                    logger.warning(
+                        f"⚠️ Quality {quality_score:.2f} below threshold {quality_threshold} - requesting Fixer (iteration {review_iteration + 1})"
+                    )
                     state["needs_replan"] = True
                     state["suggested_agent"] = "fixer"
-                    state["suggested_query"] = f"Fix the issues found in code review: {review_text[:200]}"
+                    state[
+                        "suggested_query"
+                    ] = f"Fix the issues found in code review: {review_text[:200]}"
                     state["review_iteration"] = review_iteration + 1
                     state["last_quality_score"] = quality_score
-                    logger.info(f"  🔄 Set needs_replan=True, suggested_agent=fixer, review_iteration={review_iteration + 1}")
+                    logger.info(
+                        f"  🔄 Set needs_replan=True, suggested_agent=fixer, review_iteration={review_iteration + 1}"
+                    )
                 else:
-                    logger.error(f"❌ Max review iterations ({max_iterations}) reached - quality still {quality_score:.2f}")
+                    logger.error(
+                        f"❌ Max review iterations ({max_iterations}) reached - quality still {quality_score:.2f}"
+                    )
                     state["needs_replan"] = False
                     state["review_iteration"] = 0
-                    logger.warning("⚠️ Accepting code despite quality issues - max iterations reached")
+                    logger.warning(
+                        "⚠️ Accepting code despite quality issues - max iterations reached"
+                    )
             else:
-                logger.info(f"✅ Quality {quality_score:.2f} meets threshold {quality_threshold} - no more fixes needed")
+                logger.info(
+                    f"✅ Quality {quality_score:.2f} meets threshold {quality_threshold} - no more fixes needed"
+                )
                 state["needs_replan"] = False
                 state["review_iteration"] = 0  # Reset for next task
 
@@ -1687,7 +1901,7 @@ class AgentWorkflow:
                         content=f"Found issue: {issue}",
                         memory_type="semantic",
                         importance=0.8 if has_critical_issues else 0.6,
-                        session_id=state.get("session_id")
+                        session_id=state.get("session_id"),
                     )
             else:
                 # Store text review
@@ -1695,14 +1909,19 @@ class AgentWorkflow:
                     content=f"Code review: {current_step.task}",
                     memory_type="episodic",
                     importance=0.8 if has_critical_issues else 0.6,
-                    metadata={"review": review_result, "has_critical_issues": has_critical_issues},
-                    session_id=state.get("session_id")
+                    metadata={
+                        "review": review_result,
+                        "has_critical_issues": has_critical_issues,
+                    },
+                    session_id=state.get("session_id"),
                 )
 
         except Exception as e:
             logger.error(f"Reviewer execution failed: {e}")
             # v5.8.3: Immutable exception handling
-            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
+            state.update(
+                update_step_status(state, current_step.id, "failed", error=str(e))
+            )
         return state
 
     async def fixer_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1716,8 +1935,12 @@ class AgentWorkflow:
 
         # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
         current_step = next(
-            (s for s in state["execution_plan"] if s.agent == "fixer" and s.status == "in_progress"),
-            None
+            (
+                s
+                for s in state["execution_plan"]
+                if s.agent == "fixer" and s.status == "in_progress"
+            ),
+            None,
         )
         if not current_step:
             logger.error("❌ No in_progress fixer step found!")
@@ -1736,30 +1959,63 @@ class AgentWorkflow:
             # Priority 1: Check for structured issues at top level (future-proof)
             if isinstance(result, dict) and result.get("issues"):
                 issues = result["issues"]
-                logger.info(f"🔧 Fixer found {len(issues)} structured issues from reviewer result")
+                logger.info(
+                    f"🔧 Fixer found {len(issues)} structured issues from reviewer result"
+                )
 
             # Priority 2: Check metadata for structured_errors (from Fix 1 & 2)
-            elif hasattr(review_step, 'metadata') and review_step.metadata and review_step.metadata.get("structured_errors"):
+            elif (
+                hasattr(review_step, "metadata")
+                and review_step.metadata
+                and review_step.metadata.get("structured_errors")
+            ):
                 issues = review_step.metadata["structured_errors"]
-                logger.info(f"🔧 Fixer found {len(issues)} structured errors from reviewer metadata")
+                logger.info(
+                    f"🔧 Fixer found {len(issues)} structured errors from reviewer metadata"
+                )
 
             # Priority 3: Fallback - parse text result for Playwright errors
-            elif isinstance(result, str) or (isinstance(result, dict) and result.get("content")):
-                result_str = result if isinstance(result, str) else result.get("content", "")
+            elif isinstance(result, str) or (
+                isinstance(result, dict) and result.get("content")
+            ):
+                result_str = (
+                    result if isinstance(result, str) else result.get("content", "")
+                )
 
                 # Check if this is a Playwright test failure
-                if "PLAYWRIGHT" in result_str.upper() and "FAILED" in result_str.upper():
+                if (
+                    "PLAYWRIGHT" in result_str.upper()
+                    and "FAILED" in result_str.upper()
+                ):
                     import re
+
                     # Extract errors from the "**Errors Found:**" section
-                    error_section = re.search(r'\*\*Errors Found:\*\*\n(.+?)(?:\n\*\*|$)', result_str, re.DOTALL)
+                    error_section = re.search(
+                        r"\*\*Errors Found:\*\*\n(.+?)(?:\n\*\*|$)",
+                        result_str,
+                        re.DOTALL,
+                    )
                     if error_section:
-                        error_lines = re.findall(r'- (.+)', error_section.group(1))
-                        issues = [{"description": e.strip(), "severity": "high", "source": "playwright_text_parse"} for e in error_lines]
-                        logger.info(f"🔧 Fixer parsed {len(issues)} Playwright errors from text")
+                        error_lines = re.findall(r"- (.+)", error_section.group(1))
+                        issues = [
+                            {
+                                "description": e.strip(),
+                                "severity": "high",
+                                "source": "playwright_text_parse",
+                            }
+                            for e in error_lines
+                        ]
+                        logger.info(
+                            f"🔧 Fixer parsed {len(issues)} Playwright errors from text"
+                        )
                     else:
                         # Fallback: treat entire message as one issue
-                        issues = [{"description": result_str[:500], "severity": "unknown"}]
-                        logger.warning("⚠️ Could not parse Playwright errors - using full text as single issue")
+                        issues = [
+                            {"description": result_str[:500], "severity": "unknown"}
+                        ]
+                        logger.warning(
+                            "⚠️ Could not parse Playwright errors - using full text as single issue"
+                        )
                 else:
                     # Not Playwright - treat as generic issue
                     issues = [{"description": result_str[:500], "severity": "unknown"}]
@@ -1771,7 +2027,11 @@ class AgentWorkflow:
             # Fix issues
             fix_result = await self._execute_fixer_task(state, current_step, issues)
             # v5.8.3: Immutable update
-            state.update(update_step_status(state, current_step.id, "completed", result=fix_result))
+            state.update(
+                update_step_status(
+                    state, current_step.id, "completed", result=fix_result
+                )
+            )
 
             # Learn fix patterns
             # v5.5.3: Handle both dict and string fix_result
@@ -1781,28 +2041,30 @@ class AgentWorkflow:
             # If fix_result is a string, skip pattern learning (no structured fixes to learn from)
 
             for issue, fix in zip(issues, fixes):
-                memory.learn_pattern(
-                    pattern=issue,
-                    solution=fix,
-                    success=True
-                )
+                memory.learn_pattern(pattern=issue, solution=fix, success=True)
 
             # v5.8.6 Fix 6: After Fixer completes, request re-review if in iteration loop
             review_iteration = state.get("review_iteration", 0)
 
             if review_iteration > 0:
                 # We're in an iteration loop - need to re-review
-                logger.info(f"🔄 Fixer completed fixes - requesting re-review (iteration {review_iteration})")
+                logger.info(
+                    f"🔄 Fixer completed fixes - requesting re-review (iteration {review_iteration})"
+                )
 
                 # Request re-review
                 state["needs_replan"] = True
                 state["suggested_agent"] = "reviewer"
-                state["suggested_query"] = f"Re-review code after fixes (iteration {review_iteration})"
+                state[
+                    "suggested_query"
+                ] = f"Re-review code after fixes (iteration {review_iteration})"
 
         except Exception as e:
             logger.error(f"Fixer execution failed: {e}")
             # v5.8.3: Immutable exception handling
-            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
+            state.update(
+                update_step_status(state, current_step.id, "failed", error=str(e))
+            )
         return state
 
     async def research_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1815,8 +2077,12 @@ class AgentWorkflow:
 
         # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
         current_step = next(
-            (s for s in state["execution_plan"] if s.agent == "research" and s.status == "in_progress"),
-            None
+            (
+                s
+                for s in state["execution_plan"]
+                if s.agent == "research" and s.status == "in_progress"
+            ),
+            None,
         )
         if not current_step:
             logger.error("❌ No in_progress research step found!")
@@ -1833,11 +2099,12 @@ class AgentWorkflow:
                 research_agent = self.real_agents["research"]
 
                 task_request = TaskRequest(
-                    prompt=research_query,
-                    context={"session_id": state["session_id"]}
+                    prompt=research_query, context={"session_id": state["session_id"]}
                 )
 
-                result = await execute_agent_with_retry(research_agent, task_request, "research")
+                result = await execute_agent_with_retry(
+                    research_agent, task_request, "research"
+                )
                 research_result = result.content
 
                 logger.info(f"✅ Research completed: {len(research_result)} characters")
@@ -1850,30 +2117,35 @@ class AgentWorkflow:
             # v5.8.3: Immutable update
 
             return merge_state_updates(
-
-                update_step_status(state, current_step.id, "completed", result=research_result),
-
-                {"messages": state["messages"]}
-
+                update_step_status(
+                    state, current_step.id, "completed", result=research_result
+                ),
+                {"messages": state["messages"]},
             )
             # Track research in information_gathered
             info_gathered = list(state.get("information_gathered", []))
-            info_gathered.append({
-                "level": state.get("escalation_level", 0),
-                "query": research_query,
-                "result": research_result,
-                "summary": research_result[:200],
-                "timestamp": datetime.now().isoformat()
-            })
+            info_gathered.append(
+                {
+                    "level": state.get("escalation_level", 0),
+                    "query": research_query,
+                    "result": research_result,
+                    "summary": research_result[:200],
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
             state["information_gathered"] = info_gathered
 
-            logger.info(f"📚 Information gathered: {len(info_gathered)} total research results")
+            logger.info(
+                f"📚 Information gathered: {len(info_gathered)} total research results"
+            )
 
         except Exception as e:
             logger.error(f"Research execution failed: {e}")
             # v5.8.3: Immutable update with error
 
-            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
+            state.update(
+                update_step_status(state, current_step.id, "failed", error=str(e))
+            )
         return state
 
     async def fixer_gpt_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1886,8 +2158,12 @@ class AgentWorkflow:
 
         # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
         current_step = next(
-            (s for s in state["execution_plan"] if s.agent == "fixer_gpt" and s.status == "in_progress"),
-            None
+            (
+                s
+                for s in state["execution_plan"]
+                if s.agent == "fixer_gpt" and s.status == "in_progress"
+            ),
+            None,
         )
         if not current_step:
             logger.error("❌ No in_progress fixer_gpt step found!")
@@ -1901,7 +2177,8 @@ class AgentWorkflow:
 
             # Get context for alternative fixer
             previous_attempts = [
-                h for h in state.get("collaboration_history", [])
+                h
+                for h in state.get("collaboration_history", [])
                 if h.get("to") in ["fixer", "fixer_gpt"]
             ]
             research_results = state.get("information_gathered", [])
@@ -1917,8 +2194,8 @@ class AgentWorkflow:
                     "research_results": research_results,
                     "issue": current_step.task,
                     "session_id": state["session_id"],
-                    "workspace_path": state["workspace_path"]
-                }
+                    "workspace_path": state["workspace_path"],
+                },
             )
 
             result = await execute_agent_with_retry(fixer_gpt, task_request, "fixer")
@@ -1930,16 +2207,17 @@ class AgentWorkflow:
             # v5.8.3: Immutable update
 
             return merge_state_updates(
-
-                update_step_status(state, current_step.id, "completed", result=fix_result),
-
-                {"messages": state["messages"]}
-
+                update_step_status(
+                    state, current_step.id, "completed", result=fix_result
+                ),
+                {"messages": state["messages"]},
             )
             # Request re-review
             state["needs_replan"] = True
             state["suggested_agent"] = "reviewer"
-            state["suggested_query"] = f"Re-review after FixerGPT fix: {fix_result[:100]}"
+            state[
+                "suggested_query"
+            ] = f"Re-review after FixerGPT fix: {fix_result[:100]}"
 
             logger.info("🔄 Requesting re-review after FixerGPT")
 
@@ -1947,7 +2225,9 @@ class AgentWorkflow:
             logger.error(f"FixerGPT execution failed: {e}")
             # v5.8.3: Immutable update with error
 
-            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
+            state.update(
+                update_step_status(state, current_step.id, "failed", error=str(e))
+            )
         return state
 
     async def docbot_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -1959,8 +2239,12 @@ class AgentWorkflow:
 
         # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
         current_step = next(
-            (s for s in state["execution_plan"] if s.agent == "docbot" and s.status == "in_progress"),
-            None
+            (
+                s
+                for s in state["execution_plan"]
+                if s.agent == "docbot" and s.status == "in_progress"
+            ),
+            None,
         )
         if not current_step:
             logger.error("❌ No in_progress docbot step found!")
@@ -1976,7 +2260,11 @@ class AgentWorkflow:
                 # Get context from previous steps
                 code_context = []
                 for step in state["execution_plan"]:
-                    if step.status == "completed" and step.agent in ["codesmith", "fixer", "fixer_gpt"]:
+                    if step.status == "completed" and step.agent in [
+                        "codesmith",
+                        "fixer",
+                        "fixer_gpt",
+                    ]:
                         code_context.append(step.result)
 
                 # Create task request
@@ -1986,12 +2274,16 @@ class AgentWorkflow:
                         "code_context": code_context,
                         "session_id": state["session_id"],
                         "workspace_path": state["workspace_path"],
-                        "collaboration_history": state.get("collaboration_history", [])
-                    }
+                        "collaboration_history": state.get("collaboration_history", []),
+                    },
                 )
 
                 # Execute documentation generation
-                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
+                result = await execute_agent_with_retry(
+                    agent,
+                    task_request,
+                    current_step.agent if hasattr(current_step, "agent") else "unknown",
+                )
                 doc_result = result.content
 
                 logger.info(f"✅ DocBot completed: {len(doc_result)} characters")
@@ -2000,23 +2292,28 @@ class AgentWorkflow:
                 # v5.8.3: Immutable update
 
                 return merge_state_updates(
-
-                    update_step_status(state, current_step.id, "completed", result=doc_result),
-
-                    {"messages": state["messages"]}
-
+                    update_step_status(
+                        state, current_step.id, "completed", result=doc_result
+                    ),
+                    {"messages": state["messages"]},
                 )
                 # Add to collaboration history
-                state["collaboration_history"].append({
-                    "from": "docbot",
-                    "to": current_step.dependencies[0] if current_step.dependencies else "orchestrator",
-                    "message": doc_result,
-                    "timestamp": datetime.now().isoformat()
-                })
+                state["collaboration_history"].append(
+                    {
+                        "from": "docbot",
+                        "to": current_step.dependencies[0]
+                        if current_step.dependencies
+                        else "orchestrator",
+                        "message": doc_result,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
             else:
                 # Fallback to stub
                 logger.warning("⚠️ DocBot agent not available - using stub")
-                current_step.result = "📚 Documentation stub: Would generate comprehensive docs here"
+                current_step.result = (
+                    "📚 Documentation stub: Would generate comprehensive docs here"
+                )
                 # v5.8.3: Immutable update
 
                 state.update(update_step_status(state, current_step.id, "completed"))
@@ -2024,7 +2321,9 @@ class AgentWorkflow:
             logger.error(f"DocBot execution failed: {e}")
             # v5.8.3: Immutable update with error
 
-            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
+            state.update(
+                update_step_status(state, current_step.id, "failed", error=str(e))
+            )
         return state
 
     async def performance_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -2036,8 +2335,12 @@ class AgentWorkflow:
 
         # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
         current_step = next(
-            (s for s in state["execution_plan"] if s.agent == "performance" and s.status == "in_progress"),
-            None
+            (
+                s
+                for s in state["execution_plan"]
+                if s.agent == "performance" and s.status == "in_progress"
+            ),
+            None,
         )
         if not current_step:
             logger.error("❌ No in_progress performance step found!")
@@ -2053,7 +2356,11 @@ class AgentWorkflow:
                 # Get code to optimize
                 code_to_optimize = []
                 for step in state["execution_plan"]:
-                    if step.status == "completed" and step.agent in ["codesmith", "fixer", "fixer_gpt"]:
+                    if step.status == "completed" and step.agent in [
+                        "codesmith",
+                        "fixer",
+                        "fixer_gpt",
+                    ]:
                         code_to_optimize.append(step.result)
 
                 # Create task request
@@ -2063,37 +2370,48 @@ class AgentWorkflow:
                         "code_to_optimize": code_to_optimize,
                         "session_id": state["session_id"],
                         "workspace_path": state["workspace_path"],
-                        "performance_metrics": state.get("performance_metrics", {})
-                    }
+                        "performance_metrics": state.get("performance_metrics", {}),
+                    },
                 )
 
                 # Execute performance optimization
-                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
+                result = await execute_agent_with_retry(
+                    agent,
+                    task_request,
+                    current_step.agent if hasattr(current_step, "agent") else "unknown",
+                )
                 perf_result = result.content
 
-                logger.info(f"✅ Performance optimization completed: {len(perf_result)} characters")
+                logger.info(
+                    f"✅ Performance optimization completed: {len(perf_result)} characters"
+                )
 
                 # Store result
                 # v5.8.3: Immutable update
 
                 return merge_state_updates(
-
-                    update_step_status(state, current_step.id, "completed", result=perf_result),
-
-                    {"messages": state["messages"]}
-
+                    update_step_status(
+                        state, current_step.id, "completed", result=perf_result
+                    ),
+                    {"messages": state["messages"]},
                 )
                 # Add to collaboration history
-                state["collaboration_history"].append({
-                    "from": "performance",
-                    "to": current_step.dependencies[0] if current_step.dependencies else "orchestrator",
-                    "message": perf_result,
-                    "timestamp": datetime.now().isoformat()
-                })
+                state["collaboration_history"].append(
+                    {
+                        "from": "performance",
+                        "to": current_step.dependencies[0]
+                        if current_step.dependencies
+                        else "orchestrator",
+                        "message": perf_result,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
             else:
                 # Fallback to stub
                 logger.warning("⚠️ Performance agent not available - using stub")
-                current_step.result = "⚡ Performance stub: Would optimize performance here"
+                current_step.result = (
+                    "⚡ Performance stub: Would optimize performance here"
+                )
                 # v5.8.3: Immutable update
 
                 state.update(update_step_status(state, current_step.id, "completed"))
@@ -2101,7 +2419,9 @@ class AgentWorkflow:
             logger.error(f"Performance optimization failed: {e}")
             # v5.8.3: Immutable update with error
 
-            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
+            state.update(
+                update_step_status(state, current_step.id, "failed", error=str(e))
+            )
         return state
 
     async def tradestrat_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
@@ -2113,8 +2433,12 @@ class AgentWorkflow:
 
         # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
         current_step = next(
-            (s for s in state["execution_plan"] if s.agent == "tradestrat" and s.status == "in_progress"),
-            None
+            (
+                s
+                for s in state["execution_plan"]
+                if s.agent == "tradestrat" and s.status == "in_progress"
+            ),
+            None,
         )
         if not current_step:
             logger.error("❌ No in_progress tradestrat step found!")
@@ -2131,7 +2455,7 @@ class AgentWorkflow:
                 research_results = state.get("information_gathered", [])
                 market_context = {
                     "research": research_results,
-                    "requirements": current_step.task
+                    "requirements": current_step.task,
                 }
 
                 # Create task request
@@ -2141,37 +2465,48 @@ class AgentWorkflow:
                         "market_context": market_context,
                         "session_id": state["session_id"],
                         "workspace_path": state["workspace_path"],
-                        "trading_parameters": state.get("trading_parameters", {})
-                    }
+                        "trading_parameters": state.get("trading_parameters", {}),
+                    },
                 )
 
                 # Execute strategy development
-                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
+                result = await execute_agent_with_retry(
+                    agent,
+                    task_request,
+                    current_step.agent if hasattr(current_step, "agent") else "unknown",
+                )
                 strategy_result = result.content
 
-                logger.info(f"✅ Trading strategy developed: {len(strategy_result)} characters")
+                logger.info(
+                    f"✅ Trading strategy developed: {len(strategy_result)} characters"
+                )
 
                 # Store result
                 # v5.8.3: Immutable update
 
                 return merge_state_updates(
-
-                    update_step_status(state, current_step.id, "completed", result=strategy_result),
-
-                    {"messages": state["messages"]}
-
+                    update_step_status(
+                        state, current_step.id, "completed", result=strategy_result
+                    ),
+                    {"messages": state["messages"]},
                 )
                 # Add to collaboration history
-                state["collaboration_history"].append({
-                    "from": "tradestrat",
-                    "to": current_step.dependencies[0] if current_step.dependencies else "orchestrator",
-                    "message": strategy_result,
-                    "timestamp": datetime.now().isoformat()
-                })
+                state["collaboration_history"].append(
+                    {
+                        "from": "tradestrat",
+                        "to": current_step.dependencies[0]
+                        if current_step.dependencies
+                        else "orchestrator",
+                        "message": strategy_result,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
             else:
                 # Fallback to stub
                 logger.warning("⚠️ TradeStrat agent not available - using stub")
-                current_step.result = "📈 Trading strategy stub: Would develop strategy here"
+                current_step.result = (
+                    "📈 Trading strategy stub: Would develop strategy here"
+                )
                 # v5.8.3: Immutable update
 
                 state.update(update_step_status(state, current_step.id, "completed"))
@@ -2179,10 +2514,14 @@ class AgentWorkflow:
             logger.error(f"Trading strategy development failed: {e}")
             # v5.8.3: Immutable update with error
 
-            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
+            state.update(
+                update_step_status(state, current_step.id, "failed", error=str(e))
+            )
         return state
 
-    async def opus_arbitrator_node(self, state: ExtendedAgentState) -> ExtendedAgentState:
+    async def opus_arbitrator_node(
+        self, state: ExtendedAgentState
+    ) -> ExtendedAgentState:
         """
         OpusArbitrator node - resolves conflicts between agents
         """
@@ -2191,14 +2530,20 @@ class AgentWorkflow:
 
         # v5.2.2 BUG FIX #6: Find in_progress step for THIS agent
         current_step = next(
-            (s for s in state["execution_plan"] if s.agent == "opus_arbitrator" and s.status == "in_progress"),
-            None
+            (
+                s
+                for s in state["execution_plan"]
+                if s.agent == "opus_arbitrator" and s.status == "in_progress"
+            ),
+            None,
         )
         if not current_step:
             logger.error("❌ No in_progress opus_arbitrator step found!")
             return state
 
-        logger.info(f"⚖️ Executing step {current_step.id}: {current_step.task[:100]}...")
+        logger.info(
+            f"⚖️ Executing step {current_step.id}: {current_step.task[:100]}..."
+        )
 
         try:
             # Check if real agent is available
@@ -2207,12 +2552,21 @@ class AgentWorkflow:
 
                 # Gather all conflicting opinions
                 conflicts = []
-                for hist in state.get("collaboration_history", [])[-10:]:  # Last 10 interactions
-                    if hist.get("from") in ["reviewer", "fixer", "architect", "codesmith"]:
-                        conflicts.append({
-                            "agent": hist["from"],
-                            "opinion": hist["message"][:500]  # First 500 chars
-                        })
+                for hist in state.get("collaboration_history", [])[
+                    -10:
+                ]:  # Last 10 interactions
+                    if hist.get("from") in [
+                        "reviewer",
+                        "fixer",
+                        "architect",
+                        "codesmith",
+                    ]:
+                        conflicts.append(
+                            {
+                                "agent": hist["from"],
+                                "opinion": hist["message"][:500],  # First 500 chars
+                            }
+                        )
 
                 # Create task request
                 task_request = TaskRequest(
@@ -2222,33 +2576,40 @@ class AgentWorkflow:
                         "session_id": state["session_id"],
                         "workspace_path": state["workspace_path"],
                         "escalation_level": state.get("escalation_level", 0),
-                        "collaboration_count": state.get("collaboration_count", 0)
-                    }
+                        "collaboration_count": state.get("collaboration_count", 0),
+                    },
                 )
 
                 # Execute arbitration
-                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
+                result = await execute_agent_with_retry(
+                    agent,
+                    task_request,
+                    current_step.agent if hasattr(current_step, "agent") else "unknown",
+                )
                 arbitration_result = result.content
 
-                logger.info(f"✅ Arbitration completed: {len(arbitration_result)} characters")
+                logger.info(
+                    f"✅ Arbitration completed: {len(arbitration_result)} characters"
+                )
 
                 # Store result
                 # v5.8.3: Immutable update
 
                 return merge_state_updates(
-
-                    update_step_status(state, current_step.id, "completed", result=arbitration_result),
-
-                    {"messages": state["messages"]}
-
+                    update_step_status(
+                        state, current_step.id, "completed", result=arbitration_result
+                    ),
+                    {"messages": state["messages"]},
                 )
                 # Add to collaboration history
-                state["collaboration_history"].append({
-                    "from": "opus_arbitrator",
-                    "to": "orchestrator",  # Usually goes back to orchestrator for re-planning
-                    "message": arbitration_result,
-                    "timestamp": datetime.now().isoformat()
-                })
+                state["collaboration_history"].append(
+                    {
+                        "from": "opus_arbitrator",
+                        "to": "orchestrator",  # Usually goes back to orchestrator for re-planning
+                        "message": arbitration_result,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
 
                 # Set re-planning flag based on arbitration result
                 if "REPLAN" in arbitration_result or "REDESIGN" in arbitration_result:
@@ -2257,7 +2618,9 @@ class AgentWorkflow:
             else:
                 # Fallback to stub
                 logger.warning("⚠️ OpusArbitrator agent not available - using stub")
-                current_step.result = "⚖️ Arbitration stub: Would resolve conflicts here"
+                current_step.result = (
+                    "⚖️ Arbitration stub: Would resolve conflicts here"
+                )
                 # v5.8.3: Immutable update
 
                 state.update(update_step_status(state, current_step.id, "completed"))
@@ -2265,7 +2628,9 @@ class AgentWorkflow:
             logger.error(f"Arbitration failed: {e}")
             # v5.8.3: Immutable update with error
 
-            state.update(update_step_status(state, current_step.id, "failed", error=str(e)))
+            state.update(
+                update_step_status(state, current_step.id, "failed", error=str(e))
+            )
         return state
 
     async def route_after_approval(self, state: ExtendedAgentState) -> str:
@@ -2275,20 +2640,33 @@ class AgentWorkflow:
         """
         # Available workflow nodes (agents with implemented nodes)
         AVAILABLE_NODES = {
-            "orchestrator", "architect", "codesmith", "reviewer", "fixer",
-            "research", "fixer_gpt", "docbot", "performance", "tradestrat", "opus_arbitrator"
+            "orchestrator",
+            "architect",
+            "codesmith",
+            "reviewer",
+            "fixer",
+            "research",
+            "fixer_gpt",
+            "docbot",
+            "performance",
+            "tradestrat",
+            "opus_arbitrator",
         }
 
         # v5.2.0: Check if waiting for architecture approval
         if state.get("status") == "waiting_architecture_approval":
-            logger.info("⏸️  Workflow waiting for architecture approval - routing to END")
+            logger.info(
+                "⏸️  Workflow waiting for architecture approval - routing to END"
+            )
             return "end"
 
         status = state.get("approval_status")
         logger.info(f"🔀 Route after approval - Status: {status}")
         logger.info(f"📋 Execution plan has {len(state['execution_plan'])} steps:")
         for i, step in enumerate(state["execution_plan"]):
-            logger.info(f"   Step {i+1}: agent={step.agent}, status={step.status}, task={step.task[:50]}...")
+            logger.info(
+                f"   Step {i+1}: agent={step.agent}, status={step.status}, task={step.task[:50]}..."
+            )
 
         if status == "approved":
             # Find first in_progress step (set by approval node) and route to that agent
@@ -2297,24 +2675,48 @@ class AgentWorkflow:
                     agent = step.agent
                     # Validate agent has a workflow node
                     if agent not in AVAILABLE_NODES:
-                        logger.warning(f"⚠️ Agent '{agent}' has no workflow node - marking as completed with stub")
+                        logger.warning(
+                            f"⚠️ Agent '{agent}' has no workflow node - marking as completed with stub"
+                        )
                         # v5.8.3: Immutable stub update
-                        state.update(update_step_status(state, step.id, "completed", result=f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}"))
+                        state.update(
+                            update_step_status(
+                                state,
+                                step.id,
+                                "completed",
+                                result=f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}",
+                            )
+                        )
                         return "end"  # Skip execution, go to end
-                    logger.info(f"✅ Routing to in_progress agent: {agent} (step_id: {step.id})")
+                    logger.info(
+                        f"✅ Routing to in_progress agent: {agent} (step_id: {step.id})"
+                    )
                     return agent
 
             # No in_progress steps - check for pending (fallback)
             for step in state["execution_plan"]:
-                if step.status == "pending" and self._dependencies_met(step, state["execution_plan"]):
+                if step.status == "pending" and self._dependencies_met(
+                    step, state["execution_plan"]
+                ):
                     agent = step.agent
                     # Validate agent has a workflow node
                     if agent not in AVAILABLE_NODES:
-                        logger.warning(f"⚠️ Agent '{agent}' has no workflow node - marking as completed with stub")
+                        logger.warning(
+                            f"⚠️ Agent '{agent}' has no workflow node - marking as completed with stub"
+                        )
                         # v5.8.3: Immutable stub update
-                        state.update(update_step_status(state, step.id, "completed", result=f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}"))
+                        state.update(
+                            update_step_status(
+                                state,
+                                step.id,
+                                "completed",
+                                result=f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}",
+                            )
+                        )
                         return "end"  # Skip execution, go to end
-                    logger.info(f"✅ Routing to pending agent: {agent} (step_id: {step.id})")
+                    logger.info(
+                        f"✅ Routing to pending agent: {agent} (step_id: {step.id})"
+                    )
                     return agent
 
             # No steps to execute - routing to END
@@ -2335,12 +2737,17 @@ class AgentWorkflow:
         Otherwise uses standard route_to_next_agent logic
         """
         # Check if we just created an architecture proposal that needs approval
-        if state.get("needs_approval") and state.get("approval_type") == "architecture_proposal":
+        if (
+            state.get("needs_approval")
+            and state.get("approval_type") == "architecture_proposal"
+        ):
             proposal_status = state.get("proposal_status")
 
             if proposal_status == "pending":
                 # Just created proposal - route to approval node
-                logger.info("🏛️ Architecture proposal created - routing to approval node")
+                logger.info(
+                    "🏛️ Architecture proposal created - routing to approval node"
+                )
                 return "approval"
             elif proposal_status == "approved":
                 # Proposal was approved - mark step as completed and continue
@@ -2348,8 +2755,14 @@ class AgentWorkflow:
                 for step in state["execution_plan"]:
                     if step.agent == "architect" and step.status == "in_progress":
                         # v5.8.3: Immutable approval completion
-                        state.update(update_step_status(state, step.id, "completed",
-                            result="Architecture proposal approved by user"))
+                        state.update(
+                            update_step_status(
+                                state,
+                                step.id,
+                                "completed",
+                                result="Architecture proposal approved by user",
+                            )
+                        )
                         break
                 # Continue with standard routing
                 return await self.route_to_next_agent(state)
@@ -2360,9 +2773,7 @@ class AgentWorkflow:
     # =================== v5.9.0: Parallel Step Execution ===================
 
     async def _execute_parallel_steps(
-        self,
-        state: ExtendedAgentState,
-        parallel_group_id: str
+        self, state: ExtendedAgentState, parallel_group_id: str
     ) -> dict[str, Any]:
         """
         Execute multiple steps in parallel using asyncio.gather()
@@ -2381,15 +2792,18 @@ class AgentWorkflow:
 
         # Get all steps in this parallel group that are pending
         parallel_steps = [
-            step for step in state["execution_plan"]
-            if hasattr(step, 'parallel_group')
+            step
+            for step in state["execution_plan"]
+            if hasattr(step, "parallel_group")
             and step.parallel_group == parallel_group_id
             and step.status == "pending"
             and self._dependencies_met(step, state["execution_plan"])
         ]
 
         if not parallel_steps:
-            logger.warning(f"⚠️ No executable steps found in parallel group {parallel_group_id}")
+            logger.warning(
+                f"⚠️ No executable steps found in parallel group {parallel_group_id}"
+            )
             return {}
 
         logger.info(f"⚡ Executing {len(parallel_steps)} steps in parallel:")
@@ -2397,11 +2811,15 @@ class AgentWorkflow:
             logger.info(f"   • {step.id} ({step.agent}): {step.task[:60]}...")
 
         # Create async tasks for each step
-        async def execute_single_step(step: ExecutionStep) -> tuple[str, str | Exception]:
+        async def execute_single_step(
+            step: ExecutionStep,
+        ) -> tuple[str, str | Exception]:
             """Execute a single step and return (step_id, result_or_error)"""
             try:
                 # Mark step as in_progress
-                step_copy = dataclass_replace(step, status="in_progress", started_at=datetime.now())
+                step_copy = dataclass_replace(
+                    step, status="in_progress", started_at=datetime.now()
+                )
 
                 # Execute based on agent type
                 if step.agent == "architect":
@@ -2427,7 +2845,7 @@ class AgentWorkflow:
         # Execute all steps in parallel
         results = await asyncio.gather(
             *[execute_single_step(step) for step in parallel_steps],
-            return_exceptions=True
+            return_exceptions=True,
         )
 
         # Update execution plan with results
@@ -2445,7 +2863,7 @@ class AgentWorkflow:
                             step,
                             status="failed",
                             error=str(result),
-                            end_time=datetime.now()
+                            end_time=datetime.now(),
                         )
                         failed_count += 1
                     else:
@@ -2454,12 +2872,14 @@ class AgentWorkflow:
                             step,
                             status="completed",
                             result=result,
-                            end_time=datetime.now()
+                            end_time=datetime.now(),
                         )
                         completed_count += 1
                     break
 
-        logger.info(f"⚡ Parallel execution complete: {completed_count} succeeded, {failed_count} failed")
+        logger.info(
+            f"⚡ Parallel execution complete: {completed_count} succeeded, {failed_count} failed"
+        )
 
         return {"execution_plan": updated_plan}
 
@@ -2473,11 +2893,20 @@ class AgentWorkflow:
         """
         # Available workflow nodes (agents with implemented nodes)
         AVAILABLE_NODES = {
-            "orchestrator", "architect", "codesmith", "reviewer", "fixer",
-            "research", "fixer_gpt", "docbot", "performance", "tradestrat", "opus_arbitrator"
+            "orchestrator",
+            "architect",
+            "codesmith",
+            "reviewer",
+            "fixer",
+            "research",
+            "fixer_gpt",
+            "docbot",
+            "performance",
+            "tradestrat",
+            "opus_arbitrator",
         }
 
-        logger.info(f"🔀 Routing to next agent...")
+        logger.info("🔀 Routing to next agent...")
         logger.info(f"📋 Execution plan has {len(state['execution_plan'])} steps")
 
         # v5.8.6 Fix 7: Safety check for infinite review-fix loops
@@ -2485,9 +2914,13 @@ class AgentWorkflow:
         max_iterations = state.get("max_review_iterations", 3)
 
         if review_iteration > max_iterations:
-            logger.error(f"❌ SAFETY: Review-Fix loop exceeded max iterations ({max_iterations})!")
-            logger.error(f"   Last quality score: {state.get('last_quality_score', 'unknown')}")
-            logger.error(f"   Forcing workflow to continue despite quality issues...")
+            logger.error(
+                f"❌ SAFETY: Review-Fix loop exceeded max iterations ({max_iterations})!"
+            )
+            logger.error(
+                f"   Last quality score: {state.get('last_quality_score', 'unknown')}"
+            )
+            logger.error("   Forcing workflow to continue despite quality issues...")
 
             # Force workflow to continue
             state["needs_replan"] = False
@@ -2501,17 +2934,25 @@ class AgentWorkflow:
         if state.get("progress_ledger"):
             state["progress_ledger"].update_from_steps(state["execution_plan"])
             progress = state["progress_ledger"]
-            logger.info(f"📊 Progress: {progress.completed_steps}/{progress.total_steps} ({progress.overall_progress_percentage:.1f}%)")
+            logger.info(
+                f"📊 Progress: {progress.completed_steps}/{progress.total_steps} ({progress.overall_progress_percentage:.1f}%)"
+            )
 
         # v5.5.0: Real-time health monitoring
         if self.self_diagnosis and state.get("collaboration_count", 0) % 5 == 0:
             # Check health every 5 collaborations
             async def run_health_check():
                 try:
-                    health_report = await self.self_diagnosis.real_time_monitoring(state)
+                    health_report = await self.self_diagnosis.real_time_monitoring(
+                        state
+                    )
                     if health_report["overall_health"] in ["CRITICAL", "UNHEALTHY"]:
-                        logger.error(f"🚨 Workflow health is {health_report['overall_health']}")
-                        logger.error(f"   Risk factors: {health_report.get('recommendations', [])}")
+                        logger.error(
+                            f"🚨 Workflow health is {health_report['overall_health']}"
+                        )
+                        logger.error(
+                            f"   Risk factors: {health_report.get('recommendations', [])}"
+                        )
                 except Exception as e:
                     logger.warning(f"Health monitoring error: {e}")
 
@@ -2526,7 +2967,9 @@ class AgentWorkflow:
         # 🐛 CHECK 2: Any steps still in_progress? (validation only)
         # If a step is in_progress, it means the node is currently executing
         # We should NOT route back to it - instead wait for it to complete
-        has_in_progress = any(s.status == "in_progress" for s in state["execution_plan"])
+        has_in_progress = any(
+            s.status == "in_progress" for s in state["execution_plan"]
+        )
         if has_in_progress:
             logger.warning("⚠️ Found in_progress steps!")
             for step in state["execution_plan"]:
@@ -2542,16 +2985,26 @@ class AgentWorkflow:
                 # Check dependencies
                 if self._dependencies_met(step, state["execution_plan"]):
                     # v5.9.0: Check if this step can run in parallel
-                    if hasattr(step, 'can_run_parallel') and step.can_run_parallel and hasattr(step, 'parallel_group'):
-                        logger.info(f"⚡ Step {step.id} is part of parallel group: {step.parallel_group}")
+                    if (
+                        hasattr(step, "can_run_parallel")
+                        and step.can_run_parallel
+                        and hasattr(step, "parallel_group")
+                    ):
+                        logger.info(
+                            f"⚡ Step {step.id} is part of parallel group: {step.parallel_group}"
+                        )
 
                         # Execute entire parallel group
-                        parallel_updates = await self._execute_parallel_steps(state, step.parallel_group)
+                        parallel_updates = await self._execute_parallel_steps(
+                            state, step.parallel_group
+                        )
 
                         if parallel_updates:
                             # Apply parallel execution results to state
                             state.update(parallel_updates)
-                            logger.info(f"⚡ Parallel group {step.parallel_group} execution complete")
+                            logger.info(
+                                f"⚡ Parallel group {step.parallel_group} execution complete"
+                            )
 
                             # Continue routing to find next pending step
                             return await self.route_to_next_agent(state)
@@ -2563,21 +3016,36 @@ class AgentWorkflow:
                     agent = step.agent
                     # Validate agent has a workflow node
                     if agent not in AVAILABLE_NODES:
-                        logger.warning(f"⚠️ Agent '{agent}' has no workflow node - marking as completed with stub")
+                        logger.warning(
+                            f"⚠️ Agent '{agent}' has no workflow node - marking as completed with stub"
+                        )
                         # v5.8.3: Immutable stub update
-                        state.update(update_step_status(state, step.id, "completed",
-                            result=f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}"))
+                        state.update(
+                            update_step_status(
+                                state,
+                                step.id,
+                                "completed",
+                                result=f"⚠️ Agent '{agent}' not yet implemented - stub response for: {step.task}",
+                            )
+                        )
                         # Continue to check for next step
                         continue
                     # v5.8.3: Immutable in_progress update
                     now = datetime.now()
-                    state.update(merge_state_updates(
-                        update_step_status(state, step.id, "in_progress"),
-                        {"current_step_id": step.id}
-                    ))
+                    state.update(
+                        merge_state_updates(
+                            update_step_status(state, step.id, "in_progress"),
+                            {"current_step_id": step.id},
+                        )
+                    )
                     # Also update timestamps via dataclass_replace
-                    updated_step = dataclass_replace(step, started_at=now, start_time=now)
-                    state["execution_plan"] = [updated_step if s.id == step.id else s for s in state["execution_plan"]]
+                    updated_step = dataclass_replace(
+                        step, started_at=now, start_time=now
+                    )
+                    state["execution_plan"] = [
+                        updated_step if s.id == step.id else s
+                        for s in state["execution_plan"]
+                    ]
                     logger.info(f"✅ Routing to {agent} for step {step.id}")
                     return agent
                 else:
@@ -2586,14 +3054,25 @@ class AgentWorkflow:
         # v5.2.2 BUG FIX #8: Check for stuck in_progress steps before declaring "complete"
         stuck_steps = [s for s in state["execution_plan"] if s.status == "in_progress"]
         if stuck_steps:
-            logger.error("❌ CRITICAL: Found in_progress steps but no more routing possible!")
+            logger.error(
+                "❌ CRITICAL: Found in_progress steps but no more routing possible!"
+            )
             logger.error("   This indicates a step failed to mark itself as completed.")
             for step in stuck_steps:
-                logger.error(f"   ⚠️ Stuck step: {step.id} ({step.agent}): {step.task[:100]}")
+                logger.error(
+                    f"   ⚠️ Stuck step: {step.id} ({step.agent}): {step.task[:100]}"
+                )
                 # Force mark as failed
                 # v5.8.3: Immutable update with error
 
-                state.update(update_step_status(state, step.id, "failed", error="Step execution completed but status was not updated to 'completed'"))
+                state.update(
+                    update_step_status(
+                        state,
+                        step.id,
+                        "failed",
+                        error="Step execution completed but status was not updated to 'completed'",
+                    )
+                )
             # Now check if there are any more pending steps
             has_pending = any(s.status == "pending" for s in state["execution_plan"])
             if has_pending:
@@ -2605,7 +3084,9 @@ class AgentWorkflow:
         logger.info("🏁 All steps complete - routing to END")
         return "end"
 
-    def _dependencies_met(self, step: ExecutionStep, all_steps: list[ExecutionStep]) -> bool:
+    def _dependencies_met(
+        self, step: ExecutionStep, all_steps: list[ExecutionStep]
+    ) -> bool:
         """Check if all dependencies for a step are met"""
         for dep_id in step.dependencies:
             dep_step = next((s for s in all_steps if s.id == dep_id), None)
@@ -2620,7 +3101,9 @@ class AgentWorkflow:
             return next((s for s in state["execution_plan"] if s.id == step_id), None)
         return None
 
-    def _get_step_by_agent(self, state: ExtendedAgentState, agent: str) -> ExecutionStep | None:
+    def _get_step_by_agent(
+        self, state: ExtendedAgentState, agent: str
+    ) -> ExecutionStep | None:
         """Get the most recent step for an agent"""
         for step in reversed(state["execution_plan"]):
             if step.agent == agent and step.status == "completed":
@@ -2628,10 +3111,7 @@ class AgentWorkflow:
         return None
 
     def _check_escalation_needed(
-        self,
-        state: ExtendedAgentState,
-        suggested_agent: str,
-        suggested_query: str
+        self, state: ExtendedAgentState, suggested_agent: str, suggested_query: str
     ) -> dict[str, Any]:
         """
         v5.1.0: Information-First Escalation System
@@ -2653,9 +3133,10 @@ class AgentWorkflow:
             from config.settings import Settings
         except ImportError:
             # Fallback for different import contexts
-            import sys
             import os
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            import sys
+
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
             from config.settings import Settings
 
         collab_count = state.get("collaboration_count", 0)
@@ -2664,10 +3145,12 @@ class AgentWorkflow:
 
         # Check for Reviewer↔Fixer loop pattern
         is_rf_loop = (
-            suggested_agent in ["reviewer", "fixer"] and
-            len(last_agents) >= 4 and
-            (last_agents[-4:] == ["reviewer", "fixer", "reviewer", "fixer"] or
-             last_agents[-4:] == ["fixer", "reviewer", "fixer", "reviewer"])
+            suggested_agent in ["reviewer", "fixer"]
+            and len(last_agents) >= 4
+            and (
+                last_agents[-4:] == ["reviewer", "fixer", "reviewer", "fixer"]
+                or last_agents[-4:] == ["fixer", "reviewer", "fixer", "reviewer"]
+            )
         )
 
         # LEVEL 0-1: Normal retries (1-4 iterations)
@@ -2677,7 +3160,7 @@ class AgentWorkflow:
                 "level": 0,
                 "new_agent": suggested_agent,
                 "new_query": suggested_query,
-                "reason": "Normal operation"
+                "reason": "Normal operation",
             }
 
         # LEVEL 2: BROAD research (5-6 iterations)
@@ -2699,7 +3182,7 @@ Focus on practical, working solutions."""
                 "level": 2,
                 "new_agent": "research",
                 "new_query": research_query,
-                "reason": "Broad information gathering - general best practices"
+                "reason": "Broad information gathering - general best practices",
             }
 
         # LEVEL 3: TARGETED research (7-8 iterations)
@@ -2726,7 +3209,7 @@ Find SPECIFICALLY:
                 "level": 3,
                 "new_agent": "research",
                 "new_query": research_query,
-                "reason": "Targeted information gathering - specific solutions"
+                "reason": "Targeted information gathering - specific solutions",
             }
 
         # LEVEL 4: ALTERNATIVE approach (9-10 iterations)
@@ -2747,7 +3230,7 @@ Research:
                 "level": 4,
                 "new_agent": "research",
                 "new_query": research_query,
-                "reason": "Alternative approach research - rethink strategy"
+                "reason": "Alternative approach research - rethink strategy",
             }
 
         # LEVEL 4.5: ALTERNATIVE FIXER KI (11-12 iterations)
@@ -2769,19 +3252,21 @@ Research:
                     "level": 4.5,
                     "new_agent": "fixer_gpt",
                     "new_query": f"Fix with alternative AI perspective: {suggested_query}",
-                    "reason": f"Alternative Fixer KI ({Settings.ALTERNATIVE_FIXER_MODEL}) - fresh perspective"
+                    "reason": f"Alternative Fixer KI ({Settings.ALTERNATIVE_FIXER_MODEL}) - fresh perspective",
                 }
 
         # LEVEL 5: Safety net - max iterations
-        max_iterations = getattr(Settings, 'LANGGRAPH_MAX_ITERATIONS', 20)
+        max_iterations = getattr(Settings, "LANGGRAPH_MAX_ITERATIONS", 20)
         if collab_count >= max_iterations:
-            logger.error(f"🚨 SAFETY STOP: {collab_count} collaborations exceeds max {max_iterations}")
+            logger.error(
+                f"🚨 SAFETY STOP: {collab_count} collaborations exceeds max {max_iterations}"
+            )
             return {
                 "escalate": True,
                 "level": 7,
                 "new_agent": "end",
                 "new_query": f"Exceeded maximum iterations ({max_iterations})",
-                "reason": "Safety net - preventing infinite loop"
+                "reason": "Safety net - preventing infinite loop",
             }
 
         # DEFAULT: No escalation
@@ -2790,10 +3275,12 @@ Research:
             "level": 0,
             "new_agent": suggested_agent,
             "new_query": suggested_query,
-            "reason": "Normal operation"
+            "reason": "Normal operation",
         }
 
-    async def _create_execution_plan(self, state: ExtendedAgentState) -> list[ExecutionStep]:
+    async def _create_execution_plan(
+        self, state: ExtendedAgentState
+    ) -> list[ExecutionStep]:
         """
         Create execution plan based on task
 
@@ -2809,17 +3296,25 @@ Research:
         # ============================================
         # v5.5.2: SAFE ORCHESTRATOR EXECUTION CHECK
         # ============================================
-        if self.safe_executor and self.safe_executor.should_use_safe_execution(task, state):
+        if self.safe_executor and self.safe_executor.should_use_safe_execution(
+            task, state
+        ):
             logger.info("🛡️ Using Safe Orchestrator Executor (v5.5.2)")
 
             # Create safe execution plan without actual orchestrator call
             try:
-                safe_plan = await self.safe_executor.create_safe_execution_plan(task, state)
+                safe_plan = await self.safe_executor.create_safe_execution_plan(
+                    task, state
+                )
                 if safe_plan:
-                    logger.info(f"✅ Created safe execution plan with {len(safe_plan)} steps")
+                    logger.info(
+                        f"✅ Created safe execution plan with {len(safe_plan)} steps"
+                    )
                     return safe_plan
             except Exception as e:
-                logger.error(f"Safe executor failed: {e}, falling back to standard routing")
+                logger.error(
+                    f"Safe executor failed: {e}, falling back to standard routing"
+                )
 
         # ============================================
         # PHASE 2: AI-BASED ROUTING (Fast routing disabled)
@@ -2834,50 +3329,74 @@ Research:
             # Handle special query types
             if classification.is_greeting:
                 logger.info("👋 Greeting detected - returning friendly response")
-                return [ExecutionStep(
-                    id="step1",
-                    agent="orchestrator",
-                    task="Greeting",
-                    expected_output="Greeting response",
-                    dependencies=[],
-                    status="completed",
-                    result=classification.prefilled_response or "Hallo! Ich bin der KI AutoAgent. Wie kann ich Ihnen bei der Entwicklung helfen?"
-                )]
+                return [
+                    ExecutionStep(
+                        id="step1",
+                        agent="orchestrator",
+                        task="Greeting",
+                        expected_output="Greeting response",
+                        dependencies=[],
+                        status="completed",
+                        result=classification.prefilled_response
+                        or "Hallo! Ich bin der KI AutoAgent. Wie kann ich Ihnen bei der Entwicklung helfen?",
+                    )
+                ]
 
             if classification.is_nonsense:
                 logger.info("❓ Nonsensical query detected - asking for clarification")
-                return [ExecutionStep(
-                    id="step1",
-                    agent="orchestrator",
-                    task="Clarification needed",
-                    expected_output="Clarification request",
-                    dependencies=[],
-                    status="completed",
-                    result=classification.prefilled_response or "Könnten Sie Ihre Anfrage bitte umformulieren?"
-                )]
+                return [
+                    ExecutionStep(
+                        id="step1",
+                        agent="orchestrator",
+                        task="Clarification needed",
+                        expected_output="Clarification request",
+                        dependencies=[],
+                        status="completed",
+                        result=classification.prefilled_response
+                        or "Könnten Sie Ihre Anfrage bitte umformulieren?",
+                    )
+                ]
 
             # Handle development queries with special handlers
             # BUT: Only for VAGUE queries, not concrete implementation requests!
-            is_concrete_request = any(word in task.lower() for word in [
-                'erstelle', 'create', 'build', 'implement', 'baue', 'entwickle',
-                'generiere', 'generate', 'make', 'code'
-            ])
+            is_concrete_request = any(
+                word in task.lower()
+                for word in [
+                    "erstelle",
+                    "create",
+                    "build",
+                    "implement",
+                    "baue",
+                    "entwickle",
+                    "generiere",
+                    "generate",
+                    "make",
+                    "code",
+                ]
+            )
 
-            if classification.is_development_query and classification.dev_type and self.dev_handler and not is_concrete_request:
+            if (
+                classification.is_development_query
+                and classification.dev_type
+                and self.dev_handler
+                and not is_concrete_request
+            ):
                 # Only provide guidance for vague requests like "make it faster" or "fix bugs"
                 response, agents = self.dev_handler.handle_development_query(
                     task, classification.dev_type, state
                 )
                 if not agents:  # No agents needed, just return informative response
-                    return [ExecutionStep(
-                        id="step1",
-                        agent="orchestrator",
-                        task=f"Development guidance for {classification.dev_type}",
-                        expected_output="Development guidance",
-                        dependencies=[],
-                        status="completed",
-                        result=response
-                    )]
+                    return [
+                        ExecutionStep(
+                            id="step1",
+                            agent="orchestrator",
+                            task=f"Development guidance for {classification.dev_type}",
+                            expected_output="Development guidance",
+                            dependencies=[],
+                            status="completed",
+                            result=response,
+                        )
+                    ]
 
         # ============================================
         # SKIP FAST ROUTING - GO DIRECTLY TO AI
@@ -2888,7 +3407,9 @@ Research:
         if ORCHESTRATOR_AVAILABLE:
             logger.info("🧠 DIRECT AI ROUTING → Using Orchestrator for all tasks")
             # Always treat as "complex" since we want full AI analysis
-            orchestrator_plan = await self._use_orchestrator_for_planning(task, "complex")
+            orchestrator_plan = await self._use_orchestrator_for_planning(
+                task, "complex"
+            )
             if orchestrator_plan and len(orchestrator_plan) > 0:
                 return orchestrator_plan
 
@@ -2928,14 +3449,18 @@ Research:
                     expected_output="List of all agents in the system",
                     dependencies=[],
                     status="completed",  # Mark as completed since no execution needed
-                    result=result_text
+                    result=result_text,
                 )
             ]
 
         # For cache SYSTEM questions - EXECUTE real actions (not code implementation!)
         # Only match if specifically about filling/setting up caches, not implementing cache code
         task_lower_check = task.lower()
-        if ("fülle" in task_lower_check or "fill" in task_lower_check or "setup" in task_lower_check) and ("cache" in task_lower_check or "caches" in task_lower_check):
+        if (
+            "fülle" in task_lower_check
+            or "fill" in task_lower_check
+            or "setup" in task_lower_check
+        ) and ("cache" in task_lower_check or "caches" in task_lower_check):
             return [
                 ExecutionStep(
                     id="step1",
@@ -2944,7 +3469,7 @@ Research:
                     expected_output="Cache setup completed with status report",
                     dependencies=[],
                     status="pending",
-                    result=None  # Will be filled by actual execution
+                    result=None,  # Will be filled by actual execution
                 )
             ]
 
@@ -2952,15 +3477,34 @@ Research:
         # Only match if it's a question ABOUT the system, not a request to CREATE something
         task_check = task.lower()
         is_system_question = (
-            ("was" in task_check or "what" in task_check or "wie" in task_check or "how" in task_check or
-             "beschreibe" in task_check or "describe" in task_check or
-             "zeige" in task_check or "show" in task_check or "details" in task_check)
-            and ("system" in task_check or "workspace" in task_check or "projekt" in task_check or "project" in task_check or "autoagent" in task_check)
+            "was" in task_check
+            or "what" in task_check
+            or "wie" in task_check
+            or "how" in task_check
+            or "beschreibe" in task_check
+            or "describe" in task_check
+            or "zeige" in task_check
+            or "show" in task_check
+            or "details" in task_check
+        ) and (
+            "system" in task_check
+            or "workspace" in task_check
+            or "projekt" in task_check
+            or "project" in task_check
+            or "autoagent" in task_check
         )
         # Exclude development tasks - they should not match this pattern
-        is_development = any(keyword in task_check for keyword in [
-            'entwickle', 'erstelle', 'baue', 'build', 'create', 'implement'
-        ])
+        is_development = any(
+            keyword in task_check
+            for keyword in [
+                "entwickle",
+                "erstelle",
+                "baue",
+                "build",
+                "create",
+                "implement",
+            ]
+        )
 
         if is_system_question and not is_development:
             return [
@@ -2971,7 +3515,7 @@ Research:
                     expected_output="System description",
                     dependencies=[],
                     status="completed",  # ← FIX: Mark as completed since we have the result
-                    result="KI AutoAgent v5.5.1 - Multi-Agent AI Development System mit Intelligent Query Handler\n\nDies ist ein fortschrittliches Multi-Agent-System für die Softwareentwicklung:\n\n🏗️ ARCHITEKTUR:\n• VS Code Extension (TypeScript) - User Interface\n• Python Backend mit LangGraph (Port 8001)\n• WebSocket-basierte Kommunikation\n• 10 spezialisierte KI-Agenten\n• Self-Diagnosis System für automatische Fehlererkennung\n• Intelligent Query Handler für sinnvolle Antworten\n\n🤖 HAUPT-FEATURES:\n• Agent-to-Agent Kommunikation\n• Plan-First Mode mit Approval\n• Persistent Memory\n• Dynamic Workflow Modification\n• Pre-Execution Validation (v5.5.0)\n• Intelligent Query Understanding (v5.5.1)\n• IMMER sinnvolle Antworten - keine generischen Nachrichten\n\n🧠 INTELLIGENT QUERY HANDLER (NEU v5.5.1):\n• Analysiert JEDE Anfrage intelligent\n• Erkennt Intent, Domain und Query-Typ\n• Wählt automatisch den besten Agenten\n• Generiert immer hilfreiche Antworten\n• Keine leeren oder generischen Ergebnisse mehr\n\n🔍 SELF-DIAGNOSIS (v5.5.0):\n• 8 Invarianten-Regeln die immer gelten müssen\n• 9 bekannte Anti-Patterns aus Internet-Recherche\n• 3-Pass Validierungssystem vor Ausführung\n• Automatische Reparatur kritischer Fehler\n• Real-Time Health Monitoring\n\n💡 VERWENDUNG:\nDas System versteht JEDE Ihrer Anfragen und gibt immer sinnvolle Antworten. Es kann Software entwickeln, analysieren und optimieren - und dabei seine eigenen Fehler erkennen und beheben!"
+                    result="KI AutoAgent v5.5.1 - Multi-Agent AI Development System mit Intelligent Query Handler\n\nDies ist ein fortschrittliches Multi-Agent-System für die Softwareentwicklung:\n\n🏗️ ARCHITEKTUR:\n• VS Code Extension (TypeScript) - User Interface\n• Python Backend mit LangGraph (Port 8001)\n• WebSocket-basierte Kommunikation\n• 10 spezialisierte KI-Agenten\n• Self-Diagnosis System für automatische Fehlererkennung\n• Intelligent Query Handler für sinnvolle Antworten\n\n🤖 HAUPT-FEATURES:\n• Agent-to-Agent Kommunikation\n• Plan-First Mode mit Approval\n• Persistent Memory\n• Dynamic Workflow Modification\n• Pre-Execution Validation (v5.5.0)\n• Intelligent Query Understanding (v5.5.1)\n• IMMER sinnvolle Antworten - keine generischen Nachrichten\n\n🧠 INTELLIGENT QUERY HANDLER (NEU v5.5.1):\n• Analysiert JEDE Anfrage intelligent\n• Erkennt Intent, Domain und Query-Typ\n• Wählt automatisch den besten Agenten\n• Generiert immer hilfreiche Antworten\n• Keine leeren oder generischen Ergebnisse mehr\n\n🔍 SELF-DIAGNOSIS (v5.5.0):\n• 8 Invarianten-Regeln die immer gelten müssen\n• 9 bekannte Anti-Patterns aus Internet-Recherche\n• 3-Pass Validierungssystem vor Ausführung\n• Automatische Reparatur kritischer Fehler\n• Real-Time Health Monitoring\n\n💡 VERWENDUNG:\nDas System versteht JEDE Ihrer Anfragen und gibt immer sinnvolle Antworten. Es kann Software entwickeln, analysieren und optimieren - und dabei seine eigenen Fehler erkennen und beheben!",
                 )
             ]
 
@@ -2981,17 +3525,34 @@ Research:
 
         # 🏗️ SPECIAL CASE: Development/Implementation tasks always get multi-agent workflow
         # This ensures proper architecture → code → review flow
-        is_development_task = any(keyword in task_lower for keyword in [
-            'entwickle', 'erstelle', 'baue', 'build', 'create', 'implement',
-            'write', 'code', 'app', 'application', 'webapp', 'website', 'game'
-        ])
+        is_development_task = any(
+            keyword in task_lower
+            for keyword in [
+                "entwickle",
+                "erstelle",
+                "baue",
+                "build",
+                "create",
+                "implement",
+                "write",
+                "code",
+                "app",
+                "application",
+                "webapp",
+                "website",
+                "game",
+            ]
+        )
 
-        is_html_task = any(keyword in task_lower for keyword in [
-            'html', 'web', 'browser', 'tetris', 'game', 'canvas'
-        ])
+        is_html_task = any(
+            keyword in task_lower
+            for keyword in ["html", "web", "browser", "tetris", "game", "canvas"]
+        )
 
         if is_development_task or is_html_task:
-            logger.info(f"🏗️ DEVELOPMENT TASK detected - creating multi-agent workflow (architect → codesmith → reviewer → fixer)")
+            logger.info(
+                "🏗️ DEVELOPMENT TASK detected - creating multi-agent workflow (architect → codesmith → reviewer → fixer)"
+            )
 
             steps = [
                 ExecutionStep(
@@ -3001,7 +3562,7 @@ Research:
                     expected_output="Architecture design and technology recommendations",
                     dependencies=[],
                     status="pending",
-                    result=None
+                    result=None,
                 ),
                 ExecutionStep(
                     id="step2",
@@ -3010,16 +3571,16 @@ Research:
                     expected_output="Complete working code implementation",
                     dependencies=["step1"],
                     status="pending",
-                    result=None
+                    result=None,
                 ),
                 ExecutionStep(
                     id="step3",
                     agent="reviewer",
-                    task=f"Review and test implementation",
+                    task="Review and test implementation",
                     expected_output="Test results with quality score and recommendations",
                     dependencies=["step2"],
                     status="pending",
-                    result=None
+                    result=None,
                 ),
                 ExecutionStep(
                     id="step4",
@@ -3028,8 +3589,8 @@ Research:
                     expected_output="All issues resolved",
                     dependencies=["step3"],
                     status="pending",
-                    result=None
-                )
+                    result=None,
+                ),
             ]
 
             logger.info(f"✅ Created {len(steps)}-step development workflow")
@@ -3045,7 +3606,9 @@ Research:
 
             # High confidence (>= 2.0) - direct routing
             if confidence >= 2.0:
-                logger.info(f"🎯 High-confidence routing: {agent_name} (score: {confidence})")
+                logger.info(
+                    f"🎯 High-confidence routing: {agent_name} (score: {confidence})"
+                )
                 return self._create_single_agent_step(agent_name, task)
 
             # Medium confidence (1.5-2.0) - check for conflicts
@@ -3054,20 +3617,26 @@ Research:
                 sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
                 if len(sorted_scores) > 1 and sorted_scores[1][1] >= 1.0:
                     # Ambiguous - multiple agents could handle this
-                    logger.info(f"⚠️ Ambiguous routing: {sorted_scores[0][0]}={sorted_scores[0][1]}, {sorted_scores[1][0]}={sorted_scores[1][1]}")
+                    logger.info(
+                        f"⚠️ Ambiguous routing: {sorted_scores[0][0]}={sorted_scores[0][1]}, {sorted_scores[1][0]}={sorted_scores[1][1]}"
+                    )
                     # Fallback to orchestrator for intelligent decision
                     return self._create_single_agent_step("orchestrator", task)
                 else:
-                    logger.info(f"🎯 Medium-confidence routing: {agent_name} (score: {confidence})")
+                    logger.info(
+                        f"🎯 Medium-confidence routing: {agent_name} (score: {confidence})"
+                    )
                     return self._create_single_agent_step(agent_name, task)
 
         # No keyword matches or low confidence - use intelligent handler
-        logger.info(f"🤔 No clear keyword match - using intelligent query analysis")
+        logger.info("🤔 No clear keyword match - using intelligent query analysis")
 
         # v5.5.1: Use intelligent handler to create a meaningful execution plan
         if self.intelligent_handler:
             logger.info("🧠 Using Intelligent Query Handler to create execution plan")
-            intelligent_plan = self.intelligent_handler.create_intelligent_execution_plan(task)
+            intelligent_plan = (
+                self.intelligent_handler.create_intelligent_execution_plan(task)
+            )
 
             # If the plan suggests a non-orchestrator agent, use it
             if intelligent_plan and intelligent_plan[0].agent != "orchestrator":
@@ -3096,27 +3665,102 @@ Research:
 
         # ACTION VERBS (high priority - weight 2.0)
         action_patterns = {
-            'reviewer': ['review', 'analyse', 'analyze', 'prüfe', 'check', 'validiere', 'validate'],
-            'fixer': ['fix', 'fixe', 'behebe', 'repair', 'löse', 'solve'],
-            'codesmith': ['implement', 'implementiere', 'write', 'schreibe', 'erstelle', 'create', 'baue', 'build',
-                         'create code', 'erstelle code', 'generate code', 'create a', 'write a', 'implement a',
-                         'build a', 'baue eine', 'erstelle eine', 'develop', 'entwickle'],
-            'performance': ['optimize', 'optimiere', 'speed up', 'improve performance', 'make faster'],
-            'architect': ['design architecture', 'design system', 'design microservice', 'create architecture'],
-            'docbot': ['document', 'dokumentiere', 'write documentation', 'create readme'],
-            'research': ['research', 'recherche', 'search for', 'suche nach', 'find information'],
+            "reviewer": [
+                "review",
+                "analyse",
+                "analyze",
+                "prüfe",
+                "check",
+                "validiere",
+                "validate",
+            ],
+            "fixer": ["fix", "fixe", "behebe", "repair", "löse", "solve"],
+            "codesmith": [
+                "implement",
+                "implementiere",
+                "write",
+                "schreibe",
+                "erstelle",
+                "create",
+                "baue",
+                "build",
+                "create code",
+                "erstelle code",
+                "generate code",
+                "create a",
+                "write a",
+                "implement a",
+                "build a",
+                "baue eine",
+                "erstelle eine",
+                "develop",
+                "entwickle",
+            ],
+            "performance": [
+                "optimize",
+                "optimiere",
+                "speed up",
+                "improve performance",
+                "make faster",
+            ],
+            "architect": [
+                "design architecture",
+                "design system",
+                "design microservice",
+                "create architecture",
+            ],
+            "docbot": [
+                "document",
+                "dokumentiere",
+                "write documentation",
+                "create readme",
+            ],
+            "research": [
+                "research",
+                "recherche",
+                "search for",
+                "suche nach",
+                "find information",
+            ],
         }
 
         # DOMAIN NOUNS (lower priority - weight 1.0)
         domain_patterns = {
-            'architect': ['architecture', 'architektur', 'microservice', 'system design', 'infrastructure'],
-            'codesmith': ['function', 'funktion', 'class', 'klasse', 'algorithm', 'algorithmus'],
-            'reviewer': ['security', 'sicherheit', 'quality', 'qualität'],
-            'fixer': ['bug', 'error', 'fehler', 'exception', 'problem', 'crash'],
-            'performance': ['performance', 'efficiency', 'speed', 'faster', 'schneller', 'slow'],
-            'docbot': ['readme', 'docstring', 'comments', 'kommentare'],
-            'research': ['latest', 'neuesten', 'web', 'what are', 'was sind'],
-            'tradestrat': ['trading', 'strategy', 'strategie', 'crypto', 'stock', 'backtest'],
+            "architect": [
+                "architecture",
+                "architektur",
+                "microservice",
+                "system design",
+                "infrastructure",
+            ],
+            "codesmith": [
+                "function",
+                "funktion",
+                "class",
+                "klasse",
+                "algorithm",
+                "algorithmus",
+            ],
+            "reviewer": ["security", "sicherheit", "quality", "qualität"],
+            "fixer": ["bug", "error", "fehler", "exception", "problem", "crash"],
+            "performance": [
+                "performance",
+                "efficiency",
+                "speed",
+                "faster",
+                "schneller",
+                "slow",
+            ],
+            "docbot": ["readme", "docstring", "comments", "kommentare"],
+            "research": ["latest", "neuesten", "web", "what are", "was sind"],
+            "tradestrat": [
+                "trading",
+                "strategy",
+                "strategie",
+                "crypto",
+                "stock",
+                "backtest",
+            ],
         }
 
         # Calculate action scores (high priority)
@@ -3144,15 +3788,15 @@ Research:
         v5.5.1: Enhanced with intelligent responses - NEVER returns empty results
         """
         output_map = {
-            'architect': 'System architecture design',
-            'codesmith': 'Code implementation',
-            'reviewer': 'Code review and analysis',
-            'fixer': 'Bug fix and solution',
-            'docbot': 'Documentation',
-            'research': 'Research results',
-            'tradestrat': 'Trading strategy',
-            'performance': 'Performance optimization',
-            'orchestrator': 'Intelligent task analysis and routing'
+            "architect": "System architecture design",
+            "codesmith": "Code implementation",
+            "reviewer": "Code review and analysis",
+            "fixer": "Bug fix and solution",
+            "docbot": "Documentation",
+            "research": "Research results",
+            "tradestrat": "Trading strategy",
+            "performance": "Performance optimization",
+            "orchestrator": "Intelligent task analysis and routing",
         }
 
         # FIX v5.4.2: Orchestrator can't be a destination node, mark as completed
@@ -3164,7 +3808,9 @@ Research:
         if agent == "orchestrator" and self.intelligent_handler:
             # Generate intelligent response for this query
             step_result = self.intelligent_handler.get_intelligent_response(task)
-            logger.info(f"🧠 Generated intelligent response for orchestrator step ({len(step_result)} chars)")
+            logger.info(
+                f"🧠 Generated intelligent response for orchestrator step ({len(step_result)} chars)"
+            )
 
         # Return single agent step
         step = ExecutionStep(
@@ -3174,7 +3820,7 @@ Research:
             expected_output=output_map.get(agent, "Task result"),
             dependencies=[],
             status=step_status,
-            result=step_result  # Will be None for non-orchestrator or filled with intelligent response
+            result=step_result,  # Will be None for non-orchestrator or filled with intelligent response
         )
 
         # v5.5.1: Additional enhancement - ensure step has meaningful content
@@ -3197,74 +3843,92 @@ Research:
             # Multi-objective tasks
             len(task.split(" und ")) > 2,  # "Implement X und Y und Z"
             len(task.split(" and ")) > 2,
-
             # Multi-component integration
-            any(word in task_lower for word in [
-                "integriere", "integrate", "verbinde", "connect",
-                "kombiniere", "combine"
-            ]) and len(task.split()) > 8,
-
+            any(
+                word in task_lower
+                for word in [
+                    "integriere",
+                    "integrate",
+                    "verbinde",
+                    "connect",
+                    "kombiniere",
+                    "combine",
+                ]
+            )
+            and len(task.split()) > 8,
             # Complex requirements
-            any(word in task_lower for word in [
-                "komplex", "complex", "advanced", "comprehensive",
-                "enterprise", "production", "scalable"
-            ]),
-
+            any(
+                word in task_lower
+                for word in [
+                    "komplex",
+                    "complex",
+                    "advanced",
+                    "comprehensive",
+                    "enterprise",
+                    "production",
+                    "scalable",
+                ]
+            ),
             # Multiple agents likely needed (research + design + implement + test + document)
             task.count(",") > 2,
-
             # Explicitly asks for optimization + documentation
-            ("optimiere" in task_lower or "optimize" in task_lower) and
-            ("dokumentiere" in task_lower or "document" in task_lower),
-
+            ("optimiere" in task_lower or "optimize" in task_lower)
+            and ("dokumentiere" in task_lower or "document" in task_lower),
             # Long task description (>15 words)
-            len(task.split()) > 15
+            len(task.split()) > 15,
         ]
 
         if any(complex_indicators):
-            logger.info(f"🎯 Task classified as COMPLEX (will use Orchestrator AI)")
+            logger.info("🎯 Task classified as COMPLEX (will use Orchestrator AI)")
             return "complex"
 
         # Simple indicators (use direct keyword routing)
         simple_indicators = [
             # Single-word commands
             len(task.split()) <= 3,
-
             # Direct agent targeting
-            any(word in task_lower for word in [
-                "fix", "review", "explain", "list", "show", "tell"
-            ]),
-
+            any(
+                word in task_lower
+                for word in ["fix", "review", "explain", "list", "show", "tell"]
+            ),
             # Simple questions
-            task.strip().endswith("?") and len(task.split()) < 10
+            task.strip().endswith("?") and len(task.split()) < 10,
         ]
 
         if any(simple_indicators):
-            logger.info(f"🎯 Task classified as SIMPLE (will use keyword routing)")
+            logger.info("🎯 Task classified as SIMPLE (will use keyword routing)")
             return "simple"
 
         # Default: moderate complexity
-        logger.info(f"🎯 Task classified as MODERATE (will use standard workflow)")
+        logger.info("🎯 Task classified as MODERATE (will use standard workflow)")
         return "moderate"
 
-    async def _use_orchestrator_for_planning(self, task: str, complexity: str) -> list[ExecutionStep]:
+    async def _use_orchestrator_for_planning(
+        self, task: str, complexity: str
+    ) -> list[ExecutionStep]:
         """
         Use Orchestrator AI to decompose complex tasks
 
         Phase 2.3: Orchestrator Integration
         """
         if not ORCHESTRATOR_AVAILABLE or "orchestrator" not in self.real_agents:
-            logger.warning("⚠️ Orchestrator not available - falling back to keyword routing")
+            logger.warning(
+                "⚠️ Orchestrator not available - falling back to keyword routing"
+            )
             return self._create_single_agent_step("orchestrator", task)
 
-        logger.info(f"🤖 Using Orchestrator AI for task decomposition (complexity: {complexity})")
+        logger.info(
+            f"🤖 Using Orchestrator AI for task decomposition (complexity: {complexity})"
+        )
 
         try:
             orchestrator = self.real_agents["orchestrator"]
 
             # Use Orchestrator's execute method
             request = TaskRequest(prompt=task, context={"complexity": complexity})
-            result = await execute_agent_with_retry(orchestrator, request, "orchestrator")
+            result = await execute_agent_with_retry(
+                orchestrator, request, "orchestrator"
+            )
 
             # Extract execution plan from result metadata
             if result.metadata and "subtasks" in result.metadata:
@@ -3273,20 +3937,30 @@ Research:
                 # Convert to ExecutionSteps
                 steps = []
                 for subtask in subtasks:
-                    steps.append(ExecutionStep(
-                        id=subtask.get("id", f"step_{len(steps)+1}"),
-                        agent=subtask.get("agent", "codesmith"),
-                        task=subtask.get("description", subtask.get("task", "")),
-                        expected_output=subtask.get("expected_output", "Task completion"),
-                        dependencies=subtask.get("dependencies", []),
-                        status="pending",
-                        result=None,
-                        # Removed metadata field as ExecutionStep doesn't support it
-                        # Could use timeout_seconds for duration if needed
-                        timeout_seconds=int(subtask.get("estimated_duration", 5.0) * 60) if subtask.get("estimated_duration") else 300
-                    ))
+                    steps.append(
+                        ExecutionStep(
+                            id=subtask.get("id", f"step_{len(steps)+1}"),
+                            agent=subtask.get("agent", "codesmith"),
+                            task=subtask.get("description", subtask.get("task", "")),
+                            expected_output=subtask.get(
+                                "expected_output", "Task completion"
+                            ),
+                            dependencies=subtask.get("dependencies", []),
+                            status="pending",
+                            result=None,
+                            # Removed metadata field as ExecutionStep doesn't support it
+                            # Could use timeout_seconds for duration if needed
+                            timeout_seconds=int(
+                                subtask.get("estimated_duration", 5.0) * 60
+                            )
+                            if subtask.get("estimated_duration")
+                            else 300,
+                        )
+                    )
 
-                logger.info(f"✅ Orchestrator created {len(steps)}-step plan with parallelization")
+                logger.info(
+                    f"✅ Orchestrator created {len(steps)}-step plan with parallelization"
+                )
                 return steps
 
         except Exception as e:
@@ -3295,8 +3969,13 @@ Research:
 
         # Fallback: For development tasks, create default multi-agent workflow
         task_lower = task.lower()
-        if any(keyword in task_lower for keyword in ['create', 'build', 'develop', 'app', 'web', 'calculator']):
-            logger.info("🏗️ Creating default development workflow (architect → codesmith → reviewer → fixer)")
+        if any(
+            keyword in task_lower
+            for keyword in ["create", "build", "develop", "app", "web", "calculator"]
+        ):
+            logger.info(
+                "🏗️ Creating default development workflow (architect → codesmith → reviewer → fixer)"
+            )
             return [
                 ExecutionStep(
                     id="step1",
@@ -3305,7 +3984,7 @@ Research:
                     expected_output="Architecture design",
                     dependencies=[],
                     status="pending",
-                    result=None
+                    result=None,
                 ),
                 ExecutionStep(
                     id="step2",
@@ -3314,7 +3993,7 @@ Research:
                     expected_output="Working code implementation",
                     dependencies=["step1"],
                     status="pending",
-                    result=None
+                    result=None,
                 ),
                 ExecutionStep(
                     id="step3",
@@ -3323,7 +4002,7 @@ Research:
                     expected_output="Code review and test results",
                     dependencies=["step2"],
                     status="pending",
-                    result=None
+                    result=None,
                 ),
                 ExecutionStep(
                     id="step4",
@@ -3332,8 +4011,8 @@ Research:
                     expected_output="All issues resolved",
                     dependencies=["step3"],
                     status="pending",
-                    result=None
-                )
+                    result=None,
+                ),
             ]
 
         # For non-development tasks, use intelligent handler
@@ -3344,10 +4023,7 @@ Research:
         return self._create_single_agent_step("orchestrator", task)
 
     async def _store_execution_for_learning(
-        self,
-        task: str,
-        final_state: ExtendedAgentState,
-        success: bool
+        self, task: str, final_state: ExtendedAgentState, success: bool
     ):
         """
         Store execution results for future learning
@@ -3364,18 +4040,26 @@ Research:
             # Convert execution plan to decomposition format
             subtasks = []
             for step in execution_plan:
-                subtasks.append({
-                    "id": step.id,
-                    "description": step.task,
-                    "agent": step.agent,
-                    "dependencies": step.dependencies if hasattr(step, 'dependencies') else [],
-                    "estimated_duration": step.metadata.get('estimated_duration', 5.0) if hasattr(step, 'metadata') and step.metadata else 5.0,
-                    "status": step.status
-                })
+                subtasks.append(
+                    {
+                        "id": step.id,
+                        "description": step.task,
+                        "agent": step.agent,
+                        "dependencies": step.dependencies
+                        if hasattr(step, "dependencies")
+                        else [],
+                        "estimated_duration": step.metadata.get(
+                            "estimated_duration", 5.0
+                        )
+                        if hasattr(step, "metadata") and step.metadata
+                        else 5.0,
+                        "status": step.status,
+                    }
+                )
 
             # Determine if parallel execution was used
             parallelizable = any(
-                len(step.dependencies if hasattr(step, 'dependencies') else []) == 0
+                len(step.dependencies if hasattr(step, "dependencies") else []) == 0
                 for step in execution_plan[1:]  # Skip first step
             )
 
@@ -3383,7 +4067,7 @@ Research:
                 "subtasks": subtasks,
                 "parallelizable": parallelizable,
                 "step_count": len(subtasks),
-                "agents_used": list(set(step.agent for step in execution_plan))
+                "agents_used": list({step.agent for step in execution_plan}),
             }
 
             # Calculate execution time
@@ -3392,7 +4076,9 @@ Research:
             execution_time = None
             if start_time and end_time:
                 try:
-                    execution_time = (end_time - start_time).total_seconds() / 60.0  # minutes
+                    execution_time = (
+                        end_time - start_time
+                    ).total_seconds() / 60.0  # minutes
                 except:
                     pass
 
@@ -3409,21 +4095,21 @@ Research:
                         "decomposition": decomposition,
                         "execution_time": execution_time,
                         "errors": final_state.get("errors", []),
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     },
-                    session_id=final_state.get("session_id")
+                    session_id=final_state.get("session_id"),
                 )
 
                 status_emoji = "✅" if success else "❌"
-                logger.info(f"{status_emoji} Stored execution result for learning (success={success})")
+                logger.info(
+                    f"{status_emoji} Stored execution result for learning (success={success})"
+                )
 
         except Exception as e:
             logger.warning(f"⚠️ Failed to store execution for learning: {e}")
 
     def _apply_plan_modifications(
-        self,
-        plan: list[ExecutionStep],
-        modifications: dict[str, Any]
+        self, plan: list[ExecutionStep], modifications: dict[str, Any]
     ) -> list[ExecutionStep]:
         """Apply user modifications to execution plan"""
         # This would apply the modifications
@@ -3431,7 +4117,9 @@ Research:
         return plan
 
     # Real agent execution methods
-    async def _execute_architect_task(self, state: ExtendedAgentState, step: ExecutionStep) -> str:
+    async def _execute_architect_task(
+        self, state: ExtendedAgentState, step: ExecutionStep
+    ) -> str:
         """Execute architect task with real ArchitectAgent"""
         # Check if this is a cache setup task
         if "cache" in step.task.lower():
@@ -3451,11 +4139,11 @@ Research:
                         "step_id": step.id,
                         "task_type": "architecture",
                         "workspace_path": state.get("workspace_path"),
-                        "session_id": state.get("session_id")
-                    }
+                        "session_id": state.get("session_id"),
+                    },
                 )
                 result = await execute_agent_with_retry(agent, task_request, step.agent)
-                return result.content if hasattr(result, 'content') else str(result)
+                return result.content if hasattr(result, "content") else str(result)
             except (ConnectionError, TimeoutError) as e:
                 logger.error(f"❌ Architect agent connection failed: {e}")
                 raise ArchitectError(f"Connection failed: {e}")
@@ -3500,10 +4188,7 @@ Research:
 ⚠️ This is a STUB response - real ArchitectAgent would provide more detailed analysis."""
 
     async def _execute_architect_task_with_research(
-        self,
-        state: ExtendedAgentState,
-        step: ExecutionStep,
-        research_results: str
+        self, state: ExtendedAgentState, step: ExecutionStep, research_results: str
     ) -> str:
         """
         Execute architect task WITH research insights
@@ -3538,13 +4223,17 @@ Please create an architecture proposal that incorporates these research findings
                     "task_type": "architecture_with_research",
                     "workspace_path": state.get("workspace_path"),
                     "session_id": state.get("session_id"),
-                    "research_results": research_results
-                }
+                    "research_results": research_results,
+                },
             )
 
             try:
-                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
-                return result.content if hasattr(result, 'content') else str(result)
+                result = await execute_agent_with_retry(
+                    agent,
+                    task_request,
+                    current_step.agent if hasattr(current_step, "agent") else "unknown",
+                )
+                return result.content if hasattr(result, "content") else str(result)
             except Exception as e:
                 logger.error(f"❌ ArchitectAgent failed: {e}")
                 return f"Architecture analysis completed with error: {str(e)}"
@@ -3558,9 +4247,7 @@ Please create an architecture proposal that incorporates these research findings
     # ============================================================================
 
     async def _create_architecture_proposal(
-        self,
-        state: ExtendedAgentState,
-        research_results: str
+        self, state: ExtendedAgentState, research_results: str
     ) -> dict[str, Any]:
         """
         Create architecture proposal with improvements based on research
@@ -3619,21 +4306,29 @@ Return ONLY valid JSON with these exact keys."""
                         "task_type": "architecture_proposal",
                         "workspace_path": state.get("workspace_path"),
                         "session_id": state.get("session_id"),
-                        "research_results": research_results
-                    }
+                        "research_results": research_results,
+                    },
                 )
-                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
-                content = result.content if hasattr(result, 'content') else str(result)
+                result = await execute_agent_with_retry(
+                    agent,
+                    task_request,
+                    current_step.agent if hasattr(current_step, "agent") else "unknown",
+                )
+                content = result.content if hasattr(result, "content") else str(result)
 
                 # v5.7.0: Enhanced debug logging for empty responses
                 logger.info(f"🔍 Architect response length: {len(content)} characters")
                 if not content or not content.strip():
-                    logger.error(f"❌ Architect returned empty response! Result type: {type(result)}")
+                    logger.error(
+                        f"❌ Architect returned empty response! Result type: {type(result)}"
+                    )
                     logger.error(f"❌ Result attributes: {dir(result)}")
                     raise ValueError("Architect returned empty response")
 
                 # v5.7.1: Log full response for debugging JSON issues
-                logger.info(f"📝 Architect FULL RESPONSE:\n{'='*80}\n{content}\n{'='*80}")
+                logger.info(
+                    f"📝 Architect FULL RESPONSE:\n{'='*80}\n{content}\n{'='*80}"
+                )
                 logger.info(f"📝 First 100 chars: {repr(content[:100])}")
                 logger.info(f"📝 Last 100 chars: {repr(content[-100:])}")
 
@@ -3642,12 +4337,16 @@ Return ONLY valid JSON with these exact keys."""
                 import re
 
                 # Extract JSON if wrapped in markdown code blocks
-                json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+                json_match = re.search(
+                    r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL
+                )
                 if json_match:
                     content = json_match.group(1)
                     logger.info("✅ Extracted JSON from markdown code block")
                 else:
-                    logger.warning("⚠️ No JSON markdown block found, trying direct parse")
+                    logger.warning(
+                        "⚠️ No JSON markdown block found, trying direct parse"
+                    )
 
                 # Try to parse the JSON
                 # v5.8.7 FIX: Handle newlines in JSON strings from AI responses
@@ -3655,8 +4354,10 @@ Return ONLY valid JSON with these exact keys."""
                     # First attempt: direct parse
                     proposal = json.loads(content)
                 except json.JSONDecodeError as je:
-                    logger.warning(f"⚠️ JSON decode error (attempt 1): {je.msg} at position {je.pos}")
-                    logger.warning(f"⚠️ Trying to fix invalid control characters...")
+                    logger.warning(
+                        f"⚠️ JSON decode error (attempt 1): {je.msg} at position {je.pos}"
+                    )
+                    logger.warning("⚠️ Trying to fix invalid control characters...")
 
                     try:
                         # v5.8.7 FIX: Replace literal newlines with escaped newlines in JSON strings
@@ -3666,27 +4367,37 @@ Return ONLY valid JSON with these exact keys."""
                         # Fix common JSON issues from AI:
                         # 1. Replace literal newlines within string values with \\n
                         # 2. But preserve newlines between JSON structure elements
-
                         # Strategy: Use strict=False to allow control characters
                         proposal = json.loads(content, strict=False)
                         logger.info("✅ JSON parsed successfully with strict=False")
                     except json.JSONDecodeError as je2:
-                        logger.error(f"❌ JSON still invalid after retry: {je2.msg} at position {je2.pos}")
-                        logger.error(f"❌ Content around error: {repr(content[max(0, je2.pos-50):je2.pos+50])}")
+                        logger.error(
+                            f"❌ JSON still invalid after retry: {je2.msg} at position {je2.pos}"
+                        )
+                        logger.error(
+                            f"❌ Content around error: {repr(content[max(0, je2.pos-50):je2.pos+50])}"
+                        )
                         raise ParsingError(
                             content=content,
                             format="json",
-                            reason=f"{je2.msg} at position {je2.pos}"
+                            reason=f"{je2.msg} at position {je2.pos}",
                         )
 
                 # Validate required keys
-                required_keys = ["summary", "improvements", "tech_stack", "structure", "risks", "research_insights"]
+                required_keys = [
+                    "summary",
+                    "improvements",
+                    "tech_stack",
+                    "structure",
+                    "risks",
+                    "research_insights",
+                ]
                 if not all(key in proposal for key in required_keys):
                     missing_keys = [k for k in required_keys if k not in proposal]
                     raise DataValidationError(
                         field="proposal_keys",
                         value=list(proposal.keys()),
-                        reason=f"Missing required keys: {missing_keys}"
+                        reason=f"Missing required keys: {missing_keys}",
                     )
 
                 logger.info("✅ Architecture proposal created successfully")
@@ -3705,15 +4416,25 @@ Return ONLY valid JSON with these exact keys."""
                 logger.info("💡 Using Architect's markdown response for proposal")
 
                 # Extract summary from markdown content
-                summary_match = content[:500] if content else f"Architecture for: {task}"
+                summary_match = (
+                    content[:500] if content else f"Architecture for: {task}"
+                )
 
                 return {
                     "summary": f"Architecture for: {task}",
                     "improvements": "- Research-backed design decisions\n- Simple, appropriate architecture\n- Best practices applied",
-                    "tech_stack": content[:500] if content else research_results[:500] if research_results else "Modern tech stack",
+                    "tech_stack": content[:500]
+                    if content
+                    else research_results[:500]
+                    if research_results
+                    else "Modern tech stack",
                     "structure": "Standard modular architecture",
                     "risks": "Standard implementation risks - will be addressed during development",
-                    "research_insights": content[:500] if content else research_results[:500] if research_results else "Based on research findings"
+                    "research_insights": content[:500]
+                    if content
+                    else research_results[:500]
+                    if research_results
+                    else "Based on research findings",
                 }
 
         # Stub fallback if no real agent
@@ -3724,7 +4445,7 @@ Return ONLY valid JSON with these exact keys."""
             "tech_stack": "Modern technology stack based on requirements",
             "structure": "Modular architecture with clear separation of concerns",
             "risks": "Implementation complexity, integration challenges",
-            "research_insights": "Based on industry best practices and research"
+            "research_insights": "Based on industry best practices and research",
         }
 
     def _format_proposal_for_user(self, proposal: dict[str, Any]) -> str:
@@ -3817,9 +4538,7 @@ Based on research insights:
         return final_doc
 
     async def _revise_proposal(
-        self,
-        state: ExtendedAgentState,
-        user_feedback: str
+        self, state: ExtendedAgentState, user_feedback: str
     ) -> dict[str, Any]:
         """
         Revise architecture proposal based on user feedback
@@ -3868,16 +4587,23 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                         "task_type": "proposal_revision",
                         "workspace_path": state.get("workspace_path"),
                         "session_id": state.get("session_id"),
-                        "user_feedback": user_feedback
-                    }
+                        "user_feedback": user_feedback,
+                    },
                 )
-                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
-                content = result.content if hasattr(result, 'content') else str(result)
+                result = await execute_agent_with_retry(
+                    agent,
+                    task_request,
+                    current_step.agent if hasattr(current_step, "agent") else "unknown",
+                )
+                content = result.content if hasattr(result, "content") else str(result)
 
                 # Parse JSON
                 import json
                 import re
-                json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+
+                json_match = re.search(
+                    r"```(?:json)?\s*(\{.*?\})\s*```", content, re.DOTALL
+                )
                 if json_match:
                     content = json_match.group(1)
 
@@ -3890,19 +4616,29 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                 logger.warning("⚠️ Returning original proposal with feedback note")
 
                 # Fallback: Add feedback note to original
-                original_proposal["improvements"] = f"USER FEEDBACK: {user_feedback}\n\n" + original_proposal.get("improvements", "")
+                original_proposal[
+                    "improvements"
+                ] = f"USER FEEDBACK: {user_feedback}\n\n" + original_proposal.get(
+                    "improvements", ""
+                )
                 return original_proposal
 
         # Stub fallback
         logger.warning("⚠️ No real architect agent - returning original with note")
-        original_proposal["improvements"] = f"**User requested:** {user_feedback}\n\n" + original_proposal.get("improvements", "")
+        original_proposal[
+            "improvements"
+        ] = f"**User requested:** {user_feedback}\n\n" + original_proposal.get(
+            "improvements", ""
+        )
         return original_proposal
 
     # ============================================================================
     # End of v5.2.0 Helper Functions
     # ============================================================================
 
-    async def _execute_codesmith_task(self, state: ExtendedAgentState, step: ExecutionStep, patterns: list) -> str:
+    async def _execute_codesmith_task(
+        self, state: ExtendedAgentState, step: ExecutionStep, patterns: list
+    ) -> str:
         """Execute codesmith task with real agent or stub"""
 
         # Use real codesmith agent if available
@@ -3916,33 +4652,36 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     "step_id": step.id,
                     "workspace_path": state.get("workspace_path"),
                     "session_id": state.get("session_id"),
-                    "previous_results": []
+                    "previous_results": [],
                 }
 
                 # Get architect's design if available (as reference only)
                 for prev_step in state["execution_plan"]:
                     if prev_step.agent == "architect" and prev_step.result:
                         # Mark as reference only - CodeSmith should generate code, not copy design docs
-                        context["architecture_reference"] = f"REFERENCE ONLY (DO NOT COPY): {prev_step.result[:500]}"
-                        context["previous_results"].append({
-                            "agent": "architect",
-                            "type": "reference_only",
-                            "result": prev_step.result[:500]
-                        })
+                        context[
+                            "architecture_reference"
+                        ] = f"REFERENCE ONLY (DO NOT COPY): {prev_step.result[:500]}"
+                        context["previous_results"].append(
+                            {
+                                "agent": "architect",
+                                "type": "reference_only",
+                                "result": prev_step.result[:500],
+                            }
+                        )
                         break
 
-                task_request = TaskRequest(
-                    prompt=step.task,
-                    context=context
-                )
+                task_request = TaskRequest(prompt=step.task, context=context)
                 result = await execute_agent_with_retry(agent, task_request, step.agent)
 
                 # v5.5.3: Store metadata in step for later use by Reviewer
-                if hasattr(result, 'metadata') and hasattr(step, '__dict__'):
+                if hasattr(result, "metadata") and hasattr(step, "__dict__"):
                     step.metadata = result.metadata
-                    logger.info(f"💾 Stored CodeSmith metadata: {list(result.metadata.keys())}")
+                    logger.info(
+                        f"💾 Stored CodeSmith metadata: {list(result.metadata.keys())}"
+                    )
 
-                return result.content if hasattr(result, 'content') else str(result)
+                return result.content if hasattr(result, "content") else str(result)
             except (ConnectionError, TimeoutError) as e:
                 logger.error(f"❌ CodeSmith agent connection failed: {e}")
                 raise CodesmithError(f"Connection failed: {e}")
@@ -3961,7 +4700,9 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
 
 ⚠️ STUB response - real CodeSmith would provide actual implementation with files."""
 
-    async def _execute_reviewer_task(self, state: ExtendedAgentState, step: ExecutionStep) -> str:
+    async def _execute_reviewer_task(
+        self, state: ExtendedAgentState, step: ExecutionStep
+    ) -> str:
         """Execute reviewer task with real agent or stub"""
 
         # Use real reviewer agent if available
@@ -3976,7 +4717,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     "workspace_path": state.get("workspace_path"),
                     "session_id": state.get("session_id"),
                     "previous_step_result": None,
-                    "previous_results": []
+                    "previous_results": [],
                 }
 
                 # Get codesmith's implementation
@@ -3985,26 +4726,26 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                         context["previous_step_result"] = prev_step.result
                         context["implementation"] = prev_step.result
                         # v5.5.3: Pass metadata separately for Reviewer to access
-                        if hasattr(prev_step, 'metadata') and prev_step.metadata:
+                        if hasattr(prev_step, "metadata") and prev_step.metadata:
                             context["metadata"] = prev_step.metadata
-                            logger.info(f"📦 Passing CodeSmith metadata to Reviewer: {list(prev_step.metadata.keys())}")
-                    context["previous_results"].append({
-                        "agent": prev_step.agent,
-                        "result": prev_step.result
-                    })
+                            logger.info(
+                                f"📦 Passing CodeSmith metadata to Reviewer: {list(prev_step.metadata.keys())}"
+                            )
+                    context["previous_results"].append(
+                        {"agent": prev_step.agent, "result": prev_step.result}
+                    )
 
-                task_request = TaskRequest(
-                    prompt=step.task,
-                    context=context
-                )
+                task_request = TaskRequest(prompt=step.task, context=context)
                 result = await execute_agent_with_retry(agent, task_request, step.agent)
 
                 # v5.8.6 Fix 1: Store metadata in step for later use by Fixer
-                if hasattr(result, 'metadata') and hasattr(step, '__dict__'):
+                if hasattr(result, "metadata") and hasattr(step, "__dict__"):
                     step.metadata = result.metadata
-                    logger.info(f"💾 Stored Reviewer metadata: {list(result.metadata.keys())}")
+                    logger.info(
+                        f"💾 Stored Reviewer metadata: {list(result.metadata.keys())}"
+                    )
 
-                return result.content if hasattr(result, 'content') else str(result)
+                return result.content if hasattr(result, "content") else str(result)
             except (ConnectionError, TimeoutError) as e:
                 logger.error(f"❌ Reviewer agent connection failed: {e}")
                 raise ReviewerError(f"Connection failed: {e}")
@@ -4022,7 +4763,9 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
 
 ⚠️ STUB response - real Reviewer would provide detailed analysis."""
 
-    async def _execute_fixer_task(self, state: ExtendedAgentState, step: ExecutionStep, issues: list) -> str:
+    async def _execute_fixer_task(
+        self, state: ExtendedAgentState, step: ExecutionStep, issues: list
+    ) -> str:
         """Execute fixer task with real agent or stub"""
 
         # Use real fixer agent if available
@@ -4037,7 +4780,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     "workspace_path": state.get("workspace_path"),
                     "session_id": state.get("session_id"),
                     "errors_to_fix": [],
-                    "previous_results": []
+                    "previous_results": [],
                 }
 
                 # Get reviewer's findings
@@ -4045,19 +4788,18 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     if prev_step.agent == "reviewer" and prev_step.result:
                         context["review_result"] = prev_step.result
                         # Try to extract errors from review
-                        if "error" in str(prev_step.result).lower() or "issue" in str(prev_step.result).lower():
+                        if (
+                            "error" in str(prev_step.result).lower()
+                            or "issue" in str(prev_step.result).lower()
+                        ):
                             context["errors_to_fix"].append(prev_step.result)
-                    context["previous_results"].append({
-                        "agent": prev_step.agent,
-                        "result": prev_step.result
-                    })
+                    context["previous_results"].append(
+                        {"agent": prev_step.agent, "result": prev_step.result}
+                    )
 
-                task_request = TaskRequest(
-                    prompt=step.task,
-                    context=context
-                )
+                task_request = TaskRequest(prompt=step.task, context=context)
                 result = await execute_agent_with_retry(agent, task_request, step.agent)
-                return result.content if hasattr(result, 'content') else str(result)
+                return result.content if hasattr(result, "content") else str(result)
             except (ConnectionError, TimeoutError) as e:
                 logger.error(f"❌ Fixer agent connection failed: {e}")
                 raise FixerError(f"Connection failed: {e}")
@@ -4085,7 +4827,9 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
 
 ⚠️ STUB response - real FixerBot would provide detailed line-by-line fixes with git diffs."""
 
-    async def _execute_research_task(self, state: ExtendedAgentState, step: ExecutionStep) -> str:
+    async def _execute_research_task(
+        self, state: ExtendedAgentState, step: ExecutionStep
+    ) -> str:
         """Execute research task with real ResearchAgent"""
         # Use real research agent if available
         if "research" in self.real_agents:
@@ -4094,13 +4838,12 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                 research_agent = self.real_agents["research"]
 
                 # Create task request
-                request = TaskRequest(
-                    prompt=step.task,
-                    context=state
-                )
+                request = TaskRequest(prompt=step.task, context=state)
 
                 # Execute research
-                result = await execute_agent_with_retry(research_agent, request, "research")
+                result = await execute_agent_with_retry(
+                    research_agent, request, "research"
+                )
 
                 if result.status == "success":
                     logger.info(f"✅ ResearchAgent completed: {step.task[:60]}...")
@@ -4205,8 +4948,8 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                 "performance": "performance",  # v5.7.0
                 "tradestrat": "tradestrat",  # v5.7.0
                 "opus_arbitrator": "opus_arbitrator",  # v5.7.0
-                "end": END
-            }
+                "end": END,
+            },
         )
 
         # Dynamic routing based on execution plan
@@ -4228,11 +4971,21 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                 "performance": "performance",  # v5.7.0
                 "tradestrat": "tradestrat",  # v5.7.0
                 "opus_arbitrator": "opus_arbitrator",  # v5.7.0
-                "end": END
-            }
+                "end": END,
+            },
         )
 
-        for agent in ["codesmith", "reviewer", "fixer", "research", "fixer_gpt", "docbot", "performance", "tradestrat", "opus_arbitrator"]:
+        for agent in [
+            "codesmith",
+            "reviewer",
+            "fixer",
+            "research",
+            "fixer_gpt",
+            "docbot",
+            "performance",
+            "tradestrat",
+            "opus_arbitrator",
+        ]:
             workflow.add_conditional_edges(
                 agent,
                 self.route_to_next_agent,
@@ -4248,8 +5001,8 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     "performance": "performance",  # v5.7.0
                     "tradestrat": "tradestrat",  # v5.7.0
                     "opus_arbitrator": "opus_arbitrator",  # v5.7.0
-                    "end": END
-                }
+                    "end": END,
+                },
             )
 
         return workflow
@@ -4292,7 +5045,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
         client_id: str | None = None,
         workspace_path: str | None = None,
         plan_first_mode: bool = False,
-        config: dict[str, Any] | None = None
+        config: dict[str, Any] | None = None,
     ) -> ExtendedAgentState:
         """
         Execute the workflow for a task
@@ -4314,15 +5067,13 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
             client_id=client_id,
             workspace_path=workspace_path,
             plan_first_mode=plan_first_mode,
-            debug_mode=config.get("debug_mode", False) if config else False
+            debug_mode=config.get("debug_mode", False) if config else False,
         )
 
         # Add task to messages
-        initial_state["messages"].append({
-            "role": "user",
-            "content": task,
-            "timestamp": datetime.now().isoformat()
-        })
+        initial_state["messages"].append(
+            {"role": "user", "content": task, "timestamp": datetime.now().isoformat()}
+        )
         initial_state["current_task"] = task
 
         # Compile workflow if not done
@@ -4336,18 +5087,22 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                 initial_state,
                 config={
                     "configurable": {"thread_id": session_id},
-                    "recursion_limit": 100  # Increase limit to see more of the loop
-                }
+                    "recursion_limit": 100,  # Increase limit to see more of the loop
+                },
             )
 
             # v5.2.0: Check if workflow is waiting for architecture approval
             if final_state.get("status") == "waiting_architecture_approval":
                 # Store state for resumption after approval
-                if not hasattr(self, 'active_workflows'):
+                if not hasattr(self, "active_workflows"):
                     self.active_workflows = {}
                 self.active_workflows[session_id] = final_state
-                logger.info(f"⏸️  Workflow paused - stored state for session {session_id}")
-                logger.info(f"📋 Waiting for architecture proposal approval via WebSocket")
+                logger.info(
+                    f"⏸️  Workflow paused - stored state for session {session_id}"
+                )
+                logger.info(
+                    "📋 Waiting for architecture proposal approval via WebSocket"
+                )
                 return final_state
 
             final_state["status"] = "completed"
@@ -4364,12 +5119,18 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                 else:
                     # v5.5.1: NEVER return generic message - generate intelligent response
                     if self.intelligent_handler:
-                        logger.info("🧠 No results found - generating intelligent response")
-                        intelligent_response = self.intelligent_handler.get_intelligent_response(task)
+                        logger.info(
+                            "🧠 No results found - generating intelligent response"
+                        )
+                        intelligent_response = (
+                            self.intelligent_handler.get_intelligent_response(task)
+                        )
                         final_state["final_result"] = intelligent_response
                     else:
                         # Fallback with more context
-                        final_state["final_result"] = f"""Ihre Anfrage wurde bearbeitet: {task}
+                        final_state[
+                            "final_result"
+                        ] = f"""Ihre Anfrage wurde bearbeitet: {task}
 
 Das System hat die Aufgabe analysiert und verarbeitet.
 Für genauere Ergebnisse können Sie gerne eine spezifischere Frage stellen oder einen der folgenden Agenten direkt ansprechen:
@@ -4381,16 +5142,18 @@ Für genauere Ergebnisse können Sie gerne eine spezifischere Frage stellen oder
                 # v5.5.1: Even if no plan created, provide helpful response
                 if self.intelligent_handler:
                     logger.info("🧠 No execution plan - generating helpful response")
-                    helpful_response = self.intelligent_handler.get_intelligent_response(task)
+                    helpful_response = (
+                        self.intelligent_handler.get_intelligent_response(task)
+                    )
                     final_state["final_result"] = helpful_response
                 else:
-                    final_state["final_result"] = "Keine Ausführungsplan erstellt. Bitte präzisieren Sie Ihre Anfrage."
+                    final_state[
+                        "final_result"
+                    ] = "Keine Ausführungsplan erstellt. Bitte präzisieren Sie Ihre Anfrage."
 
             # PHASE 3.2: Store execution result for learning
             await self._store_execution_for_learning(
-                task=task,
-                final_state=final_state,
-                success=True
+                task=task, final_state=final_state, success=True
             )
 
             logger.info(f"✅ Workflow completed for session {session_id}")
@@ -4400,16 +5163,13 @@ Für genauere Ergebnisse können Sie gerne eine spezifischere Frage stellen oder
             logger.error(f"Workflow execution failed: {e}")
             logger.exception(e)  # Print full traceback
             initial_state["status"] = "failed"
-            initial_state["errors"].append({
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            })
+            initial_state["errors"].append(
+                {"error": str(e), "timestamp": datetime.now().isoformat()}
+            )
 
             # PHASE 3.2: Store failure for learning
             await self._store_execution_for_learning(
-                task=task,
-                final_state=initial_state,
-                success=False
+                task=task, final_state=initial_state, success=False
             )
 
             return initial_state
@@ -4418,7 +5178,7 @@ Für genauere Ergebnisse können Sie gerne eine spezifischere Frage stellen oder
 async def create_agent_workflow(
     websocket_manager=None,
     db_path: str = "langgraph_state.db",
-    memory_db_path: str = "agent_memories.db"
+    memory_db_path: str = "agent_memories.db",
 ) -> AgentWorkflow:
     """
     Create and return configured agent workflow
@@ -4435,7 +5195,7 @@ async def create_agent_workflow(
     workflow = AgentWorkflow(
         websocket_manager=websocket_manager,
         db_path=db_path,
-        memory_db_path=memory_db_path
+        memory_db_path=memory_db_path,
     )
 
     # Compile the workflow (now async)
@@ -4448,11 +5208,9 @@ async def create_agent_workflow(
 # v5.8.3: LangGraph Store Helper Functions
 # ============================================================================
 
+
 async def store_learned_pattern(
-    store,
-    agent_name: str,
-    pattern_type: str,
-    pattern_data: dict[str, Any]
+    store, agent_name: str, pattern_type: str, pattern_data: dict[str, Any]
 ) -> None:
     """
     Store a learned pattern in LangGraph Store for cross-session learning
@@ -4481,11 +5239,7 @@ async def store_learned_pattern(
 
 
 async def recall_learned_patterns(
-    store,
-    agent_name: str,
-    pattern_type: str,
-    query: str | None = None,
-    limit: int = 5
+    store, agent_name: str, pattern_type: str, query: str | None = None, limit: int = 5
 ) -> list[dict[str, Any]]:
     """
     Recall learned patterns from LangGraph Store

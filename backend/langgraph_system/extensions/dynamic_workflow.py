@@ -4,9 +4,11 @@ Allows adding/removing nodes and edges at runtime
 """
 
 import logging
-from typing import Dict, List, Callable, Any, Optional, Literal
+from collections.abc import Callable
 from dataclasses import dataclass
-from langgraph.graph import StateGraph, END
+from typing import Any, Literal
+
+from langgraph.graph import END, StateGraph
 
 logger = logging.getLogger(__name__)
 
@@ -14,29 +16,32 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DynamicNode:
     """Represents a dynamic node that can be added at runtime"""
+
     name: str
     func: Callable
     node_type: Literal["standard", "conditional", "tool"]
     description: str = ""
-    metadata: Dict[str, Any] = None
+    metadata: dict[str, Any] = None
 
 
 @dataclass
 class DynamicEdge:
     """Represents a dynamic edge between nodes"""
+
     source: str
     target: str
-    condition: Optional[Callable] = None
-    metadata: Dict[str, Any] = None
+    condition: Callable | None = None
+    metadata: dict[str, Any] = None
 
 
 @dataclass
 class ConditionalRoute:
     """Represents conditional routing logic"""
+
     source: str
     condition: Callable
-    routes: Dict[str, str]
-    metadata: Dict[str, Any] = None
+    routes: dict[str, str]
+    metadata: dict[str, Any] = None
 
 
 class DynamicWorkflowManager:
@@ -45,7 +50,7 @@ class DynamicWorkflowManager:
     Allows runtime changes to graph structure
     """
 
-    def __init__(self, base_graph: Optional[StateGraph] = None):
+    def __init__(self, base_graph: StateGraph | None = None):
         """
         Initialize with optional base graph
 
@@ -53,20 +58,20 @@ class DynamicWorkflowManager:
             base_graph: Initial StateGraph to build upon
         """
         self.base_graph = base_graph
-        self.base_nodes: Dict[str, Callable] = {}
-        self.base_edges: List[DynamicEdge] = []
+        self.base_nodes: dict[str, Callable] = {}
+        self.base_edges: list[DynamicEdge] = []
 
         # Dynamic additions
-        self.dynamic_nodes: Dict[str, DynamicNode] = {}
-        self.dynamic_edges: List[DynamicEdge] = []
-        self.conditional_routes: List[ConditionalRoute] = []
+        self.dynamic_nodes: dict[str, DynamicNode] = {}
+        self.dynamic_edges: list[DynamicEdge] = []
+        self.conditional_routes: list[ConditionalRoute] = []
 
         # Graph versions for rollback
-        self.graph_versions: List[Any] = []  # List of compiled graphs
+        self.graph_versions: list[Any] = []  # List of compiled graphs
         self.current_version = 0
 
         # Workflow templates
-        self.templates: Dict[str, Dict[str, Any]] = {}
+        self.templates: dict[str, dict[str, Any]] = {}
 
         # Extract base graph structure if provided
         if base_graph:
@@ -84,7 +89,7 @@ class DynamicWorkflowManager:
         func: Callable,
         node_type: Literal["standard", "conditional", "tool"] = "standard",
         description: str = "",
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """
         Add a new node to the workflow
@@ -108,7 +113,7 @@ class DynamicWorkflowManager:
             func=func,
             node_type=node_type,
             description=description,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         self.dynamic_nodes[name] = node
@@ -130,14 +135,14 @@ class DynamicWorkflowManager:
 
             # Remove related edges
             self.dynamic_edges = [
-                edge for edge in self.dynamic_edges
+                edge
+                for edge in self.dynamic_edges
                 if edge.source != name and edge.target != name
             ]
 
             # Remove related conditional routes
             self.conditional_routes = [
-                route for route in self.conditional_routes
-                if route.source != name
+                route for route in self.conditional_routes if route.source != name
             ]
 
             logger.info(f"Removed dynamic node: {name}")
@@ -150,8 +155,8 @@ class DynamicWorkflowManager:
         self,
         source: str,
         target: str,
-        condition: Optional[Callable] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        condition: Callable | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """
         Add an edge between nodes
@@ -175,10 +180,7 @@ class DynamicWorkflowManager:
             return False
 
         edge = DynamicEdge(
-            source=source,
-            target=target,
-            condition=condition,
-            metadata=metadata or {}
+            source=source, target=target, condition=condition, metadata=metadata or {}
         )
 
         self.dynamic_edges.append(edge)
@@ -189,8 +191,8 @@ class DynamicWorkflowManager:
         self,
         source: str,
         condition: Callable,
-        routes: Dict[str, str],
-        metadata: Optional[Dict[str, Any]] = None
+        routes: dict[str, str],
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """
         Add conditional routing from a node
@@ -205,10 +207,7 @@ class DynamicWorkflowManager:
             True if routing was added successfully
         """
         route = ConditionalRoute(
-            source=source,
-            condition=condition,
-            routes=routes,
-            metadata=metadata or {}
+            source=source, condition=condition, routes=routes, metadata=metadata or {}
         )
 
         self.conditional_routes.append(route)
@@ -253,11 +252,7 @@ class DynamicWorkflowManager:
 
         # Add conditional routes
         for route in self.conditional_routes:
-            graph.add_conditional_edges(
-                route.source,
-                route.condition,
-                route.routes
-            )
+            graph.add_conditional_edges(route.source, route.condition, route.routes)
 
         # Compile the graph
         compiled = graph.compile()
@@ -272,10 +267,10 @@ class DynamicWorkflowManager:
     def create_template(
         self,
         name: str,
-        nodes: List[DynamicNode],
-        edges: List[DynamicEdge],
-        routes: Optional[List[ConditionalRoute]] = None,
-        description: str = ""
+        nodes: list[DynamicNode],
+        edges: list[DynamicEdge],
+        routes: list[ConditionalRoute] | None = None,
+        description: str = "",
     ) -> bool:
         """
         Create a reusable workflow template
@@ -294,7 +289,7 @@ class DynamicWorkflowManager:
             "nodes": nodes,
             "edges": edges,
             "routes": routes or [],
-            "description": description
+            "description": description,
         }
 
         logger.info(f"Created template: {name}")
@@ -304,7 +299,7 @@ class DynamicWorkflowManager:
         self,
         template_name: str,
         node_prefix: str = "",
-        parameter_mapping: Optional[Dict[str, Any]] = None
+        parameter_mapping: dict[str, Any] | None = None,
     ) -> bool:
         """
         Apply a workflow template
@@ -330,7 +325,7 @@ class DynamicWorkflowManager:
                 func=node.func,
                 node_type=node.node_type,
                 description=node.description,
-                metadata=node.metadata
+                metadata=node.metadata,
             )
 
         # Apply edges with prefix
@@ -339,7 +334,7 @@ class DynamicWorkflowManager:
                 source=f"{node_prefix}{edge.source}",
                 target=f"{node_prefix}{edge.target}",
                 condition=edge.condition,
-                metadata=edge.metadata
+                metadata=edge.metadata,
             )
 
         # Apply routes with prefix
@@ -352,13 +347,13 @@ class DynamicWorkflowManager:
                 source=f"{node_prefix}{route.source}",
                 condition=route.condition,
                 routes=prefixed_routes,
-                metadata=route.metadata
+                metadata=route.metadata,
             )
 
         logger.info(f"Applied template: {template_name}")
         return True
 
-    def rollback(self, version: Optional[int] = None) -> Optional[Any]:
+    def rollback(self, version: int | None = None) -> Any | None:
         """
         Rollback to a previous graph version
 
@@ -384,7 +379,7 @@ class DynamicWorkflowManager:
         logger.error(f"Invalid version number: {version}")
         return None
 
-    def get_graph_info(self) -> Dict[str, Any]:
+    def get_graph_info(self) -> dict[str, Any]:
         """Get information about current graph structure"""
         all_nodes = {**self.base_nodes, **self.dynamic_nodes}
 
@@ -396,7 +391,7 @@ class DynamicWorkflowManager:
             "conditional_routes": len(self.conditional_routes),
             "templates": list(self.templates.keys()),
             "current_version": self.current_version,
-            "total_versions": len(self.graph_versions)
+            "total_versions": len(self.graph_versions),
         }
 
     def visualize_graph(self, format: str = "mermaid") -> str:
@@ -467,7 +462,9 @@ class DynamicWorkflowManager:
             # Add conditional routes
             for route in self.conditional_routes:
                 for condition_result, target in route.routes.items():
-                    lines.append(f'    "{route.source}" -> "{target}" [label="{condition_result}"];')
+                    lines.append(
+                        f'    "{route.source}" -> "{target}" [label="{condition_result}"];'
+                    )
 
             lines.append("}")
             return "\n".join(lines)

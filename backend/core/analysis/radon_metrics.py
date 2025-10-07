@@ -4,15 +4,17 @@ Real implementation using radon library
 """
 
 import logging
-from typing import Dict, Any, Callable, Optional, List
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 try:
     from radon.complexity import cc_visit
-    from radon.metrics import mi_visit, h_visit
+    from radon.metrics import mi_visit
     from radon.raw import analyze
+
     RADON_AVAILABLE = True
 except ImportError:
     RADON_AVAILABLE = False
@@ -35,13 +37,13 @@ class RadonMetrics:
         if self.radon_available:
             logger.info("✅ Radon library found")
         else:
-            logger.warning("⚠️ Radon library not found - install with: pip install radon")
+            logger.warning(
+                "⚠️ Radon library not found - install with: pip install radon"
+            )
 
     async def calculate_all_metrics(
-        self,
-        root_path: str,
-        progress_callback: Optional[Callable] = None
-    ) -> Dict[str, Any]:
+        self, root_path: str, progress_callback: Callable | None = None
+    ) -> dict[str, Any]:
         """
         Calculate all code metrics for codebase
 
@@ -77,24 +79,33 @@ class RadonMetrics:
         if not self.radon_available:
             logger.warning("Radon library not available - returning stub results")
             return {
-                'summary': {
-                    'average_complexity': 0.0,
-                    'average_maintainability': 0.0,
-                    'quality_score': 0.0
+                "summary": {
+                    "average_complexity": 0.0,
+                    "average_maintainability": 0.0,
+                    "quality_score": 0.0,
                 },
-                'files': [],
-                'note': 'Radon library not installed - install with: pip install radon'
+                "files": [],
+                "note": "Radon library not installed - install with: pip install radon",
             }
 
         try:
             # Find all Python files
             root = Path(root_path)
-            python_files = list(root.rglob('*.py'))
+            python_files = list(root.rglob("*.py"))
 
             # Exclude common directories
-            excluded_dirs = {'.git', '__pycache__', 'venv', 'env', '.venv', 'node_modules', '.tox'}
+            excluded_dirs = {
+                ".git",
+                "__pycache__",
+                "venv",
+                "env",
+                ".venv",
+                "node_modules",
+                ".tox",
+            }
             python_files = [
-                f for f in python_files
+                f
+                for f in python_files
                 if not any(excluded in f.parts for excluded in excluded_dirs)
             ]
 
@@ -109,7 +120,7 @@ class RadonMetrics:
 
             for py_file in python_files:
                 try:
-                    with open(py_file, 'r', encoding='utf-8') as f:
+                    with open(py_file, encoding="utf-8") as f:
                         code = f.read()
 
                     # Skip empty files
@@ -118,11 +129,17 @@ class RadonMetrics:
 
                     # Cyclomatic Complexity
                     cc_results = cc_visit(code)
-                    avg_complexity = sum(r.complexity for r in cc_results) / len(cc_results) if cc_results else 0
+                    avg_complexity = (
+                        sum(r.complexity for r in cc_results) / len(cc_results)
+                        if cc_results
+                        else 0
+                    )
 
                     # Maintainability Index
                     mi_result = mi_visit(code, multi=True)
-                    maintainability = mi_result if isinstance(mi_result, (int, float)) else 0
+                    maintainability = (
+                        mi_result if isinstance(mi_result, (int, float)) else 0
+                    )
 
                     # Raw Metrics
                     raw = analyze(code)
@@ -131,25 +148,25 @@ class RadonMetrics:
                     # h_results = h_visit(code)
 
                     file_metrics = {
-                        'file': str(py_file),
-                        'complexity': round(avg_complexity, 2),
-                        'maintainability': round(maintainability, 2),
-                        'loc': raw.loc,
-                        'sloc': raw.sloc,
-                        'comments': raw.comments,
-                        'multi': raw.multi,
-                        'blank': raw.blank,
-                        'single_comments': raw.single_comments,
-                        'functions': [
+                        "file": str(py_file),
+                        "complexity": round(avg_complexity, 2),
+                        "maintainability": round(maintainability, 2),
+                        "loc": raw.loc,
+                        "sloc": raw.sloc,
+                        "comments": raw.comments,
+                        "multi": raw.multi,
+                        "blank": raw.blank,
+                        "single_comments": raw.single_comments,
+                        "functions": [
                             {
-                                'name': func.name,
-                                'complexity': func.complexity,
-                                'line': func.lineno,
-                                'endline': func.endline,
-                                'rank': self._complexity_rank(func.complexity)
+                                "name": func.name,
+                                "complexity": func.complexity,
+                                "line": func.lineno,
+                                "endline": func.endline,
+                                "rank": self._complexity_rank(func.complexity),
                             }
                             for func in cc_results
-                        ]
+                        ],
                     }
 
                     files_metrics.append(file_metrics)
@@ -166,20 +183,28 @@ class RadonMetrics:
                     continue
 
             # Calculate summary
-            avg_complexity = total_complexity / files_with_metrics if files_with_metrics > 0 else 0
-            avg_maintainability = total_maintainability / files_with_metrics if files_with_metrics > 0 else 0
+            avg_complexity = (
+                total_complexity / files_with_metrics if files_with_metrics > 0 else 0
+            )
+            avg_maintainability = (
+                total_maintainability / files_with_metrics
+                if files_with_metrics > 0
+                else 0
+            )
 
             # Quality score (weighted combination)
             # Lower complexity is better, higher maintainability is better
-            quality_score = self._calculate_quality_score(avg_complexity, avg_maintainability)
+            quality_score = self._calculate_quality_score(
+                avg_complexity, avg_maintainability
+            )
 
             summary = {
-                'average_complexity': round(avg_complexity, 2),
-                'average_maintainability': round(avg_maintainability, 2),
-                'quality_score': round(quality_score, 2),
-                'total_loc': total_loc,
-                'total_sloc': total_sloc,
-                'total_files': len(files_metrics)
+                "average_complexity": round(avg_complexity, 2),
+                "average_maintainability": round(avg_maintainability, 2),
+                "quality_score": round(quality_score, 2),
+                "total_loc": total_loc,
+                "total_sloc": total_sloc,
+                "total_files": len(files_metrics),
             }
 
             if progress_callback:
@@ -195,39 +220,41 @@ class RadonMetrics:
             )
 
             return {
-                'summary': summary,
-                'files': files_metrics,
-                'total_files': len(files_metrics)
+                "summary": summary,
+                "files": files_metrics,
+                "total_files": len(files_metrics),
             }
 
         except Exception as e:
             logger.error(f"Radon metrics calculation failed: {e}")
             return {
-                'summary': {
-                    'average_complexity': 0.0,
-                    'average_maintainability': 0.0,
-                    'quality_score': 0.0
+                "summary": {
+                    "average_complexity": 0.0,
+                    "average_maintainability": 0.0,
+                    "quality_score": 0.0,
                 },
-                'files': [],
-                'error': str(e)
+                "files": [],
+                "error": str(e),
             }
 
     def _complexity_rank(self, complexity: int) -> str:
         """Map complexity score to rank (A-F)"""
         if complexity <= 5:
-            return 'A'
+            return "A"
         elif complexity <= 10:
-            return 'B'
+            return "B"
         elif complexity <= 20:
-            return 'C'
+            return "C"
         elif complexity <= 30:
-            return 'D'
+            return "D"
         elif complexity <= 40:
-            return 'E'
+            return "E"
         else:
-            return 'F'
+            return "F"
 
-    def _calculate_quality_score(self, avg_complexity: float, avg_maintainability: float) -> float:
+    def _calculate_quality_score(
+        self, avg_complexity: float, avg_maintainability: float
+    ) -> float:
         """
         Calculate overall quality score (0-100)
 

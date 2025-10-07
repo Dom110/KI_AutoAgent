@@ -4,12 +4,12 @@ Erkennt und klassifiziert 20 problematische Query-Typen
 Alle Antworten auf Deutsch
 """
 
+import hashlib
 import logging
 import re
-import hashlib
-from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class DetailedClassification:
 
     # Development-spezifisch
     is_development_query: bool = False
-    dev_type: Optional[str] = None  # performance, bug, refactoring, etc.
+    dev_type: str | None = None  # performance, bug, refactoring, etc.
     has_sufficient_context: bool = False
 
     # Analyse-Ergebnisse
@@ -47,19 +47,23 @@ class DetailedClassification:
     # Aktions-Empfehlung
     safe_to_execute: bool = False
     needs_clarification: bool = False
-    suggested_action: str = "fallback"  # direct_response, clarification, safe_execution, route_agent
-    suggested_agent: Optional[str] = None
+    suggested_action: str = (
+        "fallback"  # direct_response, clarification, safe_execution, route_agent
+    )
+    suggested_agent: str | None = None
 
     # Response-Vorschläge
-    prefilled_response: Optional[str] = None
-    clarification_text: Optional[str] = None
+    prefilled_response: str | None = None
+    clarification_text: str | None = None
 
     def summary(self) -> str:
         """Zusammenfassung für Logging"""
-        return (f"Query: {self.query[:50]}... | "
-                f"Safe: {self.safe_to_execute} | "
-                f"Action: {self.suggested_action} | "
-                f"Agent: {self.suggested_agent or 'none'}")
+        return (
+            f"Query: {self.query[:50]}... | "
+            f"Safe: {self.safe_to_execute} | "
+            f"Action: {self.suggested_action} | "
+            f"Agent: {self.suggested_agent or 'none'}"
+        )
 
 
 class EnhancedQueryClassifier:
@@ -71,94 +75,212 @@ class EnhancedQueryClassifier:
     def __init__(self):
         # General Patterns (Queries 1-10)
         self.greeting_patterns = [
-            "hi", "hallo", "hey", "guten tag", "guten morgen", "guten abend",
-            "servus", "moin", "grüß", "hello", "greetings"
+            "hi",
+            "hallo",
+            "hey",
+            "guten tag",
+            "guten morgen",
+            "guten abend",
+            "servus",
+            "moin",
+            "grüß",
+            "hello",
+            "greetings",
         ]
 
         self.personal_patterns = [
-            "wie geht", "wie gehts", "how are", "bist du", "kannst du",
-            "wer bist", "was bist"
+            "wie geht",
+            "wie gehts",
+            "how are",
+            "bist du",
+            "kannst du",
+            "wer bist",
+            "was bist",
         ]
 
         self.temporal_patterns = [
-            "gestern", "heute", "morgen", "yesterday", "today", "tomorrow",
-            "letzte woche", "nächste woche", "vorhin", "später"
+            "gestern",
+            "heute",
+            "morgen",
+            "yesterday",
+            "today",
+            "tomorrow",
+            "letzte woche",
+            "nächste woche",
+            "vorhin",
+            "später",
         ]
 
         self.comparison_patterns = [
-            "besser als", "schlechter als", "better than", "worse than",
-            "versus", " vs ", "vergleich", "unterschied"
+            "besser als",
+            "schlechter als",
+            "better than",
+            "worse than",
+            "versus",
+            " vs ",
+            "vergleich",
+            "unterschied",
         ]
 
         self.philosophical_patterns = [
-            "sinn des lebens", "meaning of life", "warum existier",
-            "was ist realität", "bewusstsein", "consciousness"
+            "sinn des lebens",
+            "meaning of life",
+            "warum existier",
+            "was ist realität",
+            "bewusstsein",
+            "consciousness",
         ]
 
         self.control_patterns = [
-            "stop", "halt", "cancel", "abbrech", "beende", "exit",
-            "quit", "pause", "anhalten"
+            "stop",
+            "halt",
+            "cancel",
+            "abbrech",
+            "beende",
+            "exit",
+            "quit",
+            "pause",
+            "anhalten",
         ]
 
         self.meta_patterns = [
-            "welcher agent", "welche agents", "beste agent", "which agent",
-            "agent list", "agenten liste", "was kannst du", "was machst du",
-            "deine fähigkeiten", "your capabilities"
+            "welcher agent",
+            "welche agents",
+            "beste agent",
+            "which agent",
+            "agent list",
+            "agenten liste",
+            "was kannst du",
+            "was machst du",
+            "deine fähigkeiten",
+            "your capabilities",
         ]
 
         # Development Patterns (Queries 11-20)
         self.performance_patterns = [
-            "schneller", "langsam", "faster", "slower", "optimier",
-            "optimize", "performance", "geschwindigkeit", "speed"
+            "schneller",
+            "langsam",
+            "faster",
+            "slower",
+            "optimier",
+            "optimize",
+            "performance",
+            "geschwindigkeit",
+            "speed",
         ]
 
         self.bug_patterns = [
-            "bug", "fehler", "error", "kaputt", "broken", "funktioniert nicht",
-            "doesn't work", "geht nicht", "problem", "issue"
+            "bug",
+            "fehler",
+            "error",
+            "kaputt",
+            "broken",
+            "funktioniert nicht",
+            "doesn't work",
+            "geht nicht",
+            "problem",
+            "issue",
         ]
 
         self.refactoring_patterns = [
-            "refactor", "umschreiben", "rewrite", "clean", "aufräumen",
-            "verbessern", "improve", "überarbeiten"
+            "refactor",
+            "umschreiben",
+            "rewrite",
+            "clean",
+            "aufräumen",
+            "verbessern",
+            "improve",
+            "überarbeiten",
         ]
 
         self.testing_patterns = [
-            "test", "tests", "unit test", "integration", "prüf",
-            "testen", "überprüf", "validier"
+            "test",
+            "tests",
+            "unit test",
+            "integration",
+            "prüf",
+            "testen",
+            "überprüf",
+            "validier",
         ]
 
         self.implementation_patterns = [
-            "implement", "erstell", "create", "build", "bau",
-            "entwickl", "develop", "programmier", "code", "schreib"
+            "implement",
+            "erstell",
+            "create",
+            "build",
+            "bau",
+            "entwickl",
+            "develop",
+            "programmier",
+            "code",
+            "schreib",
         ]
 
         self.technology_patterns = [
-            "technologie", "technology", "framework", "library",
-            "tool", "werkzeug", "beste", "empfehl", "recommend"
+            "technologie",
+            "technology",
+            "framework",
+            "library",
+            "tool",
+            "werkzeug",
+            "beste",
+            "empfehl",
+            "recommend",
         ]
 
         self.database_patterns = [
-            "database", "datenbank", "sql", "query", "tabelle",
-            "table", "schema", "index", "optimier"
+            "database",
+            "datenbank",
+            "sql",
+            "query",
+            "tabelle",
+            "table",
+            "schema",
+            "index",
+            "optimier",
         ]
 
         self.ai_patterns = [
-            " ai ", " ki ", "künstliche intelligenz", "artificial intelligence",
-            "machine learning", "neural", "llm", "gpt", "claude"
+            " ai ",
+            " ki ",
+            "künstliche intelligenz",
+            "artificial intelligence",
+            "machine learning",
+            "neural",
+            "llm",
+            "gpt",
+            "claude",
         ]
 
         # Context indicators
         self.context_references = [
-            "das", "dies", "es", "this", "that", "it",
-            "der code", "the code", "davon", "damit"
+            "das",
+            "dies",
+            "es",
+            "this",
+            "that",
+            "it",
+            "der code",
+            "the code",
+            "davon",
+            "damit",
         ]
 
         self.vague_scope_indicators = [
-            "alles", "everything", "all", "komplett", "gesamt",
-            "entire", "whole", "vollständig"
+            "alles",
+            "everything",
+            "all",
+            "komplett",
+            "gesamt",
+            "entire",
+            "whole",
+            "vollständig",
         ]
 
-    def classify_query(self, query: str, state: Dict[str, Any] = None) -> DetailedClassification:
+    def classify_query(
+        self, query: str, state: dict[str, Any] = None
+    ) -> DetailedClassification:
         """
         Hauptmethode: Klassifiziert eine Query umfassend
         """
@@ -169,8 +291,7 @@ class EnhancedQueryClassifier:
 
         # Basis-Klassifikation erstellen
         classification = DetailedClassification(
-            query=query,
-            query_hash=hashlib.md5(query.encode()).hexdigest()
+            query=query, query_hash=hashlib.md5(query.encode()).hexdigest()
         )
 
         # Schritt 1: Basis-Checks
@@ -179,12 +300,24 @@ class EnhancedQueryClassifier:
         classification.has_context_reference = self._has_context_reference(query_lower)
 
         # Schritt 2: General Query Types (1-10)
-        classification.is_personal = self._check_pattern(query_lower, self.personal_patterns)
-        classification.is_temporal = self._check_pattern(query_lower, self.temporal_patterns)
-        classification.is_comparison = self._check_pattern(query_lower, self.comparison_patterns)
-        classification.is_philosophical = self._check_pattern(query_lower, self.philosophical_patterns)
-        classification.is_control_command = self._check_pattern(query_lower, self.control_patterns)
-        classification.is_meta_question = self._check_pattern(query_lower, self.meta_patterns)
+        classification.is_personal = self._check_pattern(
+            query_lower, self.personal_patterns
+        )
+        classification.is_temporal = self._check_pattern(
+            query_lower, self.temporal_patterns
+        )
+        classification.is_comparison = self._check_pattern(
+            query_lower, self.comparison_patterns
+        )
+        classification.is_philosophical = self._check_pattern(
+            query_lower, self.philosophical_patterns
+        )
+        classification.is_control_command = self._check_pattern(
+            query_lower, self.control_patterns
+        )
+        classification.is_meta_question = self._check_pattern(
+            query_lower, self.meta_patterns
+        )
 
         # Schritt 3: Development Query Types (11-20)
         dev_checks = self._check_development_patterns(query_lower)
@@ -195,7 +328,9 @@ class EnhancedQueryClassifier:
         # Schritt 4: Scores berechnen
         classification.coherence_score = self._calculate_coherence(query_lower)
         classification.confidence_score = self._calculate_confidence(classification)
-        classification.execution_safety_score = self._calculate_safety(classification, state)
+        classification.execution_safety_score = self._calculate_safety(
+            classification, state
+        )
 
         # Schritt 5: Action bestimmen
         self._determine_action(classification, state)
@@ -233,12 +368,12 @@ class EnhancedQueryClassifier:
 
         # Check 2: Keine echten Wörter (nur Zeichen/Zahlen)
         words = query.split()
-        real_words = [w for w in words if re.search(r'[a-zäöüß]{2,}', w, re.I)]
+        real_words = [w for w in words if re.search(r"[a-zäöüß]{2,}", w, re.I)]
         if len(real_words) == 0:
             return True
 
         # Check 3: Zufällige Zeichenketten
-        if re.match(r'^[a-z]{5,}$', query) and query not in ["hallo", "servus"]:
+        if re.match(r"^[a-z]{5,}$", query) and query not in ["hallo", "servus"]:
             # Könnte keyboard smash sein
             unique_chars = len(set(query))
             if unique_chars > len(query) * 0.7:  # Zu viele verschiedene Zeichen
@@ -256,17 +391,13 @@ class EnhancedQueryClassifier:
                     return True
         return False
 
-    def _check_pattern(self, query: str, patterns: List[str]) -> bool:
+    def _check_pattern(self, query: str, patterns: list[str]) -> bool:
         """Generischer Pattern-Check"""
         return any(pattern in query for pattern in patterns)
 
-    def _check_development_patterns(self, query: str) -> Dict[str, Any]:
+    def _check_development_patterns(self, query: str) -> dict[str, Any]:
         """Prüft Development-spezifische Patterns"""
-        result = {
-            "is_dev": False,
-            "type": None,
-            "has_context": False
-        }
+        result = {"is_dev": False, "type": None, "has_context": False}
 
         # Check each development pattern
         if self._check_pattern(query, self.performance_patterns):
@@ -334,7 +465,7 @@ class EnhancedQueryClassifier:
             score *= 0.5
 
         # Reduce for random characters
-        if re.match(r'^[a-z]+$', query) and len(set(query)) > len(query) * 0.7:
+        if re.match(r"^[a-z]+$", query) and len(set(query)) > len(query) * 0.7:
             score *= 0.2
 
         return max(0.0, min(1.0, score))
@@ -346,7 +477,10 @@ class EnhancedQueryClassifier:
         # Erhöhe für klare Patterns
         if classification.is_greeting:
             score += 0.4
-        if classification.is_development_query and classification.has_sufficient_context:
+        if (
+            classification.is_development_query
+            and classification.has_sufficient_context
+        ):
             score += 0.3
         if classification.is_meta_question:
             score += 0.3
@@ -354,14 +488,19 @@ class EnhancedQueryClassifier:
         # Reduziere für Probleme
         if classification.is_nonsense:
             score -= 0.4
-        if classification.has_context_reference and not classification.has_sufficient_context:
+        if (
+            classification.has_context_reference
+            and not classification.has_sufficient_context
+        ):
             score -= 0.2
         if classification.is_philosophical:
             score -= 0.2
 
         return max(0.0, min(1.0, score))
 
-    def _calculate_safety(self, classification: DetailedClassification, state: Dict) -> float:
+    def _calculate_safety(
+        self, classification: DetailedClassification, state: dict
+    ) -> float:
         """Berechnet Safety-Score für Ausführung"""
         score = 0.5
 
@@ -383,7 +522,7 @@ class EnhancedQueryClassifier:
 
         return max(0.0, min(1.0, score))
 
-    def _determine_action(self, classification: DetailedClassification, state: Dict):
+    def _determine_action(self, classification: DetailedClassification, state: dict):
         """Bestimmt die empfohlene Aktion"""
 
         # Grüße → Direkte Antwort
@@ -400,16 +539,24 @@ class EnhancedQueryClassifier:
             return
 
         # Kontext-Referenz ohne Kontext → Klärung
-        if classification.has_context_reference and not classification.has_sufficient_context:
+        if (
+            classification.has_context_reference
+            and not classification.has_sufficient_context
+        ):
             classification.suggested_action = "clarification"
             classification.needs_clarification = True
             classification.safe_to_execute = False
             return
 
         # Development mit genug Kontext → Spezifischer Agent
-        if classification.is_development_query and classification.has_sufficient_context:
+        if (
+            classification.is_development_query
+            and classification.has_sufficient_context
+        ):
             classification.suggested_action = "route_agent"
-            classification.suggested_agent = self._get_dev_agent(classification.dev_type)
+            classification.suggested_agent = self._get_dev_agent(
+                classification.dev_type
+            )
             classification.safe_to_execute = False
             return
 
@@ -443,7 +590,7 @@ class EnhancedQueryClassifier:
             "implementation": "codesmith",
             "technology": "architect",
             "database": "architect",
-            "ai_integration": "research"
+            "ai_integration": "research",
         }
         return mapping.get(dev_type, "codesmith")
 
@@ -475,7 +622,10 @@ Beispiele gültiger Anfragen:
 
 Was möchten Sie tun?"""
 
-        elif classification.has_context_reference and not classification.has_sufficient_context:
+        elif (
+            classification.has_context_reference
+            and not classification.has_sufficient_context
+        ):
             classification.clarification_text = f"""Ich sehe, dass Sie sich auf etwas beziehen ("{classification.query}"), aber mir fehlt der Kontext.
 
 Könnten Sie bitte spezifizieren:
@@ -527,14 +677,18 @@ class ExecutionGuard:
     def __init__(self):
         self.execution_history = []
 
-    def is_safe(self, classification: DetailedClassification, state: Dict[str, Any]) -> bool:
+    def is_safe(
+        self, classification: DetailedClassification, state: dict[str, Any]
+    ) -> bool:
         """
         Prüft ob Ausführung sicher ist
         """
 
         # Check 1: Depth limit
         if state.get("orchestration_depth", 0) >= self.MAX_DEPTH:
-            logger.warning(f"⚠️ Max orchestration depth reached: {state.get('orchestration_depth')}")
+            logger.warning(
+                f"⚠️ Max orchestration depth reached: {state.get('orchestration_depth')}"
+            )
             return False
 
         # Check 2: Recent duplicate
@@ -544,7 +698,9 @@ class ExecutionGuard:
 
         # Check 3: Safety score threshold
         if classification.execution_safety_score < 0.3:
-            logger.warning(f"⚠️ Safety score too low: {classification.execution_safety_score}")
+            logger.warning(
+                f"⚠️ Safety score too low: {classification.execution_safety_score}"
+            )
             return False
 
         # Check 4: Infinite loop pattern
@@ -565,7 +721,7 @@ class ExecutionGuard:
         recent_hashes = [h for h, _ in self.execution_history[-10:]]
         return query_hash in recent_hashes
 
-    def _detect_loop_pattern(self, state: Dict) -> bool:
+    def _detect_loop_pattern(self, state: dict) -> bool:
         """Erkennt Loop-Patterns"""
         history = state.get("query_history", [])
         if len(history) >= 3:
@@ -574,7 +730,7 @@ class ExecutionGuard:
                 return True
         return False
 
-    def _check_resource_exhaustion(self, state: Dict) -> bool:
+    def _check_resource_exhaustion(self, state: dict) -> bool:
         """Prüft Ressourcen-Limits"""
         messages = state.get("messages", [])
         if len(messages) > 1000:

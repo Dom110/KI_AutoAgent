@@ -4,7 +4,7 @@ Zentrale Konfiguration für alle Agents und Services
 """
 
 import os
-from pathlib import Path
+
 
 class Settings:
     """Globale Backend-Einstellungen"""
@@ -43,7 +43,9 @@ This applies to ALL answers, explanations, error messages, and outputs.
     MAX_FILES_FOR_METRICS = None  # Kein Limit (None) oder Zahl
     RESPECT_GITIGNORE = True  # .gitignore beachten
     PROGRESS_UPDATE_INTERVAL = 50  # Update alle X Dateien
-    VERBOSE_PROGRESS_MESSAGES = False  # Detaillierte Progress-Messages (z.B. "Found X dependencies")
+    VERBOSE_PROGRESS_MESSAGES = (
+        False  # Detaillierte Progress-Messages (z.B. "Found X dependencies")
+    )
     SHOW_SCAN_DETAILS = False  # Zeige Details wie DB scan, API scan, etc.
 
     # Plan First Mode
@@ -127,8 +129,12 @@ This applies to ALL answers, explanations, error messages, and outputs.
     VIDEOAGENT_MODEL = "gemini-2.0-flash-exp"  # Gemini model for video analysis
     VIDEOAGENT_TEMPERATURE = 0.7  # Creativity level (0.0-1.0)
     VIDEOAGENT_MAX_TOKENS = 8000  # Max response tokens
-    VIDEOAGENT_OUTPUT_DIR = "~/.ki_autoagent/data/video_output"  # Output directory for results
-    VIDEOAGENT_CLEANUP_AFTER_ANALYSIS = True  # Delete video from Gemini API after analysis
+    VIDEOAGENT_OUTPUT_DIR = (
+        "~/.ki_autoagent/data/video_output"  # Output directory for results
+    )
+    VIDEOAGENT_CLEANUP_AFTER_ANALYSIS = (
+        True  # Delete video from Gemini API after analysis
+    )
     VIDEOAGENT_BATCH_SIZE = 20  # Max videos per batch
     VIDEOAGENT_DUAL_OUTPUT = True  # Always generate JSON + Markdown (required)
     VIDEOAGENT_MULTI_LANGUAGE = True  # Support multi-language instructions
@@ -136,7 +142,9 @@ This applies to ALL answers, explanations, error messages, and outputs.
     @classmethod
     def get_language_directive(cls) -> str:
         """Hole die aktuelle Sprach-Direktive"""
-        return cls.LANGUAGE_DIRECTIVES.get(cls.RESPONSE_LANGUAGE, cls.LANGUAGE_DIRECTIVES["de"])
+        return cls.LANGUAGE_DIRECTIVES.get(
+            cls.RESPONSE_LANGUAGE, cls.LANGUAGE_DIRECTIVES["de"]
+        )
 
     @classmethod
     def get_timeout(cls, task_type: str = "default") -> int:
@@ -144,7 +152,7 @@ This applies to ALL answers, explanations, error messages, and outputs.
         timeouts = {
             "infrastructure": cls.INFRASTRUCTURE_ANALYSIS_TIMEOUT,
             "simple": cls.SIMPLE_QUERY_TIMEOUT,
-            "default": cls.DEFAULT_TIMEOUT
+            "default": cls.DEFAULT_TIMEOUT,
         }
         return timeouts.get(task_type, cls.DEFAULT_TIMEOUT)
 
@@ -159,100 +167,128 @@ This applies to ALL answers, explanations, error messages, and outputs.
             vscode_settings: Dictionary with VS Code settings
         """
         # LangGraph Settings
-        if 'langgraph.enabled' in vscode_settings:
-            cls.LANGGRAPH_ENABLED = vscode_settings['langgraph.enabled']
-        if 'langgraph.checkpointInterval' in vscode_settings:
-            cls.LANGGRAPH_CHECKPOINT_INTERVAL = vscode_settings['langgraph.checkpointInterval']
-        if 'langgraph.maxIterations' in vscode_settings:
-            cls.LANGGRAPH_MAX_ITERATIONS = vscode_settings['langgraph.maxIterations']
-        if 'langgraph.parallelExecution' in vscode_settings:
-            cls.LANGGRAPH_PARALLEL_EXECUTION = vscode_settings['langgraph.parallelExecution']
-        if 'langgraph.stateManagement' in vscode_settings:
-            cls.LANGGRAPH_STATE_MANAGEMENT = vscode_settings['langgraph.stateManagement']
+        if "langgraph.enabled" in vscode_settings:
+            cls.LANGGRAPH_ENABLED = vscode_settings["langgraph.enabled"]
+        if "langgraph.checkpointInterval" in vscode_settings:
+            cls.LANGGRAPH_CHECKPOINT_INTERVAL = vscode_settings[
+                "langgraph.checkpointInterval"
+            ]
+        if "langgraph.maxIterations" in vscode_settings:
+            cls.LANGGRAPH_MAX_ITERATIONS = vscode_settings["langgraph.maxIterations"]
+        if "langgraph.parallelExecution" in vscode_settings:
+            cls.LANGGRAPH_PARALLEL_EXECUTION = vscode_settings[
+                "langgraph.parallelExecution"
+            ]
+        if "langgraph.stateManagement" in vscode_settings:
+            cls.LANGGRAPH_STATE_MANAGEMENT = vscode_settings[
+                "langgraph.stateManagement"
+            ]
 
         # Agent Quality Settings
-        if 'agents.qualityThreshold' in vscode_settings:
-            cls.AGENT_QUALITY_THRESHOLD = vscode_settings['agents.qualityThreshold']
-        if 'agents.maxRetries' in vscode_settings:
-            cls.AGENT_MAX_RETRIES = vscode_settings['agents.maxRetries']
-        if 'agents.reviewerIterations' in vscode_settings:
-            cls.AGENT_REVIEWER_ITERATIONS = vscode_settings['agents.reviewerIterations']
-        if 'agents.fixerIterations' in vscode_settings:
-            cls.AGENT_FIXER_ITERATIONS = vscode_settings['agents.fixerIterations']
+        if "agents.qualityThreshold" in vscode_settings:
+            cls.AGENT_QUALITY_THRESHOLD = vscode_settings["agents.qualityThreshold"]
+        if "agents.maxRetries" in vscode_settings:
+            cls.AGENT_MAX_RETRIES = vscode_settings["agents.maxRetries"]
+        if "agents.reviewerIterations" in vscode_settings:
+            cls.AGENT_REVIEWER_ITERATIONS = vscode_settings["agents.reviewerIterations"]
+        if "agents.fixerIterations" in vscode_settings:
+            cls.AGENT_FIXER_ITERATIONS = vscode_settings["agents.fixerIterations"]
 
         # Alternative Fixer Settings (v5.1.0)
-        if 'alternativeFixer.enabled' in vscode_settings:
-            cls.ALTERNATIVE_FIXER_ENABLED = vscode_settings['alternativeFixer.enabled']
-        if 'alternativeFixer.model' in vscode_settings:
-            cls.ALTERNATIVE_FIXER_MODEL = vscode_settings['alternativeFixer.model']
+        if "alternativeFixer.enabled" in vscode_settings:
+            cls.ALTERNATIVE_FIXER_ENABLED = vscode_settings["alternativeFixer.enabled"]
+        if "alternativeFixer.model" in vscode_settings:
+            cls.ALTERNATIVE_FIXER_MODEL = vscode_settings["alternativeFixer.model"]
             # Auto-detect provider from model
-            cls.ALTERNATIVE_FIXER_PROVIDER = cls._auto_detect_provider(cls.ALTERNATIVE_FIXER_MODEL)
-        if 'alternativeFixer.triggerAfterIterations' in vscode_settings:
-            cls.ALTERNATIVE_FIXER_TRIGGER_ITERATION = vscode_settings['alternativeFixer.triggerAfterIterations']
-        if 'alternativeFixer.temperature' in vscode_settings:
-            cls.ALTERNATIVE_FIXER_TEMPERATURE = vscode_settings['alternativeFixer.temperature']
+            cls.ALTERNATIVE_FIXER_PROVIDER = cls._auto_detect_provider(
+                cls.ALTERNATIVE_FIXER_MODEL
+            )
+        if "alternativeFixer.triggerAfterIterations" in vscode_settings:
+            cls.ALTERNATIVE_FIXER_TRIGGER_ITERATION = vscode_settings[
+                "alternativeFixer.triggerAfterIterations"
+            ]
+        if "alternativeFixer.temperature" in vscode_settings:
+            cls.ALTERNATIVE_FIXER_TEMPERATURE = vscode_settings[
+                "alternativeFixer.temperature"
+            ]
 
         # Routing Settings
-        if 'routing.strategy' in vscode_settings:
-            cls.ROUTING_STRATEGY = vscode_settings['routing.strategy']
-        if 'routing.confidenceThreshold' in vscode_settings:
-            cls.ROUTING_CONFIDENCE_THRESHOLD = vscode_settings['routing.confidenceThreshold']
-        if 'routing.fallbackAgent' in vscode_settings:
-            cls.ROUTING_FALLBACK_AGENT = vscode_settings['routing.fallbackAgent']
-        if 'routing.enableKeywordMatching' in vscode_settings:
-            cls.ROUTING_ENABLE_KEYWORD_MATCHING = vscode_settings['routing.enableKeywordMatching']
-        if 'routing.enableSemanticMatching' in vscode_settings:
-            cls.ROUTING_ENABLE_SEMANTIC_MATCHING = vscode_settings['routing.enableSemanticMatching']
+        if "routing.strategy" in vscode_settings:
+            cls.ROUTING_STRATEGY = vscode_settings["routing.strategy"]
+        if "routing.confidenceThreshold" in vscode_settings:
+            cls.ROUTING_CONFIDENCE_THRESHOLD = vscode_settings[
+                "routing.confidenceThreshold"
+            ]
+        if "routing.fallbackAgent" in vscode_settings:
+            cls.ROUTING_FALLBACK_AGENT = vscode_settings["routing.fallbackAgent"]
+        if "routing.enableKeywordMatching" in vscode_settings:
+            cls.ROUTING_ENABLE_KEYWORD_MATCHING = vscode_settings[
+                "routing.enableKeywordMatching"
+            ]
+        if "routing.enableSemanticMatching" in vscode_settings:
+            cls.ROUTING_ENABLE_SEMANTIC_MATCHING = vscode_settings[
+                "routing.enableSemanticMatching"
+            ]
 
         # Monitoring Settings
-        if 'monitoring.enabled' in vscode_settings:
-            cls.MONITORING_ENABLED = vscode_settings['monitoring.enabled']
-        if 'monitoring.logAgentMetrics' in vscode_settings:
-            cls.MONITORING_LOG_AGENT_METRICS = vscode_settings['monitoring.logAgentMetrics']
-        if 'monitoring.trackRoutingSuccess' in vscode_settings:
-            cls.MONITORING_TRACK_ROUTING_SUCCESS = vscode_settings['monitoring.trackRoutingSuccess']
-        if 'monitoring.alertOnFailures' in vscode_settings:
-            cls.MONITORING_ALERT_ON_FAILURES = vscode_settings['monitoring.alertOnFailures']
+        if "monitoring.enabled" in vscode_settings:
+            cls.MONITORING_ENABLED = vscode_settings["monitoring.enabled"]
+        if "monitoring.logAgentMetrics" in vscode_settings:
+            cls.MONITORING_LOG_AGENT_METRICS = vscode_settings[
+                "monitoring.logAgentMetrics"
+            ]
+        if "monitoring.trackRoutingSuccess" in vscode_settings:
+            cls.MONITORING_TRACK_ROUTING_SUCCESS = vscode_settings[
+                "monitoring.trackRoutingSuccess"
+            ]
+        if "monitoring.alertOnFailures" in vscode_settings:
+            cls.MONITORING_ALERT_ON_FAILURES = vscode_settings[
+                "monitoring.alertOnFailures"
+            ]
 
         # Context Settings
-        if 'context.maxTokensPerAgent' in vscode_settings:
-            cls.CONTEXT_MAX_TOKENS_PER_AGENT = vscode_settings['context.maxTokensPerAgent']
-        if 'context.includeHistory' in vscode_settings:
-            cls.CONTEXT_INCLUDE_HISTORY = vscode_settings['context.includeHistory']
-        if 'context.historyDepth' in vscode_settings:
-            cls.CONTEXT_HISTORY_DEPTH = vscode_settings['context.historyDepth']
+        if "context.maxTokensPerAgent" in vscode_settings:
+            cls.CONTEXT_MAX_TOKENS_PER_AGENT = vscode_settings[
+                "context.maxTokensPerAgent"
+            ]
+        if "context.includeHistory" in vscode_settings:
+            cls.CONTEXT_INCLUDE_HISTORY = vscode_settings["context.includeHistory"]
+        if "context.historyDepth" in vscode_settings:
+            cls.CONTEXT_HISTORY_DEPTH = vscode_settings["context.historyDepth"]
 
         # Memory Settings
-        if 'memory.enabled' in vscode_settings:
-            cls.MEMORY_ENABLED = vscode_settings['memory.enabled']
-        if 'memory.storageBackend' in vscode_settings:
-            cls.MEMORY_STORAGE_BACKEND = vscode_settings['memory.storageBackend']
+        if "memory.enabled" in vscode_settings:
+            cls.MEMORY_ENABLED = vscode_settings["memory.enabled"]
+        if "memory.storageBackend" in vscode_settings:
+            cls.MEMORY_STORAGE_BACKEND = vscode_settings["memory.storageBackend"]
 
         # Cost Settings
-        if 'cost.trackUsage' in vscode_settings:
-            cls.COST_TRACK_USAGE = vscode_settings['cost.trackUsage']
-        if 'cost.monthlyBudget' in vscode_settings:
-            cls.COST_MONTHLY_BUDGET = vscode_settings['cost.monthlyBudget']
-        if 'cost.alertOnThreshold' in vscode_settings:
-            cls.COST_ALERT_ON_THRESHOLD = vscode_settings['cost.alertOnThreshold']
-        if 'cost.preferCheaperModels' in vscode_settings:
-            cls.COST_PREFER_CHEAPER_MODELS = vscode_settings['cost.preferCheaperModels']
+        if "cost.trackUsage" in vscode_settings:
+            cls.COST_TRACK_USAGE = vscode_settings["cost.trackUsage"]
+        if "cost.monthlyBudget" in vscode_settings:
+            cls.COST_MONTHLY_BUDGET = vscode_settings["cost.monthlyBudget"]
+        if "cost.alertOnThreshold" in vscode_settings:
+            cls.COST_ALERT_ON_THRESHOLD = vscode_settings["cost.alertOnThreshold"]
+        if "cost.preferCheaperModels" in vscode_settings:
+            cls.COST_PREFER_CHEAPER_MODELS = vscode_settings["cost.preferCheaperModels"]
 
         # VideoAgent Settings (v5.8.2)
-        if 'videoAgent.enabled' in vscode_settings:
-            cls.VIDEOAGENT_ENABLED = vscode_settings['videoAgent.enabled']
-        if 'videoAgent.model' in vscode_settings:
-            cls.VIDEOAGENT_MODEL = vscode_settings['videoAgent.model']
-        if 'videoAgent.temperature' in vscode_settings:
-            cls.VIDEOAGENT_TEMPERATURE = vscode_settings['videoAgent.temperature']
-        if 'videoAgent.maxTokens' in vscode_settings:
-            cls.VIDEOAGENT_MAX_TOKENS = vscode_settings['videoAgent.maxTokens']
-        if 'videoAgent.outputDir' in vscode_settings:
-            cls.VIDEOAGENT_OUTPUT_DIR = vscode_settings['videoAgent.outputDir']
-        if 'videoAgent.cleanupAfterAnalysis' in vscode_settings:
-            cls.VIDEOAGENT_CLEANUP_AFTER_ANALYSIS = vscode_settings['videoAgent.cleanupAfterAnalysis']
-        if 'videoAgent.batchSize' in vscode_settings:
-            cls.VIDEOAGENT_BATCH_SIZE = vscode_settings['videoAgent.batchSize']
+        if "videoAgent.enabled" in vscode_settings:
+            cls.VIDEOAGENT_ENABLED = vscode_settings["videoAgent.enabled"]
+        if "videoAgent.model" in vscode_settings:
+            cls.VIDEOAGENT_MODEL = vscode_settings["videoAgent.model"]
+        if "videoAgent.temperature" in vscode_settings:
+            cls.VIDEOAGENT_TEMPERATURE = vscode_settings["videoAgent.temperature"]
+        if "videoAgent.maxTokens" in vscode_settings:
+            cls.VIDEOAGENT_MAX_TOKENS = vscode_settings["videoAgent.maxTokens"]
+        if "videoAgent.outputDir" in vscode_settings:
+            cls.VIDEOAGENT_OUTPUT_DIR = vscode_settings["videoAgent.outputDir"]
+        if "videoAgent.cleanupAfterAnalysis" in vscode_settings:
+            cls.VIDEOAGENT_CLEANUP_AFTER_ANALYSIS = vscode_settings[
+                "videoAgent.cleanupAfterAnalysis"
+            ]
+        if "videoAgent.batchSize" in vscode_settings:
+            cls.VIDEOAGENT_BATCH_SIZE = vscode_settings["videoAgent.batchSize"]
 
     @classmethod
     def _auto_detect_provider(cls, model: str) -> str:
@@ -356,6 +392,7 @@ This applies to ALL answers, explanations, error messages, and outputs.
                 "multiLanguage": cls.VIDEOAGENT_MULTI_LANGUAGE,
             },
         }
+
 
 # Globale Instanz
 settings = Settings()

@@ -4,17 +4,20 @@ Comprehensive test for infrastructure analysis with new v4.0.0 features
 """
 
 import asyncio
-import sys
 import os
-import json
+import sys
 
 # Ensure we're in the backend directory
-if not os.path.exists('agents'):
+if not os.path.exists("agents"):
     print("❌ Error: Must run from backend directory")
     sys.exit(1)
 
-from agents.specialized.architect_agent import ArchitectAgent, INDEXING_AVAILABLE, ANALYSIS_AVAILABLE, DIAGRAM_AVAILABLE
 from agents.base.base_agent import TaskRequest
+from agents.specialized.architect_agent import (ANALYSIS_AVAILABLE,
+                                                DIAGRAM_AVAILABLE,
+                                                INDEXING_AVAILABLE,
+                                                ArchitectAgent)
+
 
 async def test_infrastructure_analysis_comprehensive():
     """Comprehensive test of infrastructure analysis capabilities"""
@@ -23,9 +26,15 @@ async def test_infrastructure_analysis_comprehensive():
 
     # Show availability status
     print("📦 Module Availability Status:")
-    print(f"  Tree-sitter Indexing: {'✅ Available' if INDEXING_AVAILABLE else '❌ Not Available'}")
-    print(f"  Analysis Tools: {'✅ Available' if ANALYSIS_AVAILABLE else '❌ Not Available'}")
-    print(f"  Diagram Service: {'✅ Available' if DIAGRAM_AVAILABLE else '❌ Not Available'}")
+    print(
+        f"  Tree-sitter Indexing: {'✅ Available' if INDEXING_AVAILABLE else '❌ Not Available'}"
+    )
+    print(
+        f"  Analysis Tools: {'✅ Available' if ANALYSIS_AVAILABLE else '❌ Not Available'}"
+    )
+    print(
+        f"  Diagram Service: {'✅ Available' if DIAGRAM_AVAILABLE else '❌ Not Available'}"
+    )
     print("-" * 80)
 
     architect = ArchitectAgent()
@@ -36,7 +45,7 @@ async def test_infrastructure_analysis_comprehensive():
 
     request = TaskRequest(
         prompt="Erkläre mir die Architektur dieses Systems",
-        context={"project_root": os.path.dirname(os.path.dirname(__file__))}
+        context={"project_root": os.path.dirname(os.path.dirname(__file__))},
     )
 
     result = await architect.execute_with_memory(request)
@@ -53,7 +62,7 @@ async def test_infrastructure_analysis_comprehensive():
 
     request = TaskRequest(
         prompt="Was kann an der Infrastruktur verbessert werden?",
-        context={"project_root": os.path.dirname(os.path.dirname(__file__))}
+        context={"project_root": os.path.dirname(os.path.dirname(__file__))},
     )
 
     result = await architect.execute_with_memory(request)
@@ -83,7 +92,7 @@ async def test_infrastructure_analysis_comprehensive():
         for imp in improvements_found[:5]:  # Show first 5
             print(f"    • {imp}")
 
-        print(f"\n  Sample output (500 chars):")
+        print("\n  Sample output (500 chars):")
         print("  " + "-" * 40)
         print(f"  {result.content[:500]}...")
         print("  " + "-" * 40)
@@ -96,7 +105,7 @@ async def test_infrastructure_analysis_comprehensive():
 
         request = TaskRequest(
             prompt="Generiere ein Architektur-Diagramm für das System",
-            context={"project_root": os.path.dirname(os.path.dirname(__file__))}
+            context={"project_root": os.path.dirname(os.path.dirname(__file__))},
         )
 
         result = await architect.execute_with_memory(request)
@@ -121,7 +130,7 @@ async def test_infrastructure_analysis_comprehensive():
 
         request = TaskRequest(
             prompt="Welche Design Patterns werden im Code verwendet?",
-            context={"project_root": os.path.dirname(os.path.dirname(__file__))}
+            context={"project_root": os.path.dirname(os.path.dirname(__file__))},
         )
 
         result = await architect.execute_with_memory(request)
@@ -130,8 +139,18 @@ async def test_infrastructure_analysis_comprehensive():
 
         if result.status == "success":
             patterns = []
-            pattern_keywords = ["singleton", "factory", "observer", "strategy", "decorator",
-                              "adapter", "repository", "mvc", "mvvm", "facade"]
+            pattern_keywords = [
+                "singleton",
+                "factory",
+                "observer",
+                "strategy",
+                "decorator",
+                "adapter",
+                "repository",
+                "mvc",
+                "mvvm",
+                "facade",
+            ]
 
             for pattern in pattern_keywords:
                 if pattern.lower() in result.content.lower():
@@ -147,12 +166,15 @@ async def test_infrastructure_analysis_comprehensive():
     # Summary
     print("\n" + "=" * 80)
     print("📊 Test Summary:")
-    print(f"  • System Understanding: ✅ Tested")
-    print(f"  • Infrastructure Analysis: ✅ Tested")
-    print(f"  • Diagram Generation: {'✅ Tested' if DIAGRAM_AVAILABLE else '⚠️ Skipped'}")
+    print("  • System Understanding: ✅ Tested")
+    print("  • Infrastructure Analysis: ✅ Tested")
+    print(
+        f"  • Diagram Generation: {'✅ Tested' if DIAGRAM_AVAILABLE else '⚠️ Skipped'}"
+    )
     print(f"  • Pattern Analysis: {'✅ Tested' if INDEXING_AVAILABLE else '⚠️ Skipped'}")
     print("\n🎉 Infrastructure analysis v4.0.0 features are working!")
     print("=" * 80)
+
 
 async def main():
     """Run comprehensive infrastructure test"""
@@ -168,6 +190,7 @@ async def main():
     print("-" * 80)
 
     await test_infrastructure_analysis_comprehensive()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

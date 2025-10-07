@@ -3,21 +3,22 @@ Diagram Service
 Generates architecture and code diagrams in multiple formats
 """
 
-from typing import List, Dict, Any, Optional
-from pathlib import Path
-from enum import Enum
-import logging
-import json
-import re
 import base64
+import json
+import logging
+import re
 import urllib.parse
 import urllib.request
+from enum import Enum
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Import OpenAI service for AI-powered diagram generation
 try:
     from utils.openai_service import OpenAIService
+
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
@@ -26,6 +27,7 @@ except ImportError:
 
 class DiagramFormat(Enum):
     """Supported diagram formats"""
+
     MERMAID = "mermaid"
     PLANTUML = "plantuml"
     ASCII = "ascii"
@@ -34,6 +36,7 @@ class DiagramFormat(Enum):
 
 class DiagramType(Enum):
     """Types of diagrams"""
+
     FLOWCHART = "flowchart"
     SEQUENCE = "sequence"
     CLASS = "class"
@@ -48,7 +51,7 @@ class DiagramService:
     Supports text-based diagram formats (Mermaid, PlantUML, ASCII)
     """
 
-    def __init__(self, output_dir: Optional[str] = None):
+    def __init__(self, output_dir: str | None = None):
         """
         Initialize diagram service
 
@@ -59,10 +62,11 @@ class DiagramService:
         if self.output_dir:
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"📊 DiagramService initialized")
+        logger.info("📊 DiagramService initialized")
 
-    def generate_flowchart(self, nodes: List[Dict[str, str]],
-                          format: DiagramFormat = DiagramFormat.MERMAID) -> str:
+    def generate_flowchart(
+        self, nodes: list[dict[str, str]], format: DiagramFormat = DiagramFormat.MERMAID
+    ) -> str:
         """
         Generate flowchart diagram
 
@@ -78,23 +82,28 @@ class DiagramService:
         elif format == DiagramFormat.ASCII:
             return self._generate_ascii_flowchart(nodes)
         else:
-            logger.warning(f"Format {format} not supported for flowcharts, using Mermaid")
+            logger.warning(
+                f"Format {format} not supported for flowcharts, using Mermaid"
+            )
             return self._generate_mermaid_flowchart(nodes)
 
-    def generate_dependency_graph(self, import_graph: Dict[str, Any]) -> str:
+    def generate_dependency_graph(self, import_graph: dict[str, Any]) -> str:
         """Generate dependency graph from import graph"""
         # Simple implementation for now
         logger.info("Generating dependency graph")
         return "```mermaid\ngraph TB\n    A[Module] --> B[Dependencies]\n```"
 
-    def generate_state_diagram(self, states: Dict[str, Any]) -> str:
+    def generate_state_diagram(self, states: dict[str, Any]) -> str:
         """Generate state diagram"""
         # Simple implementation for now
         logger.info("Generating state diagram")
         return "```mermaid\nstateDiagram-v2\n    [*] --> Idle\n    Idle --> Processing\n    Processing --> Complete\n    Complete --> [*]\n```"
 
-    def generate_sequence_diagram(self, interactions: List[Dict[str, str]],
-                                 format: DiagramFormat = DiagramFormat.MERMAID) -> str:
+    def generate_sequence_diagram(
+        self,
+        interactions: list[dict[str, str]],
+        format: DiagramFormat = DiagramFormat.MERMAID,
+    ) -> str:
         """
         Generate sequence diagram
 
@@ -108,11 +117,16 @@ class DiagramService:
         if format == DiagramFormat.MERMAID:
             return self._generate_mermaid_sequence(interactions)
         else:
-            logger.warning(f"Format {format} not supported for sequence diagrams, using Mermaid")
+            logger.warning(
+                f"Format {format} not supported for sequence diagrams, using Mermaid"
+            )
             return self._generate_mermaid_sequence(interactions)
 
-    def generate_class_diagram(self, classes: List[Dict[str, Any]],
-                              format: DiagramFormat = DiagramFormat.MERMAID) -> str:
+    def generate_class_diagram(
+        self,
+        classes: list[dict[str, Any]],
+        format: DiagramFormat = DiagramFormat.MERMAID,
+    ) -> str:
         """
         Generate class diagram
 
@@ -126,11 +140,16 @@ class DiagramService:
         if format == DiagramFormat.MERMAID:
             return self._generate_mermaid_class(classes)
         else:
-            logger.warning(f"Format {format} not supported for class diagrams, using Mermaid")
+            logger.warning(
+                f"Format {format} not supported for class diagrams, using Mermaid"
+            )
             return self._generate_mermaid_class(classes)
 
-    def generate_architecture_diagram(self, components: List[Dict[str, Any]],
-                                     format: DiagramFormat = DiagramFormat.MERMAID) -> str:
+    def generate_architecture_diagram(
+        self,
+        components: list[dict[str, Any]],
+        format: DiagramFormat = DiagramFormat.MERMAID,
+    ) -> str:
         """
         Generate architecture/component diagram
 
@@ -144,78 +163,82 @@ class DiagramService:
         if format == DiagramFormat.MERMAID:
             return self._generate_mermaid_architecture(components)
         else:
-            logger.warning(f"Format {format} not supported for architecture diagrams, using Mermaid")
+            logger.warning(
+                f"Format {format} not supported for architecture diagrams, using Mermaid"
+            )
             return self._generate_mermaid_architecture(components)
 
-    def _generate_mermaid_flowchart(self, nodes: List[Dict[str, str]]) -> str:
+    def _generate_mermaid_flowchart(self, nodes: list[dict[str, str]]) -> str:
         """Generate Mermaid flowchart"""
         lines = ["```mermaid", "flowchart TD"]
 
         for node in nodes:
-            node_id = node.get('id', '')
-            label = node.get('label', '')
-            node_type = node.get('type', 'process')
+            node_id = node.get("id", "")
+            label = node.get("label", "")
+            node_type = node.get("type", "process")
 
             # Different shapes for different node types
-            if node_type == 'start':
+            if node_type == "start":
                 lines.append(f"    {node_id}([{label}])")
-            elif node_type == 'end':
+            elif node_type == "end":
                 lines.append(f"    {node_id}([{label}])")
-            elif node_type == 'decision':
+            elif node_type == "decision":
                 lines.append(f"    {node_id}{{{label}}}")
             else:
                 lines.append(f"    {node_id}[{label}]")
 
             # Add connections if specified
-            if 'next' in node:
+            if "next" in node:
                 lines.append(f"    {node_id} --> {node['next']}")
 
         lines.append("```")
         return "\n".join(lines)
 
-    def _generate_mermaid_sequence(self, interactions: List[Dict[str, str]]) -> str:
+    def _generate_mermaid_sequence(self, interactions: list[dict[str, str]]) -> str:
         """Generate Mermaid sequence diagram"""
         lines = ["```mermaid", "sequenceDiagram"]
 
         for interaction in interactions:
-            from_actor = interaction.get('from', '')
-            to_actor = interaction.get('to', '')
-            message = interaction.get('message', '')
+            from_actor = interaction.get("from", "")
+            to_actor = interaction.get("to", "")
+            message = interaction.get("message", "")
 
             lines.append(f"    {from_actor}->>+{to_actor}: {message}")
 
-            if 'response' in interaction:
-                lines.append(f"    {to_actor}-->>-{from_actor}: {interaction['response']}")
+            if "response" in interaction:
+                lines.append(
+                    f"    {to_actor}-->>-{from_actor}: {interaction['response']}"
+                )
 
         lines.append("```")
         return "\n".join(lines)
 
-    def _generate_mermaid_class(self, classes: List[Dict[str, Any]]) -> str:
+    def _generate_mermaid_class(self, classes: list[dict[str, Any]]) -> str:
         """Generate Mermaid class diagram"""
         lines = ["```mermaid", "classDiagram"]
 
         for cls in classes:
-            class_name = cls.get('name', '')
+            class_name = cls.get("name", "")
             lines.append(f"    class {class_name} {{")
 
             # Add attributes
-            for attr in cls.get('attributes', []):
+            for attr in cls.get("attributes", []):
                 lines.append(f"        {attr}")
 
             # Add methods
-            for method in cls.get('methods', []):
+            for method in cls.get("methods", []):
                 lines.append(f"        {method}()")
 
             lines.append("    }")
 
             # Add relationships
-            for rel in cls.get('relationships', []):
-                rel_type = rel.get('type', 'association')
-                target = rel.get('target', '')
+            for rel in cls.get("relationships", []):
+                rel_type = rel.get("type", "association")
+                target = rel.get("target", "")
 
-                if rel_type == 'inheritance':
+                if rel_type == "inheritance":
                     lines.append(f"    {target} <|-- {class_name}")
-                elif rel_type == 'composition':
+                elif rel_type == "composition":
                     lines.append(f"    {class_name} *-- {target}")
                 else:
                     lines.append(f"    {class_name} --> {target}")
@@ -223,7 +246,7 @@ class DiagramService:
         lines.append("```")
         return "\n".join(lines)
 
-    def _generate_mermaid_architecture(self, components: List[Dict[str, Any]]) -> str:
+    def _generate_mermaid_architecture(self, components: list[dict[str, Any]]) -> str:
         """Generate Mermaid architecture diagram"""
         lines = ["```mermaid", "graph TB"]
 
@@ -241,13 +264,13 @@ class DiagramService:
             if isinstance(comp, str):
                 logger.warning(f"Component is a string: {comp}")
                 continue
-            comp_id = comp.get('id', comp.get('name', '').replace(' ', '_'))
-            comp_name = comp.get('name', '')
-            comp_type = comp.get('type', 'service')
+            comp_id = comp.get("id", comp.get("name", "").replace(" ", "_"))
+            comp_name = comp.get("name", "")
+            comp_type = comp.get("type", "service")
 
-            if comp_type == 'database':
+            if comp_type == "database":
                 lines.append(f"    {comp_id}[({comp_name})]")
-            elif comp_type == 'external':
+            elif comp_type == "external":
                 lines.append(f"    {comp_id}>{comp_name}]")
             else:
                 lines.append(f"    {comp_id}[{comp_name}]")
@@ -256,11 +279,11 @@ class DiagramService:
         for comp in components:
             if isinstance(comp, str):
                 continue  # Skip string components
-            comp_id = comp.get('id', comp.get('name', '').replace(' ', '_'))
+            comp_id = comp.get("id", comp.get("name", "").replace(" ", "_"))
 
-            for conn in comp.get('connections', []):
-                target = conn if isinstance(conn, str) else conn.get('target', '')
-                label = conn.get('label', '') if isinstance(conn, dict) else ''
+            for conn in comp.get("connections", []):
+                target = conn if isinstance(conn, str) else conn.get("target", "")
+                label = conn.get("label", "") if isinstance(conn, dict) else ""
 
                 if label:
                     lines.append(f"    {comp_id} -->|{label}| {target}")
@@ -270,17 +293,17 @@ class DiagramService:
         lines.append("```")
         return "\n".join(lines)
 
-    def _generate_ascii_flowchart(self, nodes: List[Dict[str, str]]) -> str:
+    def _generate_ascii_flowchart(self, nodes: list[dict[str, str]]) -> str:
         """Generate simple ASCII flowchart"""
         lines = []
 
         for i, node in enumerate(nodes):
-            label = node.get('label', '')
-            node_type = node.get('type', 'process')
+            label = node.get("label", "")
+            node_type = node.get("type", "process")
 
             # Simple box representation
             box_width = len(label) + 4
-            if node_type == 'decision':
+            if node_type == "decision":
                 lines.append(f"    /{'-' * (box_width - 2)}\\")
                 lines.append(f"   | {label} |")
                 lines.append(f"    \\{'-' * (box_width - 2)}/")
@@ -296,7 +319,7 @@ class DiagramService:
 
         return "\n".join(lines)
 
-    def save_diagram(self, diagram: str, filename: str) -> Optional[Path]:
+    def save_diagram(self, diagram: str, filename: str) -> Path | None:
         """
         Save diagram to file
 
@@ -314,7 +337,7 @@ class DiagramService:
         output_path = self.output_dir / filename
 
         try:
-            with open(output_path, 'w') as f:
+            with open(output_path, "w") as f:
                 f.write(diagram)
 
             logger.info(f"📊 Diagram saved to: {output_path}")
@@ -342,31 +365,45 @@ class DiagramService:
 
         # Remove backticks if present (for validation)
         code = mermaid_code.strip()
-        if code.startswith('```'):
-            code = re.sub(r'^```mermaid\s*\n', '', code)
-            code = re.sub(r'\n```\s*$', '', code)
+        if code.startswith("```"):
+            code = re.sub(r"^```mermaid\s*\n", "", code)
+            code = re.sub(r"\n```\s*$", "", code)
 
         # Check for diagram type
         diagram_types = [
-            'graph TB', 'graph TD', 'graph LR', 'graph RL',
-            'flowchart TB', 'flowchart TD', 'flowchart LR',
-            'sequenceDiagram', 'classDiagram', 'stateDiagram',
-            'erDiagram', 'gantt', 'pie', 'journey'
+            "graph TB",
+            "graph TD",
+            "graph LR",
+            "graph RL",
+            "flowchart TB",
+            "flowchart TD",
+            "flowchart LR",
+            "sequenceDiagram",
+            "classDiagram",
+            "stateDiagram",
+            "erDiagram",
+            "gantt",
+            "pie",
+            "journey",
         ]
 
         has_type = any(dtype in code for dtype in diagram_types)
         if not has_type:
-            logger.error(f"Mermaid validation failed: No diagram type found. Code: {code[:100]}")
+            logger.error(
+                f"Mermaid validation failed: No diagram type found. Code: {code[:100]}"
+            )
             return False
 
         # Check for minimal content (more than just the type declaration)
-        lines = [l.strip() for l in code.split('\n') if l.strip()]
+        lines = [l.strip() for l in code.split("\n") if l.strip()]
         if len(lines) < 2:
-            logger.error("Mermaid validation failed: Too few lines (need content after type)")
+            logger.error(
+                "Mermaid validation failed: Too few lines (need content after type)"
+            )
             return False
 
         # Check for double backtick wrappers (error in generation)
-        if code.count('```') >= 2:
+        if code.count("```") >= 2:
             logger.error("Mermaid validation failed: Double backtick wrappers detected")
             return False
 
@@ -374,9 +411,7 @@ class DiagramService:
         return True
 
     async def generate_architecture_diagram_ai(
-        self,
-        code_index: Dict[str, Any],
-        diagram_type: str = 'container'
+        self, code_index: dict[str, Any], diagram_type: str = "container"
     ) -> str:
         """
         Generate Mermaid architecture diagram using GPT-4o (v5.8.2)
@@ -398,17 +433,21 @@ class DiagramService:
         try:
             # Prepare code structure summary for AI
             structure_summary = {
-                'total_files': len(code_index.get('files', [])),
-                'modules': list(code_index.get('modules', {}).keys())[:20],  # Limit to 20
-                'api_endpoints': code_index.get('api_endpoints', [])[:15],  # Limit to 15
-                'agents': code_index.get('agents', []),
-                'services': code_index.get('services', []),
-                'tech_stack': code_index.get('tech_stack', {}),
-                'main_components': code_index.get('components', [])
+                "total_files": len(code_index.get("files", [])),
+                "modules": list(code_index.get("modules", {}).keys())[
+                    :20
+                ],  # Limit to 20
+                "api_endpoints": code_index.get("api_endpoints", [])[
+                    :15
+                ],  # Limit to 15
+                "agents": code_index.get("agents", []),
+                "services": code_index.get("services", []),
+                "tech_stack": code_index.get("tech_stack", {}),
+                "main_components": code_index.get("components", []),
             }
 
             # Build AI prompt based on diagram type
-            if diagram_type == 'context':
+            if diagram_type == "context":
                 prompt_template = """Generate a Mermaid C4 Context diagram for this system.
 
 System Info:
@@ -423,7 +462,7 @@ Requirements:
 
 Return ONLY the Mermaid code (no ```mermaid wrapper, no explanations):"""
 
-            elif diagram_type == 'component':
+            elif diagram_type == "component":
                 prompt_template = """Generate a Mermaid Component diagram for this system.
 
 System Info:
@@ -464,7 +503,7 @@ Return ONLY the Mermaid code (no ```mermaid wrapper, no explanations):"""
             response = await openai_service.get_completion(
                 system_prompt="You are an expert at creating Mermaid diagrams. Generate ONLY valid Mermaid syntax, no explanations.",
                 user_prompt=full_prompt,
-                temperature=0.3  # Lower temperature for consistent syntax
+                temperature=0.3,  # Lower temperature for consistent syntax
             )
 
             # Validate Mermaid syntax
@@ -482,7 +521,7 @@ Return ONLY the Mermaid code (no ```mermaid wrapper, no explanations):"""
             logger.error(f"AI diagram generation failed: {e}")
             return self._fallback_diagram_template(diagram_type)
 
-    def mermaid_to_svg(self, mermaid_code: str) -> Optional[str]:
+    def mermaid_to_svg(self, mermaid_code: str) -> str | None:
         """
         Convert Mermaid diagram to SVG using mermaid.ink API (v5.8.7)
 
@@ -495,26 +534,26 @@ Return ONLY the Mermaid code (no ```mermaid wrapper, no explanations):"""
         try:
             # Remove ```mermaid wrapper if present
             code = mermaid_code.strip()
-            if code.startswith('```mermaid'):
-                code = re.sub(r'^```mermaid\s*\n', '', code)
-                code = re.sub(r'\n```\s*$', '', code)
+            if code.startswith("```mermaid"):
+                code = re.sub(r"^```mermaid\s*\n", "", code)
+                code = re.sub(r"\n```\s*$", "", code)
 
             # Encode mermaid code to base64
-            encoded = base64.urlsafe_b64encode(code.encode('utf-8')).decode('utf-8')
+            encoded = base64.urlsafe_b64encode(code.encode("utf-8")).decode("utf-8")
 
             # Use mermaid.ink API
             url = f"https://mermaid.ink/svg/{encoded}"
 
-            logger.info(f"🎨 Converting Mermaid to SVG via mermaid.ink...")
+            logger.info("🎨 Converting Mermaid to SVG via mermaid.ink...")
 
             # Fetch SVG
             request = urllib.request.Request(url)
-            request.add_header('User-Agent', 'KI-AutoAgent/5.8.7')
+            request.add_header("User-Agent", "KI-AutoAgent/5.8.7")
 
             with urllib.request.urlopen(request, timeout=10) as response:
-                svg_content = response.read().decode('utf-8')
+                svg_content = response.read().decode("utf-8")
 
-            if svg_content and '<svg' in svg_content:
+            if svg_content and "<svg" in svg_content:
                 logger.info("✅ Mermaid converted to SVG successfully")
                 return svg_content
             else:
@@ -531,7 +570,9 @@ Return ONLY the Mermaid code (no ```mermaid wrapper, no explanations):"""
             logger.error(f"❌ Failed to convert Mermaid to SVG: {e}")
             return None
 
-    def render_mermaid_for_chat(self, mermaid_code: str, fallback_to_code: bool = True) -> str:
+    def render_mermaid_for_chat(
+        self, mermaid_code: str, fallback_to_code: bool = True
+    ) -> str:
         """
         Render Mermaid diagram for chat display (v5.8.7)
 
@@ -550,7 +591,7 @@ Return ONLY the Mermaid code (no ```mermaid wrapper, no explanations):"""
         if svg:
             # Create inline SVG data URI for embedding in markdown
             # Use HTML img tag with data URI (works in VS Code webviews)
-            svg_b64 = base64.b64encode(svg.encode('utf-8')).decode('utf-8')
+            svg_b64 = base64.b64encode(svg.encode("utf-8")).decode("utf-8")
             data_uri = f"data:image/svg+xml;base64,{svg_b64}"
 
             # Return as markdown image with fallback text
@@ -571,7 +612,7 @@ Return ONLY the Mermaid code (no ```mermaid wrapper, no explanations):"""
         """
         logger.info(f"Using fallback template for {diagram_type} diagram")
 
-        if diagram_type == 'context':
+        if diagram_type == "context":
             return """```mermaid
 graph TB
     User[User/Developer]
@@ -583,7 +624,7 @@ graph TB
     System --> User
 ```"""
 
-        elif diagram_type == 'component':
+        elif diagram_type == "component":
             return """```mermaid
 graph TB
     UI[UI Layer]

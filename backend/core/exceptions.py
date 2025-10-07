@@ -10,10 +10,10 @@ Updated: 2025-10-07 (v5.9.0 - Comprehensive modernization)
 
 from typing import Any
 
-
 # ============================================================================
 # Base Exceptions
 # ============================================================================
+
 
 class AgentError(Exception):
     """Base exception for all agent-related errors."""
@@ -22,7 +22,7 @@ class AgentError(Exception):
         self,
         message: str,
         agent: str | None = None,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> None:
         self.message = message
         self.agent = agent
@@ -43,10 +43,7 @@ class WorkflowError(Exception):
     """Base exception for workflow-related errors."""
 
     def __init__(
-        self,
-        message: str,
-        workflow_id: str | None = None,
-        step: str | None = None
+        self, message: str, workflow_id: str | None = None, step: str | None = None
     ) -> None:
         self.message = message
         self.workflow_id = workflow_id
@@ -67,88 +64,76 @@ class WorkflowError(Exception):
 # Agent-Specific Exceptions
 # ============================================================================
 
+
 class ArchitectError(AgentError):
     """Raised when Architect agent encounters errors."""
-    pass
 
 
 class ArchitectValidationError(ArchitectError):
     """Raised when architecture validation fails."""
-    pass
 
 
 class ArchitectResearchError(ArchitectError):
     """Raised when research step fails."""
-    pass
 
 
 class OrchestratorError(AgentError):
     """Raised when Orchestrator agent encounters errors."""
-    pass
 
 
 class TaskDecompositionError(OrchestratorError):
     """Raised when task decomposition fails."""
-    pass
 
 
 class CodesmithError(AgentError):
     """Raised when Codesmith agent encounters errors."""
-    pass
 
 
 class CodeGenerationError(CodesmithError):
     """Raised when code generation fails."""
-    pass
 
 
 class ReviewerError(AgentError):
     """Raised when Reviewer agent encounters errors."""
-    pass
 
 
 class CodeReviewError(ReviewerError):
     """Raised when code review fails."""
-    pass
 
 
 class FixerError(AgentError):
     """Raised when Fixer agent encounters errors."""
-    pass
 
 
 class ResearchError(AgentError):
     """Raised when Research agent encounters errors."""
-    pass
 
 
 # ============================================================================
 # Workflow-Specific Exceptions
 # ============================================================================
 
+
 class WorkflowExecutionError(WorkflowError):
     """Raised when workflow execution fails."""
-    pass
 
 
 class WorkflowValidationError(WorkflowError):
     """Raised when workflow validation fails."""
-    pass
 
 
 class WorkflowTimeoutError(WorkflowError):
     """Raised when workflow times out."""
-    pass
 
 
 class StepExecutionError(WorkflowError):
     """Raised when a workflow step fails."""
-    pass
 
 
 # ============================================================================
 # System Exceptions (ASIMOV RULE 1: NO FALLBACKS)
 # ============================================================================
+
 
 class SystemNotReadyError(Exception):
     """
@@ -163,7 +148,7 @@ class SystemNotReadyError(Exception):
         reason: str,
         solution: str,
         file: str | None = None,
-        line: int | None = None
+        line: int | None = None,
     ) -> None:
         self.component = component
         self.reason = reason
@@ -175,16 +160,15 @@ class SystemNotReadyError(Exception):
         message_parts = [
             "❌ System Not Ready\n",
             f"Component: {component}",
-            f"Reason: {reason}"
+            f"Reason: {reason}",
         ]
 
         if file and line:
             message_parts.append(f"File: {file}:{line}")
 
-        message_parts.extend([
-            f"\nSolution: {solution}",
-            "\nNO FALLBACK (ASIMOV RULE 1)"
-        ])
+        message_parts.extend(
+            [f"\nSolution: {solution}", "\nNO FALLBACK (ASIMOV RULE 1)"]
+        )
 
         super().__init__("\n".join(message_parts))
 
@@ -202,15 +186,17 @@ class DependencyError(Exception):
         # Build error message
         messages = []
         for dep in dependencies:
-            component = dep.get('component', 'Unknown')
-            error = dep.get('error', 'Unknown error')
-            solution = dep.get('solution', 'No solution provided')
+            component = dep.get("component", "Unknown")
+            error = dep.get("error", "Unknown error")
+            solution = dep.get("solution", "No solution provided")
 
-            messages.append(f"""
+            messages.append(
+                f"""
 ❌ {component}
 Error: {error}
 Solution: {solution}
-""")
+"""
+            )
 
         error_message = "\n".join(messages)
         super().__init__(error_message)
@@ -245,21 +231,14 @@ class ConfigurationError(Exception):
     """Raised when configuration is invalid."""
 
     def __init__(
-        self,
-        key: str,
-        value: Any,
-        expected: str,
-        file: str | None = None
+        self, key: str, value: Any, expected: str, file: str | None = None
     ) -> None:
         self.key = key
         self.value = value
         self.expected = expected
         self.file = file
 
-        parts = [
-            f"Invalid configuration: {key}={value}",
-            f"(expected: {expected})"
-        ]
+        parts = [f"Invalid configuration: {key}={value}", f"(expected: {expected})"]
         if file:
             parts.append(f"in {file}")
 
@@ -274,7 +253,7 @@ class APIKeyError(ConfigurationError):
             key=key_name,
             value="<missing or invalid>",
             expected=f"Valid {service} API key",
-            file=".env"
+            file=".env",
         )
 
 
@@ -282,15 +261,11 @@ class APIKeyError(ConfigurationError):
 # Data Exceptions
 # ============================================================================
 
+
 class DataValidationError(Exception):
     """Raised when data validation fails."""
 
-    def __init__(
-        self,
-        field: str,
-        value: Any,
-        reason: str
-    ) -> None:
+    def __init__(self, field: str, value: Any, reason: str) -> None:
         self.field = field
         self.value = value
         self.reason = reason
@@ -300,12 +275,7 @@ class DataValidationError(Exception):
 class ParsingError(Exception):
     """Raised when parsing fails."""
 
-    def __init__(
-        self,
-        content: str,
-        format: str,
-        reason: str | None = None
-    ) -> None:
+    def __init__(self, content: str, format: str, reason: str | None = None) -> None:
         self.content = content[:100]  # Truncate for error message
         self.format = format
         self.reason = reason
@@ -322,14 +292,12 @@ class ParsingError(Exception):
 # Memory & Storage Exceptions
 # ============================================================================
 
+
 class MemoryError(Exception):
     """Raised when memory operations fail."""
 
     def __init__(
-        self,
-        operation: str,
-        agent: str | None = None,
-        reason: str | None = None
+        self, operation: str, agent: str | None = None, reason: str | None = None
     ) -> None:
         self.operation = operation
         self.agent = agent
@@ -347,12 +315,7 @@ class MemoryError(Exception):
 class StorageError(Exception):
     """Raised when storage operations fail."""
 
-    def __init__(
-        self,
-        path: str,
-        operation: str,
-        reason: str | None = None
-    ) -> None:
+    def __init__(self, path: str, operation: str, reason: str | None = None) -> None:
         self.path = path
         self.operation = operation
         self.reason = reason
@@ -368,14 +331,11 @@ class StorageError(Exception):
 # Communication Exceptions
 # ============================================================================
 
+
 class WebSocketError(Exception):
     """Raised when WebSocket communication fails."""
 
-    def __init__(
-        self,
-        client_id: str | None = None,
-        reason: str | None = None
-    ) -> None:
+    def __init__(self, client_id: str | None = None, reason: str | None = None) -> None:
         self.client_id = client_id
         self.reason = reason
 
@@ -391,11 +351,7 @@ class WebSocketError(Exception):
 class MessageError(Exception):
     """Raised when message processing fails."""
 
-    def __init__(
-        self,
-        message_type: str,
-        reason: str
-    ) -> None:
+    def __init__(self, message_type: str, reason: str) -> None:
         self.message_type = message_type
         self.reason = reason
         super().__init__(f"Failed to process {message_type} message: {reason}")
@@ -404,6 +360,7 @@ class MessageError(Exception):
 # ============================================================================
 # Utility Functions
 # ============================================================================
+
 
 def get_exception_hierarchy() -> dict[str, list[str]]:
     """
@@ -424,33 +381,24 @@ def get_exception_hierarchy() -> dict[str, list[str]]:
             "ReviewerError",
             "CodeReviewError",
             "FixerError",
-            "ResearchError"
+            "ResearchError",
         ],
         "WorkflowError": [
             "WorkflowExecutionError",
             "WorkflowValidationError",
             "WorkflowTimeoutError",
-            "StepExecutionError"
+            "StepExecutionError",
         ],
         "SystemError": [
             "SystemNotReadyError",
             "DependencyError",
             "CacheNotAvailableError",
             "ConfigurationError",
-            "APIKeyError"
+            "APIKeyError",
         ],
-        "DataError": [
-            "DataValidationError",
-            "ParsingError"
-        ],
-        "StorageError": [
-            "MemoryError",
-            "StorageError"
-        ],
-        "CommunicationError": [
-            "WebSocketError",
-            "MessageError"
-        ]
+        "DataError": ["DataValidationError", "ParsingError"],
+        "StorageError": ["MemoryError", "StorageError"],
+        "CommunicationError": ["WebSocketError", "MessageError"],
     }
 
 

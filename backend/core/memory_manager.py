@@ -3,15 +3,16 @@ Memory Manager - Stub Implementation
 TODO: Implement full memory management system
 """
 
-from enum import Enum
-from typing import Any, Dict, List, Optional
 import logging
+from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class MemoryType(Enum):
     """Types of memory storage"""
+
     SHORT_TERM = "short_term"
     LONG_TERM = "long_term"
     WORKING = "working"
@@ -29,10 +30,10 @@ class MemoryManager:
     """
 
     def __init__(self):
-        self._memory: Dict[str, List[Any]] = {
+        self._memory: dict[str, list[Any]] = {
             "short_term": [],
             "long_term": [],
-            "working": []
+            "working": [],
         }
         logger.debug("📦 MemoryManager initialized (stub implementation)")
 
@@ -40,11 +41,11 @@ class MemoryManager:
         """Store data in memory"""
         self._memory[memory_type.value].append(data)
 
-    def retrieve(self, memory_type: MemoryType, query: Optional[str] = None) -> List[Any]:
+    def retrieve(self, memory_type: MemoryType, query: str | None = None) -> list[Any]:
         """Retrieve data from memory"""
         return self._memory.get(memory_type.value, [])
 
-    def clear(self, memory_type: Optional[MemoryType] = None) -> None:
+    def clear(self, memory_type: MemoryType | None = None) -> None:
         """Clear memory"""
         if memory_type:
             self._memory[memory_type.value] = []
@@ -55,10 +56,10 @@ class MemoryManager:
     async def search(
         self,
         query: str,
-        memory_type: Optional[str] = None,
-        agent_id: Optional[str] = None,
-        k: int = 5
-    ) -> List[Any]:
+        memory_type: str | None = None,
+        agent_id: str | None = None,
+        k: int = 5,
+    ) -> list[Any]:
         """
         Search memory for relevant entries
 
@@ -79,7 +80,7 @@ class MemoryManager:
         logger.debug(f"📦 Memory search called (stub): query='{query[:50]}...', k={k}")
         return []
 
-    async def get_relevant_patterns(self, context: str, limit: int = 3) -> List[Any]:
+    async def get_relevant_patterns(self, context: str, limit: int = 3) -> list[Any]:
         """
         Get relevant patterns based on context
 
@@ -101,7 +102,7 @@ class MemoryManager:
         description: str,
         language: str,
         code: str,
-        use_cases: List[str]
+        use_cases: list[str],
     ) -> None:
         """
         Store a code pattern
@@ -116,15 +117,10 @@ class MemoryManager:
             use_cases: List of use cases
         """
         logger.debug(f"📦 Store code pattern called (stub): name={name}")
-        pass
 
     def store_learning(
-        self,
-        description: str,
-        lesson: str,
-        context: str,
-        impact: str
-    ) -> Optional[str]:
+        self, description: str, lesson: str, context: str, impact: str
+    ) -> str | None:
         """
         Store a learning entry
 
@@ -139,10 +135,12 @@ class MemoryManager:
         Returns:
             Learning ID or None
         """
-        logger.debug(f"📦 Store learning called (stub): description={description[:50]}...")
+        logger.debug(
+            f"📦 Store learning called (stub): description={description[:50]}..."
+        )
         return None
 
-    def get_relevant_learnings(self, context: str, limit: int = 5) -> List[Any]:
+    def get_relevant_learnings(self, context: str, limit: int = 5) -> list[Any]:
         """
         Get relevant learnings based on context
 
@@ -160,12 +158,12 @@ class MemoryManager:
 
     # Compatibility attribute for base_agent.py
     @property
-    def learning_entries(self) -> List[Any]:
+    def learning_entries(self) -> list[Any]:
         """STUB: Returns empty list"""
         return []
 
 
-_memory_manager_instance: Optional[MemoryManager] = None
+_memory_manager_instance: MemoryManager | None = None
 
 
 def get_memory_manager() -> MemoryManager:

@@ -8,19 +8,21 @@ import asyncio
 import json
 import logging
 import subprocess
-import re
-from typing import Dict, Any, Optional
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class ClaudeCodeConfig:
     """Configuration for Claude Code CLI"""
+
     model: str = "default"  # opus, sonnet, default
     temperature: float = 0.7
     max_tokens: int = 4000
     output_format: str = "text"  # json or text - use "text" for simple responses
+
 
 class ClaudeCodeService:
     """
@@ -30,7 +32,7 @@ class ClaudeCodeService:
     Install: npm install -g @anthropic-ai/claude-code
     """
 
-    def __init__(self, config: Optional[ClaudeCodeConfig] = None):
+    def __init__(self, config: ClaudeCodeConfig | None = None):
         self.config = config or ClaudeCodeConfig()
         self.cli_available = False
 
@@ -41,10 +43,7 @@ class ClaudeCodeService:
         """Check if Claude CLI is installed and available"""
         try:
             result = subprocess.run(
-                ["claude", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=2
+                ["claude", "--version"], capture_output=True, text=True, timeout=2
             )
             if result.returncode == 0:
                 self.cli_available = True
@@ -59,10 +58,10 @@ class ClaudeCodeService:
     async def complete(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        stream: bool = False
+        system_prompt: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        stream: bool = False,
     ) -> str:
         """
         Get completion from Claude CLI
@@ -88,7 +87,8 @@ class ClaudeCodeService:
         cmd = [
             "claude",
             "--print",  # Non-interactive mode
-            "--output-format", self.config.output_format
+            "--output-format",
+            self.config.output_format,
         ]
 
         if self.config.model != "default":
@@ -100,16 +100,17 @@ class ClaudeCodeService:
                 *cmd,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
 
             # Send prompt and get response (increased timeout for complex requests)
-            timeout_seconds = 300  # 5 minutes for complex code generation (Tetris, games, etc)
+            timeout_seconds = (
+                300  # 5 minutes for complex code generation (Tetris, games, etc)
+            )
             logger.info(f"⏱️ Running Claude CLI with {timeout_seconds}s timeout...")
 
             stdout, stderr = await asyncio.wait_for(
-                process.communicate(input=full_prompt.encode()),
-                timeout=timeout_seconds
+                process.communicate(input=full_prompt.encode()), timeout=timeout_seconds
             )
 
             if process.returncode != 0:
@@ -135,7 +136,7 @@ class ClaudeCodeService:
 
     def _parse_json_response(self, response: str) -> str:
         """Parse JSON response from Claude CLI"""
-        lines = response.strip().split('\n')
+        lines = response.strip().split("\n")
         text_parts = []
 
         for line in lines:
@@ -146,22 +147,25 @@ class ClaudeCodeService:
                 data = json.loads(line)
 
                 # Handle different event types
-                if data.get('type') == 'content_block_delta':
-                    if 'delta' in data and 'text' in data['delta']:
-                        text_parts.append(data['delta']['text'])
+                if data.get("type") == "content_block_delta":
+                    if "delta" in data and "text" in data["delta"]:
+                        text_parts.append(data["delta"]["text"])
 
-                elif data.get('type') == 'text':
-                    if 'text' in data:
-                        text_parts.append(data['text'])
+                elif data.get("type") == "text":
+                    if "text" in data:
+                        text_parts.append(data["text"])
 
-                elif data.get('type') == 'assistant':
-                    if 'content' in data:
-                        if isinstance(data['content'], str):
-                            text_parts.append(data['content'])
-                        elif isinstance(data['content'], list):
-                            for item in data['content']:
-                                if isinstance(item, dict) and item.get('type') == 'text':
-                                    text = item.get('text', '')
+                elif data.get("type") == "assistant":
+                    if "content" in data:
+                        if isinstance(data["content"], str):
+                            text_parts.append(data["content"])
+                        elif isinstance(data["content"], list):
+                            for item in data["content"]:
+                                if (
+                                    isinstance(item, dict)
+                                    and item.get("type") == "text"
+                                ):
+                                    text = item.get("text", "")
                                     if isinstance(text, str):
                                         text_parts.append(text)
                                 elif isinstance(item, str):
@@ -169,7 +173,7 @@ class ClaudeCodeService:
 
             except json.JSONDecodeError:
                 # If not JSON, treat as plain text
-                if line and not line.startswith('{'):
+                if line and not line.startswith("{"):
                     text_parts.append(line)
 
         # Ensure all parts are strings before joining
@@ -180,13 +184,10 @@ class ClaudeCodeService:
             else:
                 logger.warning(f"Skipping non-string part: {type(part)} - {part}")
 
-        return ''.join(string_parts)
+        return "".join(string_parts)
 
     async def generate_code(
-        self,
-        specification: str,
-        language: str = "python",
-        context: Optional[str] = None
+        self, specification: str, language: str = "python", context: str | None = None
     ) -> str:
         """Generate code using Claude CLI"""
         system_prompt = f"""
@@ -209,11 +210,7 @@ class ClaudeCodeService:
 
         return await self.complete(prompt, system_prompt)
 
-    async def review_code(
-        self,
-        code: str,
-        language: str = "python"
-    ) -> Dict[str, Any]:
+    async def review_code(self, code: str, language: str = "python") -> dict[str, Any]:
         """Review code using Claude CLI"""
         system_prompt = """
         You are a senior code reviewer.
@@ -246,20 +243,20 @@ class ClaudeCodeService:
 
         return {
             "review": response,
-            "has_issues": "critical" in response.lower() or "bug" in response.lower()
+            "has_issues": "critical" in response.lower() or "bug" in response.lower(),
         }
 
     def is_available(self) -> bool:
         """Check if service is available"""
         return self.cli_available
 
-    async def test_connection(self) -> Dict[str, Any]:
+    async def test_connection(self) -> dict[str, Any]:
         """Test CLI connection and return status"""
         if not self.cli_available:
             return {
                 "available": False,
                 "error": "Claude CLI not installed",
-                "suggestion": "Install with: npm install -g @anthropic-ai/claude-code"
+                "suggestion": "Install with: npm install -g @anthropic-ai/claude-code",
             }
 
         try:
@@ -268,11 +265,11 @@ class ClaudeCodeService:
             return {
                 "available": True,
                 "response": response,
-                "cli_version": "claude-code CLI"
+                "cli_version": "claude-code CLI",
             }
         except Exception as e:
             return {
                 "available": False,
                 "error": str(e),
-                "suggestion": "Check if Claude app is running"
+                "suggestion": "Check if Claude app is running",
             }

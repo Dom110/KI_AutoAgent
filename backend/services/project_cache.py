@@ -3,12 +3,12 @@ Project Cache Service
 Provides caching for project analysis results to improve performance
 """
 
-import json
 import hashlib
-from pathlib import Path
-from typing import Any, Dict, Optional
-from datetime import datetime, timedelta
+import json
 import logging
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,9 @@ class ProjectCache:
         # Otherwise, use legacy behavior (create .ki_autoagent_ws/cache inside)
         if project_path.name == "cache":
             self.cache_dir = project_path
-            self.project_root = project_path.parent.parent  # Go up from cache/.ki_autoagent_ws/
+            self.project_root = (
+                project_path.parent.parent
+            )  # Go up from cache/.ki_autoagent_ws/
         else:
             # Legacy behavior
             self.project_root = project_path
@@ -66,7 +68,7 @@ class ProjectCache:
         """Get full path to cache file"""
         return self.cache_dir / self._get_cache_key(key)
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """
         Get cached value
 
@@ -82,18 +84,18 @@ class ProjectCache:
             return None
 
         try:
-            with open(cache_path, 'r') as f:
+            with open(cache_path) as f:
                 cache_data = json.load(f)
 
             # Check if cache is expired
-            cached_time = datetime.fromisoformat(cache_data['timestamp'])
+            cached_time = datetime.fromisoformat(cache_data["timestamp"])
             if datetime.now() - cached_time > self.cache_duration:
                 logger.debug(f"Cache expired for key: {key}")
                 cache_path.unlink()  # Delete expired cache
                 return None
 
             logger.debug(f"✅ Cache hit for key: {key}")
-            return cache_data['value']
+            return cache_data["value"]
 
         except Exception as e:
             logger.warning(f"Failed to read cache for key {key}: {e}")
@@ -111,12 +113,12 @@ class ProjectCache:
 
         try:
             cache_data = {
-                'timestamp': datetime.now().isoformat(),
-                'key': key,
-                'value': value
+                "timestamp": datetime.now().isoformat(),
+                "key": key,
+                "value": value,
             }
 
-            with open(cache_path, 'w') as f:
+            with open(cache_path, "w") as f:
                 json.dump(cache_data, f, indent=2)
 
             logger.debug(f"💾 Cached value for key: {key}")
@@ -143,14 +145,14 @@ class ProjectCache:
             cache_file.unlink()
         logger.info("🗑️  All cache cleared")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics"""
         cache_files = list(self.cache_dir.glob("*.json"))
         total_size = sum(f.stat().st_size for f in cache_files)
 
         return {
-            'total_entries': len(cache_files),
-            'total_size_bytes': total_size,
-            'total_size_mb': round(total_size / (1024 * 1024), 2),
-            'cache_dir': str(self.cache_dir)
+            "total_entries": len(cache_files),
+            "total_size_bytes": total_size,
+            "total_size_mb": round(total_size / (1024 * 1024), 2),
+            "cache_dir": str(self.cache_dir),
         }

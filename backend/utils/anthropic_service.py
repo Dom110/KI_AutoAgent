@@ -3,11 +3,12 @@ Anthropic Service Integration
 Handles all Anthropic API calls for Claude 4.1 models
 """
 
-import os
-import asyncio
 import logging
-from typing import List, Dict, Any, Optional, AsyncGenerator
+import os
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
+from typing import Any
+
 from anthropic import AsyncAnthropic
 from dotenv import load_dotenv
 
@@ -16,14 +17,17 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class AnthropicConfig:
     """Anthropic configuration"""
+
     api_key: str
     model: str = "claude-4.1-sonnet-20250920"
     temperature: float = 0.7
     max_tokens: int = 4000
     streaming: bool = True
+
 
 class AnthropicService:
     """
@@ -31,11 +35,9 @@ class AnthropicService:
     Used by: CodeSmithAgent, OpusArbitrator, TradeStrat
     """
 
-    def __init__(self, config: Optional[AnthropicConfig] = None):
+    def __init__(self, config: AnthropicConfig | None = None):
         if config is None:
-            config = AnthropicConfig(
-                api_key=os.getenv("ANTHROPIC_API_KEY", "")
-            )
+            config = AnthropicConfig(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
 
         self.config = config
 
@@ -44,15 +46,17 @@ class AnthropicService:
             self.client = None
         else:
             self.client = AsyncAnthropic(api_key=self.config.api_key)
-            logger.info(f"✅ Anthropic Service initialized with model: {self.config.model}")
+            logger.info(
+                f"✅ Anthropic Service initialized with model: {self.config.model}"
+            )
 
     async def complete(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        stream: bool = False
+        system_prompt: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        stream: bool = False,
     ) -> str:
         """
         Get completion from Claude
@@ -68,7 +72,7 @@ class AnthropicService:
                     messages,
                     system_prompt,
                     temperature or self.config.temperature,
-                    max_tokens or self.config.max_tokens
+                    max_tokens or self.config.max_tokens,
                 )
             else:
                 response = await self.client.messages.create(
@@ -76,7 +80,7 @@ class AnthropicService:
                     system=system_prompt or "",
                     messages=messages,
                     temperature=temperature or self.config.temperature,
-                    max_tokens=max_tokens or self.config.max_tokens
+                    max_tokens=max_tokens or self.config.max_tokens,
                 )
 
                 # Extract text from response
@@ -93,10 +97,10 @@ class AnthropicService:
 
     async def _stream_completion(
         self,
-        messages: List[Dict[str, str]],
-        system_prompt: Optional[str],
+        messages: list[dict[str, str]],
+        system_prompt: str | None,
         temperature: float,
-        max_tokens: int
+        max_tokens: int,
     ) -> AsyncGenerator[str, None]:
         """
         Stream completion from Claude
@@ -108,12 +112,12 @@ class AnthropicService:
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                stream=True
+                stream=True,
             )
 
             async for chunk in stream:
-                if chunk.type == 'content_block_delta':
-                    if hasattr(chunk, 'delta') and hasattr(chunk.delta, 'text'):
+                if chunk.type == "content_block_delta":
+                    if hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
                         yield chunk.delta.text
 
         except Exception as e:
@@ -121,10 +125,7 @@ class AnthropicService:
             yield f"Error: {str(e)}"
 
     async def generate_code(
-        self,
-        specification: str,
-        language: str = "python",
-        context: Optional[str] = None
+        self, specification: str, language: str = "python", context: str | None = None
     ) -> str:
         """
         Generate code using Claude's superior coding abilities
@@ -149,11 +150,7 @@ class AnthropicService:
 
         return await self.complete(prompt, system_prompt)
 
-    async def review_code(
-        self,
-        code: str,
-        language: str = "python"
-    ) -> Dict[str, Any]:
+    async def review_code(self, code: str, language: str = "python") -> dict[str, Any]:
         """
         Review code for issues and improvements
         """
@@ -188,14 +185,12 @@ class AnthropicService:
 
         return {
             "review": response,
-            "has_issues": "critical" in response.lower() or "bug" in response.lower()
+            "has_issues": "critical" in response.lower() or "bug" in response.lower(),
         }
 
     async def resolve_conflict(
-        self,
-        outputs: List[Dict[str, Any]],
-        context: str = ""
-    ) -> Dict[str, Any]:
+        self, outputs: list[dict[str, Any]], context: str = ""
+    ) -> dict[str, Any]:
         """
         Use Opus for conflict resolution between agents
         """
@@ -235,17 +230,19 @@ class AnthropicService:
             "decision": response,
             "arbitrator": "OpusArbitrator",
             "model": "claude-4.1-opus-20250915",
-            "binding": True
+            "binding": True,
         }
 
-    def _format_outputs(self, outputs: List[Dict[str, Any]]) -> str:
+    def _format_outputs(self, outputs: list[dict[str, Any]]) -> str:
         """Format agent outputs for display"""
         formatted = []
         for i, output in enumerate(outputs, 1):
-            formatted.append(f"""
+            formatted.append(
+                f"""
 Agent {i}: {output.get('agent', 'Unknown')}
 Output: {output.get('content', 'No content')}
----""")
+---"""
+            )
         return "\n".join(formatted)
 
     def is_available(self) -> bool:

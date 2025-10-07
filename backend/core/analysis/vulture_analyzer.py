@@ -4,13 +4,15 @@ Real implementation using vulture library
 """
 
 import logging
-from typing import Dict, Any, Callable, Optional, List
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 try:
     from vulture import Vulture
+
     VULTURE_AVAILABLE = True
 except ImportError:
     VULTURE_AVAILABLE = False
@@ -28,14 +30,16 @@ class VultureAnalyzer:
         if self.vulture_available:
             logger.info("✅ Vulture library found")
         else:
-            logger.warning("⚠️ Vulture library not found - install with: pip install vulture")
+            logger.warning(
+                "⚠️ Vulture library not found - install with: pip install vulture"
+            )
 
     async def find_dead_code(
         self,
         root_path: str,
-        progress_callback: Optional[Callable] = None,
-        min_confidence: int = 60
-    ) -> Dict[str, Any]:
+        progress_callback: Callable | None = None,
+        min_confidence: int = 60,
+    ) -> dict[str, Any]:
         """
         Find dead code in codebase using Vulture
 
@@ -76,16 +80,16 @@ class VultureAnalyzer:
         if not self.vulture_available:
             logger.warning("Vulture library not available - returning stub results")
             return {
-                'files': [],
-                'summary': {
-                    'total_dead_code': 0,
-                    'unused_functions': 0,
-                    'unused_classes': 0,
-                    'unused_variables': 0,
-                    'unused_imports': 0,
-                    'unused_attributes': 0
+                "files": [],
+                "summary": {
+                    "total_dead_code": 0,
+                    "unused_functions": 0,
+                    "unused_classes": 0,
+                    "unused_variables": 0,
+                    "unused_imports": 0,
+                    "unused_attributes": 0,
                 },
-                'note': 'Vulture library not installed - install with: pip install vulture'
+                "note": "Vulture library not installed - install with: pip install vulture",
             }
 
         try:
@@ -95,16 +99,27 @@ class VultureAnalyzer:
 
             # Find all Python files
             root = Path(root_path)
-            python_files = list(root.rglob('*.py'))
+            python_files = list(root.rglob("*.py"))
 
             # Exclude common directories
-            excluded_dirs = {'.git', '__pycache__', 'venv', 'env', '.venv', 'node_modules', '.tox'}
+            excluded_dirs = {
+                ".git",
+                "__pycache__",
+                "venv",
+                "env",
+                ".venv",
+                "node_modules",
+                ".tox",
+            }
             python_files = [
-                f for f in python_files
+                f
+                for f in python_files
                 if not any(excluded in f.parts for excluded in excluded_dirs)
             ]
 
-            logger.info(f"🔍 Analyzing {len(python_files)} Python files for dead code...")
+            logger.info(
+                f"🔍 Analyzing {len(python_files)} Python files for dead code..."
+            )
 
             # Scan files
             vulture.scavenge([str(f) for f in python_files])
@@ -112,33 +127,34 @@ class VultureAnalyzer:
             # Group findings by file
             files_data = {}
             type_counts = {
-                'function': 0,
-                'class': 0,
-                'variable': 0,
-                'import': 0,
-                'attribute': 0,
-                'property': 0
+                "function": 0,
+                "class": 0,
+                "variable": 0,
+                "import": 0,
+                "attribute": 0,
+                "property": 0,
             }
 
             for item in vulture.get_unused_code():
                 file_path = str(item.filename)
 
                 if file_path not in files_data:
-                    files_data[file_path] = {
-                        'file': file_path,
-                        'items': []
-                    }
+                    files_data[file_path] = {"file": file_path, "items": []}
 
-                item_type = item.typ  # 'function', 'class', 'variable', 'import', 'attribute', 'property'
+                item_type = (
+                    item.typ
+                )  # 'function', 'class', 'variable', 'import', 'attribute', 'property'
                 type_counts[item_type] = type_counts.get(item_type, 0) + 1
 
-                files_data[file_path]['items'].append({
-                    'name': item.name,
-                    'type': item_type,
-                    'line': item.first_lineno,
-                    'confidence': item.confidence,
-                    'message': str(item)
-                })
+                files_data[file_path]["items"].append(
+                    {
+                        "name": item.name,
+                        "type": item_type,
+                        "line": item.first_lineno,
+                        "confidence": item.confidence,
+                        "message": str(item),
+                    }
+                )
 
             # Convert to list
             files_list = list(files_data.values())
@@ -146,36 +162,41 @@ class VultureAnalyzer:
             # Create summary
             total_dead_code = sum(type_counts.values())
             summary = {
-                'total_dead_code': total_dead_code,
-                'unused_functions': type_counts.get('function', 0),
-                'unused_classes': type_counts.get('class', 0),
-                'unused_variables': type_counts.get('variable', 0),
-                'unused_imports': type_counts.get('import', 0),
-                'unused_attributes': type_counts.get('attribute', 0) + type_counts.get('property', 0)
+                "total_dead_code": total_dead_code,
+                "unused_functions": type_counts.get("function", 0),
+                "unused_classes": type_counts.get("class", 0),
+                "unused_variables": type_counts.get("variable", 0),
+                "unused_imports": type_counts.get("import", 0),
+                "unused_attributes": type_counts.get("attribute", 0)
+                + type_counts.get("property", 0),
             }
 
             if progress_callback:
-                await progress_callback(f"🧹 Dead code detection complete: {total_dead_code} issues found")
+                await progress_callback(
+                    f"🧹 Dead code detection complete: {total_dead_code} issues found"
+                )
 
-            logger.info(f"✅ Vulture analysis complete: {total_dead_code} dead code items found")
+            logger.info(
+                f"✅ Vulture analysis complete: {total_dead_code} dead code items found"
+            )
 
             return {
-                'files': files_list,
-                'summary': summary,
-                'total_items': total_dead_code
+                "files": files_list,
+                "summary": summary,
+                "total_items": total_dead_code,
             }
 
         except Exception as e:
             logger.error(f"Vulture analysis failed: {e}")
             return {
-                'files': [],
-                'summary': {
-                    'total_dead_code': 0,
-                    'unused_functions': 0,
-                    'unused_classes': 0,
-                    'unused_variables': 0,
-                    'unused_imports': 0,
-                    'unused_attributes': 0
+                "files": [],
+                "summary": {
+                    "total_dead_code": 0,
+                    "unused_functions": 0,
+                    "unused_classes": 0,
+                    "unused_variables": 0,
+                    "unused_imports": 0,
+                    "unused_attributes": 0,
                 },
-                'error': str(e)
+                "error": str(e),
             }

@@ -5,22 +5,24 @@ Alle Antworten auf Deutsch
 """
 
 import logging
-from typing import Dict, Any, Optional, List, Tuple
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class DevelopmentContext:
     """Kontext für Entwicklungs-Anfragen"""
+
     has_code_context: bool
     has_specific_files: bool
     has_error_details: bool
     has_performance_metrics: bool
     has_test_requirements: bool
-    suggested_agents: List[str]
-    required_information: List[str]
+    suggested_agents: list[str]
+    required_information: list[str]
     confidence: float
 
 
@@ -33,34 +35,54 @@ class DevelopmentQueryHandler:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    def analyze_context(self, query: str, state: Dict[str, Any]) -> DevelopmentContext:
+    def analyze_context(self, query: str, state: dict[str, Any]) -> DevelopmentContext:
         """Analysiert den Kontext einer Entwicklungs-Anfrage"""
 
         # Check for code context
-        has_code = any(indicator in query.lower() for indicator in [
-            'code:', 'class ', 'function ', 'def ', 'import ', '```'
-        ])
+        has_code = any(
+            indicator in query.lower()
+            for indicator in ["code:", "class ", "function ", "def ", "import ", "```"]
+        )
 
         # Check for specific files
-        has_files = bool(re.search(r'\.[py|js|ts|java|cpp|go|rs]\b', query))
+        has_files = bool(re.search(r"\.[py|js|ts|java|cpp|go|rs]\b", query))
 
         # Check for error details
-        has_errors = any(indicator in query.lower() for indicator in [
-            'error:', 'exception', 'traceback', 'stack trace', 'fehler:'
-        ])
+        has_errors = any(
+            indicator in query.lower()
+            for indicator in [
+                "error:",
+                "exception",
+                "traceback",
+                "stack trace",
+                "fehler:",
+            ]
+        )
 
         # Check for performance metrics
-        has_metrics = any(indicator in query.lower() for indicator in [
-            'ms', 'sekunden', 'seconds', 'mb', 'cpu', 'memory', 'latenz'
-        ])
+        has_metrics = any(
+            indicator in query.lower()
+            for indicator in [
+                "ms",
+                "sekunden",
+                "seconds",
+                "mb",
+                "cpu",
+                "memory",
+                "latenz",
+            ]
+        )
 
         # Check for test requirements
-        has_tests = any(indicator in query.lower() for indicator in [
-            'test', 'pytest', 'unittest', 'jest', 'coverage'
-        ])
+        has_tests = any(
+            indicator in query.lower()
+            for indicator in ["test", "pytest", "unittest", "jest", "coverage"]
+        )
 
         # Calculate confidence
-        confidence = sum([has_code, has_files, has_errors, has_metrics, has_tests]) / 5.0
+        confidence = (
+            sum([has_code, has_files, has_errors, has_metrics, has_tests]) / 5.0
+        )
 
         return DevelopmentContext(
             has_code_context=has_code,
@@ -70,11 +92,13 @@ class DevelopmentQueryHandler:
             has_test_requirements=has_tests,
             suggested_agents=[],
             required_information=[],
-            confidence=confidence
+            confidence=confidence,
         )
 
     # 11. Performance Optimization ohne Metriken
-    def handle_performance_query(self, query: str, state: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def handle_performance_query(
+        self, query: str, state: dict[str, Any]
+    ) -> tuple[str, list[str]]:
         """Handler für Performance-Anfragen ohne konkrete Metriken"""
         context = self.analyze_context(query, state)
 
@@ -82,7 +106,7 @@ class DevelopmentQueryHandler:
             agents = ["performance", "codesmith"]
             return (
                 "Performance-Analyse mit konkreten Metriken wird gestartet.",
-                agents
+                agents,
             )
 
         response = """🎯 **Performance-Optimierung benötigt konkrete Daten**
@@ -113,16 +137,15 @@ Möchten Sie mit einer Profiling-Analyse beginnen?"""
         return (response, [])
 
     # 12. Bug Report ohne Details
-    def handle_bug_query(self, query: str, state: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def handle_bug_query(
+        self, query: str, state: dict[str, Any]
+    ) -> tuple[str, list[str]]:
         """Handler für Bug-Reports ohne ausreichende Details"""
         context = self.analyze_context(query, state)
 
         if context.has_error_details and context.has_code_context:
             agents = ["reviewer", "fixer"]
-            return (
-                "Bug-Analyse mit Fehlerdetails wird durchgeführt.",
-                agents
-            )
+            return ("Bug-Analyse mit Fehlerdetails wird durchgeführt.", agents)
 
         response = """🐛 **Bug-Report: Mehr Details für effektive Hilfe**
 
@@ -159,16 +182,15 @@ Haben Sie eine Fehlermeldung oder können Sie den Fehler genauer beschreiben?"""
         return (response, [])
 
     # 13. Refactoring ohne Code-Kontext
-    def handle_refactoring_query(self, query: str, state: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def handle_refactoring_query(
+        self, query: str, state: dict[str, Any]
+    ) -> tuple[str, list[str]]:
         """Handler für Refactoring-Anfragen ohne Code"""
         context = self.analyze_context(query, state)
 
         if context.has_code_context or context.has_specific_files:
             agents = ["architect", "codesmith", "reviewer"]
-            return (
-                "Refactoring-Analyse mit Code-Kontext wird gestartet.",
-                agents
-            )
+            return ("Refactoring-Analyse mit Code-Kontext wird gestartet.", agents)
 
         response = """♻️ **Refactoring: Code-Kontext erforderlich**
 
@@ -201,16 +223,15 @@ Welche Datei oder welchen Code möchten Sie refactoren?"""
         return (response, [])
 
     # 14. Test-Anfrage ohne Spezifikation
-    def handle_testing_query(self, query: str, state: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def handle_testing_query(
+        self, query: str, state: dict[str, Any]
+    ) -> tuple[str, list[str]]:
         """Handler für Test-Anfragen ohne klare Spezifikation"""
         context = self.analyze_context(query, state)
 
         if context.has_test_requirements and context.has_code_context:
             agents = ["codesmith", "reviewer"]
-            return (
-                "Test-Erstellung mit Spezifikation wird durchgeführt.",
-                agents
-            )
+            return ("Test-Erstellung mit Spezifikation wird durchgeführt.", agents)
 
         response = """🧪 **Testing: Spezifikation für effektive Tests**
 
@@ -250,20 +271,34 @@ Was möchten Sie testen?"""
         return (response, [])
 
     # 15. Vage Implementation Request
-    def handle_implementation_query(self, query: str, state: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def handle_implementation_query(
+        self, query: str, state: dict[str, Any]
+    ) -> tuple[str, list[str]]:
         """Handler für vage Implementierungs-Anfragen"""
 
         # Check for specific features mentioned
-        has_specifics = any(word in query.lower() for word in [
-            'api', 'database', 'frontend', 'backend', 'ui', 'login',
-            'auth', 'payment', 'search', 'upload', 'download'
-        ])
+        has_specifics = any(
+            word in query.lower()
+            for word in [
+                "api",
+                "database",
+                "frontend",
+                "backend",
+                "ui",
+                "login",
+                "auth",
+                "payment",
+                "search",
+                "upload",
+                "download",
+            ]
+        )
 
         if has_specifics:
             agents = ["architect", "codesmith"]
             return (
                 "Feature-Implementierung mit Architektur-Planung wird gestartet.",
-                agents
+                agents,
             )
 
         response = """🚀 **Feature-Implementierung: Anforderungen definieren**
@@ -308,7 +343,9 @@ Welches Feature möchten Sie implementieren?"""
         return (response, [])
 
     # 16. Technology/Framework Auswahl
-    def handle_technology_query(self, query: str, state: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def handle_technology_query(
+        self, query: str, state: dict[str, Any]
+    ) -> tuple[str, list[str]]:
         """Handler für Technologie-Auswahl-Fragen"""
 
         response = """🛠️ **Technologie-Auswahl: Kontext-basierte Empfehlung**
@@ -352,19 +389,19 @@ Beschreiben Sie Ihr Projekt für eine spezifische Empfehlung!"""
         return (response, ["research"])
 
     # 17. Database Query ohne Schema
-    def handle_database_query(self, query: str, state: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def handle_database_query(
+        self, query: str, state: dict[str, Any]
+    ) -> tuple[str, list[str]]:
         """Handler für Datenbank-Anfragen ohne Schema-Kontext"""
 
-        has_schema = any(word in query.lower() for word in [
-            'table', 'schema', 'model', 'migration', 'create table'
-        ])
+        has_schema = any(
+            word in query.lower()
+            for word in ["table", "schema", "model", "migration", "create table"]
+        )
 
         if has_schema:
             agents = ["architect", "codesmith"]
-            return (
-                "Datenbank-Design mit Schema-Analyse wird durchgeführt.",
-                agents
-            )
+            return ("Datenbank-Design mit Schema-Analyse wird durchgeführt.", agents)
 
         response = """🗄️ **Datenbank-Optimierung: Schema-Analyse erforderlich**
 
@@ -414,7 +451,9 @@ Was ist Ihr konkretes Datenbank-Problem?"""
         return (response, [])
 
     # 18. AI/ML Integration ohne Details
-    def handle_ai_integration_query(self, query: str, state: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def handle_ai_integration_query(
+        self, query: str, state: dict[str, Any]
+    ) -> tuple[str, list[str]]:
         """Handler für AI/ML-Integrations-Anfragen"""
 
         response = """🤖 **AI/ML Integration: Use-Case Definition**
@@ -467,19 +506,19 @@ Was möchten Sie mit AI/ML erreichen?"""
         return (response, ["research"])
 
     # 19. Fehler-Diagnose ohne Logs
-    def handle_error_diagnosis_query(self, query: str, state: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def handle_error_diagnosis_query(
+        self, query: str, state: dict[str, Any]
+    ) -> tuple[str, list[str]]:
         """Handler für Fehler-Diagnose ohne Logs"""
 
-        has_logs = any(word in query.lower() for word in [
-            'log', 'error', 'traceback', 'exception', 'stack'
-        ])
+        has_logs = any(
+            word in query.lower()
+            for word in ["log", "error", "traceback", "exception", "stack"]
+        )
 
         if has_logs:
             agents = ["reviewer", "fixer"]
-            return (
-                "Fehler-Analyse mit Logs wird durchgeführt.",
-                agents
-            )
+            return ("Fehler-Analyse mit Logs wird durchgeführt.", agents)
 
         response = """🔍 **Fehler-Diagnose: Logs und Kontext benötigt**
 
@@ -543,7 +582,9 @@ Können Sie die Fehlermeldung oder Logs teilen?"""
         return (response, [])
 
     # 20. Scope/Requirements Klarstellung
-    def handle_scope_clarification(self, query: str, state: Dict[str, Any]) -> Tuple[str, List[str]]:
+    def handle_scope_clarification(
+        self, query: str, state: dict[str, Any]
+    ) -> tuple[str, list[str]]:
         """Handler für unklare Anforderungen"""
 
         response = """📋 **Anforderungs-Klärung: Strukturierte Planung**
@@ -601,7 +642,7 @@ Beschreiben Sie Ihr Projekt - ich helfe bei der Strukturierung!"""
 
         return (response, ["architect"])
 
-    def get_handler_for_type(self, dev_type: str) -> Optional[callable]:
+    def get_handler_for_type(self, dev_type: str) -> callable | None:
         """Gibt den passenden Handler für einen Entwicklungs-Typ zurück"""
 
         handlers = {
@@ -614,17 +655,14 @@ Beschreiben Sie Ihr Projekt - ich helfe bei der Strukturierung!"""
             "database": self.handle_database_query,
             "ai_integration": self.handle_ai_integration_query,
             "error_diagnosis": self.handle_error_diagnosis_query,
-            "scope": self.handle_scope_clarification
+            "scope": self.handle_scope_clarification,
         }
 
         return handlers.get(dev_type)
 
     def handle_development_query(
-        self,
-        query: str,
-        dev_type: str,
-        state: Dict[str, Any]
-    ) -> Tuple[str, List[str]]:
+        self, query: str, dev_type: str, state: dict[str, Any]
+    ) -> tuple[str, list[str]]:
         """
         Hauptmethode zur Behandlung von Entwicklungs-Anfragen
 
@@ -641,7 +679,7 @@ Beschreiben Sie Ihr Projekt - ich helfe bei der Strukturierung!"""
         return (
             "Ich verstehe Ihre Entwicklungs-Anfrage. Könnten Sie bitte mehr Details "
             "angeben, damit ich Ihnen gezielt helfen kann?",
-            []
+            [],
         )
 
     def suggest_next_steps(self, query_type: str) -> str:
@@ -657,7 +695,9 @@ Beschreiben Sie Ihr Projekt - ich helfe bei der Strukturierung!"""
             "database": "Analysieren Sie Query-Performance: `EXPLAIN ANALYZE SELECT ...`",
             "ai_integration": "Evaluieren Sie Kosten vs. Self-Hosting für Ihren Use-Case",
             "error_diagnosis": "Aktivieren Sie Debug-Logging: `logging.basicConfig(level=logging.DEBUG)`",
-            "scope": "Verwenden Sie User Stories und definieren Sie MVP-Features"
+            "scope": "Verwenden Sie User Stories und definieren Sie MVP-Features",
         }
 
-        return next_steps.get(query_type, "Sammeln Sie mehr Informationen über Ihre Anforderungen.")
+        return next_steps.get(
+            query_type, "Sammeln Sie mehr Informationen über Ihre Anforderungen."
+        )

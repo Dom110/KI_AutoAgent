@@ -3,14 +3,15 @@ Gemini Video Service
 Handles video upload, analysis, and processing using Google Gemini 2.0 Flash API
 """
 
-import os
 import asyncio
 import logging
+import os
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
 
 try:
     import google.generativeai as genai
+
     GENAI_AVAILABLE = True
 except ImportError:
     GENAI_AVAILABLE = False
@@ -25,7 +26,7 @@ class GeminiVideoService:
     Supports native video understanding (audio + visual) up to 2 hours
     """
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         """
         Initialize Gemini Video Service
 
@@ -80,9 +81,7 @@ class GeminiVideoService:
         # Upload file (synchronous, run in executor)
         loop = asyncio.get_event_loop()
         video_file = await loop.run_in_executor(
-            None,
-            genai.upload_file,
-            str(video_path_obj)
+            None, genai.upload_file, str(video_path_obj)
         )
 
         logger.info(f"⏳ Processing video: {video_file.name}")
@@ -103,9 +102,7 @@ class GeminiVideoService:
 
             # Refresh file state
             video_file = await loop.run_in_executor(
-                None,
-                genai.get_file,
-                video_file.name
+                None, genai.get_file, video_file.name
             )
 
             logger.debug(f"⏳ Processing... ({elapsed}s elapsed)")
@@ -120,10 +117,7 @@ class GeminiVideoService:
         return video_file
 
     async def analyze_video(
-        self,
-        video_file: Any,
-        prompt: str,
-        temperature: float = 0.7
+        self, video_file: Any, prompt: str, temperature: float = 0.7
     ) -> str:
         """
         Analyze video with custom prompt using Gemini
@@ -145,9 +139,7 @@ class GeminiVideoService:
             # Generate content (synchronous, run in executor)
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None,
-                self.model.generate_content,
-                [video_file, prompt]
+                None, self.model.generate_content, [video_file, prompt]
             )
 
             result = response.text
@@ -158,11 +150,7 @@ class GeminiVideoService:
             logger.error(f"❌ Video analysis failed: {e}")
             raise RuntimeError(f"Gemini video analysis failed: {e}")
 
-    async def generate_text(
-        self,
-        prompt: str,
-        temperature: float = 0.7
-    ) -> str:
+    async def generate_text(self, prompt: str, temperature: float = 0.7) -> str:
         """
         Generate text without video (for instruction transformation)
 
@@ -178,9 +166,7 @@ class GeminiVideoService:
         try:
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
-                None,
-                self.model.generate_content,
-                prompt
+                None, self.model.generate_content, prompt
             )
 
             return response.text
@@ -199,20 +185,13 @@ class GeminiVideoService:
         try:
             logger.info(f"🗑️  Deleting video: {video_file.name}")
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                None,
-                genai.delete_file,
-                video_file.name
-            )
+            await loop.run_in_executor(None, genai.delete_file, video_file.name)
             logger.info("✅ Video deleted")
         except Exception as e:
             logger.warning(f"⚠️  Failed to delete video: {e}")
 
     async def analyze_complete(
-        self,
-        video_path: str,
-        prompt: str,
-        cleanup_after: bool = True
+        self, video_path: str, prompt: str, cleanup_after: bool = True
     ) -> str:
         """
         Complete workflow: Upload → Analyze → Cleanup

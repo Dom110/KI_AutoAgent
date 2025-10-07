@@ -5,8 +5,8 @@ Enhanced integration with Safe Orchestrator Executor
 """
 
 import logging
-from typing import Dict, List, Any, Tuple, Optional
 from dataclasses import dataclass
+from typing import Any
 
 from .state import ExecutionStep
 
@@ -16,13 +16,14 @@ logger = logging.getLogger(__name__)
 @dataclass
 class QueryAnalysis:
     """Analysis result of a user query"""
+
     query_type: str  # question, command, request, statement
     domain: str  # technical, business, general, project
     intent: str  # get_info, create, modify, analyze, explain
     confidence: float
     suggested_agent: str
     reasoning: str
-    keywords: List[str]
+    keywords: list[str]
     language: str  # en, de, etc.
 
 
@@ -36,7 +37,7 @@ class IntelligentQueryHandler:
         self.fallback_responses = self._init_fallback_responses()
         self.query_patterns = self._init_query_patterns()
 
-    def _init_fallback_responses(self) -> Dict[str, str]:
+    def _init_fallback_responses(self) -> dict[str, str]:
         """Initialize intelligent fallback responses for different query types"""
         return {
             "project_info": """KI AutoAgent v5.5.1 - Intelligentes Multi-Agent Development System
@@ -64,7 +65,6 @@ Das KI AutoAgent System ist eine fortschrittliche Entwicklungsplattform, die meh
 10. OpusArbitrator - Konfliktlösung bei widersprüchlichen Empfehlungen
 
 💡 Stellen Sie gerne spezifische Fragen oder geben Sie mir eine Aufgabe!""",
-
             "capabilities": """🚀 WAS KANN ICH FÜR SIE TUN?
 
 ✅ ENTWICKLUNGSAUFGABEN:
@@ -88,7 +88,6 @@ Das KI AutoAgent System ist eine fortschrittliche Entwicklungsplattform, die meh
 • Echtzeit-Fortschrittsverfolgung
 
 Wie kann ich Ihnen heute helfen?""",
-
             "greeting": """Hallo! 👋
 
 Ich bin das KI AutoAgent System v5.5.1 - Ihr intelligenter Entwicklungsassistent.
@@ -102,7 +101,6 @@ Ich kann Ihnen bei verschiedenen Aufgaben helfen:
 • Und vieles mehr!
 
 Was möchten Sie heute entwickeln oder verbessern?""",
-
             "unknown": """Ich verstehe Ihre Anfrage und werde mein Bestes geben, um zu helfen!
 
 Ihre Anfrage wird analysiert und an den geeignetsten Agenten weitergeleitet.
@@ -113,36 +111,60 @@ Falls Sie spezifische Hilfe benötigen, können Sie gerne präzisieren:
 • Suchen Sie nach Informationen?
 • Haben Sie ein Problem, das gelöst werden muss?
 
-Ich bin hier, um zu helfen! 🤝"""
+Ich bin hier, um zu helfen! 🤝""",
         }
 
-    def _init_query_patterns(self) -> List[Dict[str, Any]]:
+    def _init_query_patterns(self) -> list[dict[str, Any]]:
         """Initialize patterns for query understanding"""
         return [
             # Greetings
             {
-                "patterns": ["hallo", "hi", "hey", "guten tag", "servus", "moin", "hello", "greetings"],
+                "patterns": [
+                    "hallo",
+                    "hi",
+                    "hey",
+                    "guten tag",
+                    "servus",
+                    "moin",
+                    "hello",
+                    "greetings",
+                ],
                 "type": "greeting",
-                "response_key": "greeting"
+                "response_key": "greeting",
             },
             # Project info
             {
-                "patterns": ["projekt", "project", "system", "was ist", "what is", "erkläre", "explain"],
+                "patterns": [
+                    "projekt",
+                    "project",
+                    "system",
+                    "was ist",
+                    "what is",
+                    "erkläre",
+                    "explain",
+                ],
                 "type": "info_request",
-                "response_key": "project_info"
+                "response_key": "project_info",
             },
             # Capabilities
             {
-                "patterns": ["kannst du", "can you", "fähigkeiten", "capabilities", "was machst", "what do you do"],
+                "patterns": [
+                    "kannst du",
+                    "can you",
+                    "fähigkeiten",
+                    "capabilities",
+                    "was machst",
+                    "what do you do",
+                ],
                 "type": "capability_question",
-                "response_key": "capabilities"
+                "response_key": "capabilities",
             },
             # Help requests
             {
                 "patterns": ["hilfe", "help", "unterstützung", "support", "wie", "how"],
                 "type": "help_request",
-                "response_key": "capabilities"
-            }
+                "response_key": "capabilities",
+            },
         ]
 
     def analyze_query(self, query: str) -> QueryAnalysis:
@@ -152,12 +174,22 @@ Ich bin hier, um zu helfen! 🤝"""
         query_lower = query.lower()
 
         # Detect language
-        language = "de" if any(word in query_lower for word in ["der", "die", "das", "ich", "du", "wir"]) else "en"
+        language = (
+            "de"
+            if any(
+                word in query_lower
+                for word in ["der", "die", "das", "ich", "du", "wir"]
+            )
+            else "en"
+        )
 
         # Detect query type
         if "?" in query:
             query_type = "question"
-        elif any(word in query_lower for word in ["mach", "make", "erstelle", "create", "build", "baue"]):
+        elif any(
+            word in query_lower
+            for word in ["mach", "make", "erstelle", "create", "build", "baue"]
+        ):
             query_type = "command"
         elif any(word in query_lower for word in ["möchte", "want", "need", "brauche"]):
             query_type = "request"
@@ -165,9 +197,14 @@ Ich bin hier, um zu helfen! 🤝"""
             query_type = "statement"
 
         # Detect domain
-        if any(word in query_lower for word in ["code", "function", "class", "bug", "error"]):
+        if any(
+            word in query_lower
+            for word in ["code", "function", "class", "bug", "error"]
+        ):
             domain = "technical"
-        elif any(word in query_lower for word in ["projekt", "project", "system", "agent"]):
+        elif any(
+            word in query_lower for word in ["projekt", "project", "system", "agent"]
+        ):
             domain = "project"
         elif any(word in query_lower for word in ["strategy", "trading", "business"]):
             domain = "business"
@@ -175,20 +212,49 @@ Ich bin hier, um zu helfen! 🤝"""
             domain = "general"
 
         # Detect intent
-        if any(word in query_lower for word in ["was", "what", "wie", "how", "warum", "why"]):
+        if any(
+            word in query_lower
+            for word in ["was", "what", "wie", "how", "warum", "why"]
+        ):
             intent = "get_info"
-        elif any(word in query_lower for word in ["erstelle", "create", "build", "mach", "make"]):
+        elif any(
+            word in query_lower
+            for word in ["erstelle", "create", "build", "mach", "make"]
+        ):
             intent = "create"
-        elif any(word in query_lower for word in ["ändere", "modify", "change", "update"]):
+        elif any(
+            word in query_lower for word in ["ändere", "modify", "change", "update"]
+        ):
             intent = "modify"
-        elif any(word in query_lower for word in ["analysiere", "analyze", "review", "prüfe"]):
+        elif any(
+            word in query_lower for word in ["analysiere", "analyze", "review", "prüfe"]
+        ):
             intent = "analyze"
         else:
             intent = "explain"
 
         # Extract keywords (simple approach)
-        stopwords = {"ich", "du", "der", "die", "das", "und", "oder", "aber", "the", "a", "an", "and", "or", "but"}
-        keywords = [word for word in query_lower.split() if word not in stopwords and len(word) > 2]
+        stopwords = {
+            "ich",
+            "du",
+            "der",
+            "die",
+            "das",
+            "und",
+            "oder",
+            "aber",
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+        }
+        keywords = [
+            word
+            for word in query_lower.split()
+            if word not in stopwords and len(word) > 2
+        ]
 
         # Determine best agent based on analysis
         agent_map = {
@@ -197,7 +263,7 @@ Ich bin hier, um zu helfen! 🤝"""
             ("technical", "modify"): "fixer",
             ("project", "get_info"): "architect",
             ("business", "create"): "tradestrat",
-            ("general", "get_info"): "research"
+            ("general", "get_info"): "research",
         }
 
         suggested_agent = agent_map.get((domain, intent), "research")
@@ -213,10 +279,12 @@ Ich bin hier, um zu helfen! 🤝"""
             suggested_agent=suggested_agent,
             reasoning=f"Query appears to be a {query_type} about {domain} with intent to {intent}",
             keywords=keywords,
-            language=language
+            language=language,
         )
 
-    def get_intelligent_response(self, query: str, context: Dict[str, Any] = None) -> str:
+    def get_intelligent_response(
+        self, query: str, context: dict[str, Any] = None
+    ) -> str:
         """
         Generate an intelligent response for ANY query
         Never returns empty or generic responses
@@ -254,10 +322,8 @@ Der {analysis.suggested_agent} Agent wird sich um Ihre Anfrage kümmern.
             return response
 
     def create_intelligent_execution_plan(
-        self,
-        query: str,
-        fallback_agent: str = None
-    ) -> List[ExecutionStep]:
+        self, query: str, fallback_agent: str = None
+    ) -> list[ExecutionStep]:
         """
         Create an execution plan that ALWAYS produces meaningful results
         """
@@ -273,7 +339,7 @@ Der {analysis.suggested_agent} Agent wird sich um Ihre Anfrage kümmern.
                     expected_output=f"{analysis.suggested_agent} will handle this {analysis.intent} request",
                     dependencies=[],
                     status="pending",
-                    result=None
+                    result=None,
                 )
             ]
 
@@ -292,9 +358,7 @@ Der {analysis.suggested_agent} Agent wird sich um Ihre Anfrage kümmern.
                     result=None,
                     # Store fallback response in case research fails
                     error=None,
-                    attempts=[{
-                        "fallback_response": intelligent_response
-                    }]
+                    attempts=[{"fallback_response": intelligent_response}],
                 )
             ]
 
@@ -307,7 +371,7 @@ Der {analysis.suggested_agent} Agent wird sich um Ihre Anfrage kümmern.
                     task=f"Design architecture for: {query}",
                     expected_output="Architecture design",
                     dependencies=[],
-                    status="pending"
+                    status="pending",
                 ),
                 ExecutionStep(
                     id="step2",
@@ -315,7 +379,7 @@ Der {analysis.suggested_agent} Agent wird sich um Ihre Anfrage kümmern.
                     task=f"Implement: {query}",
                     expected_output="Working implementation",
                     dependencies=["step1"],
-                    status="pending"
+                    status="pending",
                 ),
                 ExecutionStep(
                     id="step3",
@@ -323,8 +387,8 @@ Der {analysis.suggested_agent} Agent wird sich um Ihre Anfrage kümmern.
                     task="Review implementation",
                     expected_output="Quality assessment",
                     dependencies=["step2"],
-                    status="pending"
-                )
+                    status="pending",
+                ),
             ]
 
         # Default: Use specified fallback agent or research
@@ -337,26 +401,34 @@ Der {analysis.suggested_agent} Agent wird sich um Ihre Anfrage kümmern.
                 expected_output=f"Comprehensive response from {fallback_agent}",
                 dependencies=[],
                 status="pending",
-                result=None
+                result=None,
             )
         ]
 
-    def enhance_orchestrator_step(self, step: ExecutionStep, query: str) -> ExecutionStep:
+    def enhance_orchestrator_step(
+        self, step: ExecutionStep, query: str
+    ) -> ExecutionStep:
         """
         Enhance an orchestrator step with intelligent response
         Never returns empty results
         """
-        if step.agent == "orchestrator" and step.status == "completed" and not step.result:
+        if (
+            step.agent == "orchestrator"
+            and step.status == "completed"
+            and not step.result
+        ):
             # Generate intelligent response
             intelligent_response = self.get_intelligent_response(query)
             step.result = intelligent_response
 
             # Log enhancement
-            logger.info(f"✨ Enhanced orchestrator step with intelligent response ({len(intelligent_response)} chars)")
+            logger.info(
+                f"✨ Enhanced orchestrator step with intelligent response ({len(intelligent_response)} chars)"
+            )
 
         return step
 
-    def integrate_with_classification(self, classification: Dict[str, Any]) -> str:
+    def integrate_with_classification(self, classification: dict[str, Any]) -> str:
         """
         v5.5.2: Integrate with Safe Executor's classification system
         Returns appropriate response based on classification
@@ -399,7 +471,6 @@ Für Performance-Verbesserungen benötige ich:
 • Ziel-Performance
 
 Führen Sie ein Profiling durch oder teilen Sie mir spezifische langsame Bereiche mit.""",
-
             "bug": """🐛 Bug-Analyse
 
 Bitte teilen Sie mir mit:
@@ -408,7 +479,6 @@ Bitte teilen Sie mir mit:
 • Erwartetes vs. tatsächliches Verhalten
 
 Mit diesen Details kann ich effektiv helfen.""",
-
             "refactoring": """♻️ Code Refactoring
 
 Für Refactoring benötige ich:
@@ -417,7 +487,6 @@ Für Refactoring benötige ich:
 • Qualitätsziele
 
 Zeigen Sie mir den Code, den ich verbessern soll.""",
-
             "testing": """🧪 Test-Erstellung
 
 Für Tests benötige ich:
@@ -425,7 +494,7 @@ Für Tests benötige ich:
 • Test-Art (Unit, Integration, E2E)
 • Spezielle Test-Szenarien
 
-Welche Funktionalität soll getestet werden?"""
+Welche Funktionalität soll getestet werden?""",
         }
 
         return dev_responses.get(dev_type, self.fallback_responses["general_help"])

@@ -5,21 +5,22 @@ Searches the web for real-time information and best practices
 
 import logging
 import os
-from typing import Dict, Any, Optional
-from datetime import datetime
-
-from ..base.chat_agent import ChatAgent
-from ..base.base_agent import (
-    AgentConfig, TaskRequest, TaskResult, AgentCapability
-)
-
 # Fix import path - backend is the root package
 import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from datetime import datetime
+from typing import Any
+
+from ..base.base_agent import (AgentCapability, AgentConfig, TaskRequest,
+                               TaskResult)
+from ..base.chat_agent import ChatAgent
+
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 from utils.perplexity_service import PerplexityService
 
 logger = logging.getLogger(__name__)
+
 
 class ResearchAgent(ChatAgent):
     """
@@ -38,14 +39,11 @@ class ResearchAgent(ChatAgent):
             full_name="Web Research Specialist",
             description="Specialized in web research and gathering real-time information",
             model="sonar",  # Using latest/best Perplexity model
-            capabilities=[
-                AgentCapability.WEB_SEARCH,
-                AgentCapability.RESEARCH
-            ],
+            capabilities=[AgentCapability.WEB_SEARCH, AgentCapability.RESEARCH],
             temperature=0.5,
             max_tokens=4000,
             icon="🔍",
-            instructions_path=".ki_autoagent/instructions/research-instructions.md"
+            instructions_path=".ki_autoagent/instructions/research-instructions.md",
         )
         super().__init__(config)
 
@@ -54,12 +52,14 @@ class ResearchAgent(ChatAgent):
         # System must fail if Perplexity API not available
         try:
             self.perplexity_service = PerplexityService(model=config.model)
-            logger.info(f"✅ ResearchAgent initialized with Perplexity API")
+            logger.info("✅ ResearchAgent initialized with Perplexity API")
         except Exception as e:
             logger.error(f"❌ Failed to initialize Perplexity API: {e}")
             raise  # Fail fast - no fallback allowed
 
-    async def research_for_agent(self, requesting_agent: str, query: str, context: Dict = None) -> Dict[str, Any]:
+    async def research_for_agent(
+        self, requesting_agent: str, query: str, context: dict = None
+    ) -> dict[str, Any]:
         """
         Allow any agent to request research
         Returns summarized information tailored to requesting agent's needs
@@ -68,20 +68,22 @@ class ResearchAgent(ChatAgent):
 
         # Agent-specific contexts for better summaries
         agent_contexts = {
-            'architect': 'Focus on system design patterns, architecture best practices, and scalability',
-            'codesmith': 'Focus on implementation details, code examples, and practical usage',
-            'performance_bot': 'Focus on benchmarks, performance metrics, and optimization techniques',
-            'reviewer': 'Focus on security, best practices, and potential issues',
-            'fixer': 'Focus on bug solutions, workarounds, and fixes',
-            'docubot': 'Focus on documentation standards and examples',
-            'orchestrator': 'Provide comprehensive overview for decision making'
+            "architect": "Focus on system design patterns, architecture best practices, and scalability",
+            "codesmith": "Focus on implementation details, code examples, and practical usage",
+            "performance_bot": "Focus on benchmarks, performance metrics, and optimization techniques",
+            "reviewer": "Focus on security, best practices, and potential issues",
+            "fixer": "Focus on bug solutions, workarounds, and fixes",
+            "docubot": "Focus on documentation standards and examples",
+            "orchestrator": "Provide comprehensive overview for decision making",
         }
 
         # Get context for requesting agent
-        summary_context = agent_contexts.get(requesting_agent, 'General technical information')
+        summary_context = agent_contexts.get(
+            requesting_agent, "General technical information"
+        )
 
         # Perform web search (simulated for now)
-        search_results = await self._perform_web_search(query)
+        await self._perform_web_search(query)
 
         # Create tailored summary
         summary = f"""Research for {requesting_agent} on: {query}
@@ -101,68 +103,70 @@ Recommendations:
 Sources consulted: Technical documentation, Stack Overflow, GitHub repositories"""
 
         return {
-            'query': query,
-            'requesting_agent': requesting_agent,
-            'summary': summary,
-            'sources': ['web search results'],
-            'timestamp': datetime.now().isoformat(),
-            'confidence': 'high'
+            "query": query,
+            "requesting_agent": requesting_agent,
+            "summary": summary,
+            "sources": ["web search results"],
+            "timestamp": datetime.now().isoformat(),
+            "confidence": "high",
         }
 
-    async def get_latest_best_practices(self, topic: str) -> Dict[str, Any]:
+    async def get_latest_best_practices(self, topic: str) -> dict[str, Any]:
         """
         Research latest best practices for any topic
         All agents can call this to stay current
         """
         logger.info(f"🌟 Researching best practices for: {topic}")
 
-        query = f"best practices {topic} 2025 latest"
+        f"best practices {topic} 2025 latest"
 
         best_practices = {
-            'topic': topic,
-            'practices': [],
-            'trends': [],
-            'warnings': [],
-            'last_updated': datetime.now().isoformat()
+            "topic": topic,
+            "practices": [],
+            "trends": [],
+            "warnings": [],
+            "last_updated": datetime.now().isoformat(),
         }
 
         # Simulated search results
-        if 'cache' in topic.lower():
-            best_practices['practices'] = [
-                'Use Redis for distributed caching',
-                'Implement cache invalidation strategies',
-                'Consider cache-aside pattern for read-heavy workloads'
+        if "cache" in topic.lower():
+            best_practices["practices"] = [
+                "Use Redis for distributed caching",
+                "Implement cache invalidation strategies",
+                "Consider cache-aside pattern for read-heavy workloads",
             ]
-            best_practices['warnings'] = [
-                'Avoid caching sensitive data without encryption',
-                'Be careful with cache stampede issues'
+            best_practices["warnings"] = [
+                "Avoid caching sensitive data without encryption",
+                "Be careful with cache stampede issues",
             ]
-        elif 'security' in topic.lower():
-            best_practices['practices'] = [
-                'Never store passwords in plain text',
-                'Use parameterized queries to prevent SQL injection',
-                'Implement rate limiting and input validation'
+        elif "security" in topic.lower():
+            best_practices["practices"] = [
+                "Never store passwords in plain text",
+                "Use parameterized queries to prevent SQL injection",
+                "Implement rate limiting and input validation",
             ]
-            best_practices['warnings'] = [
-                'MD5 and SHA1 are deprecated for security',
-                'Avoid eval() with user input'
+            best_practices["warnings"] = [
+                "MD5 and SHA1 are deprecated for security",
+                "Avoid eval() with user input",
             ]
         else:
-            best_practices['practices'] = [
-                f'Follow established {topic} patterns',
-                f'Keep {topic} implementations simple and maintainable',
-                f'Test {topic} thoroughly'
+            best_practices["practices"] = [
+                f"Follow established {topic} patterns",
+                f"Keep {topic} implementations simple and maintainable",
+                f"Test {topic} thoroughly",
             ]
 
-        best_practices['trends'] = [
-            f'AI-assisted {topic} development',
-            f'Cloud-native {topic} solutions',
-            f'Microservices approach to {topic}'
+        best_practices["trends"] = [
+            f"AI-assisted {topic} development",
+            f"Cloud-native {topic} solutions",
+            f"Microservices approach to {topic}",
         ]
 
         return best_practices
 
-    async def verify_technology_exists(self, tech_name: str, tech_type: str = 'library') -> Dict[str, Any]:
+    async def verify_technology_exists(
+        self, tech_name: str, tech_type: str = "library"
+    ) -> dict[str, Any]:
         """
         Verify if a technology/library/framework actually exists
         Part of Prime Directive 1: Never fabricate information
@@ -172,35 +176,35 @@ Sources consulted: Technical documentation, Stack Overflow, GitHub repositories"
         # In production, this would do actual web search
         # For now, return structured verification
         verification = {
-            'technology': tech_name,
-            'type': tech_type,
-            'exists': True,  # Would be determined by actual search
-            'verified': datetime.now().isoformat(),
-            'details': {}
+            "technology": tech_name,
+            "type": tech_type,
+            "exists": True,  # Would be determined by actual search
+            "verified": datetime.now().isoformat(),
+            "details": {},
         }
 
         # Common libraries check (simplified)
         known_libraries = {
-            'python': ['numpy', 'pandas', 'requests', 'flask', 'django', 'fastapi'],
-            'javascript': ['react', 'vue', 'angular', 'express', 'axios'],
-            'general': ['redis', 'postgresql', 'mongodb', 'elasticsearch']
+            "python": ["numpy", "pandas", "requests", "flask", "django", "fastapi"],
+            "javascript": ["react", "vue", "angular", "express", "axios"],
+            "general": ["redis", "postgresql", "mongodb", "elasticsearch"],
         }
 
         tech_lower = tech_name.lower()
         is_known = any(tech_lower in libs for libs in known_libraries.values())
 
         if is_known:
-            verification['exists'] = True
-            verification['details'] = {
-                'description': f'{tech_name} is a well-known {tech_type}',
-                'popularity': 'high',
-                'maintained': True
+            verification["exists"] = True
+            verification["details"] = {
+                "description": f"{tech_name} is a well-known {tech_type}",
+                "popularity": "high",
+                "maintained": True,
             }
         else:
-            verification['exists'] = 'uncertain'
-            verification['details'] = {
-                'note': 'Requires web search for verification',
-                'suggestion': 'Double-check the exact name and spelling'
+            verification["exists"] = "uncertain"
+            verification["details"] = {
+                "note": "Requires web search for verification",
+                "suggestion": "Double-check the exact name and spelling",
             }
 
         return verification
@@ -212,7 +216,11 @@ Sources consulted: Technical documentation, Stack Overflow, GitHub repositories"
         """
         # Simulated search results
         return [
-            {'title': f'Result for {query}', 'content': 'Relevant content', 'url': 'https://example.com'}
+            {
+                "title": f"Result for {query}",
+                "content": "Relevant content",
+                "url": "https://example.com",
+            }
         ]
 
     async def execute(self, request: TaskRequest) -> TaskResult:
@@ -221,7 +229,7 @@ Sources consulted: Technical documentation, Stack Overflow, GitHub repositories"
         """
         try:
             prompt = request.prompt
-            context = request.context or {}
+            request.context or {}
 
             # Log the research request
             logger.info(f"🔍 ResearchAgent executing: {prompt[:100]}...")
@@ -233,7 +241,11 @@ Sources consulted: Technical documentation, Stack Overflow, GitHub repositories"
                 citations = result.get("citations", [])
             elif "technology" in prompt.lower() or "library" in prompt.lower():
                 # Extract technology name (simple heuristic)
-                tech_terms = [word for word in prompt.split() if len(word) > 3 and word[0].isupper()]
+                tech_terms = [
+                    word
+                    for word in prompt.split()
+                    if len(word) > 3 and word[0].isupper()
+                ]
                 technology = tech_terms[0] if tech_terms else prompt.split()[-1]
                 result = await self.perplexity_service.research_technology(technology)
                 response = result["research"]
@@ -261,8 +273,8 @@ Sources consulted: Technical documentation, Stack Overflow, GitHub repositories"
                     "model": self.config.model,
                     "research_type": "web_search",
                     "citations_count": len(citations) if citations else 0,
-                    "timestamp": datetime.now().isoformat()
-                }
+                    "timestamp": datetime.now().isoformat(),
+                },
             )
 
         except Exception as e:
@@ -270,7 +282,7 @@ Sources consulted: Technical documentation, Stack Overflow, GitHub repositories"
             return TaskResult(
                 status="error",
                 content=f"Research error: {str(e)}",
-                agent=self.config.agent_id
+                agent=self.config.agent_id,
             )
 
     # ASIMOV RULE 1: NO FALLBACK - FALLBACK METHOD REMOVED
@@ -280,8 +292,7 @@ Sources consulted: Technical documentation, Stack Overflow, GitHub repositories"
     async def _process_agent_request(self, message: Any) -> Any:
         """Process request from another agent"""
         request = TaskRequest(
-            prompt=message.get("prompt", ""),
-            context=message.get("context", {})
+            prompt=message.get("prompt", ""), context=message.get("context", {})
         )
         result = await self.execute(request)
         return result.content

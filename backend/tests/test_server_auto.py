@@ -4,12 +4,14 @@ Automated Test for FastAPI Server and WebSocket Connection
 
 import asyncio
 import json
-import aiohttp
 import sys
+
+import aiohttp
 
 # Test configuration
 SERVER_URL = "http://localhost:8000"
 WS_URL = "ws://localhost:8000/ws/chat"
+
 
 async def test_health_check():
     """Test the health check endpoint"""
@@ -26,6 +28,7 @@ async def test_health_check():
             print(f"❌ Health Check Failed: {e}")
             return False
 
+
 async def test_agents_endpoint():
     """Test the agents info endpoint"""
     print("\n🔍 Testing Agents Endpoint...")
@@ -34,7 +37,7 @@ async def test_agents_endpoint():
         try:
             async with session.get(f"{SERVER_URL}/api/agents") as response:
                 data = await response.json()
-                print(f"✅ Available Agents:")
+                print("✅ Available Agents:")
                 for agent in data["agents"]:
                     print(f"  - {agent['name']} ({agent['model']})")
                 assert len(data["agents"]) > 0
@@ -42,6 +45,7 @@ async def test_agents_endpoint():
         except Exception as e:
             print(f"❌ Agents Endpoint Failed: {e}")
             return False
+
 
 async def test_websocket_connection():
     """Test WebSocket connection and messaging"""
@@ -57,16 +61,20 @@ async def test_websocket_connection():
 
                 # Test chat message
                 print("\n📤 Sending test chat message...")
-                await ws.send_json({
-                    "type": "chat",
-                    "content": "Hello, this is a test message!",
-                    "agent": "orchestrator"
-                })
+                await ws.send_json(
+                    {
+                        "type": "chat",
+                        "content": "Hello, this is a test message!",
+                        "agent": "orchestrator",
+                    }
+                )
 
                 # Receive thinking message
                 msg = await ws.receive()
                 data = json.loads(msg.data)
-                print(f"🤔 Agent Thinking: {data.get('message', data.get('agent', 'Unknown'))}")
+                print(
+                    f"🤔 Agent Thinking: {data.get('message', data.get('agent', 'Unknown'))}"
+                )
 
                 # Receive response
                 msg = await ws.receive()
@@ -80,7 +88,7 @@ async def test_websocket_connection():
                 msg = await ws.receive()
                 data = json.loads(msg.data)
                 assert data["type"] == "pong"
-                print(f"✅ Ping/Pong successful")
+                print("✅ Ping/Pong successful")
 
                 await ws.close()
                 return True
@@ -88,6 +96,7 @@ async def test_websocket_connection():
         except Exception as e:
             print(f"❌ WebSocket Test Failed: {e}")
             return False
+
 
 async def run_all_tests():
     """Run all tests"""
@@ -119,6 +128,7 @@ async def run_all_tests():
     else:
         print("\n❌ Some tests failed!")
         return 1
+
 
 if __name__ == "__main__":
     # Run tests immediately

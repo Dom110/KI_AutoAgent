@@ -5,10 +5,12 @@ Tests actual agent responses via WebSocket
 
 import asyncio
 import json
-import aiohttp
 import sys
 
+import aiohttp
+
 WS_URL = "ws://localhost:8000/ws/chat"
+
 
 async def test_real_agent():
     """Test real agent response"""
@@ -25,11 +27,13 @@ async def test_real_agent():
 
                 # Test Orchestrator Agent
                 print("\n📤 Testing OrchestratorAgent...")
-                await ws.send_json({
-                    "type": "chat",
-                    "content": "Create a simple hello world function",
-                    "agent": "orchestrator"
-                })
+                await ws.send_json(
+                    {
+                        "type": "chat",
+                        "content": "Create a simple hello world function",
+                        "agent": "orchestrator",
+                    }
+                )
 
                 # Receive thinking message
                 msg = await ws.receive()
@@ -39,17 +43,19 @@ async def test_real_agent():
                 # Receive response
                 msg = await asyncio.wait_for(ws.receive(), timeout=30.0)
                 data = json.loads(msg.data)
-                print(f"\n📨 Agent Response:")
+                print("\n📨 Agent Response:")
                 print(f"Status: {data.get('status', 'unknown')}")
                 print(f"Content Preview: {data.get('content', '')[:200]}...")
 
                 # Test Architect Agent
                 print("\n\n📤 Testing ArchitectAgent...")
-                await ws.send_json({
-                    "type": "chat",
-                    "content": "Design a simple REST API architecture",
-                    "agent": "architect"
-                })
+                await ws.send_json(
+                    {
+                        "type": "chat",
+                        "content": "Design a simple REST API architecture",
+                        "agent": "architect",
+                    }
+                )
 
                 # Skip thinking message
                 await ws.receive()
@@ -57,12 +63,15 @@ async def test_real_agent():
                 # Receive response
                 msg = await asyncio.wait_for(ws.receive(), timeout=30.0)
                 data = json.loads(msg.data)
-                print(f"\n📨 Architect Response:")
+                print("\n📨 Architect Response:")
                 print(f"Status: {data.get('status', 'unknown')}")
 
                 # Check for architecture elements in response
-                response_content = data.get('content', '')
-                if 'architecture' in response_content.lower() or 'design' in response_content.lower():
+                response_content = data.get("content", "")
+                if (
+                    "architecture" in response_content.lower()
+                    or "design" in response_content.lower()
+                ):
                     print("✅ Architecture design elements found in response")
                 else:
                     print("⚠️ Response may need API key configuration")
@@ -78,6 +87,7 @@ async def test_real_agent():
         except Exception as e:
             print(f"\n❌ Error: {e}")
             return False
+
 
 if __name__ == "__main__":
     success = asyncio.run(test_real_agent())

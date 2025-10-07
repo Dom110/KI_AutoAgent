@@ -2,11 +2,12 @@
 Core systems for KI AutoAgent
 """
 
-from .memory_manager import MemoryManager, MemoryType, get_memory_manager
-from .shared_context_manager import SharedContextManager, get_shared_context
-from .conversation_context_manager import ConversationContextManager, get_conversation_context
-from .pause_handler import PauseHandler, PauseAction
+from .conversation_context_manager import (ConversationContextManager,
+                                           get_conversation_context)
 from .git_checkpoint_manager import GitCheckpointManager
+from .memory_manager import MemoryManager, MemoryType, get_memory_manager
+from .pause_handler import PauseAction, PauseHandler
+from .shared_context_manager import SharedContextManager, get_shared_context
 
 __all__ = [
     "MemoryManager",

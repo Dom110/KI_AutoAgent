@@ -3,13 +3,14 @@ Cache Manager for KI AutoAgent
 Handles Redis setup and cache management
 """
 
-import subprocess
-import time
 import logging
-import redis
 import os
+import subprocess
 import sys
-from typing import Dict, Any, Optional
+import time
+from typing import Any
+
+import redis
 
 # Add parent directory to path for version import
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -29,10 +30,7 @@ class CacheManager:
         """Check if Docker is installed and running"""
         try:
             result = subprocess.run(
-                ["docker", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["docker", "--version"], capture_output=True, text=True, timeout=5
             )
             return result.returncode == 0
         except (subprocess.SubprocessError, FileNotFoundError):
@@ -41,20 +39,18 @@ class CacheManager:
     def check_redis_running(self) -> bool:
         """Check if Redis is accessible"""
         try:
-            client = redis.Redis(host='localhost', port=6379, db=0, socket_connect_timeout=1)
+            client = redis.Redis(
+                host="localhost", port=6379, db=0, socket_connect_timeout=1
+            )
             client.ping()
             self.redis_client = client
             return True
         except (redis.ConnectionError, redis.TimeoutError):
             return False
 
-    def start_redis_container(self) -> Dict[str, Any]:
+    def start_redis_container(self) -> dict[str, Any]:
         """Start Redis container using Docker"""
-        result = {
-            "success": False,
-            "message": "",
-            "actions": []
-        }
+        result = {"success": False, "message": "", "actions": []}
 
         # Check Docker
         if not self.check_docker_installed():
@@ -71,37 +67,40 @@ class CacheManager:
 
         try:
             # Stop existing container if any
-            logger.info(f"Stopping existing Redis container if present...")
+            logger.info("Stopping existing Redis container if present...")
             subprocess.run(
                 ["docker", "stop", self.redis_container_name],
                 capture_output=True,
-                timeout=10
+                timeout=10,
             )
             subprocess.run(
                 ["docker", "rm", self.redis_container_name],
                 capture_output=True,
-                timeout=5
+                timeout=5,
             )
-            result["actions"].append(f"🔄 Alte Container '{self.redis_container_name}' entfernt")
+            result["actions"].append(
+                f"🔄 Alte Container '{self.redis_container_name}' entfernt"
+            )
 
             # Start new Redis container
-            logger.info(f"Starting Redis container...")
+            logger.info("Starting Redis container...")
             cmd = [
-                "docker", "run", "-d",
-                "--name", self.redis_container_name,
-                "-p", "6379:6379",
-                "redis:7-alpine"
+                "docker",
+                "run",
+                "-d",
+                "--name",
+                self.redis_container_name,
+                "-p",
+                "6379:6379",
+                "redis:7-alpine",
             ]
 
-            process = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
+            process = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
             if process.returncode == 0:
-                result["actions"].append(f"🐳 Redis Container '{self.redis_container_name}' gestartet")
+                result["actions"].append(
+                    f"🐳 Redis Container '{self.redis_container_name}' gestartet"
+                )
 
                 # Wait for Redis to be ready
                 time.sleep(2)
@@ -113,10 +112,16 @@ class CacheManager:
                     result["actions"].append("✅ Redis läuft auf Port 6379")
                     result["actions"].append("✅ Cache-System voll funktionsfähig")
                 else:
-                    result["message"] = "Redis gestartet, aber Verbindung fehlgeschlagen"
-                    result["actions"].append("⚠️ Redis Container läuft, aber keine Verbindung möglich")
+                    result[
+                        "message"
+                    ] = "Redis gestartet, aber Verbindung fehlgeschlagen"
+                    result["actions"].append(
+                        "⚠️ Redis Container läuft, aber keine Verbindung möglich"
+                    )
             else:
-                result["message"] = f"Fehler beim Starten des Redis Containers: {process.stderr}"
+                result[
+                    "message"
+                ] = f"Fehler beim Starten des Redis Containers: {process.stderr}"
                 result["actions"].append(f"❌ Docker-Fehler: {process.stderr[:100]}")
 
         except subprocess.TimeoutExpired:
@@ -128,13 +133,16 @@ class CacheManager:
 
         return result
 
-    def fill_caches(self) -> Dict[str, Any]:
+    def fill_caches(self) -> dict[str, Any]:
         """Check and fill all cache systems"""
         result = {
             "redis": {"status": "unknown", "actions": []},
-            "sqlite": {"status": "ready", "actions": ["✅ SQLite Datenbanken initialisiert"]},
+            "sqlite": {
+                "status": "ready",
+                "actions": ["✅ SQLite Datenbanken initialisiert"],
+            },
             "memory": {"status": "active", "actions": ["✅ Agent-Memories geladen"]},
-            "summary": ""
+            "summary": "",
         }
 
         # Check and start Redis
@@ -150,7 +158,9 @@ class CacheManager:
                 self.redis_client.set("ki_autoagent:version", __version_display__)
                 result["redis"]["actions"].append("✅ Redis Cache initialisiert")
             except Exception as e:
-                result["redis"]["actions"].append(f"⚠️ Cache-Initialisierung fehlgeschlagen: {e}")
+                result["redis"]["actions"].append(
+                    f"⚠️ Cache-Initialisierung fehlgeschlagen: {e}"
+                )
 
         # Generate summary
         all_actions = []
@@ -163,6 +173,8 @@ class CacheManager:
         if result["redis"]["status"] == "active":
             result["summary"] += "\n\n✅ Alle Cache-Systeme sind aktiv und gefüllt!"
         else:
-            result["summary"] += "\n\n⚠️ Redis konnte nicht gestartet werden. Andere Caches sind aktiv."
+            result[
+                "summary"
+            ] += "\n\n⚠️ Redis konnte nicht gestartet werden. Andere Caches sind aktiv."
 
         return result

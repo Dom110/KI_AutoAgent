@@ -4,9 +4,9 @@ Manages agent lifecycle and routing
 """
 
 import logging
-from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 from .base.base_agent import BaseAgent, TaskRequest, TaskResult
 from .specialized.orchestrator_agent_v2 import OrchestratorAgentV2
@@ -14,6 +14,7 @@ from .specialized.orchestrator_agent_v2 import OrchestratorAgentV2
 # Import capabilities loader
 try:
     from config.capabilities_loader import apply_capabilities_to_agent
+
     CAPABILITIES_AVAILABLE = True
 except ImportError:
     CAPABILITIES_AVAILABLE = False
@@ -21,8 +22,10 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
 class AgentType(Enum):
     """Agent type enumeration"""
+
     ORCHESTRATOR = "orchestrator"
     ARCHITECT = "architect"
     CODESMITH = "codesmith"
@@ -35,15 +38,18 @@ class AgentType(Enum):
     FIXER_GPT = "fixer_gpt"  # v5.1.0: Alternative fixer using GPT
     PERFORMANCE = "performance_bot"
 
+
 @dataclass
 class RegisteredAgent:
     """Registered agent information"""
+
     agent_id: str
     agent_type: AgentType
     instance: BaseAgent
-    capabilities: List[str]
+    capabilities: list[str]
     model: str
     status: str = "ready"
+
 
 class AgentRegistry:
     """
@@ -64,7 +70,7 @@ class AgentRegistry:
             return
 
         self._initialized = True
-        self.agents: Dict[str, RegisteredAgent] = {}
+        self.agents: dict[str, RegisteredAgent] = {}
         self.default_agent = AgentType.ORCHESTRATOR
 
         logger.info("🎯 Agent Registry initialized")
@@ -81,6 +87,7 @@ class AgentRegistry:
         # Register specialized agents
         try:
             from .specialized.research_agent import ResearchAgent
+
             await self.register_agent(ResearchAgent())
             logger.info("✅ ResearchAgent registered")
         except Exception as e:
@@ -89,6 +96,7 @@ class AgentRegistry:
         # Register FixerGPT (v5.1.0: Alternative fixer)
         try:
             from .specialized.fixer_gpt_agent import FixerGPTAgent
+
             await self.register_agent(FixerGPTAgent())
             logger.info("✅ FixerGPTAgent registered")
         except Exception as e:
@@ -115,9 +123,13 @@ class AgentRegistry:
                 # Update agent's file tools settings - these attributes exist in BaseAgent
                 # We need to update them after config is modified
                 if isinstance(agent.config.capabilities, dict):
-                    agent.can_write = agent.config.capabilities.get('file_write', False)
-                    agent.allowed_paths = agent.config.capabilities.get('allowed_paths', [])
-                    logger.info(f"✅ Applied file write permissions to {agent.config.agent_id}: can_write={agent.can_write}")
+                    agent.can_write = agent.config.capabilities.get("file_write", False)
+                    agent.allowed_paths = agent.config.capabilities.get(
+                        "allowed_paths", []
+                    )
+                    logger.info(
+                        f"✅ Applied file write permissions to {agent.config.agent_id}: can_write={agent.can_write}"
+                    )
                 else:
                     # Old format or no capabilities
                     agent.can_write = False
@@ -133,11 +145,14 @@ class AgentRegistry:
             if isinstance(agent.config.capabilities, dict):
                 # New format - extract capabilities from dict or use default list
                 caps_list = []
-                if agent.config.capabilities.get('file_write', False):
-                    caps_list.append('file_write')
+                if agent.config.capabilities.get("file_write", False):
+                    caps_list.append("file_write")
             elif isinstance(agent.config.capabilities, list):
                 # Old format - list of capability enums
-                caps_list = [cap.value if hasattr(cap, 'value') else str(cap) for cap in agent.config.capabilities]
+                caps_list = [
+                    cap.value if hasattr(cap, "value") else str(cap)
+                    for cap in agent.config.capabilities
+                ]
             else:
                 caps_list = []
 
@@ -147,7 +162,7 @@ class AgentRegistry:
                 instance=agent,
                 capabilities=caps_list,
                 model=agent.config.model,
-                status="ready"
+                status="ready",
             )
 
             self.agents[agent_id] = registered
@@ -164,7 +179,7 @@ class AgentRegistry:
             logger.error(f"Failed to register agent: {e}")
             return False
 
-    def get_agent(self, agent_id: str) -> Optional[BaseAgent]:
+    def get_agent(self, agent_id: str) -> BaseAgent | None:
         """
         Get agent by ID
         """
@@ -174,27 +189,26 @@ class AgentRegistry:
         logger.warning(f"Agent {agent_id} not found")
         return None
 
-    def get_available_agents(self) -> List[Dict[str, Any]]:
+    def get_available_agents(self) -> list[dict[str, Any]]:
         """
         Get list of available agents
         """
         agents = []
         for agent_id, registered in self.agents.items():
-            agents.append({
-                "id": agent_id,
-                "name": registered.instance.config.full_name,
-                "model": registered.model,
-                "capabilities": registered.capabilities,
-                "status": registered.status
-            })
+            agents.append(
+                {
+                    "id": agent_id,
+                    "name": registered.instance.config.full_name,
+                    "model": registered.model,
+                    "capabilities": registered.capabilities,
+                    "status": registered.status,
+                }
+            )
 
         return agents
 
     async def dispatch_task(
-        self,
-        agent_id: str,
-        request: TaskRequest,
-        cancel_token=None
+        self, agent_id: str, request: TaskRequest, cancel_token=None
     ) -> TaskResult:
         """
         Dispatch task to specific agent
@@ -211,7 +225,7 @@ class AgentRegistry:
                     status="error",
                     content="No agents available",
                     agent="system",
-                    execution_time=0
+                    execution_time=0,
                 )
 
         try:
@@ -231,7 +245,9 @@ class AgentRegistry:
             return result
 
         except Exception as e:
-            logger.error(f"Error dispatching task to {agent_id}: {e}", exc_info=True)  # Added stack trace
+            logger.error(
+                f"Error dispatching task to {agent_id}: {e}", exc_info=True
+            )  # Added stack trace
 
             # Mark agent as ready
             if agent_id in self.agents:
@@ -241,10 +257,10 @@ class AgentRegistry:
                 status="error",
                 content=f"Agent execution failed: {str(e)}",
                 agent=agent_id,
-                execution_time=0  # Ensure execution_time is set
+                execution_time=0,  # Ensure execution_time is set
             )
 
-    def find_agent_by_capability(self, capability: str) -> Optional[BaseAgent]:
+    def find_agent_by_capability(self, capability: str) -> BaseAgent | None:
         """
         Find agent with specific capability
         """
@@ -254,7 +270,7 @@ class AgentRegistry:
 
         return None
 
-    def get_agents_by_capability(self, capability: str) -> List[BaseAgent]:
+    def get_agents_by_capability(self, capability: str) -> list[BaseAgent]:
         """
         Get all agents with specific capability
         """
@@ -265,22 +281,21 @@ class AgentRegistry:
 
         return agents
 
-    async def broadcast_message(self, message: Dict[str, Any]):
+    async def broadcast_message(self, message: dict[str, Any]):
         """
         Broadcast message to all agents
         """
         for agent_id, registered in self.agents.items():
             try:
                 # Send via communication bus if available
-                if hasattr(registered.instance, 'communication_bus'):
+                if hasattr(registered.instance, "communication_bus"):
                     await registered.instance.communication_bus.publish(
-                        "agent.broadcast",
-                        message
+                        "agent.broadcast", message
                     )
             except Exception as e:
                 logger.error(f"Failed to broadcast to {agent_id}: {e}")
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """
         Get registry status
         """
@@ -288,7 +303,7 @@ class AgentRegistry:
             "total_agents": len(self.agents),
             "ready_agents": sum(1 for a in self.agents.values() if a.status == "ready"),
             "busy_agents": sum(1 for a in self.agents.values() if a.status == "busy"),
-            "agents": self.get_available_agents()
+            "agents": self.get_available_agents(),
         }
 
     async def shutdown(self):
@@ -300,7 +315,7 @@ class AgentRegistry:
         for agent_id, registered in self.agents.items():
             try:
                 # Call agent cleanup if available
-                if hasattr(registered.instance, 'cleanup'):
+                if hasattr(registered.instance, "cleanup"):
                     await registered.instance.cleanup()
 
                 logger.info(f"✅ Agent {agent_id} shutdown complete")
@@ -311,8 +326,10 @@ class AgentRegistry:
         self.agents.clear()
         logger.info("✅ All agents shutdown complete")
 
+
 # Global registry instance
 _registry = None
+
 
 def get_agent_registry() -> AgentRegistry:
     """Get global agent registry instance"""

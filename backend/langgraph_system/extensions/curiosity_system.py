@@ -16,13 +16,14 @@ Example:
     Agent prioritizes Task B because it's novel and offers learning opportunity
 """
 
-import logging
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime
-from dataclasses import dataclass, field
 import json
-import numpy as np
+import logging
 from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -30,40 +31,42 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TaskEncounter:
     """Records when an agent encountered a type of task"""
+
     task_id: str
     task_description: str
     timestamp: datetime = field(default_factory=datetime.now)
-    task_embedding: Optional[List[float]] = None
-    outcome: Optional[str] = None  # "success", "failure", "in_progress"
+    task_embedding: list[float] | None = None
+    outcome: str | None = None  # "success", "failure", "in_progress"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "task_description": self.task_description,
             "timestamp": self.timestamp.isoformat(),
             "task_embedding": self.task_embedding,
-            "outcome": self.outcome
+            "outcome": self.outcome,
         }
 
 
 @dataclass
 class NoveltyScore:
     """Novelty assessment for a task"""
+
     task_description: str
     novelty: float  # 0.0 = completely familiar, 1.0 = completely novel
-    closest_match: Optional[str]  # Most similar previous task
+    closest_match: str | None  # Most similar previous task
     similarity_score: float  # How similar to closest match
     exploration_priority: float  # Final priority considering novelty + other factors
     reasoning: str  # Why this novelty score
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "task_description": self.task_description,
             "novelty": self.novelty,
             "closest_match": self.closest_match,
             "similarity_score": self.similarity_score,
             "exploration_priority": self.exploration_priority,
-            "reasoning": self.reasoning
+            "reasoning": self.reasoning,
         }
 
 
@@ -87,8 +90,8 @@ class NoveltyCalculator:
     def calculate_novelty(
         self,
         task_description: str,
-        task_embedding: Optional[List[float]],
-        history: List[TaskEncounter]
+        task_embedding: list[float] | None,
+        history: list[TaskEncounter],
     ) -> NoveltyScore:
         """
         Calculate how novel a task is compared to history
@@ -109,7 +112,7 @@ class NoveltyCalculator:
                 closest_match=None,
                 similarity_score=0.0,
                 exploration_priority=1.0,
-                reasoning="No previous task history - completely novel"
+                reasoning="No previous task history - completely novel",
             )
 
         # If no embeddings available, fall back to keyword matching
@@ -120,7 +123,9 @@ class NoveltyCalculator:
         similarities = []
         for encounter in history:
             if encounter.task_embedding:
-                similarity = self._cosine_similarity(task_embedding, encounter.task_embedding)
+                similarity = self._cosine_similarity(
+                    task_embedding, encounter.task_embedding
+                )
                 similarities.append((similarity, encounter))
 
         if not similarities:
@@ -143,7 +148,7 @@ class NoveltyCalculator:
         elif max_similarity > self.novelty_threshold:
             reasoning = f"Somewhat similar to '{closest_encounter.task_description[:50]}...' - familiar pattern"
         else:
-            reasoning = f"Different from previous tasks - novel territory"
+            reasoning = "Different from previous tasks - novel territory"
 
         # Exploration priority = novelty with bonus for completely new domains
         exploration_priority = novelty
@@ -156,13 +161,11 @@ class NoveltyCalculator:
             closest_match=closest_encounter.task_description,
             similarity_score=max_similarity,
             exploration_priority=exploration_priority,
-            reasoning=reasoning
+            reasoning=reasoning,
         )
 
     def _calculate_keyword_novelty(
-        self,
-        task_description: str,
-        history: List[TaskEncounter]
+        self, task_description: str, history: list[TaskEncounter]
     ) -> NoveltyScore:
         """
         Fallback: Calculate novelty using keyword overlap
@@ -190,9 +193,13 @@ class NoveltyCalculator:
         novelty = 1.0 - max_overlap
 
         if max_overlap > 0.7:
-            reasoning = f"Many shared keywords with '{closest_match[:50]}...' - familiar task"
+            reasoning = (
+                f"Many shared keywords with '{closest_match[:50]}...' - familiar task"
+            )
         elif max_overlap > 0.3:
-            reasoning = f"Some shared keywords with '{closest_match[:50]}...' - related task"
+            reasoning = (
+                f"Some shared keywords with '{closest_match[:50]}...' - related task"
+            )
         else:
             reasoning = "Few shared keywords - novel task type"
 
@@ -202,11 +209,11 @@ class NoveltyCalculator:
             closest_match=closest_match,
             similarity_score=max_overlap,
             exploration_priority=novelty,
-            reasoning=reasoning
+            reasoning=reasoning,
         )
 
     @staticmethod
-    def _cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
+    def _cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
         """Calculate cosine similarity between two vectors"""
         if len(vec1) != len(vec2):
             return 0.0
@@ -233,10 +240,7 @@ class CuriosityModule:
     """
 
     def __init__(
-        self,
-        agent_name: str,
-        storage_path: Optional[str] = None,
-        embedding_function=None
+        self, agent_name: str, storage_path: str | None = None, embedding_function=None
     ):
         """
         Initialize curiosity module
@@ -250,15 +254,12 @@ class CuriosityModule:
         self.storage_path = storage_path
 
         # Task encounter history
-        self.task_history: List[TaskEncounter] = []
+        self.task_history: list[TaskEncounter] = []
 
         # Task category statistics
-        self.category_stats: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
-            "count": 0,
-            "successes": 0,
-            "failures": 0,
-            "last_encounter": None
-        })
+        self.category_stats: dict[str, dict[str, Any]] = defaultdict(
+            lambda: {"count": 0, "successes": 0, "failures": 0, "last_encounter": None}
+        )
 
         # Novelty calculator
         self.novelty_calculator = NoveltyCalculator(embedding_function)
@@ -272,9 +273,9 @@ class CuriosityModule:
         self,
         task_id: str,
         task_description: str,
-        task_embedding: Optional[List[float]] = None,
-        outcome: Optional[str] = None,
-        category: Optional[str] = None
+        task_embedding: list[float] | None = None,
+        outcome: str | None = None,
+        category: str | None = None,
     ):
         """
         Record that agent encountered a task
@@ -290,7 +291,7 @@ class CuriosityModule:
             task_id=task_id,
             task_description=task_description,
             task_embedding=task_embedding,
-            outcome=outcome
+            outcome=outcome,
         )
 
         self.task_history.append(encounter)
@@ -306,7 +307,9 @@ class CuriosityModule:
             elif outcome == "failure":
                 stats["failures"] += 1
 
-        logger.info(f"📝 [{self.agent_name}] Recorded task encounter: {task_description[:50]}...")
+        logger.info(
+            f"📝 [{self.agent_name}] Recorded task encounter: {task_description[:50]}..."
+        )
         if outcome:
             logger.info(f"   Outcome: {outcome}")
 
@@ -314,9 +317,9 @@ class CuriosityModule:
         self,
         task_description: str,
         base_priority: float,
-        task_embedding: Optional[List[float]] = None,
-        category: Optional[str] = None
-    ) -> Tuple[float, NoveltyScore]:
+        task_embedding: list[float] | None = None,
+        category: str | None = None,
+    ) -> tuple[float, NoveltyScore]:
         """
         Calculate final task priority considering both importance and novelty
 
@@ -331,16 +334,14 @@ class CuriosityModule:
         """
         # Calculate novelty
         novelty_score = self.novelty_calculator.calculate_novelty(
-            task_description,
-            task_embedding,
-            self.task_history
+            task_description, task_embedding, self.task_history
         )
 
         # Combine base priority with exploration priority
         # exploration_weight determines how much we favor novel tasks
         final_priority = (
-            (1 - self.exploration_weight) * base_priority +
-            self.exploration_weight * novelty_score.exploration_priority
+            (1 - self.exploration_weight) * base_priority
+            + self.exploration_weight * novelty_score.exploration_priority
         )
 
         logger.info(f"🎯 [{self.agent_name}] Task priority calculation:")
@@ -352,13 +353,13 @@ class CuriosityModule:
 
         return final_priority, novelty_score
 
-    def get_exploration_summary(self) -> Dict[str, Any]:
+    def get_exploration_summary(self) -> dict[str, Any]:
         """Get summary of exploration history"""
         if not self.task_history:
             return {
                 "total_tasks": 0,
                 "unique_categories": 0,
-                "exploration_breadth": 0.0
+                "exploration_breadth": 0.0,
             }
 
         total = len(self.task_history)
@@ -368,7 +369,9 @@ class CuriosityModule:
         if categories > 0:
             category_counts = [stats["count"] for stats in self.category_stats.values()]
             # Standard deviation of category counts (normalized)
-            breadth = 1.0 - (np.std(category_counts) / (np.mean(category_counts) + 1e-6))
+            breadth = 1.0 - (
+                np.std(category_counts) / (np.mean(category_counts) + 1e-6)
+            )
             breadth = max(0.0, min(1.0, breadth))
         else:
             breadth = 0.0
@@ -377,7 +380,7 @@ class CuriosityModule:
             "total_tasks": total,
             "unique_categories": categories,
             "exploration_breadth": breadth,
-            "category_stats": dict(self.category_stats)
+            "category_stats": dict(self.category_stats),
         }
 
     def set_exploration_weight(self, weight: float):
@@ -389,7 +392,9 @@ class CuriosityModule:
                    1.0 = pure exploration (maximize novelty)
         """
         self.exploration_weight = max(0.0, min(1.0, weight))
-        logger.info(f"🔄 [{self.agent_name}] Exploration weight set to {self.exploration_weight:.2f}")
+        logger.info(
+            f"🔄 [{self.agent_name}] Exploration weight set to {self.exploration_weight:.2f}"
+        )
 
     def save_to_disk(self):
         """Persist exploration history to disk"""
@@ -401,10 +406,10 @@ class CuriosityModule:
             "task_history": [e.to_dict() for e in self.task_history],
             "category_stats": dict(self.category_stats),
             "exploration_weight": self.exploration_weight,
-            "summary": self.get_exploration_summary()
+            "summary": self.get_exploration_summary(),
         }
 
-        with open(self.storage_path, 'w') as f:
+        with open(self.storage_path, "w") as f:
             json.dump(data, f, indent=2)
 
         logger.info(f"💾 Saved curiosity module to {self.storage_path}")
@@ -415,7 +420,7 @@ class CuriosityModule:
             return
 
         try:
-            with open(self.storage_path, 'r') as f:
+            with open(self.storage_path) as f:
                 data = json.load(f)
 
             # Restore task history (without reconstructing full objects)
@@ -425,16 +430,19 @@ class CuriosityModule:
                     task_id=task_data["task_id"],
                     task_description=task_data["task_description"],
                     task_embedding=task_data.get("task_embedding"),
-                    outcome=task_data.get("outcome")
+                    outcome=task_data.get("outcome"),
                 )
                 self.task_history.append(encounter)
 
-            self.category_stats = defaultdict(lambda: {
-                "count": 0,
-                "successes": 0,
-                "failures": 0,
-                "last_encounter": None
-            }, data.get("category_stats", {}))
+            self.category_stats = defaultdict(
+                lambda: {
+                    "count": 0,
+                    "successes": 0,
+                    "failures": 0,
+                    "last_encounter": None,
+                },
+                data.get("category_stats", {}),
+            )
 
             self.exploration_weight = data.get("exploration_weight", 0.3)
 

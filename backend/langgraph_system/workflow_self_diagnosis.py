@@ -5,17 +5,15 @@ Implements comprehensive self-diagnosis, validation, and healing capabilities
 Based on extensive research of workflow orchestration anti-patterns and failures (2024)
 """
 
-import logging
 import asyncio
-from typing import Dict, List, Any, Tuple, Optional, Set
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from enum import Enum
-import re
-import json
+import logging
 from collections import defaultdict, deque
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
-from .state import ExtendedAgentState, ExecutionStep, TaskLedger, ProgressLedger
+from .state import ExecutionStep, ExtendedAgentState
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +21,10 @@ logger = logging.getLogger(__name__)
 # =================== KNOWN ANTI-PATTERNS DATABASE ===================
 # Based on Internet Research (2024)
 
+
 class AntiPatternType(Enum):
     """Categorization of known workflow anti-patterns"""
+
     SELF_ROUTING = "self_routing"  # Agent routing to itself
     CIRCULAR_DEPENDENCY = "circular_dependency"  # A->B->C->A
     UNBOUNDED_DELEGATION = "unbounded_delegation"  # Infinite agent spawning
@@ -40,6 +40,7 @@ class AntiPatternType(Enum):
 @dataclass
 class KnownAntiPattern:
     """Definition of a known anti-pattern from research"""
+
     type: AntiPatternType
     severity: str  # "CRITICAL", "HIGH", "MEDIUM", "LOW"
     description: str
@@ -58,7 +59,7 @@ class KnownAntiPatternsDatabase:
         self.patterns = self._initialize_patterns()
         self.detection_history = deque(maxlen=100)  # Track recent detections
 
-    def _initialize_patterns(self) -> List[KnownAntiPattern]:
+    def _initialize_patterns(self) -> list[KnownAntiPattern]:
         """Initialize database with researched anti-patterns"""
         return [
             KnownAntiPattern(
@@ -67,7 +68,7 @@ class KnownAntiPatternsDatabase:
                 description="Orchestrator routing to itself causes infinite loops",
                 detection_pattern="agent=='orchestrator' and destination=='orchestrator'",
                 suggested_fix="Mark orchestrator steps as completed immediately",
-                source="KI AutoAgent v5.4.2 bug, Microsoft Azure AI patterns"
+                source="KI AutoAgent v5.4.2 bug, Microsoft Azure AI patterns",
             ),
             KnownAntiPattern(
                 type=AntiPatternType.CIRCULAR_DEPENDENCY,
@@ -75,7 +76,7 @@ class KnownAntiPatternsDatabase:
                 description="Circular task dependencies create deadlock",
                 detection_pattern="Task A depends on B, B depends on C, C depends on A",
                 suggested_fix="Break cycle by removing weakest dependency link",
-                source="Flowsana documentation, Stack Overflow #62439522"
+                source="Flowsana documentation, Stack Overflow #62439522",
             ),
             KnownAntiPattern(
                 type=AntiPatternType.UNBOUNDED_DELEGATION,
@@ -83,7 +84,7 @@ class KnownAntiPatternsDatabase:
                 description="Agents spawning sub-agents without limits",
                 detection_pattern="delegation_depth > 5 or spawned_agents > 10",
                 suggested_fix="Implement max_steps, max_children, max_rounds limits",
-                source="Multi-Agent Gen AI Anti-Patterns (Arman Kamran, 2025)"
+                source="Multi-Agent Gen AI Anti-Patterns (Arman Kamran, 2025)",
             ),
             KnownAntiPattern(
                 type=AntiPatternType.CONTEXT_COLLAPSE,
@@ -91,7 +92,7 @@ class KnownAntiPatternsDatabase:
                 description="Context lost in deep collaboration chains",
                 detection_pattern="collaboration_count > 10 and no escalation",
                 suggested_fix="Escalate to higher-order agent or human-in-loop",
-                source="LangChain multi-agent systems best practices"
+                source="LangChain multi-agent systems best practices",
             ),
             KnownAntiPattern(
                 type=AntiPatternType.INCREMENTAL_LOCKING,
@@ -99,7 +100,7 @@ class KnownAntiPatternsDatabase:
                 description="Acquiring locks without strict order causes deadlock",
                 detection_pattern="multiple agents waiting for same resources",
                 suggested_fix="Enforce strict lock acquisition order",
-                source="InfoWorld deadlock anti-patterns #3"
+                source="InfoWorld deadlock anti-patterns #3",
             ),
             KnownAntiPattern(
                 type=AntiPatternType.NO_ERROR_HANDLING,
@@ -107,7 +108,7 @@ class KnownAntiPatternsDatabase:
                 description="Workflow assumes services never fail",
                 detection_pattern="no retry policy or error handling defined",
                 suggested_fix="Add exponential backoff retry with max attempts",
-                source="Google Cloud Workflows best practices"
+                source="Google Cloud Workflows best practices",
             ),
             KnownAntiPattern(
                 type=AntiPatternType.CYCLIC_PROCESS,
@@ -115,7 +116,7 @@ class KnownAntiPatternsDatabase:
                 description="Ruleset A calls B, B calls A back",
                 detection_pattern="repeated pattern in execution history",
                 suggested_fix="Add recursion detection with event origin tracking",
-                source="Fluent Commerce workflow anti-patterns"
+                source="Fluent Commerce workflow anti-patterns",
             ),
             KnownAntiPattern(
                 type=AntiPatternType.STATE_INCONSISTENCY,
@@ -123,7 +124,7 @@ class KnownAntiPatternsDatabase:
                 description="Invalid state transitions (completed->pending)",
                 detection_pattern="status transition violates state machine rules",
                 suggested_fix="Enforce state machine transition validation",
-                source="Symfony Workflow documentation"
+                source="Symfony Workflow documentation",
             ),
             KnownAntiPattern(
                 type=AntiPatternType.RESOURCE_EXHAUSTION,
@@ -131,11 +132,13 @@ class KnownAntiPatternsDatabase:
                 description="Unlimited growth of messages/memory usage",
                 detection_pattern="message_count > 1000 or memory > threshold",
                 suggested_fix="Implement circuit breakers and resource limits",
-                source="DevOps anti-patterns ALPACKED"
-            )
+                source="DevOps anti-patterns ALPACKED",
+            ),
         ]
 
-    def detect_patterns(self, state: ExtendedAgentState) -> List[Tuple[KnownAntiPattern, str]]:
+    def detect_patterns(
+        self, state: ExtendedAgentState
+    ) -> list[tuple[KnownAntiPattern, str]]:
         """Detect any known anti-patterns in current state"""
         detected = []
 
@@ -143,15 +146,19 @@ class KnownAntiPatternsDatabase:
             if self._check_pattern(pattern, state):
                 reason = self._get_detection_reason(pattern, state)
                 detected.append((pattern, reason))
-                self.detection_history.append({
-                    "pattern": pattern.type.value,
-                    "timestamp": datetime.now(),
-                    "severity": pattern.severity
-                })
+                self.detection_history.append(
+                    {
+                        "pattern": pattern.type.value,
+                        "timestamp": datetime.now(),
+                        "severity": pattern.severity,
+                    }
+                )
 
         return detected
 
-    def _check_pattern(self, pattern: KnownAntiPattern, state: ExtendedAgentState) -> bool:
+    def _check_pattern(
+        self, pattern: KnownAntiPattern, state: ExtendedAgentState
+    ) -> bool:
         """Check if a specific anti-pattern is present"""
 
         if pattern.type == AntiPatternType.SELF_ROUTING:
@@ -187,8 +194,10 @@ class KnownAntiPatternsDatabase:
             if len(history) >= 4:
                 # Check for A->B->A->B pattern
                 last_4 = history[-4:]
-                if (last_4[0]["to"] == last_4[2]["to"] and
-                    last_4[1]["to"] == last_4[3]["to"]):
+                if (
+                    last_4[0]["to"] == last_4[2]["to"]
+                    and last_4[1]["to"] == last_4[3]["to"]
+                ):
                     return True
 
         elif pattern.type == AntiPatternType.STATE_INCONSISTENCY:
@@ -202,10 +211,10 @@ class KnownAntiPatternsDatabase:
 
         return False
 
-    def _has_circular_dependencies(self, steps: List[ExecutionStep]) -> bool:
+    def _has_circular_dependencies(self, steps: list[ExecutionStep]) -> bool:
         """Detect circular dependencies using DFS"""
 
-        def has_cycle_from(step_id: str, visited: Set[str], path: Set[str]) -> bool:
+        def has_cycle_from(step_id: str, visited: set[str], path: set[str]) -> bool:
             visited.add(step_id)
             path.add(step_id)
 
@@ -228,7 +237,9 @@ class KnownAntiPatternsDatabase:
                     return True
         return False
 
-    def _get_detection_reason(self, pattern: KnownAntiPattern, state: ExtendedAgentState) -> str:
+    def _get_detection_reason(
+        self, pattern: KnownAntiPattern, state: ExtendedAgentState
+    ) -> str:
         """Get specific reason for pattern detection"""
 
         if pattern.type == AntiPatternType.SELF_ROUTING:
@@ -245,6 +256,7 @@ class KnownAntiPatternsDatabase:
 
 # =================== WORKFLOW INVARIANTS ===================
 
+
 class WorkflowInvariants:
     """
     Explicit invariants that must ALWAYS be true
@@ -255,7 +267,7 @@ class WorkflowInvariants:
         self.invariants = self._define_invariants()
         self.violations = []
 
-    def _define_invariants(self) -> List[Dict[str, Any]]:
+    def _define_invariants(self) -> list[dict[str, Any]]:
         """Define all system invariants"""
         return [
             {
@@ -266,7 +278,7 @@ class WorkflowInvariants:
                     step.agent == "orchestrator" and step.status == "pending"
                     for step in state.get("execution_plan", [])
                 ),
-                "severity": "CRITICAL"
+                "severity": "CRITICAL",
             },
             {
                 "id": "INV002",
@@ -276,69 +288,71 @@ class WorkflowInvariants:
                     step.id in step.dependencies
                     for step in state.get("execution_plan", [])
                 ),
-                "severity": "CRITICAL"
+                "severity": "CRITICAL",
             },
             {
                 "id": "INV003",
                 "name": "Valid status transitions",
                 "description": "Status transitions must follow state machine rules",
                 "check": lambda state: self._check_valid_transitions(state),
-                "severity": "HIGH"
+                "severity": "HIGH",
             },
             {
                 "id": "INV004",
                 "name": "No duplicate step IDs",
                 "description": "All step IDs must be unique",
                 "check": lambda state: self._check_unique_ids(state),
-                "severity": "CRITICAL"
+                "severity": "CRITICAL",
             },
             {
                 "id": "INV005",
                 "name": "Dependencies exist",
                 "description": "All referenced dependencies must exist",
                 "check": lambda state: self._check_dependencies_exist(state),
-                "severity": "HIGH"
+                "severity": "HIGH",
             },
             {
                 "id": "INV006",
                 "name": "Resource limits",
                 "description": "Resource usage within limits",
                 "check": lambda state: (
-                    len(state.get("messages", [])) < 1000 and
-                    len(state.get("execution_plan", [])) < 50
+                    len(state.get("messages", [])) < 1000
+                    and len(state.get("execution_plan", [])) < 50
                 ),
-                "severity": "MEDIUM"
+                "severity": "MEDIUM",
             },
             {
                 "id": "INV007",
                 "name": "No infinite escalation",
                 "description": "Escalation level must be bounded",
                 "check": lambda state: state.get("escalation_level", 0) <= 7,
-                "severity": "HIGH"
+                "severity": "HIGH",
             },
             {
                 "id": "INV008",
                 "name": "Agent capabilities match",
                 "description": "Agents assigned tasks they can handle",
                 "check": lambda state: self._check_agent_capabilities(state),
-                "severity": "MEDIUM"
-            }
+                "severity": "MEDIUM",
+            },
         ]
 
-    def check_all(self, state: ExtendedAgentState) -> Tuple[bool, List[Dict]]:
+    def check_all(self, state: ExtendedAgentState) -> tuple[bool, list[dict]]:
         """Check all invariants and return violations"""
         self.violations = []
 
         for invariant in self.invariants:
             try:
                 if not invariant["check"](state):
-                    self.violations.append({
-                        "id": invariant["id"],
-                        "name": invariant["name"],
-                        "description": invariant["description"],
-                        "severity": invariant["severity"],
-                        "timestamp": datetime.now()
-                    })
+                    self.violations.append(
+                        {
+                            "id": invariant["id"],
+                            "name": invariant["name"],
+                            "description": invariant["description"],
+                            "severity": invariant["severity"],
+                            "timestamp": datetime.now(),
+                        }
+                    )
             except Exception as e:
                 logger.error(f"Error checking invariant {invariant['id']}: {e}")
 
@@ -353,7 +367,7 @@ class WorkflowInvariants:
             "failed": ["pending"],  # Allow retry
             "blocked": ["pending", "cancelled"],
             "timeout": ["pending", "failed"],
-            "cancelled": []  # Terminal
+            "cancelled": [],  # Terminal
         }
 
         # Would need status history tracking in ExecutionStep
@@ -393,9 +407,30 @@ class WorkflowInvariants:
             "fixer": ["fix", "repair", "resolve", "debug", "correct"],
             "research": ["search", "research", "find", "investigate", "analyze"],
             "docbot": ["document", "explain", "describe", "write", "readme", "comment"],
-            "performance": ["optimize", "speed", "improve", "benchmark", "faster", "efficient"],
-            "tradestrat": ["trading", "strategy", "backtest", "market", "portfolio", "risk"],
-            "opus_arbitrator": ["conflict", "decide", "arbitrate", "resolve", "choose", "final"]
+            "performance": [
+                "optimize",
+                "speed",
+                "improve",
+                "benchmark",
+                "faster",
+                "efficient",
+            ],
+            "tradestrat": [
+                "trading",
+                "strategy",
+                "backtest",
+                "market",
+                "portfolio",
+                "risk",
+            ],
+            "opus_arbitrator": [
+                "conflict",
+                "decide",
+                "arbitrate",
+                "resolve",
+                "choose",
+                "final",
+            ],
         }
 
         for step in state.get("execution_plan", []):
@@ -407,19 +442,25 @@ class WorkflowInvariants:
                 # Check if task matches any capability
                 if not any(cap in task_lower for cap in capabilities):
                     # Suggest better suited agent
-                    suggestion = self._suggest_better_agent(agent, task_lower, agent_capabilities)
+                    suggestion = self._suggest_better_agent(
+                        agent, task_lower, agent_capabilities
+                    )
                     if suggestion:
                         logger.warning(
                             f"⚠️ Agent '{agent}' may not be optimal for task: {step.task[:50]}...\n"
                             f"   💡 Suggestion: Consider using '{suggestion}' instead"
                         )
                     else:
-                        logger.warning(f"⚠️ Agent '{agent}' may not be suited for task: {step.task[:50]}")
+                        logger.warning(
+                            f"⚠️ Agent '{agent}' may not be suited for task: {step.task[:50]}"
+                        )
                     # Not a hard failure, just warning
 
         return True
 
-    def _suggest_better_agent(self, current_agent: str, task: str, agent_capabilities: dict) -> Optional[str]:
+    def _suggest_better_agent(
+        self, current_agent: str, task: str, agent_capabilities: dict
+    ) -> str | None:
         """
         Suggest better suited agent based on task keywords.
         v5.7.0: New method for intelligent agent suggestions
@@ -445,13 +486,16 @@ class WorkflowInvariants:
 
 # =================== PRE-EXECUTION VALIDATION ===================
 
+
 class PreExecutionValidator:
     """
     Comprehensive pre-execution validation system
     Performs multiple validation passes with increasing depth
     """
 
-    def __init__(self, known_patterns: KnownAntiPatternsDatabase, invariants: WorkflowInvariants):
+    def __init__(
+        self, known_patterns: KnownAntiPatternsDatabase, invariants: WorkflowInvariants
+    ):
         self.known_patterns = known_patterns
         self.invariants = invariants
         self.validation_passes = 0
@@ -459,10 +503,8 @@ class PreExecutionValidator:
         self.validation_history = []
 
     async def validate_comprehensive(
-        self,
-        state: ExtendedAgentState,
-        fix_issues: bool = True
-    ) -> Tuple[bool, List[Dict], ExtendedAgentState]:
+        self, state: ExtendedAgentState, fix_issues: bool = True
+    ) -> tuple[bool, list[dict], ExtendedAgentState]:
         """
         Perform comprehensive validation with multiple passes
         Returns: (is_valid, issues_found, potentially_fixed_state)
@@ -478,29 +520,40 @@ class PreExecutionValidator:
             pass_issues = []
 
             # 1. Check invariants
-            invariant_valid, invariant_violations = self.invariants.check_all(current_state)
+            invariant_valid, invariant_violations = self.invariants.check_all(
+                current_state
+            )
             if not invariant_valid:
-                logger.error(f"  ❌ Found {len(invariant_violations)} invariant violations")
-                pass_issues.extend([{
-                    "type": "INVARIANT_VIOLATION",
-                    "pass": pass_num + 1,
-                    **violation
-                } for violation in invariant_violations])
+                logger.error(
+                    f"  ❌ Found {len(invariant_violations)} invariant violations"
+                )
+                pass_issues.extend(
+                    [
+                        {
+                            "type": "INVARIANT_VIOLATION",
+                            "pass": pass_num + 1,
+                            **violation,
+                        }
+                        for violation in invariant_violations
+                    ]
+                )
 
             # 2. Check for known anti-patterns
             detected_patterns = self.known_patterns.detect_patterns(current_state)
             if detected_patterns:
                 logger.warning(f"  ⚠️ Detected {len(detected_patterns)} anti-patterns")
                 for pattern, reason in detected_patterns:
-                    pass_issues.append({
-                        "type": "ANTI_PATTERN",
-                        "pass": pass_num + 1,
-                        "pattern": pattern.type.value,
-                        "severity": pattern.severity,
-                        "description": pattern.description,
-                        "reason": reason,
-                        "suggested_fix": pattern.suggested_fix
-                    })
+                    pass_issues.append(
+                        {
+                            "type": "ANTI_PATTERN",
+                            "pass": pass_num + 1,
+                            "pattern": pattern.type.value,
+                            "severity": pattern.severity,
+                            "description": pattern.description,
+                            "reason": reason,
+                            "suggested_fix": pattern.suggested_fix,
+                        }
+                    )
 
             # 3. Structural validation
             structural_issues = await self._validate_structure(current_state)
@@ -535,56 +588,68 @@ class PreExecutionValidator:
                 await asyncio.sleep(0.1)  # Brief pause between passes
 
         # Record validation results
-        self.validation_history.append({
-            "timestamp": datetime.now(),
-            "passes": self.validation_passes,
-            "issues_found": len(all_issues),
-            "is_valid": len(all_issues) == 0
-        })
+        self.validation_history.append(
+            {
+                "timestamp": datetime.now(),
+                "passes": self.validation_passes,
+                "issues_found": len(all_issues),
+                "is_valid": len(all_issues) == 0,
+            }
+        )
 
         # Only count CRITICAL and ERROR issues, not INFO or WARNING
-        critical_issues = [i for i in all_issues if i.get("severity") in ["CRITICAL", "ERROR", "HIGH"]]
+        critical_issues = [
+            i for i in all_issues if i.get("severity") in ["CRITICAL", "ERROR", "HIGH"]
+        ]
         is_valid = len(critical_issues) == 0
 
         if is_valid:
             logger.info("✅ Pre-Execution Validation PASSED")
         else:
-            logger.error(f"❌ Pre-Execution Validation FAILED with {len(all_issues)} issues")
+            logger.error(
+                f"❌ Pre-Execution Validation FAILED with {len(all_issues)} issues"
+            )
 
         return is_valid, all_issues, current_state
 
-    async def _validate_structure(self, state: ExtendedAgentState) -> List[Dict]:
+    async def _validate_structure(self, state: ExtendedAgentState) -> list[dict]:
         """Validate structural integrity of execution plan"""
         issues = []
         steps = state.get("execution_plan", [])
 
         # Check for empty plan
         if not steps:
-            issues.append({
-                "type": "STRUCTURAL",
-                "severity": "HIGH",
-                "description": "Empty execution plan"
-            })
+            issues.append(
+                {
+                    "type": "STRUCTURAL",
+                    "severity": "HIGH",
+                    "description": "Empty execution plan",
+                }
+            )
             return issues
 
         # Check step count
         if len(steps) > 20:
-            issues.append({
-                "type": "STRUCTURAL",
-                "severity": "MEDIUM",
-                "description": f"Plan has {len(steps)} steps (recommended max: 20)",
-                "suggested_fix": "Consider breaking into sub-tasks"
-            })
+            issues.append(
+                {
+                    "type": "STRUCTURAL",
+                    "severity": "MEDIUM",
+                    "description": f"Plan has {len(steps)} steps (recommended max: 20)",
+                    "suggested_fix": "Consider breaking into sub-tasks",
+                }
+            )
 
         # Check dependency depth
         max_depth = self._calculate_dependency_depth(steps)
         if max_depth > 5:
-            issues.append({
-                "type": "STRUCTURAL",
-                "severity": "MEDIUM",
-                "description": f"Dependency chain depth is {max_depth} (recommended max: 5)",
-                "suggested_fix": "Flatten dependency structure where possible"
-            })
+            issues.append(
+                {
+                    "type": "STRUCTURAL",
+                    "severity": "MEDIUM",
+                    "description": f"Dependency chain depth is {max_depth} (recommended max: 5)",
+                    "suggested_fix": "Flatten dependency structure where possible",
+                }
+            )
 
         # Check for orphaned steps (no dependencies and nothing depends on them)
         all_deps = set()
@@ -594,16 +659,18 @@ class PreExecutionValidator:
         for step in steps:
             if not step.dependencies and step.id not in all_deps:
                 if len(steps) > 1:  # Only issue if multiple steps
-                    issues.append({
-                        "type": "STRUCTURAL",
-                        "severity": "LOW",
-                        "description": f"Step {step.id} is orphaned (no dependencies)",
-                        "suggested_fix": "Verify step ordering"
-                    })
+                    issues.append(
+                        {
+                            "type": "STRUCTURAL",
+                            "severity": "LOW",
+                            "description": f"Step {step.id} is orphaned (no dependencies)",
+                            "suggested_fix": "Verify step ordering",
+                        }
+                    )
 
         return issues
 
-    async def _validate_semantics(self, state: ExtendedAgentState) -> List[Dict]:
+    async def _validate_semantics(self, state: ExtendedAgentState) -> list[dict]:
         """Validate semantic correctness of plan"""
         issues = []
         steps = state.get("execution_plan", [])
@@ -616,31 +683,35 @@ class PreExecutionValidator:
 
         for task_key, count in task_counts.items():
             if count > 1:
-                issues.append({
-                    "type": "SEMANTIC",
-                    "severity": "MEDIUM",
-                    "description": f"Duplicate task detected: {task_key} ({count} times)",
-                    "suggested_fix": "Consolidate duplicate tasks"
-                })
+                issues.append(
+                    {
+                        "type": "SEMANTIC",
+                        "severity": "MEDIUM",
+                        "description": f"Duplicate task detected: {task_key} ({count} times)",
+                        "suggested_fix": "Consolidate duplicate tasks",
+                    }
+                )
 
         # Check for conflicting agents (e.g., reviewer reviewing their own code)
         for i, step in enumerate(steps):
             if step.agent == "reviewer":
                 # Check if previous step was codesmith by same ID pattern
-                if i > 0 and steps[i-1].agent == "codesmith":
+                if i > 0 and steps[i - 1].agent == "codesmith":
                     # This is actually OK - reviewer reviews codesmith's work
                     pass
-                elif i > 0 and steps[i-1].agent == "reviewer":
-                    issues.append({
-                        "type": "SEMANTIC",
-                        "severity": "LOW",
-                        "description": "Reviewer following reviewer - may be redundant",
-                        "suggested_fix": "Consider consolidating review steps"
-                    })
+                elif i > 0 and steps[i - 1].agent == "reviewer":
+                    issues.append(
+                        {
+                            "type": "SEMANTIC",
+                            "severity": "LOW",
+                            "description": "Reviewer following reviewer - may be redundant",
+                            "suggested_fix": "Consider consolidating review steps",
+                        }
+                    )
 
         return issues
 
-    async def _validate_performance(self, state: ExtendedAgentState) -> List[Dict]:
+    async def _validate_performance(self, state: ExtendedAgentState) -> list[dict]:
         """Validate performance characteristics"""
         issues = []
         steps = state.get("execution_plan", [])
@@ -648,36 +719,44 @@ class PreExecutionValidator:
         # Estimate total execution time
         total_timeout = sum(step.timeout_seconds for step in steps)
         if total_timeout > 1800:  # 30 minutes
-            issues.append({
-                "type": "PERFORMANCE",
-                "severity": "MEDIUM",
-                "description": f"Estimated execution time: {total_timeout/60:.1f} minutes",
-                "suggested_fix": "Consider optimizing timeouts or parallelizing"
-            })
+            issues.append(
+                {
+                    "type": "PERFORMANCE",
+                    "severity": "MEDIUM",
+                    "description": f"Estimated execution time: {total_timeout/60:.1f} minutes",
+                    "suggested_fix": "Consider optimizing timeouts or parallelizing",
+                }
+            )
 
         # Check for parallelization opportunities
         parallel_groups = self._find_parallelizable_steps(steps)
         if len(parallel_groups) > 0:
             total_parallel = sum(len(group) for group in parallel_groups)
-            issues.append({
-                "type": "PERFORMANCE",
-                "severity": "INFO",
-                "description": f"Found {len(parallel_groups)} parallelizable groups ({total_parallel} steps)",
-                "suggested_fix": "Enable parallel execution for better performance"
-            })
+            issues.append(
+                {
+                    "type": "PERFORMANCE",
+                    "severity": "INFO",
+                    "description": f"Found {len(parallel_groups)} parallelizable groups ({total_parallel} steps)",
+                    "suggested_fix": "Enable parallel execution for better performance",
+                }
+            )
 
         return issues
 
-    async def _attempt_fixes(self, state: ExtendedAgentState, issues: List[Dict]) -> ExtendedAgentState:
+    async def _attempt_fixes(
+        self, state: ExtendedAgentState, issues: list[dict]
+    ) -> ExtendedAgentState:
         """Attempt to automatically fix detected issues"""
         fixed_state = state.copy()
         fixes_applied = []
 
         for issue in issues:
             if issue.get("severity") in ["CRITICAL", "HIGH"]:
-
                 # Fix orchestrator self-routing
-                if "orchestrator self-assignment" in issue.get("description", "").lower():
+                if (
+                    "orchestrator self-assignment"
+                    in issue.get("description", "").lower()
+                ):
                     for step in fixed_state["execution_plan"]:
                         if step.agent == "orchestrator" and step.status == "pending":
                             step.status = "completed"
@@ -693,7 +772,9 @@ class PreExecutionValidator:
                         if self._is_in_cycle(step, steps):
                             if step.dependencies:
                                 removed = step.dependencies.pop()
-                                fixes_applied.append(f"Removed circular dependency: {removed}")
+                                fixes_applied.append(
+                                    f"Removed circular dependency: {removed}"
+                                )
                                 logger.info(f"  🔧 Fixed: Removed dependency {removed}")
                                 break
 
@@ -707,14 +788,17 @@ class PreExecutionValidator:
                         logger.info("  🔧 Fixed: Trimmed message history")
 
         if fixes_applied:
-            fixed_state["execution_plan"] = list(fixed_state["execution_plan"])  # Trigger update
+            fixed_state["execution_plan"] = list(
+                fixed_state["execution_plan"]
+            )  # Trigger update
             logger.info(f"  ✅ Applied {len(fixes_applied)} fixes")
 
         return fixed_state
 
-    def _calculate_dependency_depth(self, steps: List[ExecutionStep]) -> int:
+    def _calculate_dependency_depth(self, steps: list[ExecutionStep]) -> int:
         """Calculate maximum dependency chain depth"""
-        def get_depth(step_id: str, steps_dict: Dict) -> int:
+
+        def get_depth(step_id: str, steps_dict: dict) -> int:
             step = steps_dict.get(step_id)
             if not step or not step.dependencies:
                 return 0
@@ -726,7 +810,9 @@ class PreExecutionValidator:
         steps_dict = {s.id: s for s in steps}
         return max(get_depth(s.id, steps_dict) for s in steps)
 
-    def _find_parallelizable_steps(self, steps: List[ExecutionStep]) -> List[List[ExecutionStep]]:
+    def _find_parallelizable_steps(
+        self, steps: list[ExecutionStep]
+    ) -> list[list[ExecutionStep]]:
         """Find groups of steps that can run in parallel"""
         groups = []
         processed = set()
@@ -749,12 +835,13 @@ class PreExecutionValidator:
 
         return groups
 
-    def _has_dependency_conflict(self, step1: ExecutionStep, step2: ExecutionStep, all_steps: List) -> bool:
+    def _has_dependency_conflict(
+        self, step1: ExecutionStep, step2: ExecutionStep, all_steps: list
+    ) -> bool:
         """Check if two steps have dependency conflicts"""
-        return (step1.id in step2.dependencies or
-                step2.id in step1.dependencies)
+        return step1.id in step2.dependencies or step2.id in step1.dependencies
 
-    def _is_in_cycle(self, step: ExecutionStep, all_steps: List) -> bool:
+    def _is_in_cycle(self, step: ExecutionStep, all_steps: list) -> bool:
         """Check if step is part of a dependency cycle"""
         visited = set()
         path = set()
@@ -782,6 +869,7 @@ class PreExecutionValidator:
 
 # =================== PATTERN RECOGNITION ===================
 
+
 class PatternRecognitionEngine:
     """
     Detects patterns and anomalies in workflow execution
@@ -793,59 +881,61 @@ class PatternRecognitionEngine:
         self.anomaly_threshold = 2.0  # Standard deviations
         self.known_patterns = self._initialize_patterns()
 
-    def _initialize_patterns(self) -> Dict[str, Any]:
+    def _initialize_patterns(self) -> dict[str, Any]:
         """Initialize pattern definitions"""
         return {
             "routing_loop": {
                 "description": "Same agent routed multiple times",
                 "detection": lambda history: self._detect_routing_loop(history),
-                "threshold": 3
+                "threshold": 3,
             },
             "collaboration_spiral": {
                 "description": "Reviewer-Fixer infinite loop",
                 "detection": lambda history: self._detect_collaboration_spiral(history),
-                "threshold": 4
+                "threshold": 4,
             },
             "stuck_progress": {
                 "description": "No progress in execution",
                 "detection": lambda metrics: self._detect_stuck_progress(metrics),
-                "threshold": 5
+                "threshold": 5,
             },
             "resource_spike": {
                 "description": "Sudden resource usage increase",
                 "detection": lambda metrics: self._detect_resource_spike(metrics),
-                "threshold": 2.0
+                "threshold": 2.0,
             },
             "timeout_cluster": {
                 "description": "Multiple timeouts in sequence",
                 "detection": lambda events: self._detect_timeout_cluster(events),
-                "threshold": 3
-            }
+                "threshold": 3,
+            },
         }
 
-    def analyze_patterns(self, state: ExtendedAgentState) -> Dict[str, Any]:
+    def analyze_patterns(self, state: ExtendedAgentState) -> dict[str, Any]:
         """Analyze state for patterns and anomalies"""
         analysis = {
             "patterns_detected": [],
             "anomalies": [],
             "risk_score": 0.0,
-            "recommendations": []
+            "recommendations": [],
         }
 
         # Extract relevant data
         history = state.get("collaboration_history", [])
-        steps = state.get("execution_plan", [])
-        messages = state.get("messages", [])
+        state.get("execution_plan", [])
+        state.get("messages", [])
 
         # Check for known patterns
         for pattern_name, pattern_def in self.known_patterns.items():
             if pattern_name in ["routing_loop", "collaboration_spiral"]:
                 if pattern_def["detection"](history):
-                    analysis["patterns_detected"].append({
-                        "name": pattern_name,
-                        "description": pattern_def["description"],
-                        "severity": "HIGH"
-                    })
+                    analysis["patterns_detected"].append(
+                        {
+                            "name": pattern_name,
+                            "description": pattern_def["description"],
+                            "severity": "HIGH",
+                        }
+                    )
                     analysis["risk_score"] += 0.3
 
         # Statistical anomaly detection
@@ -857,14 +947,16 @@ class PatternRecognitionEngine:
         if analysis["risk_score"] > 0.5:
             analysis["recommendations"].append("Consider halting workflow for review")
         if len(history) > 10:
-            analysis["recommendations"].append("High collaboration count - consider escalation")
+            analysis["recommendations"].append(
+                "High collaboration count - consider escalation"
+            )
 
         # Cap risk score at 1.0
         analysis["risk_score"] = min(1.0, analysis["risk_score"])
 
         return analysis
 
-    def _detect_routing_loop(self, history: List[Dict]) -> bool:
+    def _detect_routing_loop(self, history: list[dict]) -> bool:
         """Detect if same routing pattern repeats"""
         if len(history) < 3:
             return False
@@ -873,7 +965,7 @@ class PatternRecognitionEngine:
         last_3 = history[-3:]
         return all(h.get("to") == last_3[0].get("to") for h in last_3)
 
-    def _detect_collaboration_spiral(self, history: List[Dict]) -> bool:
+    def _detect_collaboration_spiral(self, history: list[dict]) -> bool:
         """Detect Reviewer-Fixer spiral pattern"""
         if len(history) < 4:
             return False
@@ -886,22 +978,22 @@ class PatternRecognitionEngine:
         actual = [h.get("to") for h in last_4]
         return actual == pattern1 or actual == pattern2
 
-    def _detect_stuck_progress(self, metrics: Dict) -> bool:
+    def _detect_stuck_progress(self, metrics: dict) -> bool:
         """Detect if workflow is not progressing"""
         # Would need progress tracking over time
         return False
 
-    def _detect_resource_spike(self, metrics: Dict) -> bool:
+    def _detect_resource_spike(self, metrics: dict) -> bool:
         """Detect sudden resource usage increase"""
         # Would need resource metrics tracking
         return False
 
-    def _detect_timeout_cluster(self, events: List) -> bool:
+    def _detect_timeout_cluster(self, events: list) -> bool:
         """Detect multiple timeouts close together"""
         # Would need event tracking
         return False
 
-    def _detect_statistical_anomalies(self, state: ExtendedAgentState) -> List[Dict]:
+    def _detect_statistical_anomalies(self, state: ExtendedAgentState) -> list[dict]:
         """Use statistical methods to detect anomalies"""
         anomalies = []
 
@@ -912,11 +1004,13 @@ class PatternRecognitionEngine:
             overall_rate = len(messages) / max(1, state.get("collaboration_count", 1))
 
             if recent_rate > overall_rate * 2:
-                anomalies.append({
-                    "type": "MESSAGE_GROWTH_SPIKE",
-                    "description": "Message growth rate increased significantly",
-                    "metric": f"Recent: {recent_rate:.2f} msgs/step vs Overall: {overall_rate:.2f}"
-                })
+                anomalies.append(
+                    {
+                        "type": "MESSAGE_GROWTH_SPIKE",
+                        "description": "Message growth rate increased significantly",
+                        "metric": f"Recent: {recent_rate:.2f} msgs/step vs Overall: {overall_rate:.2f}",
+                    }
+                )
 
         # Check step completion rate
         steps = state.get("execution_plan", [])
@@ -926,16 +1020,19 @@ class PatternRecognitionEngine:
             total = len(steps)
 
             if total > 5 and failed > total * 0.4:
-                anomalies.append({
-                    "type": "HIGH_FAILURE_RATE",
-                    "description": "Abnormally high failure rate",
-                    "metric": f"{failed}/{total} steps failed ({failed/total*100:.1f}%)"
-                })
+                anomalies.append(
+                    {
+                        "type": "HIGH_FAILURE_RATE",
+                        "description": "Abnormally high failure rate",
+                        "metric": f"{failed}/{total} steps failed ({failed/total*100:.1f}%)",
+                    }
+                )
 
         return anomalies
 
 
 # =================== SELF-TEST FRAMEWORK ===================
+
 
 class SelfTestFramework:
     """
@@ -947,7 +1044,7 @@ class SelfTestFramework:
         self,
         invariants: WorkflowInvariants,
         validator: PreExecutionValidator,
-        pattern_engine: PatternRecognitionEngine
+        pattern_engine: PatternRecognitionEngine,
     ):
         self.invariants = invariants
         self.validator = validator
@@ -956,7 +1053,9 @@ class SelfTestFramework:
         self.last_test_time = None
         self.test_interval = 60  # seconds
 
-    async def run_comprehensive_health_check(self, state: ExtendedAgentState) -> Dict[str, Any]:
+    async def run_comprehensive_health_check(
+        self, state: ExtendedAgentState
+    ) -> dict[str, Any]:
         """Run comprehensive health check suite"""
         logger.info("🏥 Running Self-Test Health Check")
 
@@ -966,7 +1065,7 @@ class SelfTestFramework:
             "scores": {},
             "issues": [],
             "metrics": {},
-            "recommendations": []
+            "recommendations": [],
         }
 
         # Test 1: Invariants
@@ -1013,13 +1112,19 @@ class SelfTestFramework:
         # Generate recommendations
         if health_report["overall_health"] != "HEALTHY":
             if health_report["overall_health"] == "CRITICAL":
-                health_report["recommendations"].append("IMMEDIATE ACTION REQUIRED: Halt workflow")
+                health_report["recommendations"].append(
+                    "IMMEDIATE ACTION REQUIRED: Halt workflow"
+                )
 
             if health_report["scores"].get("invariants", 1.0) < 1.0:
-                health_report["recommendations"].append("Fix invariant violations before continuing")
+                health_report["recommendations"].append(
+                    "Fix invariant violations before continuing"
+                )
 
             if health_report["scores"].get("patterns", 1.0) < 0.7:
-                health_report["recommendations"].append("Review detected patterns for potential issues")
+                health_report["recommendations"].append(
+                    "Review detected patterns for potential issues"
+                )
 
         # Store test result
         self.test_history.append(health_report)
@@ -1031,7 +1136,7 @@ class SelfTestFramework:
 
         return health_report
 
-    async def _test_resource_health(self, state: ExtendedAgentState) -> Dict:
+    async def _test_resource_health(self, state: ExtendedAgentState) -> dict:
         """Test resource utilization health"""
         messages = state.get("messages", [])
         steps = state.get("execution_plan", [])
@@ -1045,11 +1150,11 @@ class SelfTestFramework:
                 "message_count": len(messages),
                 "step_count": len(steps),
                 "message_score": message_score,
-                "step_score": step_score
-            }
+                "step_score": step_score,
+            },
         }
 
-    async def _test_performance_health(self, state: ExtendedAgentState) -> Dict:
+    async def _test_performance_health(self, state: ExtendedAgentState) -> dict:
         """Test performance characteristics"""
         steps = state.get("execution_plan", [])
 
@@ -1070,11 +1175,11 @@ class SelfTestFramework:
             "metrics": {
                 "avg_timeout": avg_timeout,
                 "avg_retries": avg_retries,
-                "max_retries": max(retry_counts) if retry_counts else 0
-            }
+                "max_retries": max(retry_counts) if retry_counts else 0,
+            },
         }
 
-    async def _test_structural_health(self, state: ExtendedAgentState) -> Dict:
+    async def _test_structural_health(self, state: ExtendedAgentState) -> dict:
         """Test structural integrity"""
         steps = state.get("execution_plan", [])
 
@@ -1096,8 +1201,8 @@ class SelfTestFramework:
             "score": score,
             "metrics": {
                 "completion_rate": completion_rate,
-                "failure_rate": failure_rate
-            }
+                "failure_rate": failure_rate,
+            },
         }
 
     async def continuous_monitoring(self, state_provider, interval: int = None):
@@ -1131,6 +1236,7 @@ class SelfTestFramework:
 
 # =================== MAIN SELF-DIAGNOSIS SYSTEM ===================
 
+
 class WorkflowSelfDiagnosisSystem:
     """
     Main entry point for the complete self-diagnosis system
@@ -1144,18 +1250,14 @@ class WorkflowSelfDiagnosisSystem:
         self.validator = PreExecutionValidator(self.known_patterns, self.invariants)
         self.pattern_engine = PatternRecognitionEngine()
         self.self_test = SelfTestFramework(
-            self.invariants,
-            self.validator,
-            self.pattern_engine
+            self.invariants, self.validator, self.pattern_engine
         )
 
         logger.info("🏥 Workflow Self-Diagnosis System v5.5.0 initialized")
 
     async def pre_execution_check(
-        self,
-        state: ExtendedAgentState,
-        auto_fix: bool = True
-    ) -> Tuple[bool, ExtendedAgentState]:
+        self, state: ExtendedAgentState, auto_fix: bool = True
+    ) -> tuple[bool, ExtendedAgentState]:
         """
         Main pre-execution validation entry point
         Returns: (is_safe_to_execute, potentially_fixed_state)
@@ -1166,8 +1268,7 @@ class WorkflowSelfDiagnosisSystem:
 
         # Phase 1: Initial validation with fixes
         is_valid, issues, fixed_state = await self.validator.validate_comprehensive(
-            state,
-            fix_issues=auto_fix
+            state, fix_issues=auto_fix
         )
 
         # Phase 2: Pattern analysis
@@ -1180,9 +1281,10 @@ class WorkflowSelfDiagnosisSystem:
         # v5.9.0: Made health check less strict - only block on CRITICAL, allow UNHEALTHY
         # UNHEALTHY workflows often work fine and blocking them prevents legitimate work
         safe_to_execute = (
-            is_valid and
-            pattern_analysis["risk_score"] < 0.9 and  # Increased from 0.7 to 0.9
-            health_report["overall_health"] not in ["CRITICAL"]  # Allow UNHEALTHY
+            is_valid
+            and pattern_analysis["risk_score"] < 0.9
+            and health_report["overall_health"]  # Increased from 0.7 to 0.9
+            not in ["CRITICAL"]  # Allow UNHEALTHY
         )
 
         # Log summary
@@ -1191,7 +1293,9 @@ class WorkflowSelfDiagnosisSystem:
         logger.info(f"  Validation: {'PASS' if is_valid else 'FAIL'}")
         logger.info(f"  Risk Score: {pattern_analysis['risk_score']:.2%}")
         logger.info(f"  Health: {health_report['overall_health']}")
-        logger.info(f"  Decision: {'SAFE TO EXECUTE' if safe_to_execute else 'NOT SAFE - REVIEW REQUIRED'}")
+        logger.info(
+            f"  Decision: {'SAFE TO EXECUTE' if safe_to_execute else 'NOT SAFE - REVIEW REQUIRED'}"
+        )
         logger.info("=" * 60)
 
         if not safe_to_execute:
@@ -1206,16 +1310,16 @@ class WorkflowSelfDiagnosisSystem:
 
         return safe_to_execute, fixed_state
 
-    async def real_time_monitoring(self, state: ExtendedAgentState) -> Dict[str, Any]:
+    async def real_time_monitoring(self, state: ExtendedAgentState) -> dict[str, Any]:
         """Real-time health monitoring during execution"""
         return await self.self_test.run_comprehensive_health_check(state)
 
-    def get_diagnosis_report(self) -> Dict[str, Any]:
+    def get_diagnosis_report(self) -> dict[str, Any]:
         """Get comprehensive diagnosis report"""
         return {
             "validation_history": self.validator.validation_history[-10:],
             "test_history": list(self.self_test.test_history)[-10:],
             "detected_patterns": list(self.known_patterns.detection_history)[-20:],
             "current_invariants": len(self.invariants.invariants),
-            "known_anti_patterns": len(self.known_patterns.patterns)
+            "known_anti_patterns": len(self.known_patterns.patterns),
         }

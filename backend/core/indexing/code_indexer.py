@@ -2,11 +2,10 @@
 Code Indexer - Orchestrates file indexing and builds comprehensive code index
 """
 
-import os
-import asyncio
-from typing import Dict, List, Any, Callable, Optional
-from pathlib import Path
 import logging
+import os
+from collections.abc import Callable
+from typing import Any
 
 from .tree_sitter_indexer import TreeSitterIndexer
 
@@ -22,17 +21,24 @@ class CodeIndexer:
     def __init__(self):
         self.tree_sitter = TreeSitterIndexer()
         self.excluded_dirs = {
-            'node_modules', 'venv', '__pycache__', '.git',
-            'dist', 'build', '.vscode', '.idea', 'coverage'
+            "node_modules",
+            "venv",
+            "__pycache__",
+            ".git",
+            "dist",
+            "build",
+            ".vscode",
+            ".idea",
+            "coverage",
         }
-        self.excluded_extensions = {'.pyc', '.pyo', '.so', '.dylib'}
+        self.excluded_extensions = {".pyc", ".pyo", ".so", ".dylib"}
 
     async def build_full_index(
         self,
         root_path: str,
-        progress_callback: Optional[Callable] = None,
-        request_type: str = 'general'
-    ) -> Dict[str, Any]:
+        progress_callback: Callable | None = None,
+        request_type: str = "general",
+    ) -> dict[str, Any]:
         """
         Build comprehensive index of entire codebase
 
@@ -67,7 +73,9 @@ class CodeIndexer:
 
         for i, file_path in enumerate(python_files):
             if progress_callback and i % 10 == 0:
-                await progress_callback(f"📂 Indexing file {i + 1}/{total_files}: {os.path.basename(file_path)}")
+                await progress_callback(
+                    f"📂 Indexing file {i + 1}/{total_files}: {os.path.basename(file_path)}"
+                )
 
             file_data = await self.tree_sitter.index_file(file_path)
             relative_path = os.path.relpath(file_path, root_path)
@@ -75,21 +83,21 @@ class CodeIndexer:
             ast_data[relative_path] = file_data
 
             # Build import graph
-            imports = [imp.get('module', '') for imp in file_data.get('imports', [])]
+            imports = [imp.get("module", "") for imp in file_data.get("imports", [])]
             import_graph[relative_path] = imports
 
             # v5.8.4: Count functions and classes instead of duplicating them
             # Functions and classes are already stored in ast_data[relative_path]
-            total_functions_count += len(file_data.get('functions', []))
-            total_classes_count += len(file_data.get('classes', []))
+            total_functions_count += len(file_data.get("functions", []))
+            total_classes_count += len(file_data.get("classes", []))
 
         # Calculate statistics
         statistics = {
-            'total_files': total_files,
-            'total_functions': total_functions_count,
-            'total_classes': total_classes_count,
-            'total_imports': sum(len(imports) for imports in import_graph.values()),
-            'lines_of_code': self._count_total_lines(python_files)
+            "total_files": total_files,
+            "total_functions": total_functions_count,
+            "total_classes": total_classes_count,
+            "total_imports": sum(len(imports) for imports in import_graph.values()),
+            "lines_of_code": self._count_total_lines(python_files),
         }
 
         logger.info(f"Indexing complete: {statistics}")
@@ -97,12 +105,12 @@ class CodeIndexer:
         # v5.8.4: Removed all_functions and all_classes to eliminate duplication
         # All function/class data is already in ast.files, saving ~300KB per analysis
         return {
-            'ast': {'files': ast_data},
-            'import_graph': import_graph,
-            'statistics': statistics
+            "ast": {"files": ast_data},
+            "import_graph": import_graph,
+            "statistics": statistics,
         }
 
-    def _find_python_files(self, root_path: str) -> List[str]:
+    def _find_python_files(self, root_path: str) -> list[str]:
         """Find all Python files in the project"""
         all_files = []  # v5.8.2: Renamed from python_files
 
@@ -112,18 +120,20 @@ class CodeIndexer:
 
             for file in files:
                 # v5.8.2: Support HTML/CSS/JS files for frontend projects
-                if file.endswith(('.py', '.html', '.css', '.js', '.jsx', '.ts', '.tsx', '.vue')):
+                if file.endswith(
+                    (".py", ".html", ".css", ".js", ".jsx", ".ts", ".tsx", ".vue")
+                ):
                     file_path = os.path.join(root, file)
                     all_files.append(file_path)
 
         return all_files
 
-    def _count_total_lines(self, files: List[str]) -> int:
+    def _count_total_lines(self, files: list[str]) -> int:
         """Count total lines of code"""
         total = 0
         for file_path in files:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, encoding="utf-8") as f:
                     total += len(f.readlines())
             except Exception:
                 pass

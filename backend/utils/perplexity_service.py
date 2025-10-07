@@ -3,14 +3,17 @@ PerplexityService - Service for Perplexity API integration
 Handles web search and research queries using Perplexity's AI models
 """
 
-import os
-import logging
-from typing import Dict, Any, Optional, AsyncGenerator
-import aiohttp
 import json
+import logging
+import os
+from collections.abc import AsyncGenerator
 from datetime import datetime
+from typing import Any
+
+import aiohttp
 
 logger = logging.getLogger(__name__)
+
 
 class PerplexityService:
     """
@@ -36,7 +39,7 @@ class PerplexityService:
         self.base_url = "https://api.perplexity.ai"
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         logger.info(f"✅ PerplexityService initialized with model: {model}")
@@ -47,10 +50,10 @@ class PerplexityService:
         temperature: float = 0.5,
         max_tokens: int = 4000,
         stream: bool = False,
-        search_domain_filter: Optional[list] = None,
+        search_domain_filter: list | None = None,
         return_citations: bool = True,
-        search_recency_filter: Optional[str] = None
-    ) -> Dict[str, Any]:
+        search_recency_filter: str | None = None,
+    ) -> dict[str, Any]:
         """
         Send a message to Perplexity API for web search
 
@@ -71,17 +74,14 @@ class PerplexityService:
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are a helpful research assistant that provides accurate, up-to-date information from web searches. Always cite sources when available."
+                    "content": "You are a helpful research assistant that provides accurate, up-to-date information from web searches. Always cite sources when available.",
                 },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                {"role": "user", "content": prompt},
             ],
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": stream,
-            "return_citations": return_citations
+            "return_citations": return_citations,
         }
 
         # Add optional filters
@@ -95,13 +95,17 @@ class PerplexityService:
                 async with session.post(
                     f"{self.base_url}/chat/completions",
                     headers=self.headers,
-                    json=payload
+                    json=payload,
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
 
                         # Extract the response
-                        content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+                        content = (
+                            result.get("choices", [{}])[0]
+                            .get("message", {})
+                            .get("content", "")
+                        )
                         citations = result.get("citations", [])
 
                         return {
@@ -109,12 +113,16 @@ class PerplexityService:
                             "citations": citations,
                             "model": self.model,
                             "usage": result.get("usage", {}),
-                            "timestamp": datetime.now().isoformat()
+                            "timestamp": datetime.now().isoformat(),
                         }
                     else:
                         error_text = await response.text()
-                        logger.error(f"Perplexity API error: {response.status} - {error_text}")
-                        raise Exception(f"Perplexity API error: {response.status} - {error_text}")
+                        logger.error(
+                            f"Perplexity API error: {response.status} - {error_text}"
+                        )
+                        raise Exception(
+                            f"Perplexity API error: {response.status} - {error_text}"
+                        )
 
         except Exception as e:
             logger.error(f"Error calling Perplexity API: {e}")
@@ -125,8 +133,8 @@ class PerplexityService:
         prompt: str,
         temperature: float = 0.5,
         max_tokens: int = 4000,
-        search_domain_filter: Optional[list] = None,
-        return_citations: bool = True
+        search_domain_filter: list | None = None,
+        return_citations: bool = True,
     ) -> AsyncGenerator[str, None]:
         """
         Stream a message response from Perplexity API
@@ -139,17 +147,14 @@ class PerplexityService:
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are a helpful research assistant that provides accurate, up-to-date information from web searches."
+                    "content": "You are a helpful research assistant that provides accurate, up-to-date information from web searches.",
                 },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                {"role": "user", "content": prompt},
             ],
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": True,
-            "return_citations": return_citations
+            "return_citations": return_citations,
         }
 
         if search_domain_filter:
@@ -160,25 +165,31 @@ class PerplexityService:
                 async with session.post(
                     f"{self.base_url}/chat/completions",
                     headers=self.headers,
-                    json=payload
+                    json=payload,
                 ) as response:
                     if response.status == 200:
                         async for line in response.content:
                             if line:
-                                line = line.decode('utf-8').strip()
+                                line = line.decode("utf-8").strip()
                                 if line.startswith("data: "):
                                     data = line[6:]  # Remove "data: " prefix
                                     if data != "[DONE]":
                                         try:
                                             chunk = json.loads(data)
-                                            content = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                            content = (
+                                                chunk.get("choices", [{}])[0]
+                                                .get("delta", {})
+                                                .get("content", "")
+                                            )
                                             if content:
                                                 yield content
                                         except json.JSONDecodeError:
                                             continue
                     else:
                         error_text = await response.text()
-                        logger.error(f"Perplexity API streaming error: {response.status} - {error_text}")
+                        logger.error(
+                            f"Perplexity API streaming error: {response.status} - {error_text}"
+                        )
                         raise Exception(f"Perplexity API error: {response.status}")
 
         except Exception as e:
@@ -188,10 +199,10 @@ class PerplexityService:
     async def search_web(
         self,
         query: str,
-        domains: Optional[list] = None,
-        recency: Optional[str] = None,
-        max_results: int = 5
-    ) -> Dict[str, Any]:
+        domains: list | None = None,
+        recency: str | None = None,
+        max_results: int = 5,
+    ) -> dict[str, Any]:
         """
         Perform a focused web search
 
@@ -218,7 +229,7 @@ Focus on returning the {max_results} most relevant and recent results."""
             prompt=prompt,
             search_domain_filter=domains,
             search_recency_filter=recency,
-            return_citations=True
+            return_citations=True,
         )
 
         return {
@@ -227,17 +238,12 @@ Focus on returning the {max_results} most relevant and recent results."""
             "citations": result.get("citations", []),
             "timestamp": result["timestamp"],
             "model": self.model,
-            "filters": {
-                "domains": domains,
-                "recency": recency
-            }
+            "filters": {"domains": domains, "recency": recency},
         }
 
     async def research_technology(
-        self,
-        technology: str,
-        aspects: list = None
-    ) -> Dict[str, Any]:
+        self, technology: str, aspects: list = None
+    ) -> dict[str, Any]:
         """
         Research a specific technology or library
 
@@ -249,7 +255,13 @@ Focus on returning the {max_results} most relevant and recent results."""
             Comprehensive research results
         """
         if not aspects:
-            aspects = ['overview', 'best practices', 'common issues', 'alternatives', 'recent updates']
+            aspects = [
+                "overview",
+                "best practices",
+                "common issues",
+                "alternatives",
+                "recent updates",
+            ]
 
         prompt = f"""Research {technology} and provide information on:
 {chr(10).join(f'- {aspect}' for aspect in aspects)}
@@ -262,9 +274,7 @@ Include:
 - Comparison with alternatives if relevant"""
 
         result = await self.send_message(
-            prompt=prompt,
-            search_recency_filter="month",
-            return_citations=True
+            prompt=prompt, search_recency_filter="month", return_citations=True
         )
 
         return {
@@ -272,10 +282,10 @@ Include:
             "aspects": aspects,
             "research": result["content"],
             "citations": result.get("citations", []),
-            "timestamp": result["timestamp"]
+            "timestamp": result["timestamp"],
         }
 
-    async def get_latest_best_practices(self, topic: str) -> Dict[str, Any]:
+    async def get_latest_best_practices(self, topic: str) -> dict[str, Any]:
         """
         Get latest best practices for a specific topic
 
@@ -298,9 +308,7 @@ Focus on:
 Cite authoritative sources like official documentation, major tech blogs, and recognized experts."""
 
         result = await self.send_message(
-            prompt=prompt,
-            search_recency_filter="month",
-            return_citations=True
+            prompt=prompt, search_recency_filter="month", return_citations=True
         )
 
         return {
@@ -308,7 +316,7 @@ Cite authoritative sources like official documentation, major tech blogs, and re
             "best_practices": result["content"],
             "citations": result.get("citations", []),
             "timestamp": result["timestamp"],
-            "recency": "last_month"
+            "recency": "last_month",
         }
 
     def test_connection(self) -> bool:
@@ -320,18 +328,21 @@ Cite authoritative sources like official documentation, major tech blogs, and re
         """
         try:
             import requests
+
             response = requests.post(
                 f"{self.base_url}/chat/completions",
                 headers=self.headers,
                 json={
                     "model": self.model,
                     "messages": [{"role": "user", "content": "test"}],
-                    "max_tokens": 1
+                    "max_tokens": 1,
                 },
-                timeout=5
+                timeout=5,
             )
             if response.status_code != 200:
-                logger.error(f"Connection test failed with status {response.status_code}: {response.text}")
+                logger.error(
+                    f"Connection test failed with status {response.status_code}: {response.text}"
+                )
             return response.status_code == 200
         except Exception as e:
             logger.error(f"Connection test failed with exception: {e}")

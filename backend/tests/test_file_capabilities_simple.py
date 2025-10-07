@@ -3,11 +3,11 @@
 Simple test for agent file capabilities (no pytest required)
 """
 
-import os
-import sys
 import asyncio
-import tempfile
+import os
 import shutil
+import sys
+import tempfile
 
 # Add parent directories to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -33,16 +33,16 @@ async def test_file_tools():
             path="test.py",
             content="print('Hello from test')",
             agent_name="TestAgent",
-            allowed_paths=["*.py"]
+            allowed_paths=["*.py"],
         )
 
-        if result['status'] == 'success':
+        if result["status"] == "success":
             print(f"   ✅ File written successfully to {result['path']}")
             # Verify file exists
             file_path = os.path.join(temp_dir, "test.py")
             if os.path.exists(file_path):
                 print(f"   ✅ File exists at {file_path}")
-                with open(file_path, 'r') as f:
+                with open(file_path) as f:
                     content = f.read()
                 print(f"   ✅ Content verified: {len(content)} bytes")
             else:
@@ -56,25 +56,27 @@ async def test_file_tools():
             path="test.txt",
             content="Should fail",
             agent_name="TestAgent",
-            allowed_paths=["*.py"]  # Only .py files allowed
+            allowed_paths=["*.py"],  # Only .py files allowed
         )
 
-        if result['status'] == 'error':
+        if result["status"] == "error":
             print(f"   ✅ Permission correctly denied: {result['error']}")
         else:
-            print(f"   ❌ Permission check failed - file was written!")
+            print("   ❌ Permission check failed - file was written!")
 
         # Test 3: Audit log
         print("\n   Testing audit log...")
         audit_log = tools.get_audit_log()
         print(f"   ✅ Audit log has {len(audit_log)} entries")
         for entry in audit_log:
-            print(f"      - {entry['agent_name']}: {entry['operation']} {entry['file_path']} - {'✅' if entry['success'] else '❌'}")
+            print(
+                f"      - {entry['agent_name']}: {entry['operation']} {entry['file_path']} - {'✅' if entry['success'] else '❌'}"
+            )
 
     finally:
         # Clean up
         shutil.rmtree(temp_dir)
-        print(f"\n   Cleaned up temp workspace")
+        print("\n   Cleaned up temp workspace")
 
 
 async def test_capabilities_loader():
@@ -88,13 +90,15 @@ async def test_capabilities_loader():
         ("CodeSmithClaude", True),
         ("ArchitectAgent", True),
         ("ReviewerGPT", False),
-        ("ResearchBot", False)
+        ("ResearchBot", False),
     ]
 
     for agent_name, should_write in agents_to_test:
         caps = loader.get_agent_capabilities(agent_name)
-        can_write = caps.get('file_write', False)
-        print(f"   {agent_name}: write={'✅' if can_write else '❌'} (expected: {'✅' if should_write else '❌'})")
+        can_write = caps.get("file_write", False)
+        print(
+            f"   {agent_name}: write={'✅' if can_write else '❌'} (expected: {'✅' if should_write else '❌'})"
+        )
 
         if can_write != should_write:
             print(f"   ❌ Capability mismatch for {agent_name}!")
@@ -105,7 +109,7 @@ async def test_capabilities_loader():
         ("CodeSmithClaude", "backend/test.py", True),
         ("CodeSmithClaude", "frontend/test.js", False),
         ("ArchitectAgent", "redis.config", True),
-        ("ReviewerGPT", "any_file.py", False)
+        ("ReviewerGPT", "any_file.py", False),
     ]
 
     for agent, path, expected in tests:
@@ -131,6 +135,7 @@ async def main():
     except Exception as e:
         print(f"\n❌ Test failed with error: {e}")
         import traceback
+
         traceback.print_exc()
 
 

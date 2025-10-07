@@ -3,27 +3,29 @@ File System Tools for AI Agents
 Provides safe file operations with validation and audit logging
 """
 
-import os
-import shutil
 import json
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Any
+import os
+import shutil
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from dataclasses import dataclass, asdict
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class FileOperation:
     """Record of a file operation"""
+
     timestamp: str
     agent_name: str
     operation: str  # create, write, modify, delete
     file_path: str
     success: bool
-    error: Optional[str] = None
-    backup_path: Optional[str] = None
+    error: str | None = None
+    backup_path: str | None = None
 
 
 class FileSystemTools:
@@ -41,19 +43,31 @@ class FileSystemTools:
         """
         # v5.8.1: Normalize workspace path to absolute, resolved path
         self.workspace_path = str(Path(workspace_path or os.getcwd()).resolve())
-        self.audit_log: List[FileOperation] = []
-        self.backup_dir = os.path.join(self.workspace_path, '.ki_autoagent_ws', 'backups')
+        self.audit_log: list[FileOperation] = []
+        self.backup_dir = os.path.join(
+            self.workspace_path, ".ki_autoagent_ws", "backups"
+        )
 
         # Create backup directory if it doesn't exist
         os.makedirs(self.backup_dir, exist_ok=True)
 
         # System paths that should never be modified
         self.protected_paths = {
-            '/etc', '/usr', '/bin', '/sbin', '/lib', '/boot',
-            '/System', '/Windows', 'C:\\Windows', 'C:\\Program Files'
+            "/etc",
+            "/usr",
+            "/bin",
+            "/sbin",
+            "/lib",
+            "/boot",
+            "/System",
+            "/Windows",
+            "C:\\Windows",
+            "C:\\Program Files",
         }
 
-    def _validate_path(self, file_path: str, agent_name: str, allowed_paths: List[str] = None) -> tuple[bool, str]:
+    def _validate_path(
+        self, file_path: str, agent_name: str, allowed_paths: list[str] = None
+    ) -> tuple[bool, str]:
         """
         Validate if the path is safe to write to
 
@@ -95,29 +109,35 @@ class FileSystemTools:
                 rel_path_str = str(rel_path)
             except ValueError:
                 # Path is outside workspace
-                return False, f"Path {file_path} is outside workspace {self.workspace_path}"
+                return (
+                    False,
+                    f"Path {file_path} is outside workspace {self.workspace_path}",
+                )
 
             for pattern in allowed_paths:
                 # Remove leading ./ if present for cleaner matching
-                clean_pattern = pattern.lstrip('./')
+                clean_pattern = pattern.lstrip("./")
 
                 # Use fnmatch for glob pattern matching
                 if fnmatch.fnmatch(rel_path_str, clean_pattern):
                     path_allowed = True
                     break
                 # Also try with ** replaced by * for broader matching
-                if '**' in clean_pattern:
+                if "**" in clean_pattern:
                     # pathlib-style glob matching
                     if Path(rel_path_str).match(clean_pattern):
                         path_allowed = True
                         break
 
             if not path_allowed:
-                return False, f"Path {file_path} not in allowed paths for agent {agent_name}"
+                return (
+                    False,
+                    f"Path {file_path} not in allowed paths for agent {agent_name}",
+                )
 
         return True, ""
 
-    def _create_backup(self, file_path: str) -> Optional[str]:
+    def _create_backup(self, file_path: str) -> str | None:
         """
         Create a backup of existing file
 
@@ -147,26 +167,32 @@ class FileSystemTools:
         self.audit_log.append(operation)
 
         # Also log to file
-        audit_file = os.path.join(self.workspace_path, '.ki_autoagent_ws', 'file_operations.log')
+        audit_file = os.path.join(
+            self.workspace_path, ".ki_autoagent_ws", "file_operations.log"
+        )
         os.makedirs(os.path.dirname(audit_file), exist_ok=True)
 
-        with open(audit_file, 'a') as f:
-            f.write(json.dumps(asdict(operation)) + '\n')
+        with open(audit_file, "a") as f:
+            f.write(json.dumps(asdict(operation)) + "\n")
 
         # Log to logger
         if operation.success:
-            logger.info(f"✅ {operation.agent_name} {operation.operation} {operation.file_path}")
+            logger.info(
+                f"✅ {operation.agent_name} {operation.operation} {operation.file_path}"
+            )
         else:
-            logger.error(f"❌ {operation.agent_name} failed to {operation.operation} {operation.file_path}: {operation.error}")
+            logger.error(
+                f"❌ {operation.agent_name} failed to {operation.operation} {operation.file_path}: {operation.error}"
+            )
 
     async def write_file(
         self,
         path: str,
         content: str,
         agent_name: str,
-        allowed_paths: List[str] = None,
-        create_dirs: bool = True
-    ) -> Dict[str, Any]:
+        allowed_paths: list[str] = None,
+        create_dirs: bool = True,
+    ) -> dict[str, Any]:
         """
         Write content to a file
 
@@ -189,14 +215,14 @@ class FileSystemTools:
                 operation="write",
                 file_path=path,
                 success=False,
-                error=error
+                error=error,
             )
             self._log_operation(operation)
             return {
                 "status": "error",
                 "error": error,
                 "agent": agent_name,
-                "path": path
+                "path": path,
             }
 
         # v5.8.1: Use resolved path like in validation
@@ -216,7 +242,7 @@ class FileSystemTools:
 
         # Write the file
         try:
-            with open(abs_path, 'w', encoding='utf-8') as f:
+            with open(abs_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
             operation = FileOperation(
@@ -225,7 +251,7 @@ class FileSystemTools:
                 operation="write",
                 file_path=path,
                 success=True,
-                backup_path=backup_path
+                backup_path=backup_path,
             )
             self._log_operation(operation)
 
@@ -235,7 +261,7 @@ class FileSystemTools:
                 "absolute_path": abs_path,
                 "agent": agent_name,
                 "backup": backup_path,
-                "size": len(content)
+                "size": len(content),
             }
 
         except Exception as e:
@@ -245,7 +271,7 @@ class FileSystemTools:
                 operation="write",
                 file_path=path,
                 success=False,
-                error=str(e)
+                error=str(e),
             )
             self._log_operation(operation)
 
@@ -253,7 +279,7 @@ class FileSystemTools:
                 "status": "error",
                 "error": str(e),
                 "agent": agent_name,
-                "path": path
+                "path": path,
             }
 
     async def create_file(
@@ -261,9 +287,9 @@ class FileSystemTools:
         path: str,
         content: str,
         agent_name: str,
-        allowed_paths: List[str] = None,
-        overwrite: bool = False
-    ) -> Dict[str, Any]:
+        allowed_paths: list[str] = None,
+        overwrite: bool = False,
+    ) -> dict[str, Any]:
         """
         Create a new file
 
@@ -291,7 +317,7 @@ class FileSystemTools:
                 operation="create",
                 file_path=path,
                 success=False,
-                error="File already exists"
+                error="File already exists",
             )
             self._log_operation(operation)
 
@@ -299,7 +325,7 @@ class FileSystemTools:
                 "status": "error",
                 "error": "File already exists",
                 "agent": agent_name,
-                "path": path
+                "path": path,
             }
 
         # Use write_file for the actual creation
@@ -308,10 +334,10 @@ class FileSystemTools:
     async def modify_file(
         self,
         path: str,
-        modifications: List[Dict[str, Any]],
+        modifications: list[dict[str, Any]],
         agent_name: str,
-        allowed_paths: List[str] = None
-    ) -> Dict[str, Any]:
+        allowed_paths: list[str] = None,
+    ) -> dict[str, Any]:
         """
         Modify an existing file with line-by-line changes
 
@@ -336,7 +362,7 @@ class FileSystemTools:
                 "status": "error",
                 "error": "File does not exist",
                 "agent": agent_name,
-                "path": path
+                "path": path,
             }
 
         # Validate path
@@ -346,7 +372,7 @@ class FileSystemTools:
                 "status": "error",
                 "error": error,
                 "agent": agent_name,
-                "path": path
+                "path": path,
             }
 
         # Create backup
@@ -354,24 +380,24 @@ class FileSystemTools:
 
         try:
             # Read current content
-            with open(abs_path, 'r', encoding='utf-8') as f:
+            with open(abs_path, encoding="utf-8") as f:
                 lines = f.readlines()
 
             # Apply modifications
             for mod in modifications:
-                line_num = mod.get('line', -1)
-                action = mod.get('action', 'replace')
-                content = mod.get('content', '')
+                line_num = mod.get("line", -1)
+                action = mod.get("action", "replace")
+                content = mod.get("content", "")
 
-                if action == 'replace' and 0 <= line_num < len(lines):
-                    lines[line_num] = content + '\n'
-                elif action == 'insert' and 0 <= line_num <= len(lines):
-                    lines.insert(line_num, content + '\n')
-                elif action == 'delete' and 0 <= line_num < len(lines):
+                if action == "replace" and 0 <= line_num < len(lines):
+                    lines[line_num] = content + "\n"
+                elif action == "insert" and 0 <= line_num <= len(lines):
+                    lines.insert(line_num, content + "\n")
+                elif action == "delete" and 0 <= line_num < len(lines):
                     del lines[line_num]
 
             # Write modified content
-            with open(abs_path, 'w', encoding='utf-8') as f:
+            with open(abs_path, "w", encoding="utf-8") as f:
                 f.writelines(lines)
 
             operation = FileOperation(
@@ -380,7 +406,7 @@ class FileSystemTools:
                 operation="modify",
                 file_path=path,
                 success=True,
-                backup_path=backup_path
+                backup_path=backup_path,
             )
             self._log_operation(operation)
 
@@ -389,7 +415,7 @@ class FileSystemTools:
                 "path": path,
                 "agent": agent_name,
                 "backup": backup_path,
-                "modifications": len(modifications)
+                "modifications": len(modifications),
             }
 
         except Exception as e:
@@ -399,27 +425,23 @@ class FileSystemTools:
                 operation="modify",
                 file_path=path,
                 success=False,
-                error=str(e)
+                error=str(e),
             )
             self._log_operation(operation)
 
             # Restore backup if operation failed
             if backup_path and os.path.exists(backup_path):
                 shutil.copy2(backup_path, abs_path)
-                logger.info(f"✅ Restored from backup after failed modification")
+                logger.info("✅ Restored from backup after failed modification")
 
             return {
                 "status": "error",
                 "error": str(e),
                 "agent": agent_name,
-                "path": path
+                "path": path,
             }
 
-    async def read_file(
-        self,
-        path: str,
-        agent_name: str
-    ) -> Dict[str, Any]:
+    async def read_file(self, path: str, agent_name: str) -> dict[str, Any]:
         """
         Read a file (for completeness, agents already have read access)
 
@@ -441,11 +463,11 @@ class FileSystemTools:
                 "status": "error",
                 "error": "File does not exist",
                 "agent": agent_name,
-                "path": path
+                "path": path,
             }
 
         try:
-            with open(abs_path, 'r', encoding='utf-8') as f:
+            with open(abs_path, encoding="utf-8") as f:
                 content = f.read()
 
             return {
@@ -453,7 +475,7 @@ class FileSystemTools:
                 "path": path,
                 "content": content,
                 "agent": agent_name,
-                "size": len(content)
+                "size": len(content),
             }
 
         except Exception as e:
@@ -461,10 +483,10 @@ class FileSystemTools:
                 "status": "error",
                 "error": str(e),
                 "agent": agent_name,
-                "path": path
+                "path": path,
             }
 
-    def get_audit_log(self, agent_name: Optional[str] = None) -> List[Dict]:
+    def get_audit_log(self, agent_name: str | None = None) -> list[dict]:
         """
         Get audit log of file operations
 

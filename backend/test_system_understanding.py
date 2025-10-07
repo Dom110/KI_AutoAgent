@@ -19,41 +19,49 @@ from agents.specialized.codesmith_agent import CodeSmithAgent
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
+
 async def test_architect_understanding():
     """Test ArchitectAgent's system understanding capabilities"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("🏗️  Testing ArchitectAgent System Understanding")
-    print("="*80)
+    print("=" * 80)
 
     architect = ArchitectAgent()
 
     # Test 1: Build complete system understanding
     print("\n📊 Building comprehensive system understanding...")
     try:
-        system_knowledge = await architect.understand_system('.')
+        system_knowledge = await architect.understand_system(".")
 
         print("\n✅ System Understanding Complete!")
-        print(f"  - Files indexed: {len(system_knowledge['code_index'].get('ast', {}).get('files', {}))}")
-        print(f"  - Functions found: {len(system_knowledge['code_index'].get('ast', {}).get('functions', {}))}")
-        print(f"  - Classes found: {len(system_knowledge['code_index'].get('ast', {}).get('classes', {}))}")
-        print(f"  - API endpoints: {len(system_knowledge['code_index'].get('ast', {}).get('api_endpoints', {}))}")
+        print(
+            f"  - Files indexed: {len(system_knowledge['code_index'].get('ast', {}).get('files', {}))}"
+        )
+        print(
+            f"  - Functions found: {len(system_knowledge['code_index'].get('ast', {}).get('functions', {}))}"
+        )
+        print(
+            f"  - Classes found: {len(system_knowledge['code_index'].get('ast', {}).get('classes', {}))}"
+        )
+        print(
+            f"  - API endpoints: {len(system_knowledge['code_index'].get('ast', {}).get('api_endpoints', {}))}"
+        )
 
         # Security summary
-        security = system_knowledge.get('security', {}).get('summary', {})
-        print(f"\n🔒 Security Analysis:")
+        security = system_knowledge.get("security", {}).get("summary", {})
+        print("\n🔒 Security Analysis:")
         print(f"  - Critical: {security.get('critical', 0)}")
         print(f"  - High: {security.get('high', 0)}")
         print(f"  - Medium: {security.get('medium', 0)}")
         print(f"  - Low: {security.get('low', 0)}")
 
         # Metrics summary
-        metrics = system_knowledge.get('metrics', {}).get('summary', {})
-        print(f"\n📈 Code Metrics:")
+        metrics = system_knowledge.get("metrics", {}).get("summary", {})
+        print("\n📈 Code Metrics:")
         print(f"  - Average Complexity: {metrics.get('average_complexity', 0):.1f}")
         print(f"  - Maintainability: {metrics.get('average_maintainability', 0):.1f}")
         print(f"  - Quality Score: {metrics.get('quality_score', 0):.1f}")
@@ -61,6 +69,7 @@ async def test_architect_understanding():
     except Exception as e:
         print(f"❌ Error building system understanding: {e}")
         import traceback
+
         traceback.print_exc()
 
     # Test 2: Infrastructure improvement analysis
@@ -73,7 +82,7 @@ async def test_architect_understanding():
         print("Key improvements identified - see full report for details")
 
         # Save report to file
-        with open('infrastructure_report.md', 'w') as f:
+        with open("infrastructure_report.md", "w") as f:
             f.write(improvements)
         print("📄 Full report saved to: infrastructure_report.md")
 
@@ -88,39 +97,40 @@ async def test_architect_understanding():
         print("✅ Flowchart generated!")
 
         # Save flowchart to file
-        with open('architecture_flowchart.md', 'w') as f:
+        with open("architecture_flowchart.md", "w") as f:
             f.write(flowchart)
         print("📄 Flowchart saved to: architecture_flowchart.md")
 
     except Exception as e:
         print(f"❌ Error generating flowchart: {e}")
 
+
 async def test_codesmith_understanding():
     """Test CodeSmithAgent's code analysis capabilities"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("💻 Testing CodeSmithAgent Code Intelligence")
-    print("="*80)
+    print("=" * 80)
 
     codesmith = CodeSmithAgent()
 
     # Test 1: Analyze codebase
     print("\n📊 Analyzing codebase for patterns...")
     try:
-        code_knowledge = await codesmith.analyze_codebase('.')
+        code_knowledge = await codesmith.analyze_codebase(".")
 
         print("\n✅ Code Analysis Complete!")
 
         # Pattern summary
-        patterns = code_knowledge.get('patterns', {})
-        print(f"\n📋 Patterns Found:")
+        patterns = code_knowledge.get("patterns", {})
+        print("\n📋 Patterns Found:")
         print(f"  - Design Patterns: {len(patterns.get('design_patterns', []))}")
         print(f"  - Anti-patterns: {len(patterns.get('anti_patterns', []))}")
         print(f"  - Code Smells: {len(patterns.get('code_smells', []))}")
         print(f"  - Performance Issues: {len(patterns.get('performance_issues', []))}")
 
         # Dead code summary
-        dead_code = code_knowledge.get('dead_code', {}).get('summary', {})
-        print(f"\n🧹 Dead Code:")
+        dead_code = code_knowledge.get("dead_code", {}).get("summary", {})
+        print("\n🧹 Dead Code:")
         print(f"  - Unused Functions: {dead_code.get('unused_functions', 0)}")
         print(f"  - Unused Variables: {dead_code.get('unused_variables', 0)}")
         print(f"  - Unused Imports: {dead_code.get('unused_imports', 0)}")
@@ -129,6 +139,7 @@ async def test_codesmith_understanding():
     except Exception as e:
         print(f"❌ Error analyzing codebase: {e}")
         import traceback
+
         traceback.print_exc()
 
     # Test 2: Generate dead code cleanup
@@ -142,7 +153,7 @@ async def test_codesmith_understanding():
             print("✅ Cleanup script generated!")
 
             # Save cleanup report
-            with open('dead_code_cleanup.md', 'w') as f:
+            with open("dead_code_cleanup.md", "w") as f:
                 f.write(cleanup_report)
             print("📄 Cleanup report saved to: dead_code_cleanup.md")
 
@@ -157,19 +168,22 @@ async def test_codesmith_understanding():
         if refactorings:
             print(f"✅ Found {len(refactorings)} refactoring opportunities!")
             for i, ref in enumerate(refactorings, 1):
-                original = ref['original']
-                print(f"  {i}. {original.get('name', 'Unknown')} - Complexity: {original.get('complexity', 'N/A')}")
+                original = ref["original"]
+                print(
+                    f"  {i}. {original.get('name', 'Unknown')} - Complexity: {original.get('complexity', 'N/A')}"
+                )
         else:
             print("✅ No complex code requiring refactoring!")
 
     except Exception as e:
         print(f"❌ Error finding refactorings: {e}")
 
+
 async def main():
     """Main test function"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("🚀 KI AutoAgent Enhanced System Understanding Test")
-    print("="*80)
+    print("=" * 80)
     print("\nThis test demonstrates the new capabilities for:")
     print("  ✅ Deep code indexing with Tree-sitter AST")
     print("  ✅ Security analysis with Semgrep patterns")
@@ -184,9 +198,9 @@ async def main():
     # Test CodeSmithAgent
     await test_codesmith_understanding()
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("✅ All tests completed!")
-    print("="*80)
+    print("=" * 80)
     print("\n📄 Generated Files:")
     print("  - infrastructure_report.md - Complete infrastructure analysis")
     print("  - architecture_flowchart.md - System architecture diagram")
@@ -195,6 +209,7 @@ async def main():
     print("  1. Review the infrastructure_report.md for improvement suggestions")
     print("  2. View architecture_flowchart.md with a Mermaid renderer")
     print("  3. Run the cleanup script if dead code was found")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

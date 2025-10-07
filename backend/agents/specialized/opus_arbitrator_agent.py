@@ -4,16 +4,17 @@ Uses Claude Opus for final binding decisions when agents disagree
 """
 
 import logging
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from typing import Any
 
+from utils.claude_code_service import ClaudeCodeConfig, ClaudeCodeService
+
+from ..base.base_agent import (AgentCapability, AgentConfig, TaskRequest,
+                               TaskResult)
 from ..base.chat_agent import ChatAgent
-from ..base.base_agent import (
-    AgentConfig, TaskRequest, TaskResult, AgentCapability
-)
-from utils.claude_code_service import ClaudeCodeService, ClaudeCodeConfig
 
 logger = logging.getLogger(__name__)
+
 
 class OpusArbitratorAgent(ChatAgent):
     """
@@ -32,13 +33,11 @@ class OpusArbitratorAgent(ChatAgent):
             full_name="Supreme Agent Arbitrator",
             description="Final authority for resolving agent conflicts with superior reasoning",
             model="claude-opus-4-1-20250805",  # Claude Opus 4.1
-            capabilities=[
-                AgentCapability.CONFLICT_RESOLUTION
-            ],
+            capabilities=[AgentCapability.CONFLICT_RESOLUTION],
             temperature=0.3,  # Lower for consistent decisions
             max_tokens=4000,
             icon="⚖️",
-            instructions_path=".ki_autoagent/instructions/opus-arbitrator-instructions.md"
+            instructions_path=".ki_autoagent/instructions/opus-arbitrator-instructions.md",
         )
         super().__init__(config)
         # Use Claude CLI with Opus model - NO FALLBACKS
@@ -46,7 +45,9 @@ class OpusArbitratorAgent(ChatAgent):
             ClaudeCodeConfig(model="opus")  # Opus for supreme arbitration
         )
         if not self.ai_service.is_available():
-            logger.error("OpusArbitrator requires Claude CLI! Install with: npm install -g @anthropic-ai/claude-code")
+            logger.error(
+                "OpusArbitrator requires Claude CLI! Install with: npm install -g @anthropic-ai/claude-code"
+            )
 
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
@@ -54,7 +55,10 @@ class OpusArbitratorAgent(ChatAgent):
         """
         try:
             # Check if this is a conflict resolution request
-            if "conflict" in request.prompt.lower() or "disagree" in request.prompt.lower():
+            if (
+                "conflict" in request.prompt.lower()
+                or "disagree" in request.prompt.lower()
+            ):
                 response = await self.resolve_conflict(request)
             else:
                 response = await self.provide_judgment(request)
@@ -67,19 +71,19 @@ class OpusArbitratorAgent(ChatAgent):
                     "model": self.config.model,
                     "decision_type": "binding",
                     "authority": "supreme",
-                    "timestamp": datetime.now().isoformat()
-                }
+                    "timestamp": datetime.now().isoformat(),
+                },
             )
 
         except Exception as e:
             logger.error(f"OpusArbitrator execution error: {e}")
             # ASIMOV RULE 1: NO FALLBACK - FAIL FAST
-            error_msg = f"OpusArbitrator execution failed: {str(e)}. File: {__file__}, Line: 73"
+            error_msg = (
+                f"OpusArbitrator execution failed: {str(e)}. File: {__file__}, Line: 73"
+            )
             logger.error(error_msg)
             return TaskResult(
-                status="error",
-                content=error_msg,
-                agent=self.config.agent_id
+                status="error", content=error_msg, agent=self.config.agent_id
             )
 
     async def resolve_conflict(self, request: TaskRequest) -> str:
@@ -110,9 +114,7 @@ class OpusArbitratorAgent(ChatAgent):
             raise Exception("Claude CLI not available for OpusArbitrator")
 
         response = await self.ai_service.complete(
-            prompt=request.prompt,
-            system_prompt=system_prompt,
-            temperature=0.3
+            prompt=request.prompt, system_prompt=system_prompt, temperature=0.3
         )
 
         return response
@@ -129,9 +131,7 @@ class OpusArbitratorAgent(ChatAgent):
         """
 
         response = await self.ai_service.get_completion(
-            system_prompt=system_prompt,
-            user_prompt=request.prompt,
-            temperature=0.3
+            system_prompt=system_prompt, user_prompt=request.prompt, temperature=0.3
         )
 
         if "error" in response.lower() and "api" in response.lower():
@@ -148,8 +148,7 @@ class OpusArbitratorAgent(ChatAgent):
     async def _process_agent_request(self, message: Any) -> Any:
         """Process request from another agent"""
         request = TaskRequest(
-            prompt=message.get("prompt", ""),
-            context=message.get("context", {})
+            prompt=message.get("prompt", ""), context=message.get("context", {})
         )
         result = await self.execute(request)
         return result.content

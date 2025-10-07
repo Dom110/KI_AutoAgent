@@ -4,13 +4,14 @@ Quick test to verify infrastructure analysis is working
 """
 
 import asyncio
-import sys
 import os
+import sys
 
 # Ensure we're in the backend directory
-if not os.path.exists('agents'):
+if not os.path.exists("agents"):
     print("❌ Error: Must run from backend directory")
     sys.exit(1)
+
 
 async def quick_test():
     """Quick test of infrastructure analysis"""
@@ -19,13 +20,12 @@ async def quick_test():
 
     # Check module availability
     try:
-        from agents.specialized.architect_agent import (
-            ArchitectAgent,
-            INDEXING_AVAILABLE,
-            ANALYSIS_AVAILABLE,
-            DIAGRAM_AVAILABLE
-        )
-        print(f"✅ ArchitectAgent imported successfully")
+        from agents.specialized.architect_agent import (ANALYSIS_AVAILABLE,
+                                                        DIAGRAM_AVAILABLE,
+                                                        INDEXING_AVAILABLE,
+                                                        ArchitectAgent)
+
+        print("✅ ArchitectAgent imported successfully")
         print(f"  Indexing: {INDEXING_AVAILABLE}")
         print(f"  Analysis: {ANALYSIS_AVAILABLE}")
         print(f"  Diagrams: {DIAGRAM_AVAILABLE}")
@@ -38,9 +38,9 @@ async def quick_test():
     architect = ArchitectAgent()
 
     # Check if the new methods exist
-    has_understand = hasattr(architect, 'understand_system')
-    has_analyze = hasattr(architect, 'analyze_infrastructure_improvements')
-    has_flowchart = hasattr(architect, 'generate_architecture_flowchart')
+    has_understand = hasattr(architect, "understand_system")
+    has_analyze = hasattr(architect, "analyze_infrastructure_improvements")
+    has_flowchart = hasattr(architect, "generate_architecture_flowchart")
 
     print(f"  understand_system: {'✅' if has_understand else '❌'}")
     print(f"  analyze_infrastructure_improvements: {'✅' if has_analyze else '❌'}")
@@ -51,8 +51,7 @@ async def quick_test():
         try:
             # Use a small timeout to prevent hanging
             result = await asyncio.wait_for(
-                architect.understand_system('.'),
-                timeout=10.0
+                architect.understand_system("."), timeout=10.0
             )
             print(f"  ✅ System analysis returned: {type(result)}")
             if isinstance(result, dict):
@@ -68,13 +67,12 @@ async def quick_test():
 
     request = TaskRequest(
         prompt="List 3 quick infrastructure improvements for a Python web app",
-        context={"quick_test": True}
+        context={"quick_test": True},
     )
 
     try:
         result = await asyncio.wait_for(
-            architect.execute_with_memory(request),
-            timeout=30.0
+            architect.execute_with_memory(request), timeout=30.0
         )
         print(f"  Status: {result.status}")
         print(f"  Execution time: {result.execution_time:.2f}s")
@@ -99,6 +97,7 @@ async def quick_test():
     print("The v4.0.0 infrastructure analysis features are accessible.")
     return True
 
+
 async def main():
     print("=" * 40)
     print("🚀 KI AutoAgent v4.0.0 Quick Test")
@@ -112,6 +111,7 @@ async def main():
         print("The infrastructure analysis methods are available.")
     else:
         print("\n⚠️  Some issues detected, but basic functionality works.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

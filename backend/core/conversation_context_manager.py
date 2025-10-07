@@ -3,8 +3,8 @@ Conversation Context Manager - Stub Implementation
 TODO: Implement full conversation context system
 """
 
-from typing import Any, Dict, List, Optional
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class ConversationContextManager:
     """
 
     def __init__(self):
-        self._conversations: Dict[str, List[Dict[str, Any]]] = {}
+        self._conversations: dict[str, list[dict[str, Any]]] = {}
         logger.debug("📦 ConversationContextManager initialized (stub implementation)")
 
     def add_message(self, conversation_id: str, role: str, content: str) -> None:
@@ -29,12 +29,9 @@ class ConversationContextManager:
         if conversation_id not in self._conversations:
             self._conversations[conversation_id] = []
 
-        self._conversations[conversation_id].append({
-            "role": role,
-            "content": content
-        })
+        self._conversations[conversation_id].append({"role": role, "content": content})
 
-    def get_conversation(self, conversation_id: str) -> List[Dict[str, Any]]:
+    def get_conversation(self, conversation_id: str) -> list[dict[str, Any]]:
         """Get conversation history"""
         return self._conversations.get(conversation_id, [])
 
@@ -44,7 +41,7 @@ class ConversationContextManager:
             del self._conversations[conversation_id]
 
 
-_conversation_context_instance: Optional[ConversationContextManager] = None
+_conversation_context_instance: ConversationContextManager | None = None
 
 
 def get_conversation_context() -> ConversationContextManager:

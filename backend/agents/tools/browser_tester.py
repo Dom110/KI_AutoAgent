@@ -6,13 +6,13 @@ Enables ReviewerGPT to test HTML/JS applications in real browsers
 import asyncio
 import logging
 import os
-from typing import Dict, List, Any, Optional
-from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 try:
-    from playwright.async_api import async_playwright, Browser, Page, Error as PlaywrightError
+    from playwright.async_api import async_playwright
+
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     PLAYWRIGHT_AVAILABLE = False
@@ -35,7 +35,9 @@ class BrowserTester:
 
     def __init__(self):
         if not PLAYWRIGHT_AVAILABLE:
-            raise ImportError("Playwright not installed. Run: pip install playwright && playwright install")
+            raise ImportError(
+                "Playwright not installed. Run: pip install playwright && playwright install"
+            )
 
         self.playwright = None
         self.browser = None
@@ -76,7 +78,7 @@ class BrowserTester:
             self.http_server_process = None
         logger.info("✅ Playwright browser stopped")
 
-    async def test_tetris_app(self, html_file: str) -> Dict[str, Any]:
+    async def test_tetris_app(self, html_file: str) -> dict[str, Any]:
         """
         Test Tetris application
 
@@ -105,11 +107,11 @@ class BrowserTester:
         logger.info(f"Testing Tetris app: {html_file}")
 
         result = {
-            'success': False,
-            'errors': [],
-            'warnings': [],
-            'screenshots': [],
-            'metrics': {}
+            "success": False,
+            "errors": [],
+            "warnings": [],
+            "screenshots": [],
+            "metrics": {},
         }
 
         try:
@@ -122,91 +124,103 @@ class BrowserTester:
             # Navigate to the page
             logger.info(f"Navigating to {url}")
             load_start = asyncio.get_event_loop().time()
-            await self.page.goto(url, wait_until='networkidle')
+            await self.page.goto(url, wait_until="networkidle")
             load_time = (asyncio.get_event_loop().time() - load_start) * 1000
 
-            result['metrics']['load_time_ms'] = int(load_time)
+            result["metrics"]["load_time_ms"] = int(load_time)
             logger.info(f"Page loaded in {load_time:.0f}ms")
 
             # Listen for JavaScript errors
             js_errors = []
-            self.page.on('pageerror', lambda err: js_errors.append(str(err)))
+            self.page.on("pageerror", lambda err: js_errors.append(str(err)))
 
             # Take screenshot
-            screenshot_path = '/tmp/tetris_app_loaded.png'
+            screenshot_path = "/tmp/tetris_app_loaded.png"
             await self.page.screenshot(path=screenshot_path)
-            result['screenshots'].append(screenshot_path)
+            result["screenshots"].append(screenshot_path)
             logger.info(f"Screenshot saved: {screenshot_path}")
 
             # Test 1: Check if canvas exists
-            canvas = await self.page.query_selector('canvas')
+            canvas = await self.page.query_selector("canvas")
             if canvas:
-                result['metrics']['canvas_found'] = True
+                result["metrics"]["canvas_found"] = True
                 logger.info("✅ Canvas element found")
             else:
-                result['errors'].append("Canvas element not found")
-                result['metrics']['canvas_found'] = False
+                result["errors"].append("Canvas element not found")
+                result["metrics"]["canvas_found"] = False
                 logger.error("❌ Canvas element not found")
 
             # Test 2: Check if game elements exist (score, start button, etc.)
-            score_element = await self.page.query_selector('#score, .score, [class*="score"]')
+            score_element = await self.page.query_selector(
+                '#score, .score, [class*="score"]'
+            )
             if score_element:
-                result['metrics']['score_display'] = True
+                result["metrics"]["score_display"] = True
                 logger.info("✅ Score display found")
             else:
-                result['warnings'].append("Score display not found")
-                result['metrics']['score_display'] = False
+                result["warnings"].append("Score display not found")
+                result["metrics"]["score_display"] = False
 
             # Test 3: Try to start the game (look for start button)
-            start_button = await self.page.query_selector('button, [onclick], [class*="start"]')
+            start_button = await self.page.query_selector(
+                'button, [onclick], [class*="start"]'
+            )
             if start_button:
                 logger.info("Clicking start button...")
                 await start_button.click()
                 await self.page.wait_for_timeout(1000)  # Wait 1 second
-                result['metrics']['game_starts'] = True
+                result["metrics"]["game_starts"] = True
                 logger.info("✅ Game started")
             else:
-                result['warnings'].append("Start button not found - game may auto-start")
-                result['metrics']['game_starts'] = None
+                result["warnings"].append(
+                    "Start button not found - game may auto-start"
+                )
+                result["metrics"]["game_starts"] = None
 
             # Test 4: Test keyboard controls (arrow keys)
             logger.info("Testing keyboard controls...")
-            await self.page.keyboard.press('ArrowLeft')
+            await self.page.keyboard.press("ArrowLeft")
             await self.page.wait_for_timeout(200)
-            await self.page.keyboard.press('ArrowRight')
+            await self.page.keyboard.press("ArrowRight")
             await self.page.wait_for_timeout(200)
-            await self.page.keyboard.press('ArrowDown')
+            await self.page.keyboard.press("ArrowDown")
             await self.page.wait_for_timeout(200)
-            await self.page.keyboard.press('Space')  # Rotate or drop
-            result['metrics']['controls_tested'] = True
+            await self.page.keyboard.press("Space")  # Rotate or drop
+            result["metrics"]["controls_tested"] = True
             logger.info("✅ Keyboard controls tested")
 
             # Take screenshot after interaction
-            screenshot_path = '/tmp/tetris_app_playing.png'
+            screenshot_path = "/tmp/tetris_app_playing.png"
             await self.page.screenshot(path=screenshot_path)
-            result['screenshots'].append(screenshot_path)
+            result["screenshots"].append(screenshot_path)
 
             # Test 5: Check for JavaScript errors
             if js_errors:
-                result['errors'].extend(js_errors)
+                result["errors"].extend(js_errors)
                 logger.error(f"❌ JavaScript errors detected: {js_errors}")
             else:
-                result['metrics']['no_js_errors'] = True
+                result["metrics"]["no_js_errors"] = True
                 logger.info("✅ No JavaScript errors")
 
             # Determine overall success
-            result['success'] = len(result['errors']) == 0 and result['metrics'].get('canvas_found', False)
+            result["success"] = len(result["errors"]) == 0 and result["metrics"].get(
+                "canvas_found", False
+            )
 
-            logger.info(f"Tetris app test complete: {'✅ SUCCESS' if result['success'] else '❌ FAILED'}")
+            logger.info(
+                f"Tetris app test complete: {'✅ SUCCESS' if result['success'] else '❌ FAILED'}"
+            )
 
         except Exception as e:
-            result['errors'].append(f"Test exception: {str(e)}")
-            result['success'] = False
+            result["errors"].append(f"Test exception: {str(e)}")
+            result["success"] = False
             logger.error(f"Tetris app test failed: {e}")
 
         return result
 
-    async def test_generic_html_app(self, html_file: str, test_scenarios: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def test_generic_html_app(
+        self, html_file: str, test_scenarios: list[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """
         Test generic HTML application
 
@@ -231,12 +245,12 @@ class BrowserTester:
         logger.info(f"Testing generic HTML app: {html_file}")
 
         result = {
-            'success': False,
-            'errors': [],
-            'warnings': [],
-            'screenshots': [],
-            'test_results': [],
-            'metrics': {}  # v5.5.3: Add metrics for consistency with test_tetris_app
+            "success": False,
+            "errors": [],
+            "warnings": [],
+            "screenshots": [],
+            "test_results": [],
+            "metrics": {},  # v5.5.3: Add metrics for consistency with test_tetris_app
         }
 
         try:
@@ -248,103 +262,107 @@ class BrowserTester:
 
             # Navigate to page
             load_start = asyncio.get_event_loop().time()
-            await self.page.goto(url, wait_until='networkidle')
+            await self.page.goto(url, wait_until="networkidle")
             load_time = (asyncio.get_event_loop().time() - load_start) * 1000
-            result['metrics']['load_time_ms'] = int(load_time)
+            result["metrics"]["load_time_ms"] = int(load_time)
 
             # Take initial screenshot
-            screenshot_path = '/tmp/app_initial.png'
+            screenshot_path = "/tmp/app_initial.png"
             await self.page.screenshot(path=screenshot_path)
-            result['screenshots'].append(screenshot_path)
+            result["screenshots"].append(screenshot_path)
 
             # Listen for JS errors
             js_errors = []
-            self.page.on('pageerror', lambda err: js_errors.append(str(err)))
+            self.page.on("pageerror", lambda err: js_errors.append(str(err)))
 
             # Check for common HTML elements
-            canvas = await self.page.query_selector('canvas')
-            result['metrics']['canvas_found'] = canvas is not None
+            canvas = await self.page.query_selector("canvas")
+            result["metrics"]["canvas_found"] = canvas is not None
 
             # Execute test scenarios
             if test_scenarios:
                 for i, scenario in enumerate(test_scenarios):
                     try:
                         test_result = await self._execute_scenario(scenario)
-                        result['test_results'].append(test_result)
+                        result["test_results"].append(test_result)
 
-                        if not test_result.get('success', False):
-                            result['errors'].append(f"Scenario {i+1} failed: {test_result.get('error', 'Unknown error')}")
+                        if not test_result.get("success", False):
+                            result["errors"].append(
+                                f"Scenario {i+1} failed: {test_result.get('error', 'Unknown error')}"
+                            )
 
                     except Exception as e:
-                        result['errors'].append(f"Scenario {i+1} exception: {str(e)}")
+                        result["errors"].append(f"Scenario {i+1} exception: {str(e)}")
 
-                result['metrics']['controls_tested'] = len(result['test_results']) > 0
+                result["metrics"]["controls_tested"] = len(result["test_results"]) > 0
 
             # Check for JS errors
             if js_errors:
-                result['errors'].extend([f"JS Error: {err}" for err in js_errors])
-                result['metrics']['no_js_errors'] = False
+                result["errors"].extend([f"JS Error: {err}" for err in js_errors])
+                result["metrics"]["no_js_errors"] = False
             else:
-                result['metrics']['no_js_errors'] = True
+                result["metrics"]["no_js_errors"] = True
 
             # Final screenshot
-            screenshot_path = '/tmp/app_final.png'
+            screenshot_path = "/tmp/app_final.png"
             await self.page.screenshot(path=screenshot_path)
-            result['screenshots'].append(screenshot_path)
+            result["screenshots"].append(screenshot_path)
 
             # Determine success
-            result['success'] = len(result['errors']) == 0
+            result["success"] = len(result["errors"]) == 0
 
         except Exception as e:
-            result['errors'].append(f"Test exception: {str(e)}")
-            result['success'] = False
+            result["errors"].append(f"Test exception: {str(e)}")
+            result["success"] = False
             logger.error(f"Generic HTML app test failed: {e}")
 
         return result
 
-    async def _execute_scenario(self, scenario: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_scenario(self, scenario: dict[str, Any]) -> dict[str, Any]:
         """Execute a single test scenario"""
-        action = scenario.get('action')
-        selector = scenario.get('selector')
+        action = scenario.get("action")
+        selector = scenario.get("selector")
 
-        result = {'success': False, 'action': action, 'selector': selector}
+        result = {"success": False, "action": action, "selector": selector}
 
         try:
-            if action == 'click':
+            if action == "click":
                 element = await self.page.query_selector(selector)
                 if element:
                     await element.click()
-                    result['success'] = True
+                    result["success"] = True
                 else:
-                    result['error'] = f"Element not found: {selector}"
+                    result["error"] = f"Element not found: {selector}"
 
-            elif action == 'type':
+            elif action == "type":
                 element = await self.page.query_selector(selector)
-                text = scenario.get('text', '')
+                text = scenario.get("text", "")
                 if element:
                     await element.type(text)
-                    result['success'] = True
+                    result["success"] = True
                 else:
-                    result['error'] = f"Element not found: {selector}"
+                    result["error"] = f"Element not found: {selector}"
 
-            elif action == 'assert':
+            elif action == "assert":
                 element = await self.page.query_selector(selector)
                 if element:
                     text_content = await element.text_content()
-                    expected = scenario.get('contains', '')
+                    expected = scenario.get("contains", "")
 
                     if expected in text_content:
-                        result['success'] = True
+                        result["success"] = True
                     else:
-                        result['error'] = f"Expected '{expected}' not found in '{text_content}'"
+                        result[
+                            "error"
+                        ] = f"Expected '{expected}' not found in '{text_content}'"
                 else:
-                    result['error'] = f"Element not found: {selector}"
+                    result["error"] = f"Element not found: {selector}"
 
             else:
-                result['error'] = f"Unknown action: {action}"
+                result["error"] = f"Unknown action: {action}"
 
         except Exception as e:
-            result['error'] = str(e)
+            result["error"] = str(e)
 
         return result
 
@@ -355,12 +373,12 @@ class BrowserTester:
         Returns:
             Port number the server is running on
         """
-        import subprocess
         import socket
+        import subprocess
 
         # Find available port
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(('', 0))
+            s.bind(("", 0))
             s.listen(1)
             port = s.getsockname()[1]
 
@@ -372,10 +390,10 @@ class BrowserTester:
 
         # Use Python's http.server module
         self.http_server_process = subprocess.Popen(
-            ['python3', '-m', 'http.server', str(port)],
+            ["python3", "-m", "http.server", str(port)],
             cwd=html_dir,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.DEVNULL,
         )
 
         # Wait a bit for server to start
@@ -384,7 +402,7 @@ class BrowserTester:
         logger.info(f"✅ HTTP server started on port {port}")
         return port
 
-    async def get_page_info(self) -> Dict[str, Any]:
+    async def get_page_info(self) -> dict[str, Any]:
         """
         Get information about current page
 
@@ -408,19 +426,15 @@ class BrowserTester:
         viewport = self.page.viewport_size
 
         # Count elements
-        buttons = len(await self.page.query_selector_all('button'))
-        inputs = len(await self.page.query_selector_all('input'))
-        canvases = len(await self.page.query_selector_all('canvas'))
+        buttons = len(await self.page.query_selector_all("button"))
+        inputs = len(await self.page.query_selector_all("input"))
+        canvases = len(await self.page.query_selector_all("canvas"))
 
         return {
-            'title': title,
-            'url': url,
-            'viewport': viewport,
-            'elements': {
-                'buttons': buttons,
-                'inputs': inputs,
-                'canvases': canvases
-            }
+            "title": title,
+            "url": url,
+            "viewport": viewport,
+            "elements": {"buttons": buttons, "inputs": inputs, "canvases": canvases},
         }
 
 
@@ -429,15 +443,17 @@ async def test_example():
     """Example usage of BrowserTester"""
     async with BrowserTester() as tester:
         # Test Tetris app
-        result = await tester.test_tetris_app('/path/to/tetris.html')
+        result = await tester.test_tetris_app("/path/to/tetris.html")
         print(f"Tetris test: {'✅ PASS' if result['success'] else '❌ FAIL'}")
         print(f"Errors: {result['errors']}")
         print(f"Metrics: {result['metrics']}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Test if Playwright is available
     if PLAYWRIGHT_AVAILABLE:
         print("✅ Playwright available")
     else:
-        print("❌ Playwright not available - install with: pip install playwright && playwright install")
+        print(
+            "❌ Playwright not available - install with: pip install playwright && playwright install"
+        )

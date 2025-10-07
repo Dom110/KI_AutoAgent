@@ -5,15 +5,15 @@ v5.8.4: Add resilience to agent execution
 
 import asyncio
 import logging
-from typing import Callable, Any, Optional, Type
+from collections.abc import Callable
 from functools import wraps
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class RetryExhaustedError(Exception):
     """Raised when retry attempts are exhausted"""
-    pass
 
 
 async def retry_with_backoff(
@@ -23,8 +23,8 @@ async def retry_with_backoff(
     base_delay: float = 1.0,
     max_delay: float = 30.0,
     exponential_base: float = 2.0,
-    retry_on: tuple[Type[Exception], ...] = (Exception,),
-    **kwargs
+    retry_on: tuple[type[Exception], ...] = (Exception,),
+    **kwargs,
 ) -> Any:
     """
     Retry an async function with exponential backoff
@@ -65,7 +65,7 @@ async def retry_with_backoff(
                 ) from e
 
             # Calculate delay with exponential backoff
-            delay = min(base_delay * (exponential_base ** attempt), max_delay)
+            delay = min(base_delay * (exponential_base**attempt), max_delay)
 
             logger.warning(
                 f"⚠️ Attempt {attempt + 1}/{max_attempts} failed: {type(e).__name__}: {str(e)[:100]}"
@@ -88,7 +88,7 @@ def with_retry(
     base_delay: float = 1.0,
     max_delay: float = 30.0,
     exponential_base: float = 2.0,
-    retry_on: tuple[Type[Exception], ...] = (Exception,)
+    retry_on: tuple[type[Exception], ...] = (Exception,),
 ):
     """
     Decorator for async functions to add retry logic
@@ -99,6 +99,7 @@ def with_retry(
             # ... might fail ...
             pass
     """
+
     def decorator(func: Callable):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -110,13 +111,16 @@ def with_retry(
                 max_delay=max_delay,
                 exponential_base=exponential_base,
                 retry_on=retry_on,
-                **kwargs
+                **kwargs,
             )
+
         return wrapper
+
     return decorator
 
 
 # Predefined retry strategies for common cases
+
 
 def quick_retry(func: Callable):
     """Quick retry strategy: 3 attempts, 1s base delay"""
@@ -131,6 +135,7 @@ def patient_retry(func: Callable):
 def network_retry(func: Callable):
     """Network retry strategy: Retry on common network errors"""
     import aiohttp
+
     return with_retry(
         max_attempts=3,
         base_delay=1.0,
@@ -138,6 +143,6 @@ def network_retry(func: Callable):
             aiohttp.ClientError,
             ConnectionError,
             TimeoutError,
-            asyncio.TimeoutError
-        )
+            asyncio.TimeoutError,
+        ),
     )(func)

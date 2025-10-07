@@ -3,12 +3,13 @@ Settings API Endpoint
 Allows VS Code extension to sync settings with backend
 """
 
+import logging
+import os
+import sys
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
-import logging
-import sys
-import os
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,7 +22,8 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 class SettingsUpdateRequest(BaseModel):
     """Request model for updating settings"""
-    settings: Dict[str, Any]
+
+    settings: dict[str, Any]
 
 
 @router.get("/current")
@@ -33,10 +35,7 @@ async def get_current_settings():
         Dictionary with all v5.0 settings organized by category
     """
     try:
-        return {
-            "success": True,
-            "settings": Settings.to_dict()
-        }
+        return {"success": True, "settings": Settings.to_dict()}
     except Exception as e:
         logger.error(f"Error getting settings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -63,12 +62,14 @@ async def update_settings(request: SettingsUpdateRequest):
         # Update settings from VS Code
         Settings.update_from_vscode(request.settings)
 
-        logger.info(f"✅ Settings updated from VS Code: {len(request.settings)} settings")
+        logger.info(
+            f"✅ Settings updated from VS Code: {len(request.settings)} settings"
+        )
 
         return {
             "success": True,
             "message": f"Updated {len(request.settings)} settings",
-            "settings": Settings.to_dict()
+            "settings": Settings.to_dict(),
         }
     except Exception as e:
         logger.error(f"Error updating settings: {e}")
@@ -93,43 +94,36 @@ async def get_setting_categories():
                 "checkpointInterval",
                 "maxIterations",
                 "parallelExecution",
-                "stateManagement"
+                "stateManagement",
             ],
             "agents": [
                 "qualityThreshold",
                 "maxRetries",
                 "reviewerIterations",
-                "fixerIterations"
+                "fixerIterations",
             ],
             "routing": [
                 "strategy",
                 "confidenceThreshold",
                 "fallbackAgent",
                 "enableKeywordMatching",
-                "enableSemanticMatching"
+                "enableSemanticMatching",
             ],
             "monitoring": [
                 "enabled",
                 "logAgentMetrics",
                 "trackRoutingSuccess",
-                "alertOnFailures"
+                "alertOnFailures",
             ],
-            "context": [
-                "maxTokensPerAgent",
-                "includeHistory",
-                "historyDepth"
-            ],
-            "memory": [
-                "enabled",
-                "storageBackend"
-            ],
+            "context": ["maxTokensPerAgent", "includeHistory", "historyDepth"],
+            "memory": ["enabled", "storageBackend"],
             "cost": [
                 "trackUsage",
                 "monthlyBudget",
                 "alertOnThreshold",
-                "preferCheaperModels"
-            ]
-        }
+                "preferCheaperModels",
+            ],
+        },
     }
 
 
@@ -182,7 +176,7 @@ async def reset_to_defaults():
         return {
             "success": True,
             "message": "Settings reset to defaults",
-            "settings": Settings.to_dict()
+            "settings": Settings.to_dict(),
         }
     except Exception as e:
         logger.error(f"Error resetting settings: {e}")
@@ -209,7 +203,9 @@ async def validate_settings():
     if Settings.LANGGRAPH_CHECKPOINT_INTERVAL < 1:
         errors.append("langgraph.checkpointInterval must be >= 1")
     if Settings.LANGGRAPH_MAX_ITERATIONS < 5:
-        warnings.append("langgraph.maxIterations < 5 may cause premature workflow termination")
+        warnings.append(
+            "langgraph.maxIterations < 5 may cause premature workflow termination"
+        )
 
     # Agent quality validations
     if not (0.5 <= Settings.AGENT_QUALITY_THRESHOLD <= 0.95):
@@ -219,19 +215,33 @@ async def validate_settings():
 
     # Alternative Fixer validations (v5.1.0)
     if Settings.ALTERNATIVE_FIXER_ENABLED:
-        valid_models = ["gpt-4o", "gpt-5", "gpt-5-mini", "claude-opus-4", "claude-sonnet-4"]
+        valid_models = [
+            "gpt-4o",
+            "gpt-5",
+            "gpt-5-mini",
+            "claude-opus-4",
+            "claude-sonnet-4",
+        ]
         if Settings.ALTERNATIVE_FIXER_MODEL not in valid_models:
-            errors.append(f"alternativeFixer.model must be one of: {', '.join(valid_models)}")
+            errors.append(
+                f"alternativeFixer.model must be one of: {', '.join(valid_models)}"
+            )
 
         # Warn if using same model as primary fixer
         if Settings.ALTERNATIVE_FIXER_MODEL == "claude-sonnet-4":
-            warnings.append("alternativeFixer.model is same as primary fixer (Claude Sonnet) - no benefit!")
+            warnings.append(
+                "alternativeFixer.model is same as primary fixer (Claude Sonnet) - no benefit!"
+            )
 
         # Validate trigger iteration
         if Settings.ALTERNATIVE_FIXER_TRIGGER_ITERATION < 5:
-            warnings.append("alternativeFixer.triggerAfterIterations < 5 may trigger too early (before research)")
+            warnings.append(
+                "alternativeFixer.triggerAfterIterations < 5 may trigger too early (before research)"
+            )
         if Settings.ALTERNATIVE_FIXER_TRIGGER_ITERATION > 15:
-            warnings.append("alternativeFixer.triggerAfterIterations > 15 may be too late (after many failures)")
+            warnings.append(
+                "alternativeFixer.triggerAfterIterations > 15 may be too late (after many failures)"
+            )
 
         # Validate temperature
         if not (0.0 <= Settings.ALTERNATIVE_FIXER_TEMPERATURE <= 1.0):
@@ -239,7 +249,7 @@ async def validate_settings():
 
     # Routing validations
     if Settings.ROUTING_STRATEGY not in ["keyword", "confidence", "hybrid"]:
-        errors.append(f"routing.strategy must be one of: keyword, confidence, hybrid")
+        errors.append("routing.strategy must be one of: keyword, confidence, hybrid")
     if not (0.5 <= Settings.ROUTING_CONFIDENCE_THRESHOLD <= 0.95):
         errors.append("routing.confidenceThreshold must be between 0.5 and 0.95")
 
@@ -247,16 +257,20 @@ async def validate_settings():
     if Settings.CONTEXT_MAX_TOKENS_PER_AGENT < 1000:
         warnings.append("context.maxTokensPerAgent < 1000 may cause context truncation")
     if Settings.CONTEXT_HISTORY_DEPTH > 50:
-        warnings.append("context.historyDepth > 50 may cause high token usage and costs")
+        warnings.append(
+            "context.historyDepth > 50 may cause high token usage and costs"
+        )
 
     # Cost validations
     if Settings.COST_MONTHLY_BUDGET > 0 and Settings.COST_MONTHLY_BUDGET < 10:
-        warnings.append("cost.monthlyBudget < $10 may be too low for active development")
+        warnings.append(
+            "cost.monthlyBudget < $10 may be too low for active development"
+        )
 
     return {
         "success": len(errors) == 0,
         "valid": len(errors) == 0,
         "errors": errors,
         "warnings": warnings,
-        "settings": Settings.to_dict()
+        "settings": Settings.to_dict(),
     }

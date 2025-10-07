@@ -22,16 +22,16 @@ Note: This EXTENDS code-level scanners, not replaces them.
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
-import json
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class FrameworkCategory(Enum):
     """Categories of agent frameworks"""
+
     MULTI_AGENT = "multi_agent"  # Multiple collaborating agents
     SINGLE_AGENT = "single_agent"  # Single intelligent agent
     WORKFLOW = "workflow"  # Workflow/pipeline based
@@ -42,25 +42,27 @@ class FrameworkCategory(Enum):
 @dataclass
 class FrameworkFeature:
     """A feature of an agent framework"""
+
     name: str
     description: str
     benefit: str
     implementation_complexity: str  # "low", "medium", "high"
-    examples: List[str] = field(default_factory=list)
+    examples: list[str] = field(default_factory=list)
 
 
 @dataclass
 class FrameworkProfile:
     """Profile of an agent framework"""
+
     name: str
     category: FrameworkCategory
     description: str
-    key_features: List[FrameworkFeature]
-    strengths: List[str]
-    weaknesses: List[str]
-    best_for: List[str]
+    key_features: list[FrameworkFeature]
+    strengths: list[str]
+    weaknesses: list[str]
+    best_for: list[str]
     architecture_pattern: str
-    source_url: Optional[str] = None
+    source_url: str | None = None
     popularity_score: float = 0.0  # 0.0-1.0
 
 
@@ -72,7 +74,7 @@ class FrameworkDatabase:
     """
 
     def __init__(self):
-        self.frameworks: Dict[str, FrameworkProfile] = {}
+        self.frameworks: dict[str, FrameworkProfile] = {}
         self._initialize_framework_knowledge()
 
     def _initialize_framework_knowledge(self):
@@ -89,42 +91,42 @@ class FrameworkDatabase:
                     description="Agents communicate through structured conversations",
                     benefit="Natural collaboration between agents",
                     implementation_complexity="medium",
-                    examples=["UserProxyAgent", "AssistantAgent"]
+                    examples=["UserProxyAgent", "AssistantAgent"],
                 ),
                 FrameworkFeature(
                     name="Human-in-the-Loop",
                     description="Seamless human intervention in agent workflows",
                     benefit="Maintains control and oversight",
                     implementation_complexity="low",
-                    examples=["UserProxyAgent with human_input_mode"]
+                    examples=["UserProxyAgent with human_input_mode"],
                 ),
                 FrameworkFeature(
                     name="Group Chat",
                     description="Multiple agents collaborate in group discussions",
                     benefit="Complex multi-agent reasoning",
                     implementation_complexity="medium",
-                    examples=["GroupChat", "GroupChatManager"]
-                )
+                    examples=["GroupChat", "GroupChatManager"],
+                ),
             ],
             strengths=[
                 "Strong Microsoft backing",
                 "Excellent documentation",
                 "Active community",
-                "Flexible agent communication"
+                "Flexible agent communication",
             ],
             weaknesses=[
                 "Can be complex for simple tasks",
                 "Requires careful prompt engineering",
-                "Token usage can be high"
+                "Token usage can be high",
             ],
             best_for=[
                 "Multi-agent conversations",
                 "Research and exploration",
-                "Tasks requiring back-and-forth reasoning"
+                "Tasks requiring back-and-forth reasoning",
             ],
             architecture_pattern="Conversational Multi-Agent",
             source_url="https://github.com/microsoft/autogen",
-            popularity_score=0.9
+            popularity_score=0.9,
         )
 
         # CrewAI
@@ -138,42 +140,42 @@ class FrameworkDatabase:
                     description="Agents have specific roles and backstories",
                     benefit="Clear separation of concerns",
                     implementation_complexity="low",
-                    examples=["Researcher", "Writer", "Analyst"]
+                    examples=["Researcher", "Writer", "Analyst"],
                 ),
                 FrameworkFeature(
                     name="Task Assignment",
                     description="Explicit task assignment to agents",
                     benefit="Predictable execution flow",
                     implementation_complexity="low",
-                    examples=["Task with agent assignment"]
+                    examples=["Task with agent assignment"],
                 ),
                 FrameworkFeature(
                     name="Process Types",
                     description="Sequential or hierarchical execution",
                     benefit="Flexible workflow patterns",
                     implementation_complexity="medium",
-                    examples=["Sequential", "Hierarchical"]
-                )
+                    examples=["Sequential", "Hierarchical"],
+                ),
             ],
             strengths=[
                 "Simple and intuitive API",
                 "Role-based design is natural",
                 "Good for task delegation",
-                "Built-in tools integration"
+                "Built-in tools integration",
             ],
             weaknesses=[
                 "Less flexible than conversation-based",
                 "Limited dynamic adaptation",
-                "Sequential bias"
+                "Sequential bias",
             ],
             best_for=[
                 "Task-based workflows",
                 "Role-playing scenarios",
-                "Hierarchical organizations"
+                "Hierarchical organizations",
             ],
             architecture_pattern="Role-Based Task Delegation",
             source_url="https://github.com/joaomdmoura/crewAI",
-            popularity_score=0.85
+            popularity_score=0.85,
         )
 
         # BabyAGI
@@ -187,43 +189,43 @@ class FrameworkDatabase:
                     description="Agent creates new tasks based on results",
                     benefit="Autonomous goal pursuit",
                     implementation_complexity="medium",
-                    examples=["Task creation agent"]
+                    examples=["Task creation agent"],
                 ),
                 FrameworkFeature(
                     name="Task Prioritization",
                     description="Dynamic priority adjustment",
                     benefit="Efficient task ordering",
                     implementation_complexity="medium",
-                    examples=["Prioritization agent"]
+                    examples=["Prioritization agent"],
                 ),
                 FrameworkFeature(
                     name="Vector Memory",
                     description="Pinecone/Weaviate integration for context",
                     benefit="Long-term context retention",
                     implementation_complexity="high",
-                    examples=["Pinecone memory"]
-                )
+                    examples=["Pinecone memory"],
+                ),
             ],
             strengths=[
                 "Self-directed task generation",
                 "Priority-based execution",
                 "Long-term memory",
-                "Simple core loop"
+                "Simple core loop",
             ],
             weaknesses=[
                 "Can spiral into too many tasks",
                 "Resource intensive",
                 "Requires external vector DB",
-                "Less suitable for defined workflows"
+                "Less suitable for defined workflows",
             ],
             best_for=[
                 "Open-ended research",
                 "Exploratory tasks",
-                "Autonomous operation"
+                "Autonomous operation",
             ],
             architecture_pattern="Task Loop with Memory",
             source_url="https://github.com/yoheinakajima/babyagi",
-            popularity_score=0.75
+            popularity_score=0.75,
         )
 
         # ChatDev
@@ -237,43 +239,43 @@ class FrameworkDatabase:
                     description="CEO, CTO, Designer, Engineer, Tester roles",
                     benefit="Realistic software development process",
                     implementation_complexity="high",
-                    examples=["CEO → CTO → Designer → Engineer → Tester"]
+                    examples=["CEO → CTO → Designer → Engineer → Tester"],
                 ),
                 FrameworkFeature(
                     name="Phase-Based Development",
                     description="Demand Analysis → Design → Coding → Testing",
                     benefit="Structured SDLC",
                     implementation_complexity="medium",
-                    examples=["DemandAnalysis phase", "Coding phase"]
+                    examples=["DemandAnalysis phase", "Coding phase"],
                 ),
                 FrameworkFeature(
                     name="Artifact Generation",
                     description="Generates requirements, designs, code, docs",
                     benefit="Complete software deliverables",
                     implementation_complexity="medium",
-                    examples=["requirements.txt", "design.png", "code.py"]
-                )
+                    examples=["requirements.txt", "design.png", "code.py"],
+                ),
             ],
             strengths=[
                 "Realistic development process",
                 "Multiple perspectives (roles)",
                 "Complete software lifecycle",
-                "Good documentation generation"
+                "Good documentation generation",
             ],
             weaknesses=[
                 "Can be slow (many phases)",
                 "High token usage",
                 "Overkill for simple tasks",
-                "Fixed role structure"
+                "Fixed role structure",
             ],
             best_for=[
                 "Complete software projects",
                 "Learning agent collaboration",
-                "Demonstration purposes"
+                "Demonstration purposes",
             ],
             architecture_pattern="Phase-Based Role Simulation",
             source_url="https://github.com/OpenBMB/ChatDev",
-            popularity_score=0.7
+            popularity_score=0.7,
         )
 
         # LangGraph (Our Foundation)
@@ -287,42 +289,38 @@ class FrameworkDatabase:
                     description="Explicit state management in graphs",
                     benefit="Clear state transitions and control flow",
                     implementation_complexity="medium",
-                    examples=["StateGraph", "MessageGraph"]
+                    examples=["StateGraph", "MessageGraph"],
                 ),
                 FrameworkFeature(
                     name="Conditional Edges",
                     description="Dynamic routing based on state",
                     benefit="Flexible workflow adaptation",
                     implementation_complexity="medium",
-                    examples=["add_conditional_edges"]
+                    examples=["add_conditional_edges"],
                 ),
                 FrameworkFeature(
                     name="Persistence",
                     description="Built-in checkpointing and state persistence",
                     benefit="Resume from failures, time travel debugging",
                     implementation_complexity="low",
-                    examples=["MemorySaver", "SqliteSaver"]
-                )
+                    examples=["MemorySaver", "SqliteSaver"],
+                ),
             ],
             strengths=[
                 "Excellent state management",
                 "Visual graph representation",
                 "Flexible routing",
-                "LangChain ecosystem integration"
+                "LangChain ecosystem integration",
             ],
-            weaknesses=[
-                "Learning curve",
-                "Verbose for simple cases",
-                "Relatively new"
-            ],
+            weaknesses=["Learning curve", "Verbose for simple cases", "Relatively new"],
             best_for=[
                 "Complex stateful workflows",
                 "Agent collaboration",
-                "Production systems"
+                "Production systems",
             ],
             architecture_pattern="Stateful Graph Workflow",
             source_url="https://github.com/langchain-ai/langgraph",
-            popularity_score=0.8
+            popularity_score=0.8,
         )
 
 
@@ -335,13 +333,11 @@ class FrameworkComparator:
 
     def __init__(self):
         self.db = FrameworkDatabase()
-        self.comparison_history: List[Dict[str, Any]] = []
+        self.comparison_history: list[dict[str, Any]] = []
 
     def compare_architecture_decision(
-        self,
-        decision: str,
-        context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, decision: str, context: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Analyze an architecture decision against framework best practices
 
@@ -359,7 +355,9 @@ class FrameworkComparator:
         logger.info(f"🔍 Analyzing architecture decision: {decision[:60]}...")
 
         similar_patterns = self._find_similar_patterns(decision, context)
-        recommendations = self._generate_recommendations(decision, similar_patterns, context)
+        recommendations = self._generate_recommendations(
+            decision, similar_patterns, context
+        )
         best_practices = self._extract_best_practices(similar_patterns)
         risk_assessment = self._assess_risks(decision, similar_patterns)
 
@@ -369,7 +367,7 @@ class FrameworkComparator:
             "recommendations": recommendations,
             "best_practices": best_practices,
             "risk_assessment": risk_assessment,
-            "frameworks_analyzed": len(self.db.frameworks)
+            "frameworks_analyzed": len(self.db.frameworks),
         }
 
         self.comparison_history.append(analysis)
@@ -377,178 +375,199 @@ class FrameworkComparator:
         return analysis
 
     def _find_similar_patterns(
-        self,
-        decision: str,
-        context: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, decision: str, context: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Find similar patterns in other frameworks"""
         patterns = []
 
         decision_lower = decision.lower()
 
         # Pattern: Multi-agent collaboration
-        if any(keyword in decision_lower for keyword in ["multi-agent", "collaboration", "agents work together"]):
-            patterns.append({
-                "pattern": "Multi-Agent Collaboration",
-                "frameworks": ["autogen", "crewai", "langgraph"],
-                "approaches": [
-                    {
-                        "framework": "AutoGen",
-                        "approach": "Conversational agents with GroupChat",
-                        "benefit": "Natural back-and-forth reasoning"
-                    },
-                    {
-                        "framework": "CrewAI",
-                        "approach": "Role-based task delegation",
-                        "benefit": "Clear separation of responsibilities"
-                    },
-                    {
-                        "framework": "LangGraph",
-                        "approach": "Graph-based state sharing",
-                        "benefit": "Explicit state management"
-                    }
-                ]
-            })
+        if any(
+            keyword in decision_lower
+            for keyword in ["multi-agent", "collaboration", "agents work together"]
+        ):
+            patterns.append(
+                {
+                    "pattern": "Multi-Agent Collaboration",
+                    "frameworks": ["autogen", "crewai", "langgraph"],
+                    "approaches": [
+                        {
+                            "framework": "AutoGen",
+                            "approach": "Conversational agents with GroupChat",
+                            "benefit": "Natural back-and-forth reasoning",
+                        },
+                        {
+                            "framework": "CrewAI",
+                            "approach": "Role-based task delegation",
+                            "benefit": "Clear separation of responsibilities",
+                        },
+                        {
+                            "framework": "LangGraph",
+                            "approach": "Graph-based state sharing",
+                            "benefit": "Explicit state management",
+                        },
+                    ],
+                }
+            )
 
         # Pattern: Task decomposition
-        if any(keyword in decision_lower for keyword in ["decompose", "break down", "subtasks"]):
-            patterns.append({
-                "pattern": "Task Decomposition",
-                "frameworks": ["babyagi", "chatdev", "crewai"],
-                "approaches": [
-                    {
-                        "framework": "BabyAGI",
-                        "approach": "Dynamic task creation based on results",
-                        "benefit": "Autonomous goal pursuit"
-                    },
-                    {
-                        "framework": "ChatDev",
-                        "approach": "Fixed phase-based decomposition",
-                        "benefit": "Predictable, structured process"
-                    },
-                    {
-                        "framework": "CrewAI",
-                        "approach": "Manual task assignment to roles",
-                        "benefit": "Explicit control over workflow"
-                    }
-                ]
-            })
+        if any(
+            keyword in decision_lower
+            for keyword in ["decompose", "break down", "subtasks"]
+        ):
+            patterns.append(
+                {
+                    "pattern": "Task Decomposition",
+                    "frameworks": ["babyagi", "chatdev", "crewai"],
+                    "approaches": [
+                        {
+                            "framework": "BabyAGI",
+                            "approach": "Dynamic task creation based on results",
+                            "benefit": "Autonomous goal pursuit",
+                        },
+                        {
+                            "framework": "ChatDev",
+                            "approach": "Fixed phase-based decomposition",
+                            "benefit": "Predictable, structured process",
+                        },
+                        {
+                            "framework": "CrewAI",
+                            "approach": "Manual task assignment to roles",
+                            "benefit": "Explicit control over workflow",
+                        },
+                    ],
+                }
+            )
 
         # Pattern: State management
         if any(keyword in decision_lower for keyword in ["state", "context", "memory"]):
-            patterns.append({
-                "pattern": "State Management",
-                "frameworks": ["langgraph", "babyagi", "autogen"],
-                "approaches": [
-                    {
-                        "framework": "LangGraph",
-                        "approach": "Explicit state graphs with persistence",
-                        "benefit": "Resume from failures, clear state flow"
-                    },
-                    {
-                        "framework": "BabyAGI",
-                        "approach": "Vector database for long-term memory",
-                        "benefit": "Context retention across tasks"
-                    },
-                    {
-                        "framework": "AutoGen",
-                        "approach": "Conversation history as state",
-                        "benefit": "Natural state progression"
-                    }
-                ]
-            })
+            patterns.append(
+                {
+                    "pattern": "State Management",
+                    "frameworks": ["langgraph", "babyagi", "autogen"],
+                    "approaches": [
+                        {
+                            "framework": "LangGraph",
+                            "approach": "Explicit state graphs with persistence",
+                            "benefit": "Resume from failures, clear state flow",
+                        },
+                        {
+                            "framework": "BabyAGI",
+                            "approach": "Vector database for long-term memory",
+                            "benefit": "Context retention across tasks",
+                        },
+                        {
+                            "framework": "AutoGen",
+                            "approach": "Conversation history as state",
+                            "benefit": "Natural state progression",
+                        },
+                    ],
+                }
+            )
 
         # Pattern: Human oversight
-        if any(keyword in decision_lower for keyword in ["approval", "human", "oversight", "review"]):
-            patterns.append({
-                "pattern": "Human-in-the-Loop",
-                "frameworks": ["autogen", "chatdev"],
-                "approaches": [
-                    {
-                        "framework": "AutoGen",
-                        "approach": "UserProxyAgent with human_input_mode",
-                        "benefit": "Seamless intervention points"
-                    },
-                    {
-                        "framework": "ChatDev",
-                        "approach": "Phase-based approval gates",
-                        "benefit": "Structured review points"
-                    }
-                ]
-            })
+        if any(
+            keyword in decision_lower
+            for keyword in ["approval", "human", "oversight", "review"]
+        ):
+            patterns.append(
+                {
+                    "pattern": "Human-in-the-Loop",
+                    "frameworks": ["autogen", "chatdev"],
+                    "approaches": [
+                        {
+                            "framework": "AutoGen",
+                            "approach": "UserProxyAgent with human_input_mode",
+                            "benefit": "Seamless intervention points",
+                        },
+                        {
+                            "framework": "ChatDev",
+                            "approach": "Phase-based approval gates",
+                            "benefit": "Structured review points",
+                        },
+                    ],
+                }
+            )
 
         # Pattern: Code generation
-        if any(keyword in decision_lower for keyword in ["code", "implement", "generate"]):
-            patterns.append({
-                "pattern": "Code Generation",
-                "frameworks": ["chatdev", "autogen", "crewai"],
-                "approaches": [
-                    {
-                        "framework": "ChatDev",
-                        "approach": "Multi-phase with review (Design → Code → Test)",
-                        "benefit": "Quality through multiple perspectives"
-                    },
-                    {
-                        "framework": "AutoGen",
-                        "approach": "Conversational code refinement",
-                        "benefit": "Iterative improvement"
-                    }
-                ]
-            })
+        if any(
+            keyword in decision_lower for keyword in ["code", "implement", "generate"]
+        ):
+            patterns.append(
+                {
+                    "pattern": "Code Generation",
+                    "frameworks": ["chatdev", "autogen", "crewai"],
+                    "approaches": [
+                        {
+                            "framework": "ChatDev",
+                            "approach": "Multi-phase with review (Design → Code → Test)",
+                            "benefit": "Quality through multiple perspectives",
+                        },
+                        {
+                            "framework": "AutoGen",
+                            "approach": "Conversational code refinement",
+                            "benefit": "Iterative improvement",
+                        },
+                    ],
+                }
+            )
 
         return patterns
 
     def _generate_recommendations(
-        self,
-        decision: str,
-        patterns: List[Dict[str, Any]],
-        context: Dict[str, Any]
-    ) -> List[Dict[str, str]]:
+        self, decision: str, patterns: list[dict[str, Any]], context: dict[str, Any]
+    ) -> list[dict[str, str]]:
         """Generate recommendations based on pattern analysis"""
         recommendations = []
 
         for pattern_info in patterns:
             pattern = pattern_info["pattern"]
-            approaches = pattern_info.get("approaches", [])
+            pattern_info.get("approaches", [])
 
             if pattern == "Multi-Agent Collaboration":
-                recommendations.append({
-                    "category": "Architecture",
-                    "recommendation": "Consider combining CrewAI's role clarity with LangGraph's state management",
-                    "rationale": "Clear roles prevent overlap, explicit state prevents confusion",
-                    "priority": "high"
-                })
+                recommendations.append(
+                    {
+                        "category": "Architecture",
+                        "recommendation": "Consider combining CrewAI's role clarity with LangGraph's state management",
+                        "rationale": "Clear roles prevent overlap, explicit state prevents confusion",
+                        "priority": "high",
+                    }
+                )
 
             if pattern == "Task Decomposition":
-                recommendations.append({
-                    "category": "Planning",
-                    "recommendation": "Use hybrid approach: AI-driven decomposition with human validation",
-                    "rationale": "BabyAGI shows autonomous decomposition works, but ChatDev shows structure helps",
-                    "priority": "medium"
-                })
+                recommendations.append(
+                    {
+                        "category": "Planning",
+                        "recommendation": "Use hybrid approach: AI-driven decomposition with human validation",
+                        "rationale": "BabyAGI shows autonomous decomposition works, but ChatDev shows structure helps",
+                        "priority": "medium",
+                    }
+                )
 
             if pattern == "Human-in-the-Loop":
-                recommendations.append({
-                    "category": "Control",
-                    "recommendation": "Implement architecture approval gates like ChatDev",
-                    "rationale": "Prevents wasted effort on incorrect architectures",
-                    "priority": "high"
-                })
+                recommendations.append(
+                    {
+                        "category": "Control",
+                        "recommendation": "Implement architecture approval gates like ChatDev",
+                        "rationale": "Prevents wasted effort on incorrect architectures",
+                        "priority": "high",
+                    }
+                )
 
             if pattern == "Code Generation":
-                recommendations.append({
-                    "category": "Quality",
-                    "recommendation": "Multi-phase approach: Design → Implement → Review → Fix",
-                    "rationale": "ChatDev demonstrates this catches more issues",
-                    "priority": "high"
-                })
+                recommendations.append(
+                    {
+                        "category": "Quality",
+                        "recommendation": "Multi-phase approach: Design → Implement → Review → Fix",
+                        "rationale": "ChatDev demonstrates this catches more issues",
+                        "priority": "high",
+                    }
+                )
 
         return recommendations
 
-    def _extract_best_practices(
-        self,
-        patterns: List[Dict[str, Any]]
-    ) -> List[str]:
+    def _extract_best_practices(self, patterns: list[dict[str, Any]]) -> list[str]:
         """Extract best practices from pattern analysis"""
         best_practices = []
 
@@ -557,21 +576,21 @@ class FrameworkComparator:
                 best_practices.append(f"{approach['framework']}: {approach['benefit']}")
 
         # Add general best practices
-        best_practices.extend([
-            "Explicit state management prevents confusion (LangGraph)",
-            "Role-based agents improve clarity (CrewAI)",
-            "Human oversight gates prevent wasted effort (AutoGen, ChatDev)",
-            "Vector memory enables long-term context (BabyAGI)",
-            "Phase-based workflows ensure completeness (ChatDev)"
-        ])
+        best_practices.extend(
+            [
+                "Explicit state management prevents confusion (LangGraph)",
+                "Role-based agents improve clarity (CrewAI)",
+                "Human oversight gates prevent wasted effort (AutoGen, ChatDev)",
+                "Vector memory enables long-term context (BabyAGI)",
+                "Phase-based workflows ensure completeness (ChatDev)",
+            ]
+        )
 
         return list(set(best_practices))  # Remove duplicates
 
     def _assess_risks(
-        self,
-        decision: str,
-        patterns: List[Dict[str, Any]]
-    ) -> List[Dict[str, str]]:
+        self, decision: str, patterns: list[dict[str, Any]]
+    ) -> list[dict[str, str]]:
         """Assess risks based on other frameworks' experiences"""
         risks = []
 
@@ -579,47 +598,56 @@ class FrameworkComparator:
 
         # Risk: Too many agents
         if "agent" in decision_lower:
-            risks.append({
-                "risk": "Agent Communication Overhead",
-                "description": "AutoGen shows too many agents increases token usage and latency",
-                "mitigation": "Limit to essential agents, use hierarchical communication",
-                "severity": "medium"
-            })
+            risks.append(
+                {
+                    "risk": "Agent Communication Overhead",
+                    "description": "AutoGen shows too many agents increases token usage and latency",
+                    "mitigation": "Limit to essential agents, use hierarchical communication",
+                    "severity": "medium",
+                }
+            )
 
         # Risk: Autonomous task creation
-        if any(keyword in decision_lower for keyword in ["autonomous", "self-directed", "dynamic"]):
-            risks.append({
-                "risk": "Task Explosion",
-                "description": "BabyAGI demonstrates autonomous agents can create too many subtasks",
-                "mitigation": "Implement task limits and priority-based pruning",
-                "severity": "high"
-            })
+        if any(
+            keyword in decision_lower
+            for keyword in ["autonomous", "self-directed", "dynamic"]
+        ):
+            risks.append(
+                {
+                    "risk": "Task Explosion",
+                    "description": "BabyAGI demonstrates autonomous agents can create too many subtasks",
+                    "mitigation": "Implement task limits and priority-based pruning",
+                    "severity": "high",
+                }
+            )
 
         # Risk: No approval gates
         if "approval" not in decision_lower and "review" not in decision_lower:
-            risks.append({
-                "risk": "Missing Human Oversight",
-                "description": "ChatDev shows approval gates prevent wasted effort on wrong directions",
-                "mitigation": "Add architecture approval before implementation",
-                "severity": "high"
-            })
+            risks.append(
+                {
+                    "risk": "Missing Human Oversight",
+                    "description": "ChatDev shows approval gates prevent wasted effort on wrong directions",
+                    "mitigation": "Add architecture approval before implementation",
+                    "severity": "high",
+                }
+            )
 
         return risks
 
-    def get_framework_profile(self, framework_name: str) -> Optional[FrameworkProfile]:
+    def get_framework_profile(self, framework_name: str) -> FrameworkProfile | None:
         """Get detailed profile of a specific framework"""
         return self.db.frameworks.get(framework_name.lower())
 
-    def list_frameworks(self) -> List[str]:
+    def list_frameworks(self) -> list[str]:
         """List all known frameworks"""
         return list(self.db.frameworks.keys())
 
-    def get_comparison_summary(self) -> Dict[str, Any]:
+    def get_comparison_summary(self) -> dict[str, Any]:
         """Get summary of all comparisons made"""
         return {
             "total_comparisons": len(self.comparison_history),
             "frameworks_in_db": len(self.db.frameworks),
-            "framework_categories": list(set(
-                f.category.value for f in self.db.frameworks.values()
-            ))
+            "framework_categories": list(
+                {f.category.value for f in self.db.frameworks.values()}
+            ),
         }

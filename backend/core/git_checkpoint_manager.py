@@ -3,8 +3,8 @@ Git Checkpoint Manager - Stub Implementation
 TODO: Implement full git checkpoint system
 """
 
-from typing import Any, Dict, List, Optional
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class GitCheckpointManager:
     - Checkpoint diffing
     """
 
-    def __init__(self, project_path: Optional[str] = None):
+    def __init__(self, project_path: str | None = None):
         """
         Initialize git checkpoint manager
 
@@ -28,21 +28,19 @@ class GitCheckpointManager:
             project_path: Optional project path for git operations
         """
         self.project_path = project_path
-        self._checkpoints: List[Dict[str, Any]] = []
+        self._checkpoints: list[dict[str, Any]] = []
         logger.debug("📦 GitCheckpointManager initialized (stub implementation)")
 
     def create_checkpoint(self, name: str, message: str = "") -> str:
         """Create a checkpoint"""
         checkpoint_id = f"checkpoint_{len(self._checkpoints)}"
-        self._checkpoints.append({
-            "id": checkpoint_id,
-            "name": name,
-            "message": message
-        })
+        self._checkpoints.append(
+            {"id": checkpoint_id, "name": name, "message": message}
+        )
         logger.info(f"📍 Checkpoint created: {name}")
         return checkpoint_id
 
-    def list_checkpoints(self) -> List[Dict[str, Any]]:
+    def list_checkpoints(self) -> list[dict[str, Any]]:
         """List all checkpoints"""
         return self._checkpoints.copy()
 

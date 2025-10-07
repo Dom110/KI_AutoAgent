@@ -3,8 +3,8 @@ Shared Context Manager - Stub Implementation
 TODO: Implement full context sharing system
 """
 
-from typing import Any, Dict, Optional
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class SharedContextManager:
     """
 
     def __init__(self):
-        self._context: Dict[str, Any] = {}
+        self._context: dict[str, Any] = {}
         logger.debug("📦 SharedContextManager initialized (stub implementation)")
 
     def set(self, key: str, value: Any) -> None:
@@ -32,7 +32,7 @@ class SharedContextManager:
         """Get context value"""
         return self._context.get(key, default)
 
-    def update(self, context: Dict[str, Any]) -> None:
+    def update(self, context: dict[str, Any]) -> None:
         """Update context with dict"""
         self._context.update(context)
 
@@ -40,12 +40,12 @@ class SharedContextManager:
         """Clear all context"""
         self._context.clear()
 
-    def get_all(self) -> Dict[str, Any]:
+    def get_all(self) -> dict[str, Any]:
         """Get all context"""
         return self._context.copy()
 
 
-_shared_context_instance: Optional[SharedContextManager] = None
+_shared_context_instance: SharedContextManager | None = None
 
 
 def get_shared_context() -> SharedContextManager:

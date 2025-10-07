@@ -4,24 +4,26 @@ Extends BaseAgent with WebSocket streaming support
 """
 
 import asyncio
-import json
-from typing import AsyncGenerator, Dict, Any, Optional, Callable
+import logging
+from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass
 from datetime import datetime
-import logging
+from typing import Any
 
-from .base_agent import BaseAgent, AgentConfig, TaskRequest, TaskResult
+from .base_agent import AgentConfig, BaseAgent, TaskRequest
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class StreamMessage:
     """Message for streaming responses"""
+
     type: str  # 'text', 'thinking', 'tool_use', 'error', 'complete'
     content: str
     agent: str
     timestamp: datetime = None
-    metadata: Dict[str, Any] = None
+    metadata: dict[str, Any] = None
 
     def __post_init__(self):
         if self.timestamp is None:
@@ -29,14 +31,15 @@ class StreamMessage:
         if self.metadata is None:
             self.metadata = {}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": self.type,
             "content": self.content,
             "agent": self.agent,
             "timestamp": self.timestamp.isoformat(),
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
+
 
 class ChatAgent(BaseAgent):
     """
@@ -46,26 +49,26 @@ class ChatAgent(BaseAgent):
 
     def __init__(self, config: AgentConfig):
         super().__init__(config)
-        self.active_streams: Dict[str, asyncio.Queue] = {}
-        self.stream_handlers: Dict[str, Callable] = {}
+        self.active_streams: dict[str, asyncio.Queue] = {}
+        self.stream_handlers: dict[str, Callable] = {}
 
     async def handle_chat_stream(
         self,
         request: TaskRequest,
-        stream_callback: Optional[Callable[[StreamMessage], None]] = None
+        stream_callback: Callable[[StreamMessage], None] | None = None,
     ) -> AsyncGenerator[StreamMessage, None]:
         """
         Handle chat request with streaming response
         Yields StreamMessage objects for real-time updates
         """
-        stream_id = f"stream_{self.config.agent_id}_{datetime.now().timestamp()}"
+        f"stream_{self.config.agent_id}_{datetime.now().timestamp()}"
 
         try:
             # Send initial thinking message
             thinking_msg = StreamMessage(
                 type="thinking",
                 content=f"{self.config.icon} {self.name} is thinking...",
-                agent=self.config.agent_id
+                agent=self.config.agent_id,
             )
             if stream_callback:
                 await stream_callback(thinking_msg)
@@ -75,9 +78,7 @@ class ChatAgent(BaseAgent):
             if self.memory_manager:
                 # Search for similar conversations
                 similar = await self.memory_manager.search(
-                    request.prompt,
-                    memory_type="episodic",
-                    k=3
+                    request.prompt, memory_type="episodic", k=3
                 )
 
                 if similar:
@@ -85,7 +86,7 @@ class ChatAgent(BaseAgent):
                         type="text",
                         content="Found relevant context from previous conversations...",
                         agent=self.config.agent_id,
-                        metadata={"similar_count": len(similar)}
+                        metadata={"similar_count": len(similar)},
                     )
                     if stream_callback:
                         await stream_callback(context_msg)
@@ -104,8 +105,8 @@ class ChatAgent(BaseAgent):
                 agent=self.config.agent_id,
                 metadata={
                     "execution_count": self.execution_count,
-                    "tokens_used": self.total_tokens_used
-                }
+                    "tokens_used": self.total_tokens_used,
+                },
             )
             if stream_callback:
                 await stream_callback(complete_msg)
@@ -113,16 +114,16 @@ class ChatAgent(BaseAgent):
 
         except Exception as e:
             error_msg = StreamMessage(
-                type="error",
-                content=f"❌ Error: {str(e)}",
-                agent=self.config.agent_id
+                type="error", content=f"❌ Error: {str(e)}", agent=self.config.agent_id
             )
             if stream_callback:
                 await stream_callback(error_msg)
             yield error_msg
             logger.error(f"Stream error in {self.name}: {e}")
 
-    async def _execute_streaming(self, request: TaskRequest) -> AsyncGenerator[StreamMessage, None]:
+    async def _execute_streaming(
+        self, request: TaskRequest
+    ) -> AsyncGenerator[StreamMessage, None]:
         """
         Execute task with streaming output
         Override in subclasses for specific streaming behavior
@@ -136,14 +137,14 @@ class ChatAgent(BaseAgent):
                 type="text",
                 content=result.content,
                 agent=self.config.agent_id,
-                metadata={"status": result.status}
+                metadata={"status": result.status},
             )
         else:
             yield StreamMessage(
                 type="error",
                 content=result.content,
                 agent=self.config.agent_id,
-                metadata={"status": result.status}
+                metadata={"status": result.status},
             )
 
     async def handle_websocket(self, websocket, client_id: str):
@@ -170,7 +171,7 @@ class ChatAgent(BaseAgent):
                     context=data.get("context", {}),
                     command=data.get("command"),
                     thinking_mode=data.get("thinking_mode", False),
-                    mode=data.get("mode", "auto")
+                    mode=data.get("mode", "auto"),
                 )
 
                 # Stream response
@@ -179,11 +180,9 @@ class ChatAgent(BaseAgent):
 
         except Exception as e:
             logger.error(f"WebSocket error in {self.name}: {e}")
-            await websocket.send_json({
-                "type": "error",
-                "content": str(e),
-                "agent": self.config.agent_id
-            })
+            await websocket.send_json(
+                {"type": "error", "content": str(e), "agent": self.config.agent_id}
+            )
 
     async def broadcast_to_streams(self, message: StreamMessage):
         """Broadcast message to all active streams"""
@@ -200,17 +199,19 @@ class ChatAgent(BaseAgent):
         else:
             return f"### ❌ {self.name} Error\n\n{content}"
 
-    def get_chat_status(self) -> Dict[str, Any]:
+    def get_chat_status(self) -> dict[str, Any]:
         """Get chat-specific status information"""
         base_status = self.get_status()
-        base_status.update({
-            "active_streams": len(self.active_streams),
-            "streaming_enabled": True,
-            "chat_capabilities": [
-                "streaming",
-                "websocket",
-                "real-time",
-                "memory-enhanced"
-            ]
-        })
+        base_status.update(
+            {
+                "active_streams": len(self.active_streams),
+                "streaming_enabled": True,
+                "chat_capabilities": [
+                    "streaming",
+                    "websocket",
+                    "real-time",
+                    "memory-enhanced",
+                ],
+            }
+        )
         return base_status

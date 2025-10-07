@@ -6,19 +6,21 @@ Tests the complete system including agents, WebSocket, and orchestration
 import asyncio
 import json
 import sys
-import aiohttp
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Any
+
+import aiohttp
 
 # Test configuration
 SERVER_URL = "http://localhost:8000"
 WS_URL = "ws://localhost:8000/ws/chat"
 
+
 class IntegrationTestSuite:
     """Complete integration test suite"""
 
     def __init__(self):
-        self.test_results: List[Dict[str, Any]] = []
+        self.test_results: list[dict[str, Any]] = []
         self.total_tests = 0
         self.passed_tests = 0
         self.failed_tests = 0
@@ -64,10 +66,7 @@ class IntegrationTestSuite:
             try:
                 async with session.get(f"{SERVER_URL}/") as response:
                     data = await response.json()
-                    success = (
-                        response.status == 200 and
-                        data.get("status") == "healthy"
-                    )
+                    success = response.status == 200 and data.get("status") == "healthy"
                     self.record_result(test_name, success, data)
             except Exception as e:
                 self.record_result(test_name, False, str(e))
@@ -77,11 +76,12 @@ class IntegrationTestSuite:
             try:
                 async with session.get(f"{SERVER_URL}/api/agents") as response:
                     data = await response.json()
-                    success = (
-                        response.status == 200 and
-                        len(data.get("agents", [])) > 0
+                    success = response.status == 200 and len(data.get("agents", [])) > 0
+                    self.record_result(
+                        test_name,
+                        success,
+                        f"{len(data.get('agents', []))} agents found",
                     )
-                    self.record_result(test_name, success, f"{len(data.get('agents', []))} agents found")
             except Exception as e:
                 self.record_result(test_name, False, str(e))
 
@@ -131,11 +131,9 @@ class IntegrationTestSuite:
 
                     try:
                         # Send message to agent
-                        await ws.send_json({
-                            "type": "chat",
-                            "content": prompt,
-                            "agent": agent_id
-                        })
+                        await ws.send_json(
+                            {"type": "chat", "content": prompt, "agent": agent_id}
+                        )
 
                         # Expect thinking message
                         msg = await asyncio.wait_for(ws.receive(), timeout=5.0)
@@ -146,14 +144,14 @@ class IntegrationTestSuite:
                         response_data = json.loads(msg.data)
 
                         success = (
-                            thinking_data.get("type") == "agent_thinking" and
-                            response_data.get("type") == "agent_response"
+                            thinking_data.get("type") == "agent_thinking"
+                            and response_data.get("type") == "agent_response"
                         )
 
                         self.record_result(
                             test_name,
                             success,
-                            f"Response length: {len(response_data.get('content', ''))}"
+                            f"Response length: {len(response_data.get('content', ''))}",
                         )
 
                     except Exception as e:
@@ -170,11 +168,13 @@ class IntegrationTestSuite:
 
                 try:
                     # Send complex task
-                    await ws.send_json({
-                        "type": "chat",
-                        "content": "Build a complete REST API with authentication",
-                        "agent": "orchestrator"
-                    })
+                    await ws.send_json(
+                        {
+                            "type": "chat",
+                            "content": "Build a complete REST API with authentication",
+                            "agent": "orchestrator",
+                        }
+                    )
 
                     # Collect responses
                     messages = []
@@ -183,13 +183,21 @@ class IntegrationTestSuite:
                         messages.append(json.loads(msg.data))
 
                     # Check for orchestration elements
-                    has_thinking = any(m.get("type") == "agent_thinking" for m in messages)
-                    has_response = any(m.get("type") == "agent_response" for m in messages)
+                    has_thinking = any(
+                        m.get("type") == "agent_thinking" for m in messages
+                    )
+                    has_response = any(
+                        m.get("type") == "agent_response" for m in messages
+                    )
 
                     # Check if response mentions subtasks or complexity
                     response_content = next(
-                        (m.get("content", "") for m in messages if m.get("type") == "agent_response"),
-                        ""
+                        (
+                            m.get("content", "")
+                            for m in messages
+                            if m.get("type") == "agent_response"
+                        ),
+                        "",
                     )
 
                     has_decomposition = any(
@@ -199,9 +207,7 @@ class IntegrationTestSuite:
 
                     success = has_thinking and has_response
                     self.record_result(
-                        test_name,
-                        success,
-                        f"Decomposition found: {has_decomposition}"
+                        test_name, success, f"Decomposition found: {has_decomposition}"
                     )
 
                 except Exception as e:
@@ -225,11 +231,13 @@ class IntegrationTestSuite:
                 # Send messages in parallel
                 tasks = []
                 for i, ws in enumerate(connections):
-                    task = ws.send_json({
-                        "type": "chat",
-                        "content": f"Task {i+1}: Simple calculation",
-                        "agent": "orchestrator"
-                    })
+                    task = ws.send_json(
+                        {
+                            "type": "chat",
+                            "content": f"Task {i+1}: Simple calculation",
+                            "agent": "orchestrator",
+                        }
+                    )
                     tasks.append(task)
 
                 await asyncio.gather(*tasks)
@@ -250,7 +258,7 @@ class IntegrationTestSuite:
                 self.record_result(
                     test_name,
                     success,
-                    f"Handled {len(connections)} parallel connections"
+                    f"Handled {len(connections)} parallel connections",
                 )
 
             except Exception as e:
@@ -267,12 +275,14 @@ class IntegrationTestSuite:
 
                 try:
                     # Request a longer response
-                    await ws.send_json({
-                        "type": "chat",
-                        "content": "Explain the architecture of this system in detail",
-                        "agent": "orchestrator",
-                        "metadata": {"streaming": True}
-                    })
+                    await ws.send_json(
+                        {
+                            "type": "chat",
+                            "content": "Explain the architecture of this system in detail",
+                            "agent": "orchestrator",
+                            "metadata": {"streaming": True},
+                        }
+                    )
 
                     # Collect multiple messages (streaming chunks)
                     messages = []
@@ -287,13 +297,11 @@ class IntegrationTestSuite:
 
                     # Check for streaming indicators
                     has_multiple_messages = len(messages) >= 2
-                    message_types = [m.get("type") for m in messages]
+                    [m.get("type") for m in messages]
 
                     success = has_multiple_messages
                     self.record_result(
-                        test_name,
-                        success,
-                        f"Received {len(messages)} messages"
+                        test_name, success, f"Received {len(messages)} messages"
                     )
 
                 except Exception as e:
@@ -304,7 +312,10 @@ class IntegrationTestSuite:
         test_cases = [
             ("Invalid Message Type", {"type": "invalid_type"}),
             ("Empty Content", {"type": "chat", "content": ""}),
-            ("Unknown Agent", {"type": "chat", "content": "test", "agent": "unknown_agent"}),
+            (
+                "Unknown Agent",
+                {"type": "chat", "content": "test", "agent": "unknown_agent"},
+            ),
         ]
 
         async with aiohttp.ClientSession() as session:
@@ -325,14 +336,18 @@ class IntegrationTestSuite:
                         self.record_result(
                             f"Error Handling - {test_name}",
                             success,
-                            data.get("type", "handled")
+                            data.get("type", "handled"),
                         )
 
                     except asyncio.TimeoutError:
                         # No response is also acceptable (ignored)
-                        self.record_result(f"Error Handling - {test_name}", True, "ignored")
+                        self.record_result(
+                            f"Error Handling - {test_name}", True, "ignored"
+                        )
                     except Exception as e:
-                        self.record_result(f"Error Handling - {test_name}", False, str(e))
+                        self.record_result(
+                            f"Error Handling - {test_name}", False, str(e)
+                        )
 
     async def test_reconnection(self):
         """Test reconnection capability"""
@@ -345,11 +360,13 @@ class IntegrationTestSuite:
                 await ws1.receive()  # Welcome message
 
                 # Send a message
-                await ws1.send_json({
-                    "type": "chat",
-                    "content": "First connection test",
-                    "agent": "orchestrator"
-                })
+                await ws1.send_json(
+                    {
+                        "type": "chat",
+                        "content": "First connection test",
+                        "agent": "orchestrator",
+                    }
+                )
 
                 # Close first connection
                 await ws1.close()
@@ -357,14 +374,16 @@ class IntegrationTestSuite:
                 # Second connection (reconnection)
                 ws2 = await session.ws_connect(WS_URL)
                 msg = await asyncio.wait_for(ws2.receive(), timeout=5.0)
-                data = json.loads(msg.data)
+                json.loads(msg.data)
 
                 # Send a message on new connection
-                await ws2.send_json({
-                    "type": "chat",
-                    "content": "Reconnection test",
-                    "agent": "orchestrator"
-                })
+                await ws2.send_json(
+                    {
+                        "type": "chat",
+                        "content": "Reconnection test",
+                        "agent": "orchestrator",
+                    }
+                )
 
                 # Should receive response
                 await ws2.receive()  # Thinking
@@ -394,7 +413,7 @@ class IntegrationTestSuite:
             "test": test_name,
             "success": success,
             "details": details,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         self.test_results.append(result)
@@ -424,9 +443,12 @@ class IntegrationTestSuite:
         if self.failed_tests == 0:
             print("🎉 ALL TESTS PASSED! System is fully functional!")
         else:
-            print(f"⚠️  {self.failed_tests} test(s) failed. Please check the issues above.")
+            print(
+                f"⚠️  {self.failed_tests} test(s) failed. Please check the issues above."
+            )
 
         return self.failed_tests == 0
+
 
 async def main():
     """Run the integration test suite"""
@@ -454,6 +476,7 @@ async def main():
 
     # Exit with appropriate code
     sys.exit(0 if test_suite.failed_tests == 0 else 1)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

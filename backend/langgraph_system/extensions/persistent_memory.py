@@ -4,18 +4,16 @@ Combines SQLite for long-term storage with FAISS for semantic search
 """
 
 import json
-import sqlite3
 import logging
-import pickle
-from typing import List, Dict, Any, Optional, Literal
+import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
-import numpy as np
+from typing import Any, Literal
 
 try:
-    import faiss
-    from langchain_openai import OpenAIEmbeddings
     from langchain_community.vectorstores import FAISS
+    from langchain_openai import OpenAIEmbeddings
+
     VECTOR_SEARCH_AVAILABLE = True
 except ImportError:
     VECTOR_SEARCH_AVAILABLE = False
@@ -36,8 +34,8 @@ class PersistentAgentMemory:
         self,
         agent_name: str,
         db_path: str = "agent_memories.db",
-        vector_store_path: Optional[str] = None,
-        embedding_model: str = "text-embedding-ada-002"
+        vector_store_path: str | None = None,
+        embedding_model: str = "text-embedding-ada-002",
     ):
         """
         Initialize persistent memory for an agent
@@ -74,7 +72,8 @@ class PersistentAgentMemory:
         cursor = conn.cursor()
 
         # Main memories table
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS memories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 agent_name TEXT NOT NULL,
@@ -87,10 +86,12 @@ class PersistentAgentMemory:
                 accessed_count INTEGER DEFAULT 0,
                 last_accessed DATETIME
             )
-        ''')
+        """
+        )
 
         # Learning patterns table
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS learned_patterns (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 agent_name TEXT NOT NULL,
@@ -103,10 +104,12 @@ class PersistentAgentMemory:
                 last_used DATETIME,
                 metadata TEXT
             )
-        ''')
+        """
+        )
 
         # Agent interactions table
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS agent_interactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 from_agent TEXT NOT NULL,
@@ -117,18 +120,23 @@ class PersistentAgentMemory:
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                 session_id TEXT
             )
-        ''')
+        """
+        )
 
         # Create indexes for performance
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_memories_agent_type
             ON memories(agent_name, memory_type)
-        ''')
+        """
+        )
 
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE INDEX IF NOT EXISTS idx_patterns_agent
             ON learned_patterns(agent_name, success_rate DESC)
-        ''')
+        """
+        )
 
         conn.commit()
         conn.close()
@@ -146,7 +154,7 @@ class PersistentAgentMemory:
                 self.vector_store = FAISS.load_local(
                     str(vector_path),
                     self.embeddings,
-                    allow_dangerous_deserialization=True
+                    allow_dangerous_deserialization=True,
                 )
                 logger.info(f"Loaded vector store for {self.agent_name}")
             except Exception as e:
@@ -165,7 +173,7 @@ class PersistentAgentMemory:
             self.vector_store = FAISS.from_texts(
                 ["Initial memory"],
                 self.embeddings,
-                metadatas=[{"type": "init", "timestamp": str(datetime.now())}]
+                metadatas=[{"type": "init", "timestamp": str(datetime.now())}],
             )
             logger.info(f"Created new vector store for {self.agent_name}")
         except Exception as e:
@@ -177,8 +185,8 @@ class PersistentAgentMemory:
         content: str,
         memory_type: str = "episodic",
         importance: float = 0.5,
-        metadata: Optional[Dict[str, Any]] = None,
-        session_id: Optional[str] = None
+        metadata: dict[str, Any] | None = None,
+        session_id: str | None = None,
     ) -> int:
         """
         Store a memory - MODERN SIGNATURE ONLY
@@ -188,7 +196,7 @@ class PersistentAgentMemory:
             memory_type=memory_type,
             importance=importance,
             metadata=metadata,
-            session_id=session_id
+            session_id=session_id,
         )
 
     def store_memory(
@@ -196,8 +204,8 @@ class PersistentAgentMemory:
         content: str,
         memory_type: Literal["episodic", "semantic", "procedural", "entity"],
         importance: float = 0.5,
-        metadata: Optional[Dict[str, Any]] = None,
-        session_id: Optional[str] = None
+        metadata: dict[str, Any] | None = None,
+        session_id: str | None = None,
     ) -> int:
         """
         Store a memory persistently
@@ -208,18 +216,21 @@ class PersistentAgentMemory:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute('''
+        cursor.execute(
+            """
             INSERT INTO memories
             (agent_name, memory_type, content, importance, metadata, session_id)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (
-            self.agent_name,
-            memory_type,
-            content,
-            importance,
-            json.dumps(metadata or {}),
-            session_id
-        ))
+        """,
+            (
+                self.agent_name,
+                memory_type,
+                content,
+                importance,
+                json.dumps(metadata or {}),
+                session_id,
+            ),
+        )
 
         memory_id = cursor.lastrowid
         conn.commit()
@@ -230,25 +241,29 @@ class PersistentAgentMemory:
             try:
                 self.vector_store.add_texts(
                     [content],
-                    metadatas=[{
-                        "memory_id": memory_id,
-                        "type": memory_type,
-                        "importance": importance,
-                        "timestamp": str(datetime.now()),
-                        **(metadata or {})
-                    }]
+                    metadatas=[
+                        {
+                            "memory_id": memory_id,
+                            "type": memory_type,
+                            "importance": importance,
+                            "timestamp": str(datetime.now()),
+                            **(metadata or {}),
+                        }
+                    ],
                 )
                 self._save_vector_store()
             except Exception as e:
                 logger.error(f"Could not add to vector store: {e}")
 
         # Update short-term buffer
-        self.short_term_buffer.append({
-            "id": memory_id,
-            "content": content,
-            "type": memory_type,
-            "timestamp": datetime.now()
-        })
+        self.short_term_buffer.append(
+            {
+                "id": memory_id,
+                "content": content,
+                "type": memory_type,
+                "timestamp": datetime.now(),
+            }
+        )
 
         # Keep buffer size limited
         if len(self.short_term_buffer) > 100:
@@ -260,9 +275,9 @@ class PersistentAgentMemory:
         self,
         query: str,
         k: int = 5,
-        memory_types: Optional[List[str]] = None,
-        min_importance: float = 0.0
-    ) -> List[MemoryEntry]:
+        memory_types: list[str] | None = None,
+        min_importance: float = 0.0,
+    ) -> list[MemoryEntry]:
         """
         Recall similar memories using semantic search
 
@@ -290,14 +305,18 @@ class PersistentAgentMemory:
                     if metadata.get("importance", 0) < min_importance:
                         continue
 
-                    memories.append(MemoryEntry(
-                        content=doc.page_content,
-                        memory_type=metadata.get("type", "unknown"),
-                        timestamp=datetime.fromisoformat(metadata.get("timestamp", str(datetime.now()))),
-                        importance=metadata.get("importance", 0.5),
-                        metadata=metadata,
-                        session_id=metadata.get("session_id", "")
-                    ))
+                    memories.append(
+                        MemoryEntry(
+                            content=doc.page_content,
+                            memory_type=metadata.get("type", "unknown"),
+                            timestamp=datetime.fromisoformat(
+                                metadata.get("timestamp", str(datetime.now()))
+                            ),
+                            importance=metadata.get("importance", 0.5),
+                            metadata=metadata,
+                            session_id=metadata.get("session_id", ""),
+                        )
+                    )
 
                     if len(memories) >= k:
                         break
@@ -314,45 +333,52 @@ class PersistentAgentMemory:
             params = [self.agent_name]
 
             if memory_types:
-                placeholders = ','.join('?' * len(memory_types))
+                placeholders = ",".join("?" * len(memory_types))
                 query_parts.append(f"memory_type IN ({placeholders})")
                 params.extend(memory_types)
 
             query_parts.append("importance >= ?")
             params.append(min_importance)
 
-            cursor.execute(f'''
+            cursor.execute(
+                f"""
                 SELECT content, memory_type, timestamp, importance, metadata, session_id
                 FROM memories
                 WHERE {' AND '.join(query_parts)}
                 ORDER BY importance DESC, timestamp DESC
                 LIMIT ?
-            ''', params + [k - len(memories)])
+            """,
+                params + [k - len(memories)],
+            )
 
             for row in cursor.fetchall():
-                memories.append(MemoryEntry(
-                    content=row[0],
-                    memory_type=row[1],
-                    timestamp=datetime.fromisoformat(row[2]),
-                    importance=row[3],
-                    metadata=json.loads(row[4]),
-                    session_id=row[5] or ""
-                ))
+                memories.append(
+                    MemoryEntry(
+                        content=row[0],
+                        memory_type=row[1],
+                        timestamp=datetime.fromisoformat(row[2]),
+                        importance=row[3],
+                        metadata=json.loads(row[4]),
+                        session_id=row[5] or "",
+                    )
+                )
 
             conn.close()
 
         # Update access counts
-        self._update_access_counts([m.metadata.get("memory_id") for m in memories if "memory_id" in m.metadata])
+        self._update_access_counts(
+            [m.metadata.get("memory_id") for m in memories if "memory_id" in m.metadata]
+        )
 
         return memories
 
     async def search(
         self,
         query: str,
-        memory_type: Optional[str] = None,
-        agent_id: Optional[str] = None,
-        k: int = 5
-    ) -> List[Dict[str, Any]]:
+        memory_type: str | None = None,
+        agent_id: str | None = None,
+        k: int = 5,
+    ) -> list[dict[str, Any]]:
         """
         Search for similar memories (compatibility wrapper for OrchestratorAgent)
 
@@ -372,14 +398,20 @@ class PersistentAgentMemory:
         # Convert MemoryEntry objects to dicts for compatibility
         results = []
         for memory in memories:
-            results.append({
-                "content": memory.content,
-                "type": memory.memory_type,
-                "importance": memory.importance,
-                "metadata": memory.metadata,
-                "timestamp": memory.timestamp.isoformat() if memory.timestamp else None,
-                "complexity": memory.metadata.get("complexity", "moderate") if memory.metadata else "moderate"
-            })
+            results.append(
+                {
+                    "content": memory.content,
+                    "type": memory.memory_type,
+                    "importance": memory.importance,
+                    "metadata": memory.metadata,
+                    "timestamp": memory.timestamp.isoformat()
+                    if memory.timestamp
+                    else None,
+                    "complexity": memory.metadata.get("complexity", "moderate")
+                    if memory.metadata
+                    else "moderate",
+                }
+            )
 
         return results
 
@@ -388,7 +420,7 @@ class PersistentAgentMemory:
         pattern: str,
         solution: str,
         success: bool = True,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """
         Learn a pattern-solution pair for future use
@@ -397,75 +429,91 @@ class PersistentAgentMemory:
             True if pattern was learned/updated successfully
         """
         import hashlib
+
         pattern_hash = hashlib.md5(pattern.encode()).hexdigest()
 
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         # Check if pattern exists
-        cursor.execute('''
+        cursor.execute(
+            """
             SELECT id, success_rate, usage_count
             FROM learned_patterns
             WHERE agent_name = ? AND pattern_hash = ?
-        ''', (self.agent_name, pattern_hash))
+        """,
+            (self.agent_name, pattern_hash),
+        )
 
         existing = cursor.fetchone()
 
         if existing:
             # Update existing pattern
             pattern_id, old_rate, usage_count = existing
-            new_rate = (old_rate * usage_count + (1.0 if success else 0.0)) / (usage_count + 1)
+            new_rate = (old_rate * usage_count + (1.0 if success else 0.0)) / (
+                usage_count + 1
+            )
 
-            cursor.execute('''
+            cursor.execute(
+                """
                 UPDATE learned_patterns
                 SET solution = ?, success_rate = ?, usage_count = ?, last_used = CURRENT_TIMESTAMP
                 WHERE id = ?
-            ''', (solution, new_rate, usage_count + 1, pattern_id))
+            """,
+                (solution, new_rate, usage_count + 1, pattern_id),
+            )
 
         else:
             # Insert new pattern
-            cursor.execute('''
+            cursor.execute(
+                """
                 INSERT INTO learned_patterns
                 (agent_name, pattern_hash, pattern, solution, success_rate, usage_count, metadata)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                self.agent_name,
-                pattern_hash,
-                pattern,
-                solution,
-                1.0 if success else 0.0,
-                1,
-                json.dumps(metadata or {})
-            ))
+            """,
+                (
+                    self.agent_name,
+                    pattern_hash,
+                    pattern,
+                    solution,
+                    1.0 if success else 0.0,
+                    1,
+                    json.dumps(metadata or {}),
+                ),
+            )
 
         conn.commit()
         conn.close()
         return True
 
     def get_learned_solution(
-        self,
-        pattern: str,
-        min_success_rate: float = 0.7
-    ) -> Optional[str]:
+        self, pattern: str, min_success_rate: float = 0.7
+    ) -> str | None:
         """Get a previously learned solution for a pattern"""
         import hashlib
+
         pattern_hash = hashlib.md5(pattern.encode()).hexdigest()
 
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute('''
+        cursor.execute(
+            """
             SELECT solution, success_rate, usage_count
             FROM learned_patterns
             WHERE agent_name = ? AND pattern_hash = ? AND success_rate >= ?
-        ''', (self.agent_name, pattern_hash, min_success_rate))
+        """,
+            (self.agent_name, pattern_hash, min_success_rate),
+        )
 
         result = cursor.fetchone()
         conn.close()
 
         if result:
             solution, rate, count = result
-            logger.info(f"Found learned pattern with {rate:.2%} success rate ({count} uses)")
+            logger.info(
+                f"Found learned pattern with {rate:.2%} success rate ({count} uses)"
+            )
             return solution
 
         return None
@@ -475,64 +523,73 @@ class PersistentAgentMemory:
         to_agent: str,
         interaction_type: str,
         content: str,
-        result: Optional[str] = None,
-        session_id: Optional[str] = None
+        result: str | None = None,
+        session_id: str | None = None,
     ):
         """Record an interaction with another agent"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute('''
+        cursor.execute(
+            """
             INSERT INTO agent_interactions
             (from_agent, to_agent, interaction_type, content, result, session_id)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (self.agent_name, to_agent, interaction_type, content, result, session_id))
+        """,
+            (self.agent_name, to_agent, interaction_type, content, result, session_id),
+        )
 
         conn.commit()
         conn.close()
 
     def get_interaction_history(
-        self,
-        with_agent: Optional[str] = None,
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+        self, with_agent: str | None = None, limit: int = 10
+    ) -> list[dict[str, Any]]:
         """Get history of agent interactions"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         if with_agent:
-            cursor.execute('''
+            cursor.execute(
+                """
                 SELECT from_agent, to_agent, interaction_type, content, result, timestamp, session_id
                 FROM agent_interactions
                 WHERE (from_agent = ? AND to_agent = ?) OR (from_agent = ? AND to_agent = ?)
                 ORDER BY timestamp DESC
                 LIMIT ?
-            ''', (self.agent_name, with_agent, with_agent, self.agent_name, limit))
+            """,
+                (self.agent_name, with_agent, with_agent, self.agent_name, limit),
+            )
         else:
-            cursor.execute('''
+            cursor.execute(
+                """
                 SELECT from_agent, to_agent, interaction_type, content, result, timestamp, session_id
                 FROM agent_interactions
                 WHERE from_agent = ? OR to_agent = ?
                 ORDER BY timestamp DESC
                 LIMIT ?
-            ''', (self.agent_name, self.agent_name, limit))
+            """,
+                (self.agent_name, self.agent_name, limit),
+            )
 
         interactions = []
         for row in cursor.fetchall():
-            interactions.append({
-                "from_agent": row[0],
-                "to_agent": row[1],
-                "type": row[2],
-                "content": row[3],
-                "result": row[4],
-                "timestamp": row[5],
-                "session_id": row[6]
-            })
+            interactions.append(
+                {
+                    "from_agent": row[0],
+                    "to_agent": row[1],
+                    "type": row[2],
+                    "content": row[3],
+                    "result": row[4],
+                    "timestamp": row[5],
+                    "session_id": row[6],
+                }
+            )
 
         conn.close()
         return interactions
 
-    def _update_access_counts(self, memory_ids: List[int]):
+    def _update_access_counts(self, memory_ids: list[int]):
         """Update access counts for retrieved memories"""
         if not memory_ids:
             return
@@ -542,12 +599,15 @@ class PersistentAgentMemory:
 
         for memory_id in memory_ids:
             if memory_id:
-                cursor.execute('''
+                cursor.execute(
+                    """
                     UPDATE memories
                     SET accessed_count = accessed_count + 1,
                         last_accessed = CURRENT_TIMESTAMP
                     WHERE id = ?
-                ''', (memory_id,))
+                """,
+                    (memory_id,),
+                )
 
         conn.commit()
         conn.close()
@@ -569,21 +629,26 @@ class PersistentAgentMemory:
         cutoff_date = datetime.now() - timedelta(days=max_age_days)
 
         # Delete low-importance old memories
-        cursor.execute('''
+        cursor.execute(
+            """
             DELETE FROM memories
             WHERE agent_name = ?
             AND timestamp < ?
             AND importance < 0.3
             AND accessed_count < 2
-        ''', (self.agent_name, cutoff_date))
+        """,
+            (self.agent_name, cutoff_date),
+        )
 
         deleted = cursor.rowcount
         conn.commit()
         conn.close()
 
-        logger.info(f"Consolidated memories: deleted {deleted} low-importance old memories")
+        logger.info(
+            f"Consolidated memories: deleted {deleted} low-importance old memories"
+        )
 
-    def get_memory_stats(self) -> Dict[str, Any]:
+    def get_memory_stats(self) -> dict[str, Any]:
         """Get statistics about agent's memory"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -591,40 +656,49 @@ class PersistentAgentMemory:
         stats = {}
 
         # Total memories by type
-        cursor.execute('''
+        cursor.execute(
+            """
             SELECT memory_type, COUNT(*), AVG(importance)
             FROM memories
             WHERE agent_name = ?
             GROUP BY memory_type
-        ''', (self.agent_name,))
+        """,
+            (self.agent_name,),
+        )
 
         stats["memories_by_type"] = {}
         for row in cursor.fetchall():
             stats["memories_by_type"][row[0]] = {
                 "count": row[1],
-                "avg_importance": row[2]
+                "avg_importance": row[2],
             }
 
         # Learned patterns
-        cursor.execute('''
+        cursor.execute(
+            """
             SELECT COUNT(*), AVG(success_rate), MAX(success_rate)
             FROM learned_patterns
             WHERE agent_name = ?
-        ''', (self.agent_name,))
+        """,
+            (self.agent_name,),
+        )
 
         patterns = cursor.fetchone()
         stats["learned_patterns"] = {
             "count": patterns[0],
             "avg_success_rate": patterns[1],
-            "best_success_rate": patterns[2]
+            "best_success_rate": patterns[2],
         }
 
         # Recent interactions
-        cursor.execute('''
+        cursor.execute(
+            """
             SELECT COUNT(*)
             FROM agent_interactions
             WHERE from_agent = ? OR to_agent = ?
-        ''', (self.agent_name, self.agent_name))
+        """,
+            (self.agent_name, self.agent_name),
+        )
 
         stats["total_interactions"] = cursor.fetchone()[0]
 

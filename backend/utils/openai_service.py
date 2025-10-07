@@ -3,27 +3,31 @@ OpenAI Service Integration
 Handles all OpenAI API calls for GPT-5 models
 """
 
-import os
-import asyncio
 import logging
-from typing import List, Dict, Any, Optional, AsyncGenerator
+import os
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from openai import AsyncOpenAI
+from typing import Any
+
 from dotenv import load_dotenv
+from openai import AsyncOpenAI
 
 # Load environment variables
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class OpenAIConfig:
     """OpenAI configuration"""
+
     api_key: str
     model: str = "gpt-4o-2024-11-20"  # Default model, agents should override
     temperature: float = 0.7
     max_tokens: int = 4000
     streaming: bool = True
+
 
 class OpenAIService:
     """
@@ -31,11 +35,11 @@ class OpenAIService:
     Used by: OrchestratorAgent, ArchitectAgent, DocuBot
     """
 
-    def __init__(self, config: Optional[OpenAIConfig] = None, model: Optional[str] = None):
+    def __init__(self, config: OpenAIConfig | None = None, model: str | None = None):
         if config is None:
             config = OpenAIConfig(
                 api_key=os.getenv("OPENAI_API_KEY", ""),
-                model=model if model else "gpt-4o-2024-11-20"
+                model=model if model else "gpt-4o-2024-11-20",
             )
         elif model:
             config.model = model
@@ -52,12 +56,12 @@ class OpenAIService:
     async def complete(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
+        system_prompt: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
         stream: bool = False,
-        timeout: Optional[float] = None,
-        response_format: Optional[Dict[str, str]] = None
+        timeout: float | None = None,
+        response_format: dict[str, str] | None = None,
     ) -> str:
         """
         Get completion from OpenAI
@@ -75,10 +79,11 @@ class OpenAIService:
                 return await self._stream_completion(
                     messages,
                     temperature or self.config.temperature,
-                    max_tokens or self.config.max_tokens
+                    max_tokens or self.config.max_tokens,
                 )
             else:
                 import asyncio
+
                 # Use configurable timeout (default 120s for normal tasks, up to 300s for complex ones)
                 api_timeout = timeout or 120.0  # Increased default from 30s to 120s
 
@@ -89,8 +94,12 @@ class OpenAIService:
                 for attempt in range(max_retries):
                     try:
                         if attempt > 0:
-                            wait_time = 2 ** attempt  # Exponential backoff: 2, 4, 8 seconds
-                            logger.info(f"Retry attempt {attempt + 1}/{max_retries} after {wait_time}s wait...")
+                            wait_time = (
+                                2**attempt
+                            )  # Exponential backoff: 2, 4, 8 seconds
+                            logger.info(
+                                f"Retry attempt {attempt + 1}/{max_retries} after {wait_time}s wait..."
+                            )
                             await asyncio.sleep(wait_time)
                             # Increase timeout for retries
                             api_timeout = min(api_timeout * 1.5, 300.0)
@@ -99,28 +108,34 @@ class OpenAIService:
                             "model": self.config.model,
                             "messages": messages,
                             "temperature": temperature or self.config.temperature,
-                            "max_tokens": max_tokens or self.config.max_tokens
+                            "max_tokens": max_tokens or self.config.max_tokens,
                         }
                         if response_format:
                             api_params["response_format"] = response_format
 
                         response = await asyncio.wait_for(
                             self.client.chat.completions.create(**api_params),
-                            timeout=api_timeout
+                            timeout=api_timeout,
                         )
                         content = response.choices[0].message.content
                         if not content:
-                            logger.warning(f"OpenAI returned empty response for model {self.config.model}")
+                            logger.warning(
+                                f"OpenAI returned empty response for model {self.config.model}"
+                            )
                             logger.debug(f"Full response: {response}")
                         return content or ""
 
                     except asyncio.TimeoutError as e:
                         last_error = e
                         if attempt < max_retries - 1:
-                            logger.warning(f"OpenAI API call timed out after {api_timeout}s (attempt {attempt + 1}/{max_retries})")
+                            logger.warning(
+                                f"OpenAI API call timed out after {api_timeout}s (attempt {attempt + 1}/{max_retries})"
+                            )
                             continue
                         else:
-                            logger.error(f"OpenAI API call failed after {max_retries} attempts")
+                            logger.error(
+                                f"OpenAI API call failed after {max_retries} attempts"
+                            )
                             return f"Error: OpenAI API call timed out after {max_retries} attempts. The task may be too complex. Consider breaking it into smaller parts."
                     except Exception as e:
                         last_error = e
@@ -141,10 +156,7 @@ class OpenAIService:
             return f"Error calling OpenAI API: {str(e)}"
 
     async def _stream_completion(
-        self,
-        messages: List[Dict[str, str]],
-        temperature: float,
-        max_tokens: int
+        self, messages: list[dict[str, str]], temperature: float, max_tokens: int
     ) -> AsyncGenerator[str, None]:
         """
         Stream completion from OpenAI
@@ -155,7 +167,7 @@ class OpenAIService:
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                stream=True
+                stream=True,
             )
 
             async for chunk in stream:
@@ -166,10 +178,7 @@ class OpenAIService:
             logger.error(f"OpenAI streaming error: {e}")
             yield f"Error: {str(e)}"
 
-    async def analyze_task_complexity(
-        self,
-        task: str
-    ) -> Dict[str, Any]:
+    async def analyze_task_complexity(self, task: str) -> dict[str, Any]:
         """
         Analyze task complexity using GPT-5
         """
@@ -202,6 +211,7 @@ class OpenAIService:
 
         try:
             import json
+
             return json.loads(response)
         except:
             # Fallback to simple heuristic
@@ -211,14 +221,11 @@ class OpenAIService:
                 "required_agents": ["architect", "codesmith"],
                 "parallelizable": True,
                 "estimated_duration": 10,
-                "reasoning": "Could not parse AI response"
+                "reasoning": "Could not parse AI response",
             }
 
     async def generate_code(
-        self,
-        specification: str,
-        language: str = "python",
-        context: Optional[str] = None
+        self, specification: str, language: str = "python", context: str | None = None
     ) -> str:
         """
         Generate code based on specification
@@ -245,10 +252,10 @@ class OpenAIService:
     async def get_completion(
         self,
         user_prompt: str,
-        system_prompt: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        timeout: Optional[float] = None
+        system_prompt: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> str:
         """
         Get completion from OpenAI (alias for complete method)
@@ -260,7 +267,7 @@ class OpenAIService:
             temperature=temperature,
             max_tokens=max_tokens,
             stream=False,
-            timeout=timeout
+            timeout=timeout,
         )
 
     def is_available(self) -> bool:

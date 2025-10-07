@@ -21,18 +21,18 @@ Architecture Layers:
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Callable, Union
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import re
-import json
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class RuleType(Enum):
     """Types of rules"""
+
     CONSTRAINT = "constraint"  # Hard constraint (MUST follow)
     HEURISTIC = "heuristic"  # Soft guidance (SHOULD follow)
     BEST_PRACTICE = "best_practice"  # Recommended approach
@@ -41,6 +41,7 @@ class RuleType(Enum):
 
 class ActionType(Enum):
     """Types of actions rules can trigger"""
+
     REQUIRE = "require"  # Require something to be present
     FORBID = "forbid"  # Forbid something
     SUGGEST = "suggest"  # Suggest an approach
@@ -52,11 +53,16 @@ class ActionType(Enum):
 @dataclass
 class Condition:
     """A condition that can be evaluated"""
-    description: str
-    evaluator: Callable[[Dict[str, Any]], bool]  # Function that checks if condition is true
-    variables: List[str] = field(default_factory=list)  # Variables this condition depends on
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    description: str
+    evaluator: Callable[
+        [dict[str, Any]], bool
+    ]  # Function that checks if condition is true
+    variables: list[str] = field(
+        default_factory=list
+    )  # Variables this condition depends on
+
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """Evaluate condition in given context"""
         try:
             return self.evaluator(context)
@@ -68,12 +74,13 @@ class Condition:
 @dataclass
 class Action:
     """An action to take when rule fires"""
+
     action_type: ActionType
     description: str
-    handler: Optional[Callable[[Dict[str, Any]], Any]] = None  # Optional handler function
-    parameters: Dict[str, Any] = field(default_factory=dict)
+    handler: Callable[[dict[str, Any]], Any] | None = None  # Optional handler function
+    parameters: dict[str, Any] = field(default_factory=dict)
 
-    def execute(self, context: Dict[str, Any]) -> Any:
+    def execute(self, context: dict[str, Any]) -> Any:
         """Execute action in given context"""
         if self.handler:
             try:
@@ -91,17 +98,18 @@ class Rule:
 
     Rules follow: IF <conditions> THEN <actions>
     """
+
     rule_id: str
     name: str
     rule_type: RuleType
-    conditions: List[Condition]
-    actions: List[Action]
+    conditions: list[Condition]
+    actions: list[Action]
     priority: int = 0  # Higher priority rules fire first
     enabled: bool = True
     immutable: bool = False  # 🔴 Asimov Rules are immutable - cannot be disabled/removed
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def evaluate(self, context: Dict[str, Any]) -> bool:
+    def evaluate(self, context: dict[str, Any]) -> bool:
         """Check if all conditions are met"""
         if not self.enabled:
             return False
@@ -109,7 +117,7 @@ class Rule:
         # All conditions must be true (AND logic)
         return all(condition.evaluate(context) for condition in self.conditions)
 
-    def fire(self, context: Dict[str, Any]) -> List[Any]:
+    def fire(self, context: dict[str, Any]) -> list[Any]:
         """Execute all actions if conditions are met"""
         if not self.evaluate(context):
             return []
@@ -147,8 +155,8 @@ class RuleEngine:
             agent_name: Name of the agent using this engine
         """
         self.agent_name = agent_name
-        self.rules: Dict[str, Rule] = {}
-        self.rule_history: List[Dict[str, Any]] = []
+        self.rules: dict[str, Rule] = {}
+        self.rule_history: list[dict[str, Any]] = []
 
         logger.info(f"🧮 RuleEngine initialized for agent: {agent_name}")
 
@@ -176,7 +184,9 @@ class RuleEngine:
 
         self.rules[rule.rule_id] = rule
         immutable_marker = " [IMMUTABLE]" if rule.immutable else ""
-        logger.info(f"➕ Added rule: {rule.name} (type: {rule.rule_type.value}, priority: {rule.priority}){immutable_marker}")
+        logger.info(
+            f"➕ Added rule: {rule.name} (type: {rule.rule_type.value}, priority: {rule.priority}){immutable_marker}"
+        )
 
     def remove_rule(self, rule_id: str):
         """
@@ -225,7 +235,7 @@ class RuleEngine:
         self.rules[rule_id].enabled = False
         logger.info(f"🔕 Disabled rule: {rule.name}")
 
-    def _check_rule_conflicts(self, new_rule: Rule) -> List[str]:
+    def _check_rule_conflicts(self, new_rule: Rule) -> list[str]:
         """
         Check if new rule conflicts with existing Asimov Rules
 
@@ -242,8 +252,12 @@ class RuleEngine:
             # Example: New rule suggests "allow fallbacks" contradicts Asimov "no fallbacks"
             if "asimov_no_fallbacks" in asimov_rule.rule_id:
                 # Check if new rule allows what Asimov forbids
-                if any(action.action_type == ActionType.SUGGEST and "fallback" in action.description.lower() and "allow" in action.description.lower()
-                       for action in new_rule.actions):
+                if any(
+                    action.action_type == ActionType.SUGGEST
+                    and "fallback" in action.description.lower()
+                    and "allow" in action.description.lower()
+                    for action in new_rule.actions
+                ):
                     conflicts.append(asimov_rule.name)
 
             # Check for priority override attempts
@@ -252,7 +266,7 @@ class RuleEngine:
 
         return conflicts
 
-    def evaluate_all(self, context: Dict[str, Any]) -> Dict[str, Any]:
+    def evaluate_all(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         Evaluate all rules and return results
 
@@ -270,7 +284,9 @@ class RuleEngine:
         warnings = []
 
         # Sort rules by priority (highest first)
-        sorted_rules = sorted(self.rules.values(), key=lambda r: r.priority, reverse=True)
+        sorted_rules = sorted(
+            self.rules.values(), key=lambda r: r.priority, reverse=True
+        )
 
         for rule in sorted_rules:
             if rule.evaluate(context):
@@ -284,48 +300,47 @@ class RuleEngine:
                         "rule": rule.name,
                         "action_type": action.action_type.value,
                         "description": action.description,
-                        "result": result
+                        "result": result,
                     }
                     actions_taken.append(action_info)
 
                     # Categorize by action type
                     if action.action_type == ActionType.FAIL_FAST:
-                        constraints_violated.append({
-                            "rule": rule.name,
-                            "message": action.description
-                        })
+                        constraints_violated.append(
+                            {"rule": rule.name, "message": action.description}
+                        )
                     elif action.action_type == ActionType.SUGGEST:
-                        suggestions.append({
-                            "rule": rule.name,
-                            "suggestion": action.description
-                        })
+                        suggestions.append(
+                            {"rule": rule.name, "suggestion": action.description}
+                        )
                     elif action.action_type == ActionType.WARN:
-                        warnings.append({
-                            "rule": rule.name,
-                            "warning": action.description
-                        })
+                        warnings.append(
+                            {"rule": rule.name, "warning": action.description}
+                        )
 
         # Record in history
-        self.rule_history.append({
-            "timestamp": datetime.now().isoformat(),
-            "context": context,
-            "fired_rules": fired_rules,
-            "actions_count": len(actions_taken)
-        })
+        self.rule_history.append(
+            {
+                "timestamp": datetime.now().isoformat(),
+                "context": context,
+                "fired_rules": fired_rules,
+                "actions_count": len(actions_taken),
+            }
+        )
 
         return {
             "fired_rules": fired_rules,
             "actions_taken": actions_taken,
             "constraints_violated": constraints_violated,
             "suggestions": suggestions,
-            "warnings": warnings
+            "warnings": warnings,
         }
 
-    def get_applicable_rules(self, context: Dict[str, Any]) -> List[Rule]:
+    def get_applicable_rules(self, context: dict[str, Any]) -> list[Rule]:
         """Get all rules that would fire in given context"""
         return [rule for rule in self.rules.values() if rule.evaluate(context)]
 
-    def get_rules_by_type(self, rule_type: RuleType) -> List[Rule]:
+    def get_rules_by_type(self, rule_type: RuleType) -> list[Rule]:
         """Get all rules of a specific type"""
         return [rule for rule in self.rules.values() if rule.rule_type == rule_type]
 
@@ -337,7 +352,7 @@ class NeurosymbolicReasoner:
     This is the main interface for hybrid reasoning.
     """
 
-    def __init__(self, agent_name: str, llm_function: Optional[Callable] = None):
+    def __init__(self, agent_name: str, llm_function: Callable | None = None):
         """
         Initialize neurosymbolic reasoner
 
@@ -362,313 +377,376 @@ class NeurosymbolicReasoner:
         # =====================================================================
 
         # ASIMOV RULE 1: NO FALLBACKS - FAIL FAST
-        self.rule_engine.add_rule(Rule(
-            rule_id="asimov_no_fallbacks",
-            name="ASIMOV RULE 1: No Fallbacks - Fail Fast",
-            rule_type=RuleType.CONSTRAINT,
-            conditions=[
-                Condition(
-                    description="Code contains fallback without documented reason",
-                    evaluator=lambda ctx: any(
-                        keyword in str(ctx.get("code", "")).lower()
-                        for keyword in ["fallback", "if.*not.*available.*use", "except.*pass"]
-                    ) and "# ⚠️ FALLBACK:" not in str(ctx.get("code", ""))
-                )
-            ],
-            actions=[
-                Action(
-                    action_type=ActionType.FAIL_FAST,
-                    description="ASIMOV RULE 1: No undocumented fallbacks. Fail fast instead of silent degradation.",
-                    parameters={"asimov_rule": 1, "enforcement": "absolute"}
-                )
-            ],
-            priority=10,
-            immutable=True  # 🔴 ASIMOV - Cannot be disabled/removed
-        ))
+        self.rule_engine.add_rule(
+            Rule(
+                rule_id="asimov_no_fallbacks",
+                name="ASIMOV RULE 1: No Fallbacks - Fail Fast",
+                rule_type=RuleType.CONSTRAINT,
+                conditions=[
+                    Condition(
+                        description="Code contains fallback without documented reason",
+                        evaluator=lambda ctx: any(
+                            keyword in str(ctx.get("code", "")).lower()
+                            for keyword in [
+                                "fallback",
+                                "if.*not.*available.*use",
+                                "except.*pass",
+                            ]
+                        )
+                        and "# ⚠️ FALLBACK:" not in str(ctx.get("code", "")),
+                    )
+                ],
+                actions=[
+                    Action(
+                        action_type=ActionType.FAIL_FAST,
+                        description="ASIMOV RULE 1: No undocumented fallbacks. Fail fast instead of silent degradation.",
+                        parameters={"asimov_rule": 1, "enforcement": "absolute"},
+                    )
+                ],
+                priority=10,
+                immutable=True,  # 🔴 ASIMOV - Cannot be disabled/removed
+            )
+        )
 
         # ASIMOV RULE 2: COMPLETE IMPLEMENTATION - NO TODOs
-        self.rule_engine.add_rule(Rule(
-            rule_id="asimov_complete_implementation",
-            name="ASIMOV RULE 2: Complete Implementation - No Partial Work",
-            rule_type=RuleType.CONSTRAINT,
-            conditions=[
-                Condition(
-                    description="Code contains TODO, FIXME, or incomplete markers",
-                    evaluator=lambda ctx: any(
-                        marker in str(ctx.get("code", "")).upper()
-                        for marker in ["TODO", "FIXME", "LATER", "INCOMPLETE", "PLACEHOLDER"]
+        self.rule_engine.add_rule(
+            Rule(
+                rule_id="asimov_complete_implementation",
+                name="ASIMOV RULE 2: Complete Implementation - No Partial Work",
+                rule_type=RuleType.CONSTRAINT,
+                conditions=[
+                    Condition(
+                        description="Code contains TODO, FIXME, or incomplete markers",
+                        evaluator=lambda ctx: any(
+                            marker in str(ctx.get("code", "")).upper()
+                            for marker in [
+                                "TODO",
+                                "FIXME",
+                                "LATER",
+                                "INCOMPLETE",
+                                "PLACEHOLDER",
+                            ]
+                        ),
                     )
-                )
-            ],
-            actions=[
-                Action(
-                    action_type=ActionType.FAIL_FAST,
-                    description="ASIMOV RULE 2: No partial implementations. Complete all functions fully.",
-                    parameters={"asimov_rule": 2, "enforcement": "absolute"}
-                )
-            ],
-            priority=10,
-            immutable=True  # 🔴 ASIMOV - Cannot be disabled/removed
-        ))
+                ],
+                actions=[
+                    Action(
+                        action_type=ActionType.FAIL_FAST,
+                        description="ASIMOV RULE 2: No partial implementations. Complete all functions fully.",
+                        parameters={"asimov_rule": 2, "enforcement": "absolute"},
+                    )
+                ],
+                priority=10,
+                immutable=True,  # 🔴 ASIMOV - Cannot be disabled/removed
+            )
+        )
 
         # ASIMOV RULE 3: GLOBAL ERROR SEARCH
-        self.rule_engine.add_rule(Rule(
-            rule_id="asimov_global_error_search",
-            name="ASIMOV RULE 3: Global Error Search - Find All Instances",
-            rule_type=RuleType.CONSTRAINT,
-            conditions=[
-                Condition(
-                    description="Error/bug found but no global search performed",
-                    evaluator=lambda ctx: (
-                        ctx.get("error_found", False) and
-                        not ctx.get("global_search_performed", False)
+        self.rule_engine.add_rule(
+            Rule(
+                rule_id="asimov_global_error_search",
+                name="ASIMOV RULE 3: Global Error Search - Find All Instances",
+                rule_type=RuleType.CONSTRAINT,
+                conditions=[
+                    Condition(
+                        description="Error/bug found but no global search performed",
+                        evaluator=lambda ctx: (
+                            ctx.get("error_found", False)
+                            and not ctx.get("global_search_performed", False)
+                        ),
                     )
-                )
-            ],
-            actions=[
-                Action(
-                    action_type=ActionType.REQUIRE,
-                    description="ASIMOV RULE 3: Search entire project for same error pattern. NO PARTIAL FIXES.",
-                    parameters={"asimov_rule": 3, "enforcement": "absolute", "action": "global_search"}
-                )
-            ],
-            priority=10,
-            immutable=True  # 🔴 ASIMOV - Cannot be disabled/removed
-        ))
+                ],
+                actions=[
+                    Action(
+                        action_type=ActionType.REQUIRE,
+                        description="ASIMOV RULE 3: Search entire project for same error pattern. NO PARTIAL FIXES.",
+                        parameters={
+                            "asimov_rule": 3,
+                            "enforcement": "absolute",
+                            "action": "global_search",
+                        },
+                    )
+                ],
+                priority=10,
+                immutable=True,  # 🔴 ASIMOV - Cannot be disabled/removed
+            )
+        )
 
         # ASIMOV RULE 4: NEVER LIE - VERIFY FACTS
-        self.rule_engine.add_rule(Rule(
-            rule_id="asimov_verify_facts",
-            name="ASIMOV RULE 4: Never Lie - Verify Facts",
-            rule_type=RuleType.CONSTRAINT,
-            conditions=[
-                Condition(
-                    description="Making claims about unverified technology/library",
-                    evaluator=lambda ctx: (
-                        ctx.get("claims_technology", False) and
-                        not ctx.get("verified", False)
+        self.rule_engine.add_rule(
+            Rule(
+                rule_id="asimov_verify_facts",
+                name="ASIMOV RULE 4: Never Lie - Verify Facts",
+                rule_type=RuleType.CONSTRAINT,
+                conditions=[
+                    Condition(
+                        description="Making claims about unverified technology/library",
+                        evaluator=lambda ctx: (
+                            ctx.get("claims_technology", False)
+                            and not ctx.get("verified", False)
+                        ),
                     )
-                )
-            ],
-            actions=[
-                Action(
-                    action_type=ActionType.REQUIRE,
-                    description="ASIMOV RULE 4: Verify technology exists before claiming features. Admit uncertainty.",
-                    parameters={"asimov_rule": 4, "enforcement": "absolute", "action": "verify_first"}
-                )
-            ],
-            priority=10,
-            immutable=True  # 🔴 ASIMOV - Cannot be disabled/removed
-        ))
+                ],
+                actions=[
+                    Action(
+                        action_type=ActionType.REQUIRE,
+                        description="ASIMOV RULE 4: Verify technology exists before claiming features. Admit uncertainty.",
+                        parameters={
+                            "asimov_rule": 4,
+                            "enforcement": "absolute",
+                            "action": "verify_first",
+                        },
+                    )
+                ],
+                priority=10,
+                immutable=True,  # 🔴 ASIMOV - Cannot be disabled/removed
+            )
+        )
 
         # ASIMOV RULE 5: VALIDATE BEFORE AGREEING
-        self.rule_engine.add_rule(Rule(
-            rule_id="asimov_challenge_assumptions",
-            name="ASIMOV RULE 5: Validate Before Agreeing - Challenge Misconceptions",
-            rule_type=RuleType.CONSTRAINT,
-            conditions=[
-                Condition(
-                    description="User request contains technical misconception",
-                    evaluator=lambda ctx: any(
-                        pattern in str(ctx.get("task", "")).lower()
-                        for pattern in [
-                            "disk.*faster.*memory",  # Disk is NOT faster than memory
-                            "md5.*security",  # MD5 is broken
-                            "bubble.*sort.*large",  # O(n²) for large data
-                            "plain.*text.*password",  # Security violation
-                            "eval.*user.*input"  # Code injection risk
-                        ]
+        self.rule_engine.add_rule(
+            Rule(
+                rule_id="asimov_challenge_assumptions",
+                name="ASIMOV RULE 5: Validate Before Agreeing - Challenge Misconceptions",
+                rule_type=RuleType.CONSTRAINT,
+                conditions=[
+                    Condition(
+                        description="User request contains technical misconception",
+                        evaluator=lambda ctx: any(
+                            pattern in str(ctx.get("task", "")).lower()
+                            for pattern in [
+                                "disk.*faster.*memory",  # Disk is NOT faster than memory
+                                "md5.*security",  # MD5 is broken
+                                "bubble.*sort.*large",  # O(n²) for large data
+                                "plain.*text.*password",  # Security violation
+                                "eval.*user.*input",  # Code injection risk
+                            ]
+                        ),
                     )
-                )
-            ],
-            actions=[
-                Action(
-                    action_type=ActionType.WARN,
-                    description="ASIMOV RULE 5: Technical misconception detected. Challenge and suggest correct approach.",
-                    parameters={"asimov_rule": 5, "enforcement": "absolute"}
-                )
-            ],
-            priority=10,
-            immutable=True  # 🔴 ASIMOV - Cannot be disabled/removed
-        ))
+                ],
+                actions=[
+                    Action(
+                        action_type=ActionType.WARN,
+                        description="ASIMOV RULE 5: Technical misconception detected. Challenge and suggest correct approach.",
+                        parameters={"asimov_rule": 5, "enforcement": "absolute"},
+                    )
+                ],
+                priority=10,
+                immutable=True,  # 🔴 ASIMOV - Cannot be disabled/removed
+            )
+        )
 
         # ASIMOV RULE 7: RESEARCH BEFORE CLAIMING
-        self.rule_engine.add_rule(Rule(
-            rule_id="asimov_research_required",
-            name="ASIMOV RULE 7: Research Before Claiming - Verify Best Practices",
-            rule_type=RuleType.CONSTRAINT,
-            conditions=[
-                Condition(
-                    description="Task requires current/latest/best practices knowledge",
-                    evaluator=lambda ctx: any(
-                        keyword in str(ctx.get("task", "")).lower()
-                        for keyword in ["latest", "best practice", "modern", "current", "recommended"]
-                    ) and not ctx.get("research_performed", False)
-                )
-            ],
-            actions=[
-                Action(
-                    action_type=ActionType.REQUIRE,
-                    description="ASIMOV RULE 7: Must research before claiming knowledge about latest/best practices.",
-                    parameters={"asimov_rule": 7, "enforcement": "absolute", "action": "research_first"}
-                )
-            ],
-            priority=10,
-            immutable=True  # 🔴 ASIMOV - Cannot be disabled/removed
-        ))
+        self.rule_engine.add_rule(
+            Rule(
+                rule_id="asimov_research_required",
+                name="ASIMOV RULE 7: Research Before Claiming - Verify Best Practices",
+                rule_type=RuleType.CONSTRAINT,
+                conditions=[
+                    Condition(
+                        description="Task requires current/latest/best practices knowledge",
+                        evaluator=lambda ctx: any(
+                            keyword in str(ctx.get("task", "")).lower()
+                            for keyword in [
+                                "latest",
+                                "best practice",
+                                "modern",
+                                "current",
+                                "recommended",
+                            ]
+                        )
+                        and not ctx.get("research_performed", False),
+                    )
+                ],
+                actions=[
+                    Action(
+                        action_type=ActionType.REQUIRE,
+                        description="ASIMOV RULE 7: Must research before claiming knowledge about latest/best practices.",
+                        parameters={
+                            "asimov_rule": 7,
+                            "enforcement": "absolute",
+                            "action": "research_first",
+                        },
+                    )
+                ],
+                priority=10,
+                immutable=True,  # 🔴 ASIMOV - Cannot be disabled/removed
+            )
+        )
 
         # =====================================================================
         # STANDARD BEST PRACTICE RULES (Lower Priority)
         # =====================================================================
 
         # RULE 1: API Rate Limiting
-        self.rule_engine.add_rule(Rule(
-            rule_id="rate_limit_handling",
-            name="API Rate Limit Handling",
-            rule_type=RuleType.BEST_PRACTICE,
-            conditions=[
-                Condition(
-                    description="Task involves API calls",
-                    evaluator=lambda ctx: any(
-                        keyword in str(ctx.get("task", "")).lower()
-                        for keyword in ["api", "request", "fetch", "call"]
-                    )
-                ),
-                Condition(
-                    description="Rate limit exists or is likely",
-                    evaluator=lambda ctx: any(
-                        keyword in str(ctx.get("task", "")).lower()
-                        for keyword in ["rate", "limit", "throttle", "quota"]
-                    ) or ctx.get("has_rate_limit", False)
-                )
-            ],
-            actions=[
-                Action(
-                    action_type=ActionType.SUGGEST,
-                    description="Implement exponential backoff and retry logic for API calls",
-                    parameters={"pattern": "exponential_backoff"}
-                ),
-                Action(
-                    action_type=ActionType.SUGGEST,
-                    description="Add delays between sequential API calls",
-                    parameters={"pattern": "rate_limiting"}
-                )
-            ],
-            priority=8
-        ))
+        self.rule_engine.add_rule(
+            Rule(
+                rule_id="rate_limit_handling",
+                name="API Rate Limit Handling",
+                rule_type=RuleType.BEST_PRACTICE,
+                conditions=[
+                    Condition(
+                        description="Task involves API calls",
+                        evaluator=lambda ctx: any(
+                            keyword in str(ctx.get("task", "")).lower()
+                            for keyword in ["api", "request", "fetch", "call"]
+                        ),
+                    ),
+                    Condition(
+                        description="Rate limit exists or is likely",
+                        evaluator=lambda ctx: any(
+                            keyword in str(ctx.get("task", "")).lower()
+                            for keyword in ["rate", "limit", "throttle", "quota"]
+                        )
+                        or ctx.get("has_rate_limit", False),
+                    ),
+                ],
+                actions=[
+                    Action(
+                        action_type=ActionType.SUGGEST,
+                        description="Implement exponential backoff and retry logic for API calls",
+                        parameters={"pattern": "exponential_backoff"},
+                    ),
+                    Action(
+                        action_type=ActionType.SUGGEST,
+                        description="Add delays between sequential API calls",
+                        parameters={"pattern": "rate_limiting"},
+                    ),
+                ],
+                priority=8,
+            )
+        )
 
         # RULE 2: Missing API Key - FAIL FAST (Related to Asimov Rule 1: Fail Fast)
-        self.rule_engine.add_rule(Rule(
-            rule_id="missing_api_key",
-            name="Missing API Key - Fail Fast",
-            rule_type=RuleType.CONSTRAINT,
-            conditions=[
-                Condition(
-                    description="Task requires API key",
-                    evaluator=lambda ctx: ctx.get("requires_api_key", False)
-                ),
-                Condition(
-                    description="API key is missing",
-                    evaluator=lambda ctx: not ctx.get("api_key_present", True)
-                )
-            ],
-            actions=[
-                Action(
-                    action_type=ActionType.FAIL_FAST,
-                    description="Cannot proceed without API key - fail fast",
-                    parameters={"error": "MissingAPIKeyError"}
-                )
-            ],
-            priority=9  # High priority (below Asimov)
-        ))
+        self.rule_engine.add_rule(
+            Rule(
+                rule_id="missing_api_key",
+                name="Missing API Key - Fail Fast",
+                rule_type=RuleType.CONSTRAINT,
+                conditions=[
+                    Condition(
+                        description="Task requires API key",
+                        evaluator=lambda ctx: ctx.get("requires_api_key", False),
+                    ),
+                    Condition(
+                        description="API key is missing",
+                        evaluator=lambda ctx: not ctx.get("api_key_present", True),
+                    ),
+                ],
+                actions=[
+                    Action(
+                        action_type=ActionType.FAIL_FAST,
+                        description="Cannot proceed without API key - fail fast",
+                        parameters={"error": "MissingAPIKeyError"},
+                    )
+                ],
+                priority=9,  # High priority (below Asimov)
+            )
+        )
 
         # RULE 3: Edge Case Handling
-        self.rule_engine.add_rule(Rule(
-            rule_id="edge_case_handling",
-            name="Edge Case Handling",
-            rule_type=RuleType.BEST_PRACTICE,
-            conditions=[
-                Condition(
-                    description="Task involves user input or calculations",
-                    evaluator=lambda ctx: any(
-                        keyword in str(ctx.get("task", "")).lower()
-                        for keyword in ["input", "calculate", "divide", "parse"]
+        self.rule_engine.add_rule(
+            Rule(
+                rule_id="edge_case_handling",
+                name="Edge Case Handling",
+                rule_type=RuleType.BEST_PRACTICE,
+                conditions=[
+                    Condition(
+                        description="Task involves user input or calculations",
+                        evaluator=lambda ctx: any(
+                            keyword in str(ctx.get("task", "")).lower()
+                            for keyword in ["input", "calculate", "divide", "parse"]
+                        ),
                     )
-                )
-            ],
-            actions=[
-                Action(
-                    action_type=ActionType.SUGGEST,
-                    description="Handle edge cases: null/undefined, empty strings, division by zero",
-                    parameters={"checks": ["null", "empty", "zero_division"]}
-                )
-            ],
-            priority=7
-        ))
+                ],
+                actions=[
+                    Action(
+                        action_type=ActionType.SUGGEST,
+                        description="Handle edge cases: null/undefined, empty strings, division by zero",
+                        parameters={"checks": ["null", "empty", "zero_division"]},
+                    )
+                ],
+                priority=7,
+            )
+        )
 
         # RULE 4: Security - No Credentials in Code
-        self.rule_engine.add_rule(Rule(
-            rule_id="no_credentials_in_code",
-            name="No Credentials in Code",
-            rule_type=RuleType.SAFETY,
-            conditions=[
-                Condition(
-                    description="Task involves authentication or secrets",
-                    evaluator=lambda ctx: any(
-                        keyword in str(ctx.get("task", "")).lower()
-                        for keyword in ["password", "api key", "secret", "token", "credential"]
+        self.rule_engine.add_rule(
+            Rule(
+                rule_id="no_credentials_in_code",
+                name="No Credentials in Code",
+                rule_type=RuleType.SAFETY,
+                conditions=[
+                    Condition(
+                        description="Task involves authentication or secrets",
+                        evaluator=lambda ctx: any(
+                            keyword in str(ctx.get("task", "")).lower()
+                            for keyword in [
+                                "password",
+                                "api key",
+                                "secret",
+                                "token",
+                                "credential",
+                            ]
+                        ),
                     )
-                )
-            ],
-            actions=[
-                Action(
-                    action_type=ActionType.REQUIRE,
-                    description="Store credentials in environment variables or secure vault, NEVER hardcode",
-                    parameters={"security_level": "high"}
-                ),
-                Action(
-                    action_type=ActionType.FORBID,
-                    description="Do not hardcode credentials in source code",
-                    parameters={"forbidden": "hardcoded_credentials"}
-                )
-            ],
-            priority=9  # High priority (below Asimov, related to security)
-        ))
+                ],
+                actions=[
+                    Action(
+                        action_type=ActionType.REQUIRE,
+                        description="Store credentials in environment variables or secure vault, NEVER hardcode",
+                        parameters={"security_level": "high"},
+                    ),
+                    Action(
+                        action_type=ActionType.FORBID,
+                        description="Do not hardcode credentials in source code",
+                        parameters={"forbidden": "hardcoded_credentials"},
+                    ),
+                ],
+                priority=9,  # High priority (below Asimov, related to security)
+            )
+        )
 
         # RULE 5: Test Coverage
-        self.rule_engine.add_rule(Rule(
-            rule_id="test_coverage",
-            name="Test Coverage Required",
-            rule_type=RuleType.BEST_PRACTICE,
-            conditions=[
-                Condition(
-                    description="Task involves code generation",
-                    evaluator=lambda ctx: any(
-                        keyword in str(ctx.get("task", "")).lower()
-                        for keyword in ["implement", "create", "build", "generate", "code"]
+        self.rule_engine.add_rule(
+            Rule(
+                rule_id="test_coverage",
+                name="Test Coverage Required",
+                rule_type=RuleType.BEST_PRACTICE,
+                conditions=[
+                    Condition(
+                        description="Task involves code generation",
+                        evaluator=lambda ctx: any(
+                            keyword in str(ctx.get("task", "")).lower()
+                            for keyword in [
+                                "implement",
+                                "create",
+                                "build",
+                                "generate",
+                                "code",
+                            ]
+                        ),
                     )
-                )
-            ],
-            actions=[
-                Action(
-                    action_type=ActionType.SUGGEST,
-                    description="Create unit tests for all major functions",
-                    parameters={"test_type": "unit"}
-                ),
-                Action(
-                    action_type=ActionType.SUGGEST,
-                    description="Include edge case tests",
-                    parameters={"test_type": "edge_cases"}
-                )
-            ],
-            priority=6
-        ))
+                ],
+                actions=[
+                    Action(
+                        action_type=ActionType.SUGGEST,
+                        description="Create unit tests for all major functions",
+                        parameters={"test_type": "unit"},
+                    ),
+                    Action(
+                        action_type=ActionType.SUGGEST,
+                        description="Include edge case tests",
+                        parameters={"test_type": "edge_cases"},
+                    ),
+                ],
+                priority=6,
+            )
+        )
 
     def reason(
-        self,
-        task: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, task: str, context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Perform hybrid reasoning combining rules and neural reasoning
 
@@ -693,20 +771,20 @@ class NeurosymbolicReasoner:
 
         # Check for constraint violations (fail fast)
         if symbolic_results["constraints_violated"]:
-            logger.error(f"❌ Constraint violations detected:")
+            logger.error("❌ Constraint violations detected:")
             for violation in symbolic_results["constraints_violated"]:
                 logger.error(f"   - {violation['rule']}: {violation['message']}")
 
         # Log suggestions
         if symbolic_results["suggestions"]:
-            logger.info(f"💡 Symbolic suggestions:")
+            logger.info("💡 Symbolic suggestions:")
             for suggestion in symbolic_results["suggestions"]:
                 logger.info(f"   - {suggestion['rule']}: {suggestion['suggestion']}")
 
         # Step 2: Neural reasoning (creative problem solving)
         neural_guidance = None
         if self.llm_function and not symbolic_results["constraints_violated"]:
-            logger.info(f"🧠 Applying neural reasoning...")
+            logger.info("🧠 Applying neural reasoning...")
             try:
                 # Build prompt with symbolic constraints
                 prompt = self._build_neural_prompt(task, symbolic_results)
@@ -721,20 +799,16 @@ class NeurosymbolicReasoner:
             "symbolic_suggestions": symbolic_results.get("suggestions", []),
             "warnings": symbolic_results.get("warnings", []),
             "neural_guidance": neural_guidance,
-            "can_proceed": len(symbolic_results["constraints_violated"]) == 0
+            "can_proceed": len(symbolic_results["constraints_violated"]) == 0,
         }
 
         return {
             "symbolic_results": symbolic_results,
             "neural_guidance": neural_guidance,
-            "final_approach": final_approach
+            "final_approach": final_approach,
         }
 
-    def _build_neural_prompt(
-        self,
-        task: str,
-        symbolic_results: Dict[str, Any]
-    ) -> str:
+    def _build_neural_prompt(self, task: str, symbolic_results: dict[str, Any]) -> str:
         """Build prompt for neural reasoning that incorporates symbolic constraints"""
         prompt = f"Task: {task}\n\n"
 
@@ -758,7 +832,7 @@ class NeurosymbolicReasoner:
         """Add a custom rule specific to this agent's domain"""
         self.rule_engine.add_rule(rule)
 
-    def get_rule_statistics(self) -> Dict[str, Any]:
+    def get_rule_statistics(self) -> dict[str, Any]:
         """Get statistics about rule usage"""
         total_rules = len(self.rule_engine.rules)
         rules_by_type = {}
@@ -773,5 +847,5 @@ class NeurosymbolicReasoner:
             "total_rules": total_rules,
             "rules_by_type": rules_by_type,
             "total_evaluations": total_evaluations,
-            "agent": self.agent_name
+            "agent": self.agent_name,
         }
