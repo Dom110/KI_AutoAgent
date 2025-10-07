@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 KI AutoAgent Backend Server with LangGraph Integration
 FastAPI with WebSocket support for LangGraph workflow

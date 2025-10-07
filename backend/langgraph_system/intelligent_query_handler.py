@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Intelligent Query Handler v5.5.2
 Ensures EVERY query gets a meaningful response
@@ -13,7 +15,7 @@ from .state import ExecutionStep
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class QueryAnalysis:
     """Analysis result of a user query"""
 
@@ -183,55 +185,40 @@ Ich bin hier, um zu helfen! 🤝""",
             else "en"
         )
 
-        # Detect query type
-        if "?" in query:
-            query_type = "question"
-        elif any(
-            word in query_lower
-            for word in ["mach", "make", "erstelle", "create", "build", "baue"]
-        ):
-            query_type = "command"
-        elif any(word in query_lower for word in ["möchte", "want", "need", "brauche"]):
-            query_type = "request"
-        else:
-            query_type = "statement"
+        # Detect query type using match/case
+        match query:
+            case q if "?" in q:
+                query_type = "question"
+            case q if any(word in query_lower for word in ["mach", "make", "erstelle", "create", "build", "baue"]):
+                query_type = "command"
+            case q if any(word in query_lower for word in ["möchte", "want", "need", "brauche"]):
+                query_type = "request"
+            case _:
+                query_type = "statement"
 
-        # Detect domain
-        if any(
-            word in query_lower
-            for word in ["code", "function", "class", "bug", "error"]
-        ):
-            domain = "technical"
-        elif any(
-            word in query_lower for word in ["projekt", "project", "system", "agent"]
-        ):
-            domain = "project"
-        elif any(word in query_lower for word in ["strategy", "trading", "business"]):
-            domain = "business"
-        else:
-            domain = "general"
+        # Detect domain using match/case
+        match query_lower:
+            case s if any(word in s for word in ["code", "function", "class", "bug", "error"]):
+                domain = "technical"
+            case s if any(word in s for word in ["projekt", "project", "system", "agent"]):
+                domain = "project"
+            case s if any(word in s for word in ["strategy", "trading", "business"]):
+                domain = "business"
+            case _:
+                domain = "general"
 
-        # Detect intent
-        if any(
-            word in query_lower
-            for word in ["was", "what", "wie", "how", "warum", "why"]
-        ):
-            intent = "get_info"
-        elif any(
-            word in query_lower
-            for word in ["erstelle", "create", "build", "mach", "make"]
-        ):
-            intent = "create"
-        elif any(
-            word in query_lower for word in ["ändere", "modify", "change", "update"]
-        ):
-            intent = "modify"
-        elif any(
-            word in query_lower for word in ["analysiere", "analyze", "review", "prüfe"]
-        ):
-            intent = "analyze"
-        else:
-            intent = "explain"
+        # Detect intent using match/case
+        match query_lower:
+            case s if any(word in s for word in ["was", "what", "wie", "how", "warum", "why"]):
+                intent = "get_info"
+            case s if any(word in s for word in ["erstelle", "create", "build", "mach", "make"]):
+                intent = "create"
+            case s if any(word in s for word in ["ändere", "modify", "change", "update"]):
+                intent = "modify"
+            case s if any(word in s for word in ["analysiere", "analyze", "review", "prüfe"]):
+                intent = "analyze"
+            case _:
+                intent = "explain"
 
         # Extract keywords (simple approach)
         stopwords = {

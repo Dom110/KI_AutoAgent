@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Smart File Watcher Service
 Monitors file changes and invalidates caches when files are modified

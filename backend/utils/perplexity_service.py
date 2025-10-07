@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 PerplexityService - Service for Perplexity API integration
 Handles web search and research queries using Perplexity's AI models

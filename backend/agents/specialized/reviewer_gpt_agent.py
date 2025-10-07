@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 ReviewerGPT Agent - Code Review and Security Analysis Expert
 Performs thorough code reviews and security audits
@@ -6,7 +8,7 @@ Performs thorough code reviews and security audits
 import logging
 import os
 from collections.abc import Callable
-from typing import Any
+from typing import Any, override
 
 from utils.openai_service import OpenAIService
 
@@ -76,6 +78,7 @@ class ReviewerGPTAgent(ChatAgent):
             logger.error(f"❌ Reviewer: Failed to get Architect analysis: {e}")
             return None
 
+    @override
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute code review task - ENFORCER OF ASIMOV RULES

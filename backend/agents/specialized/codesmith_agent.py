@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 CodeSmithAgent - Code generation and implementation specialist
 Uses Claude 4.1 Sonnet for superior code generation
@@ -8,7 +10,7 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, override
 
 from utils.claude_code_service import ClaudeCodeConfig, ClaudeCodeService
 
@@ -70,7 +72,7 @@ except ImportError as e:
     DiagramService = None
 
 
-@dataclass
+@dataclass(slots=True)
 class CodeImplementation:
     """Code implementation details"""
 
@@ -173,6 +175,7 @@ class CodeSmithAgent(ChatAgent):
         # Language-specific configurations
         self.language_configs = self._load_language_configs()
 
+    @override
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         🆕 v5.8.2: Generic Code Generator - Creates ANY type of application
@@ -889,7 +892,7 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
 
     def _detect_language(self, prompt: str) -> str:
         """
-        Detect programming language from prompt
+        Detect programming language from prompt using match/case
         """
         prompt_lower = prompt.lower()
 
@@ -906,9 +909,10 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
             "php": ["php", "laravel"],
         }
 
+        # Check each language's keywords using match/case pattern
         for lang, keywords in language_keywords.items():
-            for keyword in keywords:
-                if keyword in prompt_lower:
+            match prompt_lower:
+                case s if any(keyword in s for keyword in keywords):
                     return lang
 
         # Default to Python if no language detected
@@ -928,18 +932,17 @@ RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the
 
     def _assess_complexity(self, prompt: str) -> str:
         """
-        Assess code complexity from prompt
+        Assess code complexity from prompt using match/case
         """
         prompt_lower = prompt.lower()
 
-        if any(word in prompt_lower for word in ["simple", "basic", "hello world"]):
-            return "simple"
-        elif any(
-            word in prompt_lower for word in ["complex", "advanced", "sophisticated"]
-        ):
-            return "complex"
-        else:
-            return "medium"
+        match prompt_lower:
+            case s if any(word in s for word in ["simple", "basic", "hello world"]):
+                return "simple"
+            case s if any(word in s for word in ["complex", "advanced", "sophisticated"]):
+                return "complex"
+            case _:
+                return "medium"
 
     def _generate_filename(self, prompt: str, language: str) -> str:
         """

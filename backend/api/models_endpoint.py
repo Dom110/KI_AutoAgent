@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Model Discovery API Endpoints
 Provides FastAPI endpoints for discovering and querying available AI models from all providers

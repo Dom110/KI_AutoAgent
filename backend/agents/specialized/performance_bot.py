@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 PerformanceBot - Performance analysis and optimization specialist
 Profiles code, detects bottlenecks, suggests optimizations
@@ -16,7 +18,7 @@ import time
 import tracemalloc
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, override
 
 from utils.openai_service import OpenAIService
 
@@ -27,7 +29,7 @@ from ..base.chat_agent import ChatAgent
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class PerformanceProfile:
     """Performance analysis results"""
 
@@ -65,6 +67,7 @@ class PerformanceBot(ChatAgent):
         super().__init__(config)
         self.openai = OpenAIService(model=self.config.model)
 
+    @override
     async def execute(self, request: TaskRequest) -> TaskResult:
         """Execute performance analysis task"""
         start_time = datetime.now()
@@ -72,18 +75,19 @@ class PerformanceBot(ChatAgent):
         try:
             prompt_lower = request.prompt.lower()
 
-            # Determine task type
-            if "profile" in prompt_lower or "performance" in prompt_lower:
-                result = await self.analyze_performance(request)
-            elif "benchmark" in prompt_lower or "compare" in prompt_lower:
-                result = await self.run_benchmarks(request)
-            elif "optimize" in prompt_lower:
-                result = await self.suggest_optimizations(request)
-            elif "analyze" in prompt_lower and "package" in prompt_lower:
-                result = await self.analyze_external_package(request)
-            else:
-                # General performance consultation
-                result = await self.provide_performance_advice(request)
+            # Determine task type using match/case
+            match prompt_lower:
+                case s if "profile" in s or "performance" in s:
+                    result = await self.analyze_performance(request)
+                case s if "benchmark" in s or "compare" in s:
+                    result = await self.run_benchmarks(request)
+                case s if "optimize" in s:
+                    result = await self.suggest_optimizations(request)
+                case s if "analyze" in s and "package" in s:
+                    result = await self.analyze_external_package(request)
+                case _:
+                    # General performance consultation
+                    result = await self.provide_performance_advice(request)
 
             execution_time = (datetime.now() - start_time).total_seconds()
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Framework Comparison System (Systemvergleich-Analyse) v1.0
 
@@ -39,7 +41,7 @@ class FrameworkCategory(Enum):
     CODING = "coding"  # Code generation focused
 
 
-@dataclass
+@dataclass(slots=True)
 class FrameworkFeature:
     """A feature of an agent framework"""
 
@@ -50,7 +52,7 @@ class FrameworkFeature:
     examples: list[str] = field(default_factory=list)
 
 
-@dataclass
+@dataclass(slots=True)
 class FrameworkProfile:
     """Profile of an agent framework"""
 

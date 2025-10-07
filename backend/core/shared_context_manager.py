@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Shared Context Manager - Stub Implementation
 TODO: Implement full context sharing system

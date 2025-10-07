@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 🔴 ASIMOV RULES & PRIME DIRECTIVES for all KI AutoAgent agents
 These are ABSOLUTE AND INVIOLABLE LAWS that cannot be overridden
@@ -12,7 +14,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class Directive:
     id: int
     rule: str

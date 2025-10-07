@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Memory Manager - Stub Implementation
 TODO: Implement full memory management system

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Extensions for LangGraph system
 Provides Tool Discovery, Approval, Memory, and Dynamic Workflow features

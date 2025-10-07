@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 ResearchAgent - Web Research and Information Gathering Specialist
 Searches the web for real-time information and best practices
@@ -8,7 +10,7 @@ import os
 # Fix import path - backend is the root package
 import sys
 from datetime import datetime
-from typing import Any
+from typing import Any, override
 
 from ..base.base_agent import (AgentCapability, AgentConfig, TaskRequest,
                                TaskResult)
@@ -223,6 +225,7 @@ Sources consulted: Technical documentation, Stack Overflow, GitHub repositories"
             }
         ]
 
+    @override
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute research task using Perplexity API

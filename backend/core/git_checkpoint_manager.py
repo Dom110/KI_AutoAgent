@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Git Checkpoint Manager - Stub Implementation
 TODO: Implement full git checkpoint system

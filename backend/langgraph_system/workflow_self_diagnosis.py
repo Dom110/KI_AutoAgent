@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Workflow Self-Diagnosis System v5.5.0
 Implements comprehensive self-diagnosis, validation, and healing capabilities
@@ -37,7 +39,7 @@ class AntiPatternType(Enum):
     CYCLIC_PROCESS = "cyclic_process"  # Ruleset calling cycles
 
 
-@dataclass
+@dataclass(slots=True)
 class KnownAntiPattern:
     """Definition of a known anti-pattern from research"""
 
@@ -159,55 +161,56 @@ class KnownAntiPatternsDatabase:
     def _check_pattern(
         self, pattern: KnownAntiPattern, state: ExtendedAgentState
     ) -> bool:
-        """Check if a specific anti-pattern is present"""
+        """Check if a specific anti-pattern is present using match/case"""
 
-        if pattern.type == AntiPatternType.SELF_ROUTING:
-            # Check for orchestrator self-routing
-            for step in state.get("execution_plan", []):
-                if step.agent == "orchestrator" and step.status == "pending":
-                    return True
+        match pattern.type:
+            case AntiPatternType.SELF_ROUTING:
+                # Check for orchestrator self-routing
+                for step in state.get("execution_plan", []):
+                    if step.agent == "orchestrator" and step.status == "pending":
+                        return True
 
-        elif pattern.type == AntiPatternType.CIRCULAR_DEPENDENCY:
-            # Check for circular dependencies
-            return self._has_circular_dependencies(state.get("execution_plan", []))
+            case AntiPatternType.CIRCULAR_DEPENDENCY:
+                # Check for circular dependencies
+                return self._has_circular_dependencies(state.get("execution_plan", []))
 
-        elif pattern.type == AntiPatternType.UNBOUNDED_DELEGATION:
-            # Check delegation depth
-            collab_count = state.get("collaboration_count", 0)
-            return collab_count > 10
+            case AntiPatternType.UNBOUNDED_DELEGATION:
+                # Check delegation depth
+                collab_count = state.get("collaboration_count", 0)
+                return collab_count > 10
 
-        elif pattern.type == AntiPatternType.CONTEXT_COLLAPSE:
-            # Check for lost context
-            collab_count = state.get("collaboration_count", 0)
-            escalation_level = state.get("escalation_level", 0)
-            return collab_count > 10 and escalation_level == 0
+            case AntiPatternType.CONTEXT_COLLAPSE:
+                # Check for lost context
+                collab_count = state.get("collaboration_count", 0)
+                escalation_level = state.get("escalation_level", 0)
+                return collab_count > 10 and escalation_level == 0
 
-        elif pattern.type == AntiPatternType.NO_ERROR_HANDLING:
-            # Check for missing error handling
-            for step in state.get("execution_plan", []):
-                if step.max_retries == 0:
-                    return True
+            case AntiPatternType.NO_ERROR_HANDLING:
+                # Check for missing error handling
+                for step in state.get("execution_plan", []):
+                    if step.max_retries == 0:
+                        return True
 
-        elif pattern.type == AntiPatternType.CYCLIC_PROCESS:
-            # Check for cyclic patterns in history
-            history = state.get("collaboration_history", [])
-            if len(history) >= 4:
-                # Check for A->B->A->B pattern
-                last_4 = history[-4:]
-                if (
-                    last_4[0]["to"] == last_4[2]["to"]
-                    and last_4[1]["to"] == last_4[3]["to"]
-                ):
-                    return True
+            case AntiPatternType.CYCLIC_PROCESS:
+                # Check for cyclic patterns in history
+                history = state.get("collaboration_history", [])
+                if len(history) >= 4:
+                    # Check for A->B->A->B pattern
+                    last_4 = history[-4:]
+                    if (
+                        last_4[0]["to"] == last_4[2]["to"]
+                        and last_4[1]["to"] == last_4[3]["to"]
+                    ):
+                        return True
 
-        elif pattern.type == AntiPatternType.STATE_INCONSISTENCY:
-            # Would need status history tracking
-            pass
+            case AntiPatternType.STATE_INCONSISTENCY:
+                # Would need status history tracking
+                pass
 
-        elif pattern.type == AntiPatternType.RESOURCE_EXHAUSTION:
-            # Check resource usage
-            messages = state.get("messages", [])
-            return len(messages) > 500
+            case AntiPatternType.RESOURCE_EXHAUSTION:
+                # Check resource usage
+                messages = state.get("messages", [])
+                return len(messages) > 500
 
         return False
 

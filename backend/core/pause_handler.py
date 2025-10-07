@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Pause Handler - Stub Implementation
 TODO: Implement full pause/resume system

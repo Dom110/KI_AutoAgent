@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Radon Metrics - Code complexity and maintainability metrics
 Real implementation using radon library

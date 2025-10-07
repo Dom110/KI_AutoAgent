@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Settings API Endpoint
 Allows VS Code extension to sync settings with backend

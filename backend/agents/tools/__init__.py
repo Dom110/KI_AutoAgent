@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Agent Tools Module
 Provides tools and utilities for agent operations

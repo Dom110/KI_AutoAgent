@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Tree-sitter based AST indexing for code analysis
 Provides fast, accurate parsing of Python, JavaScript, and TypeScript code

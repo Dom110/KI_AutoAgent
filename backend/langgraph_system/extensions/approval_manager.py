@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Approval Manager for Human-in-the-Loop workflows
 Handles Plan-First mode with user approval
@@ -13,7 +15,7 @@ from typing import Any, Literal
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class ApprovalRequest:
     """Represents an approval request"""
 

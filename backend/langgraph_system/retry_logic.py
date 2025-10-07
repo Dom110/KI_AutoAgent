@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Retry Logic with Exponential Backoff
 v5.8.4: Add resilience to agent execution

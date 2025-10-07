@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Browser Tester - Automated browser testing using Playwright
 Enables ReviewerGPT to test HTML/JS applications in real browsers

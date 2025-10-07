@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Neurosymbolic Reasoning System v1.0
 
@@ -50,7 +52,7 @@ class ActionType(Enum):
     FAIL_FAST = "fail_fast"  # Stop execution immediately
 
 
-@dataclass
+@dataclass(slots=True)
 class Condition:
     """A condition that can be evaluated"""
 
@@ -71,7 +73,7 @@ class Condition:
             return False
 
 
-@dataclass
+@dataclass(slots=True)
 class Action:
     """An action to take when rule fires"""
 
@@ -91,7 +93,7 @@ class Action:
         return None
 
 
-@dataclass
+@dataclass(slots=True)
 class Rule:
     """
     A neurosymbolic rule combining conditions and actions

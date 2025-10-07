@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Main workflow creation for KI AutoAgent using LangGraph
 Integrates all agents with extended features
@@ -92,7 +94,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import custom exceptions
 from core.exceptions import (ArchitectError, CodesmithError,
                              DataValidationError, FixerError, ParsingError,
-                             ResearchError, ReviewerError)
+                             ResearchError, ReviewerError, WorkflowValidationError)
 
 REAL_AGENTS_AVAILABLE = False
 ORCHESTRATOR_AVAILABLE = False
@@ -2776,17 +2778,30 @@ class AgentWorkflow:
         self, state: ExtendedAgentState, parallel_group_id: str
     ) -> dict[str, Any]:
         """
-        Execute multiple steps in parallel using asyncio.gather()
+        Execute multiple steps in parallel with LENIENT error handling (best-effort).
 
         v5.9.0: Implements true parallel execution for steps in the same parallel_group
-        that have no dependencies on each other.
+        that have no dependencies on each other. Uses asyncio.gather(return_exceptions=True)
+        to continue execution even if some tasks fail.
+
+        **Use this method when:**
+        - Partial success is acceptable (some tasks can fail)
+        - You want all tasks to run to completion regardless of failures
+        - Example: Running multiple independent analysis tasks where some results are better than none
+
+        **For strict execution (fail-fast), use:**
+        - _execute_parallel_steps_strict() - Uses Python 3.11+ TaskGroup
+
+        **Key differences from _execute_parallel_steps_strict():**
+        - gather(): All tasks run to completion even if some fail (best-effort)
+        - TaskGroup: Cancels ALL tasks on first failure (fail-fast)
 
         Args:
             state: Current workflow state
             parallel_group_id: ID of the parallel group to execute
 
         Returns:
-            Dict with state updates (execution_plan with completed steps)
+            Dict with state updates (execution_plan with completed steps, including failed ones)
         """
         logger.info(f"⚡ Starting parallel execution for group: {parallel_group_id}")
 
@@ -2843,10 +2858,29 @@ class AgentWorkflow:
                 return (step.id, e)
 
         # Execute all steps in parallel
-        results = await asyncio.gather(
-            *[execute_single_step(step) for step in parallel_steps],
-            return_exceptions=True,
-        )
+        # Note: Using return_exceptions=True, so exceptions are returned as values
+        # Wrapped with except* to catch any ExceptionGroup from gather itself
+        try:
+            results = await asyncio.gather(
+                *[execute_single_step(step) for step in parallel_steps],
+                return_exceptions=True,
+            )
+        except* ValueError as eg:
+            # Handle validation errors from parallel execution setup
+            for e in eg.exceptions:
+                logger.error(f"⚠️ Validation error in parallel execution: {e}")
+            # Create error results for all steps
+            results = [(step.id, e) for step, e in zip(parallel_steps, eg.exceptions)]
+        except* RuntimeError as eg:
+            # Handle runtime errors from parallel execution
+            for e in eg.exceptions:
+                logger.error(f"⚠️ Runtime error in parallel execution: {e}")
+            results = [(step.id, e) for step, e in zip(parallel_steps, eg.exceptions)]
+        except* Exception as eg:
+            # Catch-all for unexpected errors
+            for e in eg.exceptions:
+                logger.error(f"❌ Unexpected error in parallel execution: {e}")
+            results = [(step.id, e) for step, e in zip(parallel_steps, eg.exceptions)]
 
         # Update execution plan with results
         updated_plan = list(state["execution_plan"])
@@ -2884,6 +2918,155 @@ class AgentWorkflow:
         return {"execution_plan": updated_plan}
 
     # =================== End v5.9.0 Parallel Execution ===================
+
+    async def _execute_parallel_steps_strict(
+        self, state: ExtendedAgentState, parallel_group_id: str
+    ) -> dict[str, Any]:
+        """
+        Execute multiple steps in parallel with STRICT error handling (fail-fast).
+
+        NEW in v5.9.0+: Uses Python 3.11+ asyncio.TaskGroup for structured concurrency.
+        This method automatically CANCELS ALL remaining tasks if ANY ONE task fails.
+
+        **Use this method when:**
+        - Partial success is NOT acceptable
+        - All tasks must succeed or the entire operation should fail
+        - You need automatic cleanup when errors occur
+        - Example: Critical infrastructure setup where all steps are interdependent
+
+        **For lenient execution (continue on errors), use:**
+        - _execute_parallel_steps() - Uses gather(return_exceptions=True)
+
+        **Key differences from _execute_parallel_steps():**
+        - TaskGroup: Cancels ALL tasks on first failure (fail-fast)
+        - gather(): All tasks run to completion even if some fail (best-effort)
+
+        Args:
+            state: Current workflow state
+            parallel_group_id: ID of the parallel group to execute
+
+        Returns:
+            Dict with state updates (execution_plan with completed steps)
+
+        Raises:
+            ExceptionGroup: If any task fails, containing all task exceptions
+        """
+        logger.info(f"⚡ Starting STRICT parallel execution for group: {parallel_group_id}")
+
+        # Get all steps in this parallel group that are pending
+        parallel_steps = [
+            step
+            for step in state["execution_plan"]
+            if hasattr(step, "parallel_group")
+            and step.parallel_group == parallel_group_id
+            and step.status == "pending"
+            and self._dependencies_met(step, state["execution_plan"])
+        ]
+
+        if not parallel_steps:
+            logger.warning(
+                f"⚠️ No executable steps found in parallel group {parallel_group_id}"
+            )
+            return {}
+
+        logger.info(f"⚡ Executing {len(parallel_steps)} steps in STRICT parallel mode:")
+        for step in parallel_steps:
+            logger.info(f"   • {step.id} ({step.agent}): {step.task[:60]}...")
+
+        # Create async function for single step execution
+        async def execute_single_step(
+            step: ExecutionStep,
+        ) -> tuple[str, str]:
+            """Execute a single step and return (step_id, result). Raises on error."""
+            # Mark step as in_progress
+            step_copy = dataclass_replace(
+                step, status="in_progress", started_at=datetime.now()
+            )
+
+            # Execute based on agent type
+            if step.agent == "architect":
+                result = await self._execute_architect_task(state, step_copy)
+            elif step.agent == "codesmith":
+                result = await self._execute_codesmith_task(state, step_copy, [])
+            elif step.agent == "reviewer":
+                result = await self._execute_reviewer_task(state, step_copy)
+            elif step.agent == "fixer":
+                result = await self._execute_fixer_task(state, step_copy, [])
+            elif step.agent == "research":
+                result = await self._execute_research_task(state, step_copy)
+            else:
+                raise ValueError(f"Agent '{step.agent}' not implemented for parallel execution")
+
+            logger.info(f"✅ Strict parallel step {step.id} completed")
+            return (step.id, result)
+
+        # Execute all steps in parallel using TaskGroup
+        # If any task fails, ALL other tasks are automatically cancelled
+        results: list[tuple[str, str]] = []
+
+        try:
+            async with asyncio.TaskGroup() as tg:
+                # Create tasks for each step
+                tasks = {
+                    tg.create_task(execute_single_step(step)): step
+                    for step in parallel_steps
+                }
+
+            # All tasks completed successfully - collect results
+            results = [task.result() for task in tasks.keys()]
+
+        except* ValueError as eg:
+            # Handle validation errors from any parallel task
+            logger.error(f"⚠️ Validation errors in strict parallel execution:")
+            for e in eg.exceptions:
+                logger.error(f"  - {e}")
+            # Re-raise as TaskDecompositionError for workflow handling
+            raise WorkflowValidationError(
+                f"Strict parallel execution failed: {len(eg.exceptions)} validation error(s)"
+            ) from eg
+
+        except* RuntimeError as eg:
+            # Handle runtime errors from any parallel task
+            logger.error(f"⚠️ Runtime errors in strict parallel execution:")
+            for e in eg.exceptions:
+                logger.error(f"  - {e}")
+            raise WorkflowValidationError(
+                f"Strict parallel execution failed: {len(eg.exceptions)} runtime error(s)"
+            ) from eg
+
+        except* Exception as eg:
+            # Catch-all for unexpected errors
+            logger.error(f"❌ Unexpected errors in strict parallel execution:")
+            for e in eg.exceptions:
+                logger.error(f"  - {type(e).__name__}: {e}")
+            raise WorkflowValidationError(
+                f"Strict parallel execution failed: {len(eg.exceptions)} error(s)"
+            ) from eg
+
+        # Update execution plan with results (only reached if all succeeded)
+        updated_plan = list(state["execution_plan"])
+        completed_count = 0
+
+        for step_id, result in results:
+            # Find and update the step
+            for i, step in enumerate(updated_plan):
+                if step.id == step_id:
+                    updated_plan[i] = dataclass_replace(
+                        step,
+                        status="completed",
+                        result=result,
+                        end_time=datetime.now(),
+                    )
+                    completed_count += 1
+                    break
+
+        logger.info(
+            f"⚡ Strict parallel execution complete: ALL {completed_count} tasks succeeded"
+        )
+
+        return {"execution_plan": updated_plan}
+
+    # =================== End TaskGroup Parallel Execution ===================
 
     async def route_to_next_agent(self, state: ExtendedAgentState) -> str:
         """

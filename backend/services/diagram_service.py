@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Diagram Service
 Generates architecture and code diagrams in multiple formats

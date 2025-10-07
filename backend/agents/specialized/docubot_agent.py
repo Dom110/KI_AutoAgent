@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 DocuBot Agent - Technical Documentation Specialist
 Generates documentation, API specs, and user guides
@@ -5,7 +7,7 @@ Generates documentation, API specs, and user guides
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, override
 
 from utils.openai_service import OpenAIService
 
@@ -180,6 +182,7 @@ class DocuBotAgent(ChatAgent):
 
         return "\n".join(docs)
 
+    @override
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute documentation task

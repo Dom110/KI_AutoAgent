@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 FixerBot Agent - Bug Fixing and Code Optimization Specialist
 Fixes bugs, optimizes performance, and refactors code
@@ -6,7 +8,7 @@ Fixes bugs, optimizes performance, and refactors code
 import logging
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, override
 
 from utils.claude_code_service import ClaudeCodeConfig, ClaudeCodeService
 
@@ -91,6 +93,7 @@ class FixerBotAgent(ChatAgent):
                 "FixerBot requires Claude CLI! Install with: npm install -g @anthropic-ai/claude-code"
             )
 
+    @override
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute bug fixing task using Two-Tier Strategy:

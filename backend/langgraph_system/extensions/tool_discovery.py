@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Tool Discovery System for LangGraph
 Automatic tool discovery and registration for agents

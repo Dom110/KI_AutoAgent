@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 OpusArbitrator Agent - Supreme Conflict Resolution Authority
 Uses Claude Opus for final binding decisions when agents disagree
@@ -5,7 +7,7 @@ Uses Claude Opus for final binding decisions when agents disagree
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, override
 
 from utils.claude_code_service import ClaudeCodeConfig, ClaudeCodeService
 
@@ -49,6 +51,7 @@ class OpusArbitratorAgent(ChatAgent):
                 "OpusArbitrator requires Claude CLI! Install with: npm install -g @anthropic-ai/claude-code"
             )
 
+    @override
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute arbitration task

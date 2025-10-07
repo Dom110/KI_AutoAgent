@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Persistent Memory System for Agents
 Combines SQLite for long-term storage with FAISS for semantic search

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Enhanced Query Classifier v5.5.2
 Erkennt und klassifiziert 20 problematische Query-Typen
@@ -14,7 +16,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class DetailedClassification:
     """Detaillierte Klassifikation einer Query"""
 
@@ -396,54 +398,55 @@ class EnhancedQueryClassifier:
         return any(pattern in query for pattern in patterns)
 
     def _check_development_patterns(self, query: str) -> dict[str, Any]:
-        """Prüft Development-spezifische Patterns"""
+        """Prüft Development-spezifische Patterns using match/case"""
         result = {"is_dev": False, "type": None, "has_context": False}
 
-        # Check each development pattern
-        if self._check_pattern(query, self.performance_patterns):
-            result["is_dev"] = True
-            result["type"] = "performance"
-            result["has_context"] = not self._has_context_reference(query)
+        # Check each development pattern using match/case
+        match query:
+            case q if self._check_pattern(q, self.performance_patterns):
+                result["is_dev"] = True
+                result["type"] = "performance"
+                result["has_context"] = not self._has_context_reference(query)
 
-        elif self._check_pattern(query, self.bug_patterns):
-            result["is_dev"] = True
-            result["type"] = "bug_report"
-            # Bug reports often lack context
-            result["has_context"] = len(query.split()) > 3
-
-        elif self._check_pattern(query, self.refactoring_patterns):
-            result["is_dev"] = True
-            result["type"] = "refactoring"
-            result["has_context"] = not self._has_context_reference(query)
-
-        elif self._check_pattern(query, self.testing_patterns):
-            result["is_dev"] = True
-            result["type"] = "testing"
-            result["has_context"] = len(query.split()) > 2
-
-        elif self._check_pattern(query, self.implementation_patterns):
-            result["is_dev"] = True
-            result["type"] = "implementation"
-            # Check for vague scope
-            if self._check_pattern(query, self.vague_scope_indicators):
-                result["has_context"] = False
-            else:
+            case q if self._check_pattern(q, self.bug_patterns):
+                result["is_dev"] = True
+                result["type"] = "bug_report"
+                # Bug reports often lack context
                 result["has_context"] = len(query.split()) > 3
 
-        elif self._check_pattern(query, self.technology_patterns):
-            result["is_dev"] = True
-            result["type"] = "technology"
-            result["has_context"] = len(query.split()) > 2
+            case q if self._check_pattern(q, self.refactoring_patterns):
+                result["is_dev"] = True
+                result["type"] = "refactoring"
+                result["has_context"] = not self._has_context_reference(query)
 
-        elif self._check_pattern(query, self.database_patterns):
-            result["is_dev"] = True
-            result["type"] = "database"
-            result["has_context"] = "schema" in query or "table" in query
+            case q if self._check_pattern(q, self.testing_patterns):
+                result["is_dev"] = True
+                result["type"] = "testing"
+                result["has_context"] = len(query.split()) > 2
 
-        elif self._check_pattern(query, self.ai_patterns):
-            result["is_dev"] = True
-            result["type"] = "ai_integration"
-            result["has_context"] = len(query.split()) > 3
+            case q if self._check_pattern(q, self.implementation_patterns):
+                result["is_dev"] = True
+                result["type"] = "implementation"
+                # Check for vague scope
+                if self._check_pattern(query, self.vague_scope_indicators):
+                    result["has_context"] = False
+                else:
+                    result["has_context"] = len(query.split()) > 3
+
+            case q if self._check_pattern(q, self.technology_patterns):
+                result["is_dev"] = True
+                result["type"] = "technology"
+                result["has_context"] = len(query.split()) > 2
+
+            case q if self._check_pattern(q, self.database_patterns):
+                result["is_dev"] = True
+                result["type"] = "database"
+                result["has_context"] = "schema" in query or "table" in query
+
+            case q if self._check_pattern(q, self.ai_patterns):
+                result["is_dev"] = True
+                result["type"] = "ai_integration"
+                result["has_context"] = len(query.split()) > 3
 
         return result
 
@@ -523,62 +526,53 @@ class EnhancedQueryClassifier:
         return max(0.0, min(1.0, score))
 
     def _determine_action(self, classification: DetailedClassification, state: dict):
-        """Bestimmt die empfohlene Aktion"""
+        """Bestimmt die empfohlene Aktion using match/case"""
 
-        # Grüße → Direkte Antwort
-        if classification.is_greeting:
-            classification.suggested_action = "direct_response"
-            classification.safe_to_execute = False
-            return
+        match classification:
+            # Grüße → Direkte Antwort
+            case c if c.is_greeting:
+                classification.suggested_action = "direct_response"
+                classification.safe_to_execute = False
 
-        # Nonsense → Klärung
-        if classification.is_nonsense:
-            classification.suggested_action = "clarification"
-            classification.needs_clarification = True
-            classification.safe_to_execute = False
-            return
+            # Nonsense → Klärung
+            case c if c.is_nonsense:
+                classification.suggested_action = "clarification"
+                classification.needs_clarification = True
+                classification.safe_to_execute = False
 
-        # Kontext-Referenz ohne Kontext → Klärung
-        if (
-            classification.has_context_reference
-            and not classification.has_sufficient_context
-        ):
-            classification.suggested_action = "clarification"
-            classification.needs_clarification = True
-            classification.safe_to_execute = False
-            return
+            # Kontext-Referenz ohne Kontext → Klärung
+            case c if c.has_context_reference and not c.has_sufficient_context:
+                classification.suggested_action = "clarification"
+                classification.needs_clarification = True
+                classification.safe_to_execute = False
 
-        # Development mit genug Kontext → Spezifischer Agent
-        if (
-            classification.is_development_query
-            and classification.has_sufficient_context
-        ):
-            classification.suggested_action = "route_agent"
-            classification.suggested_agent = self._get_dev_agent(
-                classification.dev_type
-            )
-            classification.safe_to_execute = False
-            return
+            # Development mit genug Kontext → Spezifischer Agent
+            case c if c.is_development_query and c.has_sufficient_context:
+                classification.suggested_action = "route_agent"
+                classification.suggested_agent = self._get_dev_agent(
+                    classification.dev_type
+                )
+                classification.safe_to_execute = False
 
-        # Meta-Fragen → Direkte Antwort
-        if classification.is_meta_question:
-            classification.suggested_action = "direct_response"
-            classification.safe_to_execute = False
-            return
+            # Meta-Fragen → Direkte Antwort
+            case c if c.is_meta_question:
+                classification.suggested_action = "direct_response"
+                classification.safe_to_execute = False
 
-        # Philosophisch → Direkte Antwort
-        if classification.is_philosophical:
-            classification.suggested_action = "direct_response"
-            classification.safe_to_execute = False
-            return
+            # Philosophisch → Direkte Antwort
+            case c if c.is_philosophical:
+                classification.suggested_action = "direct_response"
+                classification.safe_to_execute = False
 
-        # Safety-Check für Orchestrator-Ausführung
-        if classification.execution_safety_score > 0.5:
-            classification.suggested_action = "safe_execution"
-            classification.safe_to_execute = True
-        else:
-            classification.suggested_action = "fallback"
-            classification.safe_to_execute = False
+            # Safety-Check für Orchestrator-Ausführung
+            case c if c.execution_safety_score > 0.5:
+                classification.suggested_action = "safe_execution"
+                classification.safe_to_execute = True
+
+            # Default: fallback
+            case _:
+                classification.suggested_action = "fallback"
+                classification.safe_to_execute = False
 
     def _get_dev_agent(self, dev_type: str) -> str:
         """Mapping von Dev-Type zu Agent"""

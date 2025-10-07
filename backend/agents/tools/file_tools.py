@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 File System Tools for AI Agents
 Provides safe file operations with validation and audit logging
@@ -15,7 +17,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class FileOperation:
     """Record of a file operation"""
 

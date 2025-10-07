@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Dynamic Workflow Manager for runtime graph modification
 Allows adding/removing nodes and edges at runtime
@@ -13,7 +15,7 @@ from langgraph.graph import END, StateGraph
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class DynamicNode:
     """Represents a dynamic node that can be added at runtime"""
 
@@ -24,7 +26,7 @@ class DynamicNode:
     metadata: dict[str, Any] = None
 
 
-@dataclass
+@dataclass(slots=True)
 class DynamicEdge:
     """Represents a dynamic edge between nodes"""
 
@@ -34,7 +36,7 @@ class DynamicEdge:
     metadata: dict[str, Any] = None
 
 
-@dataclass
+@dataclass(slots=True)
 class ConditionalRoute:
     """Represents conditional routing logic"""
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 v5.8.3 Phase 3: Supervisor Pattern for Agent Orchestration
 
@@ -17,7 +19,7 @@ from typing import Any, Literal
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkerReport:
     """Report from worker agent back to supervisor"""
 

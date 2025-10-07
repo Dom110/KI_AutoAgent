@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 System Layers Analyzer
 Detects architectural layers and validates layer separation

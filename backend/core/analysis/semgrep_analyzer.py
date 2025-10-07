@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Semgrep Analyzer - Security vulnerability detection
 Real implementation using semgrep CLI

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Safe Orchestrator Executor - v5.5.2
 Sicheres Ausführen des Orchestrators mit Loop-Prevention
@@ -18,7 +20,7 @@ from .state import ExecutionStep
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class ExecutionAttempt:
     """Einzelner Ausführungsversuch"""
 
@@ -32,7 +34,7 @@ class ExecutionAttempt:
     block_reason: str | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class ExecutionHistory:
     """Historie aller Ausführungsversuche"""
 

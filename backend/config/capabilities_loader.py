@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Agent Capabilities Loader
 Loads and applies file write permissions from configuration

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Globale Backend Settings
 Zentrale Konfiguration für alle Agents und Services

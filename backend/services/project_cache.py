@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Project Cache Service
 Provides caching for project analysis results to improve performance

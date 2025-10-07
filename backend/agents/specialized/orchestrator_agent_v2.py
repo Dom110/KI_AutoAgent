@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 OrchestratorAgent V2 - Full implementation with real AI services
 Provides the same functionality as the TypeScript version
@@ -8,7 +10,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, override
 
 # Import custom exceptions
 from core.exceptions import (OrchestratorError, ParsingError,
@@ -22,7 +24,7 @@ from ..base.chat_agent import ChatAgent
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class SubTask:
     """Subtask for decomposition"""
 
@@ -37,7 +39,7 @@ class SubTask:
     result: str | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class TaskDecomposition:
     """Complete task decomposition"""
 
@@ -88,6 +90,7 @@ class OrchestratorAgentV2(ChatAgent):
         # Planning mode for Plan-First feature
         self.planning_mode = "immediate"  # 'immediate' or 'detailed'
 
+    @override
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute orchestration with real AI
@@ -807,7 +810,30 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
         self, decomposition: TaskDecomposition, original_request: TaskRequest = None
     ) -> dict[str, Any]:
         """
-        Execute the workflow with real agent dispatching
+        Execute workflow with LENIENT error handling (best-effort) using gather().
+
+        This method uses asyncio.gather(return_exceptions=True) for parallel execution,
+        allowing all tasks to run to completion even if some fail. Sequential execution
+        stops on first failure.
+
+        **Use this method when:**
+        - Partial success is acceptable for the workflow
+        - You want all parallel tasks to complete regardless of failures
+        - Example: Multiple independent code generation tasks where some results are better than none
+
+        **For strict execution (fail-fast), use:**
+        - _execute_workflow_strict() - Uses Python 3.11+ TaskGroup
+
+        **Key differences from _execute_workflow_strict():**
+        - gather(): All parallel tasks run to completion even if some fail (best-effort)
+        - TaskGroup: Cancels ALL tasks on first failure (fail-fast)
+
+        Args:
+            decomposition: Task decomposition with subtasks
+            original_request: Original task request for context
+
+        Returns:
+            Dict with results from all subtasks (may include error messages for failed tasks)
         """
         results = {}
 
@@ -835,7 +861,27 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
 
             if tasks:
                 # Use gather with return_exceptions=True to handle failures gracefully
-                task_results = await asyncio.gather(*tasks, return_exceptions=True)
+                # Python 3.11+ ExceptionGroup handling for better parallel error visibility
+                try:
+                    task_results = await asyncio.gather(*tasks, return_exceptions=True)
+                except* ValueError as eg:
+                    # Handle validation errors from any parallel task
+                    for e in eg.exceptions:
+                        logger.error(f"⚠️ Validation error in parallel task execution: {e}")
+                    # Mark all tasks as failed with validation errors
+                    task_results = list(eg.exceptions)
+                except* RuntimeError as eg:
+                    # Handle runtime errors from any parallel task
+                    for e in eg.exceptions:
+                        logger.error(f"⚠️ Runtime error in parallel task execution: {e}")
+                    task_results = list(eg.exceptions)
+                except* Exception as eg:
+                    # Catch all other errors from parallel tasks
+                    for e in eg.exceptions:
+                        logger.error(f"❌ Unexpected error in parallel task execution: {e}")
+                    task_results = list(eg.exceptions)
+
+                # Process results (whether from successful gather or from exception handlers)
                 for subtask, result in zip(decomposition.subtasks, task_results):
                     if isinstance(result, Exception):
                         error_msg = f"ERROR: {str(result)}"
@@ -870,6 +916,143 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
                     break  # Stop executing further tasks
 
         logger.info(f"🎯 Workflow complete with {len(results)} results")
+        return results
+
+    async def _execute_workflow_strict(
+        self, decomposition: TaskDecomposition, original_request: TaskRequest = None
+    ) -> dict[str, Any]:
+        """
+        Execute workflow with STRICT error handling (fail-fast) using TaskGroup.
+
+        NEW in v5.9.0+: Uses Python 3.11+ asyncio.TaskGroup for structured concurrency.
+        This method automatically CANCELS ALL remaining tasks if ANY ONE task fails.
+
+        **Use this method when:**
+        - Partial success is NOT acceptable for the workflow
+        - All subtasks must succeed or the entire workflow should fail
+        - You need automatic cleanup when errors occur
+        - Example: Critical multi-step deployments or infrastructure setup
+
+        **For lenient execution (continue on errors), use:**
+        - _execute_workflow() - Uses gather(return_exceptions=True)
+
+        **Key differences from _execute_workflow():**
+        - TaskGroup: Cancels ALL tasks on first failure (fail-fast)
+        - gather(): All tasks run to completion even if some fail (best-effort)
+
+        **Note:** This method only supports parallel execution mode.
+        For sequential execution, use _execute_workflow() which has built-in
+        fail-fast behavior.
+
+        Args:
+            decomposition: Task decomposition with subtasks
+            original_request: Original task request for context
+
+        Returns:
+            Dict with results from all subtasks (only if ALL succeed)
+
+        Raises:
+            OrchestratorError: If any task fails, containing all task exceptions
+        """
+        results = {}
+
+        # Get agent registry
+        if not self.agent_registry:
+            from agents.agent_registry import get_agent_registry
+
+            self.agent_registry = get_agent_registry()
+
+        # Log workflow start
+        logger.info(
+            f"🚀 Starting STRICT workflow with {len(decomposition.subtasks)} tasks in {decomposition.execution_mode} mode"
+        )
+
+        # Only parallel mode benefits from TaskGroup (sequential already has fail-fast)
+        if decomposition.execution_mode == "parallel":
+            # Get tasks without dependencies for parallel execution
+            parallel_tasks = [
+                subtask
+                for subtask in decomposition.subtasks
+                if not subtask.dependencies
+            ]
+
+            if not parallel_tasks:
+                logger.warning("⚠️ No tasks without dependencies found for parallel execution")
+                return results
+
+            logger.info(f"⚡ Executing {len(parallel_tasks)} tasks in STRICT parallel mode:")
+            for subtask in parallel_tasks:
+                logger.info(f"   • {subtask.id} ({subtask.agent}): {subtask.description[:60]}...")
+
+            # Execute all parallel tasks using TaskGroup
+            # If any task fails, ALL other tasks are automatically cancelled
+            try:
+                async with asyncio.TaskGroup() as tg:
+                    # Create tasks for each subtask
+                    tasks = {
+                        tg.create_task(
+                            self._execute_subtask(subtask, original_request)
+                        ): subtask
+                        for subtask in parallel_tasks
+                    }
+
+                # All tasks completed successfully - collect results
+                for task, subtask in tasks.items():
+                    result = task.result()
+                    results[subtask.id] = result
+                    subtask.result = result
+                    logger.info(f"✅ Completed strict parallel task: {subtask.id}")
+
+            except* asyncio.TimeoutError as eg:
+                # Handle timeout errors from any parallel task
+                logger.error(f"⏱️ Timeout errors in strict parallel workflow:")
+                for e in eg.exceptions:
+                    logger.error(f"  - {e}")
+                raise OrchestratorError(
+                    f"Strict workflow failed: {len(eg.exceptions)} task(s) timed out"
+                ) from eg
+
+            except* ValueError as eg:
+                # Handle validation errors from any parallel task
+                logger.error(f"⚠️ Validation errors in strict parallel workflow:")
+                for e in eg.exceptions:
+                    logger.error(f"  - {e}")
+                raise OrchestratorError(
+                    f"Strict workflow failed: {len(eg.exceptions)} validation error(s)"
+                ) from eg
+
+            except* Exception as eg:
+                # Catch-all for unexpected errors
+                logger.error(f"❌ Unexpected errors in strict parallel workflow:")
+                for e in eg.exceptions:
+                    logger.error(f"  - {type(e).__name__}: {e}")
+                raise OrchestratorError(
+                    f"Strict workflow failed: {len(eg.exceptions)} error(s)"
+                ) from eg
+
+            logger.info(
+                f"⚡ Strict parallel workflow complete: ALL {len(parallel_tasks)} tasks succeeded"
+            )
+
+        else:
+            # Sequential execution - already has fail-fast behavior
+            logger.info("📋 Sequential execution mode - using standard fail-fast behavior")
+            for i, subtask in enumerate(decomposition.subtasks, 1):
+                logger.info(
+                    f"▶️ Step {i}/{len(decomposition.subtasks)}: Executing {subtask.id} with agent {subtask.agent}"
+                )
+                # Raises exception on failure - no need for TaskGroup
+                result = await self._execute_subtask(subtask, original_request)
+                results[subtask.id] = result
+                subtask.result = result
+                logger.info(
+                    f"✅ Step {i}/{len(decomposition.subtasks)} completed: {subtask.id}"
+                )
+
+            logger.info(
+                f"📋 Sequential workflow complete: ALL {len(decomposition.subtasks)} tasks succeeded"
+            )
+
         return results
 
     async def _execute_subtask(

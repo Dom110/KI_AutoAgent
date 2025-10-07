@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 BaseAgent - Modern base class for all agents with Memory, SharedContext, and Communication
 Inspired by the TypeScript implementation with all advanced features
@@ -88,7 +90,7 @@ class AgentCapability(Enum):
     RESEARCH = "research"
 
 
-@dataclass
+@dataclass(slots=True)
 class AgentConfig:
     """Agent configuration"""
 
@@ -104,7 +106,7 @@ class AgentConfig:
     icon: str = "🤖"
 
 
-@dataclass
+@dataclass(slots=True)
 class TaskRequest:
     """Task request structure"""
 
@@ -119,7 +121,7 @@ class TaskRequest:
     agent: str | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class TaskResult:
     """Task execution result"""
 
@@ -133,7 +135,7 @@ class TaskResult:
     tokens_used: int = 0
 
 
-@dataclass
+@dataclass(slots=True)
 class AgentMessage:
     """Inter-agent communication message"""
 
@@ -1049,58 +1051,59 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
             findings = []
 
-            # Research each topic
+            # Research each topic using match/case
             for topic in topics:
                 logger.info(f"🔍 Researching topic: {topic}")
 
-                if topic == "latest_practices":
-                    # Get latest best practices
-                    result = await research_agent.get_latest_best_practices(prompt)
-                    findings.append({"type": "best_practices", "data": result})
+                match topic:
+                    case "latest_practices":
+                        # Get latest best practices
+                        result = await research_agent.get_latest_best_practices(prompt)
+                        findings.append({"type": "best_practices", "data": result})
 
-                elif topic == "verify_technologies":
-                    # Verify each technology
-                    for tech in technologies:
-                        verification = await research_agent.verify_technology_exists(
-                            tech
+                    case "verify_technologies":
+                        # Verify each technology
+                        for tech in technologies:
+                            verification = await research_agent.verify_technology_exists(
+                                tech
+                            )
+                            findings.append(
+                                {
+                                    "type": "technology_verification",
+                                    "technology": tech,
+                                    "data": verification,
+                                }
+                            )
+
+                    case t if t in ["comparison", "technology_choice"]:
+                        # Research comparison
+                        research = await research_agent.research_for_agent(
+                            self.config.agent_id, f"Compare options for: {prompt}"
+                        )
+                        findings.append({"type": "comparison", "data": research})
+
+                    case t if t in ["security", "security_practices"]:
+                        # Security research
+                        research = await research_agent.research_for_agent(
+                            self.config.agent_id, f"Security best practices for: {prompt}"
+                        )
+                        findings.append({"type": "security", "data": research})
+
+                    case "performance":
+                        # Performance research
+                        research = await research_agent.research_for_agent(
+                            self.config.agent_id, f"Performance optimization for: {prompt}"
+                        )
+                        findings.append({"type": "performance", "data": research})
+
+                    case _:
+                        # General research
+                        research = await research_agent.research_for_agent(
+                            self.config.agent_id, prompt
                         )
                         findings.append(
-                            {
-                                "type": "technology_verification",
-                                "technology": tech,
-                                "data": verification,
-                            }
+                            {"type": "general", "topic": topic, "data": research}
                         )
-
-                elif topic in ["comparison", "technology_choice"]:
-                    # Research comparison
-                    research = await research_agent.research_for_agent(
-                        self.config.agent_id, f"Compare options for: {prompt}"
-                    )
-                    findings.append({"type": "comparison", "data": research})
-
-                elif topic in ["security", "security_practices"]:
-                    # Security research
-                    research = await research_agent.research_for_agent(
-                        self.config.agent_id, f"Security best practices for: {prompt}"
-                    )
-                    findings.append({"type": "security", "data": research})
-
-                elif topic == "performance":
-                    # Performance research
-                    research = await research_agent.research_for_agent(
-                        self.config.agent_id, f"Performance optimization for: {prompt}"
-                    )
-                    findings.append({"type": "performance", "data": research})
-
-                else:
-                    # General research
-                    research = await research_agent.research_for_agent(
-                        self.config.agent_id, prompt
-                    )
-                    findings.append(
-                        {"type": "general", "topic": topic, "data": research}
-                    )
 
             # Compile research results
             research_summary = self._compile_research_summary(findings)

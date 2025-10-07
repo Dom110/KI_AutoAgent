@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Predictive Error Learning System v1.0
 
@@ -26,7 +28,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class Prediction:
     """A prediction made by an agent before taking action"""
 
@@ -50,7 +52,7 @@ class Prediction:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class Reality:
     """The actual outcome after action execution"""
 
@@ -70,7 +72,7 @@ class Reality:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class PredictionError:
     """The error between prediction and reality"""
 

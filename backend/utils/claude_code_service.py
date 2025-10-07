@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Claude Code CLI Service for Python
 Integrates with the Claude Code CLI application
@@ -14,7 +16,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class ClaudeCodeConfig:
     """Configuration for Claude Code CLI"""
 

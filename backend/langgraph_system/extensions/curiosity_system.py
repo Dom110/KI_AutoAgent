@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Curiosity-Driven Task Selection System v1.0
 
@@ -28,7 +30,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class TaskEncounter:
     """Records when an agent encountered a type of task"""
 
@@ -48,7 +50,7 @@ class TaskEncounter:
         }
 
 
-@dataclass
+@dataclass(slots=True)
 class NoveltyScore:
     """Novelty assessment for a task"""
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 VideoAgent - Video Understanding and Analysis Specialist
 Uses Google Gemini 2.0 Flash for native video comprehension (audio + visual)
@@ -10,7 +12,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 # Fix import paths
 sys.path.insert(
@@ -135,6 +137,7 @@ class VideoAgent(ChatAgent):
         self.total_tokens_used = 0
         self.total_cost = 0.0
 
+    @override
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute video analysis task

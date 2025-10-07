@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Vulture Analyzer - Dead code detection
 Real implementation using vulture library

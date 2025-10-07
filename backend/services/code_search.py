@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Lightweight Code Search Service
 Fast text-based code searching without heavy dependencies

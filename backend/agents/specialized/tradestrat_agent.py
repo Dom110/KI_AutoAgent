@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 TradeStrat Agent - Trading Strategy and Financial Analysis Expert
 Specialized in algorithmic trading and financial systems
@@ -5,7 +7,7 @@ Specialized in algorithmic trading and financial systems
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, override
 
 from utils.claude_code_service import ClaudeCodeConfig, ClaudeCodeService
 
@@ -50,6 +52,7 @@ class TradeStratAgent(ChatAgent):
                 "TradeStrat requires Claude CLI! Install with: npm install -g @anthropic-ai/claude-code"
             )
 
+    @override
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute trading strategy task

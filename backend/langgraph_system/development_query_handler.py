@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Development Query Handler - v5.5.2
 Spezialisierte Handler für Entwicklungs-Anfragen
@@ -12,7 +14,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class DevelopmentContext:
     """Kontext für Entwicklungs-Anfragen"""
 

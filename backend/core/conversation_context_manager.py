@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Conversation Context Manager - Stub Implementation
 TODO: Implement full conversation context system

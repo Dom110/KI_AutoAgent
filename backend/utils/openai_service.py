@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 OpenAI Service Integration
 Handles all OpenAI API calls for GPT-5 models
@@ -18,7 +20,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class OpenAIConfig:
     """OpenAI configuration"""
 

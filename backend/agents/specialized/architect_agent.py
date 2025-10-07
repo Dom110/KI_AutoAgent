@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 ArchitectAgent - System design and architecture specialist
 Uses GPT-5 for architectural decisions and technology selection
@@ -7,7 +9,7 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, override
 
 # Import custom exceptions
 from core.exceptions import (ArchitectError, ArchitectResearchError,
@@ -100,7 +102,7 @@ except ImportError as e:
     DiagramService = None
 
 
-@dataclass
+@dataclass(slots=True)
 class ArchitectureDesign:
     """Architecture design specification"""
 
@@ -477,6 +479,7 @@ CRITICAL RULES:
                 line=350,
             )
 
+    @override
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute architecture design task - ENHANCED with AI Systems Integration
@@ -697,127 +700,109 @@ CRITICAL RULES:
                 )
 
             # v5.8.7: EXISTING PROJECT PATH - Continue with existing logic
-            # Determine which tools to use based on the request
+            # Determine which tools to use based on the request using match/case
             prompt_lower = request.prompt.lower()
             logger.info(f"🔍 Received prompt: '{request.prompt}'")
             logger.info(f"🔍 Prompt lower: '{prompt_lower}'")
 
-            # Tool 1: understand_system() - Always use for infrastructure tasks
-            if any(
-                word in prompt_lower
-                for word in [
-                    "understand",
-                    "analyze",
-                    "infrastructure",
-                    "infrastruktur",
-                    "improve",
-                    "verbessert",
-                    "optimize",
-                ]
-            ):
-                logger.info("🔍 Using understand_system() to analyze workspace...")
-                await self._send_progress(
-                    client_id,
-                    "🔍 Using understand_system() to analyze workspace...",
-                    manager,
-                )
-
-                logger.info(
-                    f"🔍 INDEXING_AVAILABLE = {INDEXING_AVAILABLE}, self.code_indexer = {self.code_indexer is not None}"
-                )
-                if INDEXING_AVAILABLE and self.code_indexer:
-                    logger.info("✅ Taking indexing path with understand_system()")
-                    system_analysis = await self.understand_system(
-                        workspace_path, client_id, request.prompt, manager
+            match prompt_lower:
+                # Tool 1: understand_system() - Always use for infrastructure tasks
+                case s if any(word in s for word in ["understand", "analyze", "infrastructure",
+                                                       "infrastruktur", "improve", "verbessert", "optimize"]):
+                    logger.info("🔍 Using understand_system() to analyze workspace...")
+                    await self._send_progress(
+                        client_id,
+                        "🔍 Using understand_system() to analyze workspace...",
+                        manager,
                     )
 
-                    # Save to file
-                    analysis_file = os.path.join(
-                        ki_autoagent_dir, "system_analysis.json"
+                    logger.info(
+                        f"🔍 INDEXING_AVAILABLE = {INDEXING_AVAILABLE}, self.code_indexer = {self.code_indexer is not None}"
                     )
-                    with open(analysis_file, "w") as f:
-                        json.dump(system_analysis, f, indent=2)
-                    files_created.append(analysis_file)
-                    logger.info(f"✅ Created: {analysis_file}")
-                else:
-                    # Standard analysis when indexing not triggered
-                    logger.warning(
-                        "⚠️ Indexing not available, falling back to analyze_requirements"
-                    )
-                    system_analysis = await self.analyze_requirements(request.prompt)
-
-                # Tool 2: analyze_infrastructure_improvements()
-                if (
-                    "improve" in prompt_lower
-                    or "optimization" in prompt_lower
-                    or "verbessert" in prompt_lower
-                    or "verbessern" in prompt_lower
-                ):
-                    logger.info("🔧 Using analyze_infrastructure_improvements()...")
-
-                    if ANALYSIS_AVAILABLE:
-                        # Get the full formatted improvements report
-                        improvements_report = (
-                            await self.analyze_infrastructure_improvements()
+                    if INDEXING_AVAILABLE and self.code_indexer:
+                        logger.info("✅ Taking indexing path with understand_system()")
+                        system_analysis = await self.understand_system(
+                            workspace_path, client_id, request.prompt, manager
                         )
 
-                        # Store the report in summary so it gets returned
-                        summary = improvements_report
-
-                        # Save improvements to file
-                        improvements_file = os.path.join(
-                            ki_autoagent_dir, "improvements.md"
+                        # Save to file
+                        analysis_file = os.path.join(
+                            ki_autoagent_dir, "system_analysis.json"
                         )
-                        with open(improvements_file, "w") as f:
-                            f.write(improvements_report)
-                        files_created.append(improvements_file)
-                        logger.info(f"✅ Created: {improvements_file}")
+                        with open(analysis_file, "w") as f:
+                            json.dump(system_analysis, f, indent=2)
+                        files_created.append(analysis_file)
+                        logger.info(f"✅ Created: {analysis_file}")
                     else:
-                        summary = "Analysis tools not available. Install with: pip install semgrep radon vulture"
-
-                # Tool 3: generate_architecture_flowchart()
-                if (
-                    "diagram" in prompt_lower
-                    or "flowchart" in prompt_lower
-                    or "visualize" in prompt_lower
-                ):
-                    logger.info("📊 Using generate_architecture_flowchart()...")
-
-                    if DIAGRAM_AVAILABLE:
-                        diagram = await self.generate_architecture_flowchart()
-
-                        # Save diagram
-                        diagram_file = os.path.join(
-                            ki_autoagent_dir, "architecture.mermaid"
+                        # Standard analysis when indexing not triggered
+                        logger.warning(
+                            "⚠️ Indexing not available, falling back to analyze_requirements"
                         )
-                        with open(diagram_file, "w") as f:
-                            f.write(diagram)
-                        files_created.append(diagram_file)
-                        logger.info(f"✅ Created: {diagram_file}")
-                    else:
-                        diagram = "graph TB\n  A[System] --> B[Not Available]\n  B --> C[Install mermaid-py]"
+                        system_analysis = await self.analyze_requirements(request.prompt)
 
-                # Create summary if not already set (e.g., by improvements analysis)
-                if "summary" not in locals():
-                    summary = f"Actively analyzed system and created {len(files_created)} files:\n"
-                    for file in files_created:
-                        summary += f"- {os.path.basename(file)}\n"
+                    # Tool 2: analyze_infrastructure_improvements()
+                    if any(word in prompt_lower for word in ["improve", "optimization", "verbessert", "verbessern"]):
+                        logger.info("🔧 Using analyze_infrastructure_improvements()...")
 
-                    if not files_created:
-                        # Standard behavior when no specific tools triggered
-                        requirements = await self.analyze_requirements(request.prompt)
-                        design = await self.design_architecture(requirements)
-                        documentation = await self.generate_documentation(design)
-                        summary = documentation
-                    else:
-                        summary += f"\nAll files saved in: {ki_autoagent_dir}"
+                        if ANALYSIS_AVAILABLE:
+                            # Get the full formatted improvements report
+                            improvements_report = (
+                                await self.analyze_infrastructure_improvements()
+                            )
 
-            else:
-                # Standard architecture design (not infrastructure)
-                requirements = await self.analyze_requirements(request.prompt)
-                design = await self.design_architecture(requirements)
-                documentation = await self.generate_documentation(design)
-                summary = documentation
+                            # Store the report in summary so it gets returned
+                            summary = improvements_report
+
+                            # Save improvements to file
+                            improvements_file = os.path.join(
+                                ki_autoagent_dir, "improvements.md"
+                            )
+                            with open(improvements_file, "w") as f:
+                                f.write(improvements_report)
+                            files_created.append(improvements_file)
+                            logger.info(f"✅ Created: {improvements_file}")
+                        else:
+                            summary = "Analysis tools not available. Install with: pip install semgrep radon vulture"
+
+                    # Tool 3: generate_architecture_flowchart()
+                    if any(word in prompt_lower for word in ["diagram", "flowchart", "visualize"]):
+                        logger.info("📊 Using generate_architecture_flowchart()...")
+
+                        if DIAGRAM_AVAILABLE:
+                            diagram = await self.generate_architecture_flowchart()
+
+                            # Save diagram
+                            diagram_file = os.path.join(
+                                ki_autoagent_dir, "architecture.mermaid"
+                            )
+                            with open(diagram_file, "w") as f:
+                                f.write(diagram)
+                            files_created.append(diagram_file)
+                            logger.info(f"✅ Created: {diagram_file}")
+                        else:
+                            diagram = "graph TB\n  A[System] --> B[Not Available]\n  B --> C[Install mermaid-py]"
+
+                    # Create summary if not already set (e.g., by improvements analysis)
+                    if "summary" not in locals():
+                        summary = f"Actively analyzed system and created {len(files_created)} files:\n"
+                        for file in files_created:
+                            summary += f"- {os.path.basename(file)}\n"
+
+                        if not files_created:
+                            # Standard behavior when no specific tools triggered
+                            requirements = await self.analyze_requirements(request.prompt)
+                            design = await self.design_architecture(requirements)
+                            documentation = await self.generate_documentation(design)
+                            summary = documentation
+                        else:
+                            summary += f"\nAll files saved in: {ki_autoagent_dir}"
+
+                # Default case: Standard architecture design (not infrastructure)
+                case _:
+                    requirements = await self.analyze_requirements(request.prompt)
+                    design = await self.design_architecture(requirements)
+                    documentation = await self.generate_documentation(design)
+                    summary = documentation
 
             execution_time = (datetime.now() - start_time).total_seconds()
 
@@ -2395,53 +2380,30 @@ if message_type == "stop":
         return f"## System Architecture Flowchart\n\n{flowchart}"
 
     def _detect_request_type(self, prompt: str) -> str:
-        """Detect the type of request from the prompt"""
+        """Detect the type of request from the prompt using match/case"""
         prompt_lower = prompt.lower()
 
-        # Check for specific request types
-        if any(
-            word in prompt_lower
-            for word in [
-                "infrastructure",
-                "infra",
-                "caching",
-                "redis",
-                "database",
-                "scale",
-            ]
-        ):
-            return "infrastructure"
-        elif any(
-            word in prompt_lower
-            for word in ["architecture", "design", "pattern", "structure"]
-        ):
-            return "architecture"
-        elif any(
-            word in prompt_lower for word in ["refactor", "restructure", "reorganize"]
-        ):
-            return "refactor"
-        elif any(
-            word in prompt_lower
-            for word in ["optimize", "performance", "speed", "faster"]
-        ):
-            return "optimize"
-        elif any(word in prompt_lower for word in ["dead code", "unused", "cleanup"]):
-            return "dead_code"
-        elif any(
-            word in prompt_lower for word in ["security", "vulnerability", "exploit"]
-        ):
-            return "security"
-        elif any(
-            word in prompt_lower
-            for word in ["dependency", "dependencies", "imports", "requires"]
-        ):
-            return "dependencies"
-        elif any(
-            word in prompt_lower for word in ["impact", "affect", "change", "modify"]
-        ):
-            return "impact_analysis"
-        else:
-            return "general"
+        # Check for specific request types using match/case
+        match prompt_lower:
+            case s if any(word in s for word in ["infrastructure", "infra", "caching",
+                                                   "redis", "database", "scale"]):
+                return "infrastructure"
+            case s if any(word in s for word in ["architecture", "design", "pattern", "structure"]):
+                return "architecture"
+            case s if any(word in s for word in ["refactor", "restructure", "reorganize"]):
+                return "refactor"
+            case s if any(word in s for word in ["optimize", "performance", "speed", "faster"]):
+                return "optimize"
+            case s if any(word in s for word in ["dead code", "unused", "cleanup"]):
+                return "dead_code"
+            case s if any(word in s for word in ["security", "vulnerability", "exploit"]):
+                return "security"
+            case s if any(word in s for word in ["dependency", "dependencies", "imports", "requires"]):
+                return "dependencies"
+            case s if any(word in s for word in ["impact", "affect", "change", "modify"]):
+                return "impact_analysis"
+            case _:
+                return "general"
 
     async def _send_progress(self, client_id: str, message: str, manager=None):
         """Send progress update to WebSocket client with deduplication"""

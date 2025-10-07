@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Gemini Video Service
 Handles video upload, analysis, and processing using Google Gemini 2.0 Flash API

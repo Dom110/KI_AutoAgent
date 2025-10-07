@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 ChatAgent - Base class for agents with chat and streaming capabilities
 Extends BaseAgent with WebSocket streaming support
@@ -15,7 +17,7 @@ from .base_agent import AgentConfig, BaseAgent, TaskRequest
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class StreamMessage:
     """Message for streaming responses"""
 

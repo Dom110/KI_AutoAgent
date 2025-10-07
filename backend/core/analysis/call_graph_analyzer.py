@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Function Call Graph Analyzer
 Builds comprehensive call graph showing which functions call which other functions

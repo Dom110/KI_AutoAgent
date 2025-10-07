@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 FixerGPT Agent - Alternative Bug Fixer using GPT Models
 Provides fresh perspective when primary Claude fixer fails
@@ -5,7 +7,7 @@ Provides fresh perspective when primary Claude fixer fails
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, override
 
 from backend.config.settings import Settings
 from utils.openai_service import OpenAIService
@@ -149,6 +151,7 @@ Sometimes a fresh AI sees what another AI missed."""
 
         return formatted
 
+    @override
     async def execute(self, request: TaskRequest) -> TaskResult:
         """
         Execute bug fixing with fresh GPT perspective

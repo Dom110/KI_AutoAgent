@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Agent Registry - Central registration and dispatch for all agents
 Manages agent lifecycle and routing
@@ -39,7 +41,7 @@ class AgentType(Enum):
     PERFORMANCE = "performance_bot"
 
 
-@dataclass
+@dataclass(slots=True)
 class RegisteredAgent:
     """Registered agent information"""
 

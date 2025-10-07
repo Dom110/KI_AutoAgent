@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Code Indexer - Orchestrates file indexing and builds comprehensive code index
 """

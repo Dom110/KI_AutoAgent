@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 KI AutoAgent LangGraph System
 Complete agent communication framework using LangGraph

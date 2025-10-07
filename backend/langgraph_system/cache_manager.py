@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Cache Manager for KI AutoAgent
 Handles Redis setup and cache management

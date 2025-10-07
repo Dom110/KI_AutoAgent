@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Extended Agent State for LangGraph
 Defines the complete state structure for agent communication
@@ -10,7 +12,7 @@ from datetime import datetime
 from typing import Annotated, Any, Literal, TypedDict
 
 
-@dataclass
+@dataclass(slots=True)
 class ToolDefinition:
     """Tool definition for discovery"""
 
@@ -23,7 +25,7 @@ class ToolDefinition:
     tags: list[str] = None
 
 
-@dataclass
+@dataclass(slots=True)
 class MemoryEntry:
     """Memory entry for agent recall"""
 
@@ -36,8 +38,8 @@ class MemoryEntry:
 
 
 def merge_execution_steps(
-    existing: list["ExecutionStep"], updates: list["ExecutionStep"]
-) -> list["ExecutionStep"]:
+    existing: list[ExecutionStep], updates: list[ExecutionStep]
+) -> list[ExecutionStep]:
     """
     Custom reducer for execution_plan state updates
 
@@ -91,7 +93,7 @@ def merge_execution_steps(
     return result
 
 
-@dataclass
+@dataclass(slots=True)
 class ExecutionStep:
     """
     Single execution step in the plan
@@ -160,7 +162,7 @@ class ExecutionStep:
         return self.retry_delay_seconds * (2**self.retry_count)
 
 
-@dataclass
+@dataclass(slots=True)
 class TaskLedger:
     """
     v5.4.3: Task Ledger for Orchestrator Planning
@@ -183,7 +185,7 @@ class TaskLedger:
             self.success_metrics = {}
 
 
-@dataclass
+@dataclass(slots=True)
 class ProgressLedger:
     """
     v5.4.3: Progress tracking for workflow execution
