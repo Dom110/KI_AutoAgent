@@ -5,7 +5,7 @@ Uses GPT-5 for architectural decisions and technology selection
 
 import asyncio
 import json
-from typing import List, Dict, Any, Optional
+from typing import Any
 from dataclasses import dataclass
 from datetime import datetime
 import logging
@@ -16,6 +16,15 @@ from ..base.base_agent import (
 )
 from utils.openai_service import OpenAIService
 from config import settings
+
+# Import custom exceptions
+from core.exceptions import (
+    ArchitectError,
+    ArchitectValidationError,
+    ArchitectResearchError,
+    ParsingError,
+    DataValidationError
+)
 
 # Setup logger first
 logger = logging.getLogger(__name__)
@@ -94,11 +103,11 @@ class ArchitectureDesign:
     """Architecture design specification"""
     project_name: str
     architecture_type: str  # monolithic, microservices, serverless, etc.
-    components: List[Dict[str, Any]]
-    technologies: List[str]
-    patterns: List[str]
-    data_flow: Dict[str, Any]
-    deployment: Dict[str, Any]
+    components: list[dict[str, Any]]
+    technologies: list[str]
+    patterns: list[str]
+    data_flow: dict[str, Any]
+    deployment: dict[str, Any]
     scalability_notes: str
     security_considerations: str
 
@@ -269,7 +278,7 @@ class ArchitectAgent(ChatAgent):
             logger.warning(f"⚠️ Error checking workspace: {e} - Assuming existing project")
             return False
 
-    async def _classify_task_complexity(self, prompt: str) -> Dict[str, Any]:
+    async def _classify_task_complexity(self, prompt: str) -> dict[str, Any]:
         """
         Classify task complexity using AI (GPT-4o) for accurate assessment
 
@@ -682,24 +691,28 @@ CRITICAL RULES:
                 execution_time=execution_time
             )
 
+        except (json.JSONDecodeError, ParsingError) as e:
+            logger.error(f"JSON parsing error in architecture design: {e}")
+            raise ParsingError(
+                content=str(request),
+                format="json",
+                reason=f"Failed to parse architecture response: {e}"
+            )
+        except (ConnectionError, TimeoutError) as e:
+            logger.error(f"Connection error in architecture design: {e}")
+            raise ArchitectError(f"Connection failed: {e}")
+        except (ArchitectError, ArchitectValidationError, ArchitectResearchError):
+            # Re-raise specific architect exceptions
+            raise
         except Exception as e:
             logger.error(f"Architecture design failed: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
 
-            # Add more context to error for debugging
-            error_details = f"Failed to design architecture: {str(e)}\n"
-            error_details += f"Request type: {type(request)}\n"
-            error_details += f"Context type: {type(request.context) if hasattr(request, 'context') else 'No context'}\n"
-            error_details += f"Context value: {repr(request.context) if hasattr(request, 'context') else 'N/A'}\n"
+            # Wrap in ArchitectError
+            raise ArchitectError(f"Failed to design architecture: {e}")
 
-            return TaskResult(
-                status="error",
-                content=error_details,
-                agent=self.config.agent_id
-            )
-
-    async def analyze_requirements(self, prompt: str) -> Dict[str, Any]:
+    async def analyze_requirements(self, prompt: str) -> dict[str, Any]:
         """
         Analyze project requirements from prompt
         """
@@ -754,9 +767,9 @@ CRITICAL RULES:
     async def analyze_requirements_with_research(
         self,
         prompt: str,
-        research_insights: Optional[str],
-        task_classification: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        research_insights: str | None,
+        task_classification: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Analyze project requirements with research insights and task classification
 
@@ -845,7 +858,7 @@ CRITICAL RULES:
 
     async def design_architecture(
         self,
-        requirements: Dict[str, Any]
+        requirements: dict[str, Any]
     ) -> ArchitectureDesign:
         """
         Design system architecture based on requirements
@@ -887,7 +900,7 @@ CRITICAL RULES:
     def _parse_architecture_response(
         self,
         response: str,
-        requirements: Dict[str, Any]
+        requirements: dict[str, Any]
     ) -> ArchitectureDesign:
         """
         Parse architecture response into structured design
@@ -1027,8 +1040,8 @@ CRITICAL RULES:
     async def generate_documentation_with_research(
         self,
         design: ArchitectureDesign,
-        research_insights: Optional[str],
-        task_classification: Dict[str, Any]
+        research_insights: str | None,
+        task_classification: dict[str, Any]
     ) -> str:
         """
         Generate enhanced architecture documentation with research insights
@@ -1189,7 +1202,7 @@ CRITICAL RULES:
 
         return "\n".join(doc)
 
-    def _extract_features(self, prompt: str) -> List[str]:
+    def _extract_features(self, prompt: str) -> list[str]:
         """
         Extract key features from prompt
         """
@@ -1208,7 +1221,7 @@ CRITICAL RULES:
 
         return features[:5]  # Return top 5 features
 
-    def _load_architecture_patterns(self) -> List[Dict[str, Any]]:
+    def _load_architecture_patterns(self) -> list[dict[str, Any]]:
         """
         Load architecture patterns library
         """
@@ -1271,7 +1284,7 @@ CRITICAL RULES:
         # Rebuild analysis
         return await self.understand_system('.', client_id, 'full refresh', manager)
 
-    async def refresh_cache_after_implementation(self, client_id: str = None, manager=None, components: List[str] = None):
+    async def refresh_cache_after_implementation(self, client_id: str = None, manager=None, components: list[str] = None):
         """
         Intelligently refresh cache after new functions/components are implemented
 
@@ -1343,7 +1356,7 @@ CRITICAL RULES:
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
 
-    def _load_tech_stacks(self) -> Dict[str, List[str]]:
+    def _load_tech_stacks(self) -> dict[str, list[str]]:
         """
         Load technology stack recommendations
         """
@@ -1367,7 +1380,7 @@ CRITICAL RULES:
 
         return {"message": "Architect received request"}
 
-    async def create_redis_config(self, optimization_params: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def create_redis_config(self, optimization_params: dict[str, Any] = None) -> dict[str, Any]:
         """
         Create optimized Redis configuration file
 
@@ -1399,7 +1412,7 @@ CRITICAL RULES:
                 "agent": self.name
             }
 
-    async def create_docker_compose(self, services: List[str] = None) -> Dict[str, Any]:
+    async def create_docker_compose(self, services: list[str] = None) -> dict[str, Any]:
         """
         Create Docker Compose configuration
 
@@ -1434,7 +1447,7 @@ CRITICAL RULES:
                 "agent": self.name
             }
 
-    def _generate_redis_config(self, params: Dict[str, Any] = None) -> str:
+    def _generate_redis_config(self, params: dict[str, Any] = None) -> str:
         """Generate optimized Redis configuration content"""
         params = params or {}
 
@@ -1501,7 +1514,7 @@ cluster-enabled no
 """
         return config
 
-    def _generate_docker_compose(self, services: List[str]) -> str:
+    def _generate_docker_compose(self, services: list[str]) -> str:
         """Generate Docker Compose configuration"""
         compose = """version: '3.8'
 
@@ -1555,7 +1568,7 @@ networks:
 """
         return compose
 
-    async def understand_system(self, root_path: str = '.', client_id: str = None, request_prompt: str = '', manager=None) -> Dict[str, Any]:
+    async def understand_system(self, root_path: str = '.', client_id: str = None, request_prompt: str = '', manager=None) -> dict[str, Any]:
         """
         Build comprehensive understanding of the system through code analysis
 
@@ -1719,7 +1732,7 @@ networks:
         logger.info(f"System understanding complete: {len(code_index.get('ast', {}).get('files', {}))} files analyzed")
         return self.system_knowledge
 
-    async def _index_functions_for_search(self, code_index: Dict):
+    async def _index_functions_for_search(self, code_index: dict):
         """
         Index functions in SQLite search database for fast retrieval
         """
@@ -1830,7 +1843,7 @@ networks:
 
         return "\n".join(response)
 
-    async def _generate_improvement_suggestions(self) -> List[Dict[str, str]]:
+    async def _generate_improvement_suggestions(self) -> list[dict[str, str]]:
         """
         Generate specific improvement suggestions based on analysis
         Provides KI_AutoAgent specific improvements, not generic suggestions
