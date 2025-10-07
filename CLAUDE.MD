@@ -203,3 +203,184 @@ Wenn du OBSOLETE markierten Code findest:
 4. NIEMALS OBSOLETE Code ohne Bestätigung entfernen!
 
 ---
+
+## 🐍 PYTHON CODING STANDARDS (v5.9.0+)
+
+### **WICHTIG: Alle Python Code Änderungen MÜSSEN den Best Practices folgen!**
+
+**Referenz:** `/PYTHON_BEST_PRACTICES.md` (Vollständige Dokumentation)
+
+**Python Version:** 3.13+ (keine Rückwärtskompatibilität erforderlich)
+
+### **Key Rules (Kurzfassung)**
+
+#### 1. **Error Handling**
+```python
+# ✅ RICHTIG: Variablen VOR try initialisieren
+result: AgentResult | None = None
+content: str | None = None
+
+try:
+    result = agent.execute(task)
+    content = result.content
+except ExecutionError as e:
+    logger.error(f"Failed: {e}")
+    fallback = content[:100] if content else "No content"  # ✅ Safe!
+```
+
+**Anti-Patterns zu vermeiden:**
+- ❌ Variablen in `try` definieren und in `except` verwenden → UnboundLocalError!
+- ❌ Generic `except Exception:` → Immer spezifische Exceptions
+- ❌ Silent failures mit `pass` → Immer loggen oder re-raise
+- ❌ Bare `except:` → Catcht auch KeyboardInterrupt!
+
+#### 2. **Type Hints (Python 3.10+ Syntax)**
+```python
+# ✅ RICHTIG: Native types und | operator
+def process_data(
+    items: list[str],
+    config: dict[str, Any]
+) -> dict[str, int] | None:
+    pass
+
+# ❌ FALSCH: Veraltete typing.* imports
+from typing import List, Dict, Optional, Union
+def process_data(items: List[str]) -> Optional[Dict[str, int]]:
+    pass
+```
+
+**Regeln:**
+- Alle public functions haben vollständige Type Hints
+- `list[str]` statt `List[str]` (Python 3.9+)
+- `X | Y` statt `Union[X, Y]` (Python 3.10+)
+- `X | None` statt `Optional[X]` (Python 3.10+)
+
+#### 3. **Context Managers für Resources**
+```python
+# ✅ RICHTIG: with statement
+with open("data.txt") as file:
+    data = file.read()
+
+# ❌ FALSCH: Manuelles close()
+file = open("data.txt")
+data = file.read()
+file.close()  # Vergessen = Resource Leak!
+```
+
+**Regeln:**
+- IMMER `with` für File Operations
+- IMMER `with` für Database Connections
+- IMMER `with` für Network Connections
+- Context Managers > try-finally
+
+#### 4. **Async/Await Patterns**
+```python
+# ✅ RICHTIG: gather() für concurrent execution
+results = await asyncio.gather(
+    fetch_data(url1),
+    fetch_data(url2),
+    fetch_data(url3)
+)
+
+# ❌ FALSCH: Sequential awaits (langsam!)
+result1 = await fetch_data(url1)
+result2 = await fetch_data(url2)
+result3 = await fetch_data(url3)
+```
+
+**Regeln:**
+- Sequential `await` nur wenn wirklich sequential notwendig
+- `gather()` für concurrent execution
+- Timeouts für I/O operations setzen
+- CPU-bound work zu ThreadPoolExecutor offloaden
+
+#### 5. **Clean Code Principles**
+```python
+# ✅ RICHTIG: Early returns, keine deep nesting
+def process(data: Data | None) -> Result:
+    if not data:
+        return error("No data")
+    if not data.valid:
+        return error("Invalid")
+    if not data.user:
+        return error("No user")
+
+    # Happy path
+    return success(data)
+
+# ❌ FALSCH: Deep nesting
+def process(data):
+    if data:
+        if data.valid:
+            if data.user:
+                # Do work here
+                pass
+```
+
+**Regeln:**
+- Functions < 50 Zeilen (idealerweise < 20)
+- Single Responsibility Principle
+- Early returns statt deep nesting
+- Meaningful names (PEP 8)
+- No magic numbers (use constants)
+
+### **Code Review Checklist**
+
+**Vor jedem Commit prüfen:**
+- [ ] Variablen vor `try` initialisiert?
+- [ ] Spezifische Exception Types verwendet?
+- [ ] Type Hints vorhanden?
+- [ ] Context Managers für Resources?
+- [ ] Keine mutable default arguments?
+- [ ] Docstrings für public functions?
+- [ ] PEP 8 compliant (nutze `ruff` oder `black`)?
+- [ ] No anti-patterns (siehe PYTHON_BEST_PRACTICES.md)?
+
+### **Tools**
+
+**Linting & Formatting:**
+- `ruff` - Extremely fast linter (empfohlen)
+- `black` - Code formatter
+- `mypy` oder `pyright` - Static type checker
+
+**Installation:**
+```bash
+pip install ruff black mypy
+```
+
+**Usage:**
+```bash
+# Linting
+ruff check backend/
+
+# Formatting
+black backend/
+
+# Type checking
+mypy backend/
+```
+
+### **Bei Verstößen**
+
+**Code der diese Standards verletzt MUSS refactored werden!**
+
+1. Mark als OBSOLETE mit Kommentar
+2. Schreibe neuen Code nach Standards
+3. Teste thoroughly
+4. Remove OBSOLETE Code
+5. Commit mit klarer Message
+
+**Beispiel Commit Message:**
+```
+fix: Modernize error handling in workflow.py
+
+- Initialize variables before try blocks
+- Use specific exception types
+- Add type hints for all functions
+- Replace try-finally with context managers
+
+Follows PYTHON_BEST_PRACTICES.md guidelines
+Ref: #123
+```
+
+---

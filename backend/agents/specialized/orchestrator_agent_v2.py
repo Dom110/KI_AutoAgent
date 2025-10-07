@@ -717,7 +717,8 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
                         try:
                             import json
                             context.update(json.loads(original_request.context))
-                        except:
+                        except (json.JSONDecodeError, TypeError, ValueError) as e:
+                            logger.debug(f"Could not parse context as JSON: {e}, using as string")
                             context['original_context'] = original_request.context
                     else:
                         logger.warning(f"Unexpected context type: {type(original_request.context)}")
