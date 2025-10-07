@@ -5,7 +5,7 @@ Integrates all agents with extended features
 
 import logging
 import asyncio
-from typing import Dict, Any, Optional, List
+from typing import Any
 from datetime import datetime
 from dataclasses import replace as dataclass_replace
 
@@ -96,7 +96,7 @@ try:
     from agents.specialized.codesmith_agent import CodeSmithAgent
     from agents.specialized.reviewer_gpt_agent import ReviewerGPTAgent
     from agents.specialized.fixerbot_agent import FixerBotAgent
-    from agents.base.base_agent import TaskRequest, TaskResult
+    from agents.base.base_agent import BaseAgent, TaskRequest, TaskResult
     REAL_AGENTS_AVAILABLE = True
     logger.info("✅ Real agents imported successfully")
 except ImportError as e:
@@ -231,7 +231,12 @@ def merge_state_updates(*updates: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-async def execute_agent_with_retry(agent, task_request, agent_name: str = "unknown", max_attempts: int = 2):
+async def execute_agent_with_retry(
+    agent: "BaseAgent",
+    task_request: "TaskRequest",
+    agent_name: str = "unknown",
+    max_attempts: int = 2
+) -> "TaskResult":
     """
     Execute agent with retry logic and AI system integration
 
@@ -3285,7 +3290,7 @@ Research:
         return plan
 
     # Real agent execution methods
-    async def _execute_architect_task(self, state: ExtendedAgentState, step: ExecutionStep) -> Any:
+    async def _execute_architect_task(self, state: ExtendedAgentState, step: ExecutionStep) -> str:
         """Execute architect task with real ArchitectAgent"""
         # Check if this is a cache setup task
         if "cache" in step.task.lower():
@@ -3355,7 +3360,7 @@ Research:
         state: ExtendedAgentState,
         step: ExecutionStep,
         research_results: str
-    ) -> Any:
+    ) -> str:
         """
         Execute architect task WITH research insights
 
@@ -3412,7 +3417,7 @@ Please create an architecture proposal that incorporates these research findings
         self,
         state: ExtendedAgentState,
         research_results: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create architecture proposal with improvements based on research
 
@@ -3741,7 +3746,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
     # End of v5.2.0 Helper Functions
     # ============================================================================
 
-    async def _execute_codesmith_task(self, state: ExtendedAgentState, step: ExecutionStep, patterns: List) -> Any:
+    async def _execute_codesmith_task(self, state: ExtendedAgentState, step: ExecutionStep, patterns: list) -> str:
         """Execute codesmith task with real agent or stub"""
 
         # Use real codesmith agent if available
@@ -3797,7 +3802,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
 
 ⚠️ STUB response - real CodeSmith would provide actual implementation with files."""
 
-    async def _execute_reviewer_task(self, state: ExtendedAgentState, step: ExecutionStep) -> Any:
+    async def _execute_reviewer_task(self, state: ExtendedAgentState, step: ExecutionStep) -> str:
         """Execute reviewer task with real agent or stub"""
 
         # Use real reviewer agent if available
@@ -3855,7 +3860,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
 
 ⚠️ STUB response - real Reviewer would provide detailed analysis."""
 
-    async def _execute_fixer_task(self, state: ExtendedAgentState, step: ExecutionStep, issues: List) -> Any:
+    async def _execute_fixer_task(self, state: ExtendedAgentState, step: ExecutionStep, issues: list) -> str:
         """Execute fixer task with real agent or stub"""
 
         # Use real fixer agent if available
@@ -3915,7 +3920,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
 
 ⚠️ STUB response - real FixerBot would provide detailed line-by-line fixes with git diffs."""
 
-    async def _execute_research_task(self, state: ExtendedAgentState, step: ExecutionStep) -> Any:
+    async def _execute_research_task(self, state: ExtendedAgentState, step: ExecutionStep) -> str:
         """Execute research task with real ResearchAgent"""
         # Use real research agent if available
         if "research" in self.real_agents:
@@ -4112,11 +4117,11 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
     async def execute(
         self,
         task: str,
-        session_id: Optional[str] = None,
-        client_id: Optional[str] = None,
-        workspace_path: Optional[str] = None,
+        session_id: str | None = None,
+        client_id: str | None = None,
+        workspace_path: str | None = None,
         plan_first_mode: bool = False,
-        config: Optional[Dict[str, Any]] = None
+        config: dict[str, Any] | None = None
     ) -> ExtendedAgentState:
         """
         Execute the workflow for a task
@@ -4276,8 +4281,8 @@ async def store_learned_pattern(
     store,
     agent_name: str,
     pattern_type: str,
-    pattern_data: Dict[str, Any]
-):
+    pattern_data: dict[str, Any]
+) -> None:
     """
     Store a learned pattern in LangGraph Store for cross-session learning
 
@@ -4308,9 +4313,9 @@ async def recall_learned_patterns(
     store,
     agent_name: str,
     pattern_type: str,
-    query: str = None,
+    query: str | None = None,
     limit: int = 5
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Recall learned patterns from LangGraph Store
 
