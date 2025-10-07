@@ -4,7 +4,7 @@ Inspired by the TypeScript implementation with all advanced features
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Callable
+from typing import Any, Callable, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 import asyncio
@@ -13,6 +13,17 @@ import json
 import os
 import sys
 from enum import Enum
+
+# Import custom exceptions
+from core.exceptions import (
+    AgentError,
+    WorkflowError,
+    ParsingError,
+    DataValidationError
+)
+
+if TYPE_CHECKING:
+    from agents.tools.file_tools import FileSystemTools
 
 # Import Settings for German language support
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -84,24 +95,24 @@ class AgentConfig:
     full_name: str
     description: str
     model: str
-    capabilities: List[AgentCapability] = field(default_factory=list)
+    capabilities: list[AgentCapability] = field(default_factory=list)
     temperature: float = 0.7
     max_tokens: int = 4000
-    instructions_path: Optional[str] = None
+    instructions_path: str | None = None
     icon: str = "🤖"
 
 @dataclass
 class TaskRequest:
     """Task request structure"""
     prompt: str
-    context: Dict[str, Any] = field(default_factory=dict)
-    command: Optional[str] = None
-    project_type: Optional[str] = None
-    global_context: Optional[str] = None
-    conversation_history: List[Dict[str, Any]] = field(default_factory=list)
+    context: dict[str, Any] = field(default_factory=dict)
+    command: str | None = None
+    project_type: str | None = None
+    global_context: str | None = None
+    conversation_history: list[dict[str, Any]] = field(default_factory=list)
     thinking_mode: bool = False
     mode: str = "auto"
-    agent: Optional[str] = None
+    agent: str | None = None
 
 @dataclass
 class TaskResult:
@@ -109,9 +120,9 @@ class TaskResult:
     status: str  # 'success', 'error', 'partial_success'
     content: str
     agent: str
-    suggestions: List[str] = field(default_factory=list)
-    references: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    suggestions: list[str] = field(default_factory=list)
+    references: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
     execution_time: float = 0.0
     tokens_used: int = 0
 
@@ -123,7 +134,7 @@ class AgentMessage:
     message_type: str  # 'request', 'response', 'broadcast', 'help_request'
     content: Any
     timestamp: datetime = field(default_factory=datetime.now)
-    correlation_id: Optional[str] = None
+    correlation_id: str | None = None
 
 class BaseAgent(ABC):
     """
@@ -228,7 +239,7 @@ class BaseAgent(ABC):
 
         # Collaboration
         self.collaboration_sessions: set[str] = set()
-        self.active_help_requests: Dict[str, AgentMessage] = {}
+        self.active_help_requests: dict[str, AgentMessage] = {}
 
         # Initialize pause and git checkpoint systems if available
         if PAUSE_AVAILABLE:
@@ -267,8 +278,8 @@ class BaseAgent(ABC):
         self.websocket_callback = None
 
         # Pattern library
-        self.code_patterns: List[Dict[str, Any]] = []
-        self.architecture_patterns: List[Dict[str, Any]] = []
+        self.code_patterns: list[dict[str, Any]] = []
+        self.architecture_patterns: list[dict[str, Any]] = []
 
         # Initialize pause and git managers if available
         if PAUSE_AVAILABLE:
@@ -708,7 +719,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         return result
 
-    def calculate_dynamic_timeout(self, prompt: str, context: Optional[Dict[str, Any]] = None) -> float:
+    def calculate_dynamic_timeout(self, prompt: str, context: dict[str, Any | None] = None) -> float:
         """
         Calculate dynamic timeout based on task complexity and keywords
         Returns timeout in seconds
@@ -786,7 +797,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         logger.info(f"⏱️ Dynamic timeout calculated: {timeout}s for prompt length {len(prompt)}")
         return timeout
 
-    def _get_workspace_from_request(self) -> Optional[str]:
+    def _get_workspace_from_request(self) -> str | None:
         """
         Get workspace_path from current request context (v5.8.1)
 
@@ -797,7 +808,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             return self._current_request.context.get('workspace_path')
         return None
 
-    def _get_file_tools_for_current_workspace(self) -> Optional['FileSystemTools']:
+    def _get_file_tools_for_current_workspace(self) -> 'FileSystemTools | None':
         """
         Get FileSystemTools instance with correct workspace from request context (v5.8.1)
 
@@ -811,7 +822,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             return FileSystemTools(workspace)
         return self.file_tools
 
-    async def write_implementation(self, file_path: str, content: str, create_dirs: bool = True) -> Dict[str, Any]:
+    async def write_implementation(self, file_path: str, content: str, create_dirs: bool = True) -> dict[str, Any]:
         """
         Write implementation to file with proper validation and error handling
 
@@ -891,7 +902,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 "path": file_path
             }
 
-    async def create_file(self, file_path: str, content: str, overwrite: bool = False) -> Dict[str, Any]:
+    async def create_file(self, file_path: str, content: str, overwrite: bool = False) -> dict[str, Any]:
         """
         Create a new file with content
 
@@ -938,7 +949,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 "path": file_path
             }
 
-    async def _perform_mandatory_research(self, prompt: str, topics: list, technologies: list) -> Dict[str, Any]:
+    async def _perform_mandatory_research(self, prompt: str, topics: list, technologies: list) -> dict[str, Any]:
         """
         Perform mandatory research as required by Prime Directive 4
         This method calls the ResearchAgent to gather information
@@ -1102,7 +1113,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             logger.warning(f"Collaboration request to {agent_id} timed out")
             return None
 
-    async def request_help(self, task: str) -> List[Any]:
+    async def request_help(self, task: str) -> list[Any]:
         """Broadcast help request to all agents"""
         if not self.communication_bus:
             return []
@@ -1130,7 +1141,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         # TODO: Implement response collection
         return []
 
-    async def send_response(self, to_agent: str, content: Any, correlation_id: Optional[str] = None):
+    async def send_response(self, to_agent: str, content: Any, correlation_id: str | None = None):
         """Send response to another agent"""
         if not self.communication_bus:
             return
@@ -1164,19 +1175,19 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         """Process broadcast message"""
         logger.info(f"Processing broadcast from {message.from_agent}")
 
-    async def _can_help_with(self, task: Dict[str, Any]) -> bool:
+    async def _can_help_with(self, task: dict[str, Any]) -> bool:
         """Check if agent can help with a task"""
         # Check if task matches agent capabilities
         # TODO: Implement capability matching
         return False
 
-    async def _provide_help(self, task: Dict[str, Any]) -> Any:
+    async def _provide_help(self, task: dict[str, Any]) -> Any:
         """Provide help for a task"""
         # TODO: Implement help provision
         return {"help": "Generic help from " + self.name}
 
     # ============ PAUSE/RESUME/STOP METHODS ============
-    async def pause_current_task(self, task_id: str = None, task_description: str = None) -> Dict[str, Any]:
+    async def pause_current_task(self, task_id: str = None, task_description: str = None) -> dict[str, Any]:
         """
         Pause the current task
         ASIMOV RULE 1: Must work, no silent failures
@@ -1191,14 +1202,14 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         return await self.pause_handler.pause_task(task_id, task_description)
 
-    async def resume_task(self, additional_instructions: str = None) -> Dict[str, Any]:
+    async def resume_task(self, additional_instructions: str = None) -> dict[str, Any]:
         """Resume the paused task with optional additional instructions"""
         if not self.pause_handler:
             raise Exception("Pause functionality not available - PauseHandler not initialized")
 
         return await self.pause_handler.resume_task(additional_instructions)
 
-    async def stop_and_rollback(self) -> Dict[str, Any]:
+    async def stop_and_rollback(self) -> dict[str, Any]:
         """
         Stop task and rollback to checkpoint
         ASIMOV RULE 2: Complete rollback, no partial
@@ -1208,7 +1219,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         return await self.pause_handler.stop_and_rollback()
 
-    async def handle_clarification(self, response: Dict[str, Any]) -> Dict[str, Any]:
+    async def handle_clarification(self, response: dict[str, Any]) -> dict[str, Any]:
         """Handle user's response to clarification request"""
         if not self.pause_handler:
             raise Exception("Pause functionality not available - PauseHandler not initialized")
@@ -1221,7 +1232,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         if self.pause_handler:
             self.pause_handler.set_websocket_callback(callback)
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get agent status"""
         status = {
             "agent_id": self.config.agent_id,
@@ -1280,7 +1291,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         logger.info(f"✅ {self.name} learned from task: {learning_id}")
         return learning_id
 
-    async def apply_learnings(self, task: str) -> List[Any]:
+    async def apply_learnings(self, task: str) -> list[Any]:
         """
         Retrieve and apply relevant learnings to current task
         """
@@ -1485,7 +1496,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         action: str,
         expected_outcome: str,
         confidence: float,
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any | None] = None
     ):
         """
         Make a prediction before taking action
@@ -1524,7 +1535,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         task_id: str,
         actual_outcome: str,
         success: bool,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any | None] = None
     ):
         """
         Record what actually happened after action execution
@@ -1580,7 +1591,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         return adjusted
 
-    def get_prediction_summary(self) -> Dict[str, Any]:
+    def get_prediction_summary(self) -> dict[str, Any]:
         """Get summary of agent's prediction history"""
         if not self.predictive_memory:
             return {"error": "Predictive memory not available"}
@@ -1595,9 +1606,9 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         self,
         task_id: str,
         task_description: str,
-        task_embedding: Optional[List[float]] = None,
-        outcome: Optional[str] = None,
-        category: Optional[str] = None
+        task_embedding: list[float | None] = None,
+        outcome: str | None = None,
+        category: str | None = None
     ):
         """
         Record that agent encountered a task
@@ -1638,8 +1649,8 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         self,
         task_description: str,
         base_priority: float,
-        task_embedding: Optional[List[float]] = None,
-        category: Optional[str] = None
+        task_embedding: list[float | None] = None,
+        category: str | None = None
     ) -> float:
         """
         Calculate final task priority considering both importance and novelty
@@ -1675,7 +1686,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         return final_priority
 
-    def get_exploration_summary(self) -> Dict[str, Any]:
+    def get_exploration_summary(self) -> dict[str, Any]:
         """Get summary of agent's exploration history"""
         if not self.curiosity_module:
             return {"error": "Curiosity module not available"}
@@ -1708,8 +1719,8 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
     def apply_neurosymbolic_reasoning(
         self,
         task: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        context: dict[str, Any | None] = None
+    ) -> dict[str, Any]:
         """
         Apply hybrid reasoning combining rules (symbolic) and AI (neural)
 
@@ -1789,7 +1800,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         self.neurosymbolic_reasoner.add_custom_rule(rule)
 
-    def get_reasoning_statistics(self) -> Dict[str, Any]:
+    def get_reasoning_statistics(self) -> dict[str, Any]:
         """Get statistics about rule-based reasoning"""
         if not self.neurosymbolic_reasoner:
             return {"error": "Neurosymbolic reasoner not available"}
@@ -1803,8 +1814,8 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
     def compare_architecture_with_frameworks(
         self,
         decision: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        context: dict[str, Any | None] = None
+    ) -> dict[str, Any]:
         """
         Compare an architecture decision with other agent frameworks
 
@@ -1848,7 +1859,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             context=context or {}
         )
 
-    def get_framework_profile(self, framework_name: str) -> Optional[Dict[str, Any]]:
+    def get_framework_profile(self, framework_name: str) -> dict[str, Any | None]:
         """
         Get detailed profile of a specific agent framework
 
@@ -1882,7 +1893,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             "popularity_score": profile.popularity_score
         }
 
-    def list_known_frameworks(self) -> List[str]:
+    def list_known_frameworks(self) -> list[str]:
         """List all agent frameworks in the knowledge base"""
         if not self.framework_comparator:
             return []

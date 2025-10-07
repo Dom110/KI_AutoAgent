@@ -6,7 +6,7 @@ Provides the same functionality as the TypeScript version
 import asyncio
 import json
 import os
-from typing import List, Dict, Any, Optional
+from typing import Any
 from dataclasses import dataclass, field
 from datetime import datetime
 import logging
@@ -17,6 +17,14 @@ from ..base.base_agent import (
 )
 from utils.openai_service import OpenAIService
 
+# Import custom exceptions
+from core.exceptions import (
+    OrchestratorError,
+    TaskDecompositionError,
+    WorkflowValidationError,
+    ParsingError
+)
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -26,18 +34,18 @@ class SubTask:
     description: str
     agent: str
     priority: int
-    dependencies: List[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
     expected_output: str = ""
     estimated_duration: float = 0.0
     status: str = "pending"
-    result: Optional[str] = None
+    result: str | None = None
 
 @dataclass
 class TaskDecomposition:
     """Complete task decomposition"""
     main_goal: str
     complexity: str
-    subtasks: List[SubTask]
+    subtasks: list[SubTask]
     estimated_duration: float
     execution_mode: str  # 'sequential' or 'parallel'
     summary: str
@@ -76,7 +84,7 @@ class OrchestratorAgentV2(ChatAgent):
         self.agent_registry = None
 
         # Track active workflows
-        self.active_workflows: Dict[str, Any] = {}
+        self.active_workflows: dict[str, Any] = {}
 
         # Planning mode for Plan-First feature
         self.planning_mode = 'immediate'  # 'immediate' or 'detailed'
@@ -154,13 +162,15 @@ class OrchestratorAgentV2(ChatAgent):
                 # Complex task requiring decomposition
                 return await self._handle_complex_task(request)
 
+        except (ConnectionError, TimeoutError) as e:
+            logger.error(f"Orchestrator connection error: {e}")
+            raise OrchestratorError(f"Connection failed: {e}")
+        except (TaskDecompositionError, WorkflowValidationError):
+            # Re-raise specific orchestrator exceptions
+            raise
         except Exception as e:
             logger.error(f"Orchestrator error: {e}")
-            return TaskResult(
-                status="error",
-                content=f"I encountered an error: {str(e)}",
-                agent=self.config.agent_id
-            )
+            raise OrchestratorError(f"Orchestration failed: {e}")
 
     def set_planning_mode(self, mode: str):
         """
@@ -557,10 +567,16 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
                 summary=data.get("summary", "")
             )
 
-        except (json.JSONDecodeError, KeyError) as e:
-            error_msg = f"Failed to parse task decomposition JSON: {e}\nRaw response: {response[:500]}\nPlease check GPT model configuration."
-            logger.error(error_msg)
-            raise Exception(error_msg)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse task decomposition JSON: {e}")
+            raise ParsingError(
+                content=response[:500],
+                format="json",
+                reason=f"Task decomposition parsing failed: {e}"
+            )
+        except KeyError as e:
+            logger.error(f"Missing required field in task decomposition: {e}")
+            raise TaskDecompositionError(f"Invalid decomposition structure: missing {e}")
 
     async def _create_infrastructure_workflow(self, prompt: str, client_id: str = None, manager=None, conversation_history: str = "") -> TaskDecomposition:
         """
@@ -639,7 +655,7 @@ IMPORTANT: Return ONLY valid JSON, no additional text."""
         await self._send_progress(client_id, f"🏗️ Created workflow with {len(workflow.subtasks)} analysis tasks", manager)
         return workflow
 
-    async def _execute_workflow(self, decomposition: TaskDecomposition, original_request: TaskRequest = None) -> Dict[str, Any]:
+    async def _execute_workflow(self, decomposition: TaskDecomposition, original_request: TaskRequest = None) -> dict[str, Any]:
         """
         Execute the workflow with real agent dispatching
         """
@@ -873,7 +889,7 @@ DO NOT provide general advice. PROVIDE ACTUAL CODE."""
     async def _synthesize_results(
         self,
         decomposition: TaskDecomposition,
-        results: Dict[str, Any],
+        results: dict[str, Any],
         original_prompt: str
     ) -> str:
         """
