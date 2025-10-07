@@ -168,7 +168,7 @@ def update_step_status(
     status: str,
     result: Any = None,
     error: str = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Create state update for a single step's status/result/error
 
@@ -213,7 +213,7 @@ def update_step_status(
     return {"execution_plan": updated_steps}
 
 
-def merge_state_updates(*updates: Dict[str, Any]) -> Dict[str, Any]:
+def merge_state_updates(*updates: dict[str, Any]) -> dict[str, Any]:
     """
     Merge multiple state update dicts
 
@@ -644,7 +644,7 @@ class AgentWorkflow:
 
     # =================== v5.4.3: Enhanced Workflow Management ===================
 
-    def create_task_ledger(self, task: str, steps: List[ExecutionStep]) -> TaskLedger:
+    def create_task_ledger(self, task: str, steps: list[ExecutionStep]) -> TaskLedger:
         """
         v5.4.3: Create a Task Ledger for tracking task decomposition
         """
@@ -678,7 +678,7 @@ class AgentWorkflow:
             total_estimated_duration=estimated_duration
         )
 
-    def extract_success_criteria(self, task: str) -> List[str]:
+    def extract_success_criteria(self, task: str) -> list[str]:
         """
         v5.4.3: Extract success criteria from task description
         """
@@ -702,7 +702,7 @@ class AgentWorkflow:
 
         return criteria
 
-    def create_progress_ledger(self, steps: List[ExecutionStep]) -> ProgressLedger:
+    def create_progress_ledger(self, steps: list[ExecutionStep]) -> ProgressLedger:
         """
         v5.4.3: Create a Progress Ledger for tracking workflow progress
         """
@@ -780,7 +780,7 @@ class AgentWorkflow:
             result["messages"] = messages_to_add
         return result
 
-    def identify_parallel_groups(self, steps: List[ExecutionStep]) -> Dict[str, List[ExecutionStep]]:
+    def identify_parallel_groups(self, steps: list[ExecutionStep]) -> dict[str, list[ExecutionStep]]:
         """
         v5.4.3: Identify steps that can run in parallel
         Groups steps with no dependencies on each other
@@ -822,7 +822,7 @@ class AgentWorkflow:
 
         return parallel_groups
 
-    def _has_dependency_conflict(self, step1: ExecutionStep, step2: ExecutionStep, all_steps: List[ExecutionStep]) -> bool:
+    def _has_dependency_conflict(self, step1: ExecutionStep, step2: ExecutionStep, all_steps: list[ExecutionStep]) -> bool:
         """
         Check if two steps have dependency conflicts preventing parallel execution
         """
@@ -840,7 +840,7 @@ class AgentWorkflow:
 
         return False
 
-    def _get_all_dependencies(self, step: ExecutionStep, all_steps: List[ExecutionStep]) -> set:
+    def _get_all_dependencies(self, step: ExecutionStep, all_steps: list[ExecutionStep]) -> set:
         """
         Get all transitive dependencies of a step
         """
@@ -871,7 +871,7 @@ class AgentWorkflow:
         tool: str = "",
         tool_status: str = "",
         tool_result: Any = None,
-        tool_details: Dict[str, Any] = None
+        tool_details: dict[str, Any] = None
     ):
         """
         Send agent activity messages to UI for visualization
@@ -2464,7 +2464,7 @@ class AgentWorkflow:
         logger.info("🏁 All steps complete - routing to END")
         return "end"
 
-    def _dependencies_met(self, step: ExecutionStep, all_steps: List[ExecutionStep]) -> bool:
+    def _dependencies_met(self, step: ExecutionStep, all_steps: list[ExecutionStep]) -> bool:
         """Check if all dependencies for a step are met"""
         for dep_id in step.dependencies:
             dep_step = next((s for s in all_steps if s.id == dep_id), None)
@@ -2472,14 +2472,14 @@ class AgentWorkflow:
                 return False
         return True
 
-    def _get_current_step(self, state: ExtendedAgentState) -> Optional[ExecutionStep]:
+    def _get_current_step(self, state: ExtendedAgentState) -> ExecutionStep | None:
         """Get the current execution step"""
         step_id = state.get("current_step_id")
         if step_id:
             return next((s for s in state["execution_plan"] if s.id == step_id), None)
         return None
 
-    def _get_step_by_agent(self, state: ExtendedAgentState, agent: str) -> Optional[ExecutionStep]:
+    def _get_step_by_agent(self, state: ExtendedAgentState, agent: str) -> ExecutionStep | None:
         """Get the most recent step for an agent"""
         for step in reversed(state["execution_plan"]):
             if step.agent == agent and step.status == "completed":
@@ -2491,7 +2491,7 @@ class AgentWorkflow:
         state: ExtendedAgentState,
         suggested_agent: str,
         suggested_query: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         v5.1.0: Information-First Escalation System
 
@@ -2652,7 +2652,7 @@ Research:
             "reason": "Normal operation"
         }
 
-    async def _create_execution_plan(self, state: ExtendedAgentState) -> List[ExecutionStep]:
+    async def _create_execution_plan(self, state: ExtendedAgentState) -> list[ExecutionStep]:
         """
         Create execution plan based on task
 
@@ -2939,7 +2939,7 @@ Research:
             # Fallback to original behavior if intelligent handler not available
             return self._create_single_agent_step("orchestrator", task)
 
-    def _calculate_agent_confidence(self, task_lower: str) -> Dict[str, float]:
+    def _calculate_agent_confidence(self, task_lower: str) -> dict[str, float]:
         """Calculate confidence score for each agent based on task content
 
         Priority System:
@@ -2994,7 +2994,7 @@ Research:
 
         return scores
 
-    def _create_single_agent_step(self, agent: str, task: str) -> List[ExecutionStep]:
+    def _create_single_agent_step(self, agent: str, task: str) -> list[ExecutionStep]:
         """Helper to create a single execution step for an agent
 
         For orchestrator, returns a completed step with stub response since orchestrator
@@ -3106,7 +3106,7 @@ Research:
         logger.info(f"🎯 Task classified as MODERATE (will use standard workflow)")
         return "moderate"
 
-    async def _use_orchestrator_for_planning(self, task: str, complexity: str) -> List[ExecutionStep]:
+    async def _use_orchestrator_for_planning(self, task: str, complexity: str) -> list[ExecutionStep]:
         """
         Use Orchestrator AI to decompose complex tasks
 
@@ -3281,9 +3281,9 @@ Research:
 
     def _apply_plan_modifications(
         self,
-        plan: List[ExecutionStep],
-        modifications: Dict[str, Any]
-    ) -> List[ExecutionStep]:
+        plan: list[ExecutionStep],
+        modifications: dict[str, Any]
+    ) -> list[ExecutionStep]:
         """Apply user modifications to execution plan"""
         # This would apply the modifications
         # For now, return the plan as-is
@@ -3571,7 +3571,7 @@ Return ONLY valid JSON with these exact keys."""
             "research_insights": "Based on industry best practices and research"
         }
 
-    def _format_proposal_for_user(self, proposal: Dict[str, Any]) -> str:
+    def _format_proposal_for_user(self, proposal: dict[str, Any]) -> str:
         """
         Format architecture proposal for user display (markdown)
 
@@ -3664,7 +3664,7 @@ Based on research insights:
         self,
         state: ExtendedAgentState,
         user_feedback: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Revise architecture proposal based on user feedback
 
