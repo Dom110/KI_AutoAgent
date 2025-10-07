@@ -1,0 +1,125 @@
+[2025-10-07 07:33:46] 🔌 Connecting to backend...
+[2025-10-07 07:33:46] ✅ Connected: {'type': 'connected', 'message': 'Connected to KI AutoAgent LangGraph System v5.8.1. Please send init message with workspace_path.', 'session_id': 'cb644607-0eea-4406-8053-aec974ce602c', 'client_id': 'client_38810078', 'version': 'v5.8.1-multi-client-architecture', 'requires_init': True}
+[2025-10-07 07:33:46] ✅ Initialized session: cb644607-0eea-4406-8053-aec974ce602c
+[2025-10-07 07:33:46] 📂 Workspace: /Users/dominikfoert/TestApps/DesktopCalculator
+[2025-10-07 07:33:46] 
+🧪 TEST 1: Create Desktop Calculator App
+[2025-10-07 07:33:46] 
+================================================================================
+[2025-10-07 07:33:46] 📤 SENDING: Create a desktop calculator application in ~/TestApps/DesktopCalculator. Use Python and tkinter. Include basic operations (+, -, *, /). Make it production-ready with proper architecture, tests, and documentation.
+[2025-10-07 07:33:46] ================================================================================
+[2025-10-07 07:33:46] 💭 orchestrator thinking: 🤔 Processing your request using LangGraph v5.8.1...
+[2025-10-07 07:33:54] 💭 architect thinking: 
+[2025-10-07 07:33:54] 📨 agent_progress: {'type': 'agent_progress', 'agent': 'research', 'timestamp': '2025-10-07T07:33:54.598537', 'content': 'Researching: Design system architecture for: Create a desktop calculator application in ~/TestApp
+[2025-10-07 07:34:51] 📨 agent_progress: {'type': 'agent_progress', 'agent': 'architect', 'timestamp': '2025-10-07T07:34:51.745589', 'content': 'Analyzing requirements with research insights...'}
+[2025-10-07 07:34:51] 📨 agent_progress: {'type': 'agent_progress', 'agent': 'architect', 'timestamp': '2025-10-07T07:34:51.745907', 'content': 'Creating architecture proposal...'}
+[2025-10-07 07:35:18] 
+================================================================================
+[2025-10-07 07:35:18] 📥 RESPONSE from orchestrator:
+[2025-10-07 07:35:18] ================================================================================
+[2025-10-07 07:35:18] Hallo! 👋
+
+Ich bin das KI AutoAgent System v5.5.1 - Ihr intelligenter Entwicklungsassistent.
+
+Ich kann Ihnen bei verschiedenen Aufgaben helfen:
+• Software entwickeln und Code schreiben
+• Bestehenden Code analysieren und verbessern
+• Bugs finden und beheben
+• Architekturen entwerfen
+• Dokumentation erstellen
+• Und vieles mehr!
+
+Was möchten Sie heute entwickeln oder verbessern?
+[2025-10-07 07:35:18] ================================================================================
+
+[2025-10-07 07:35:23] 
+🧪 TEST 2: Verify file creation
+[2025-10-07 07:35:23] 
+================================================================================
+[2025-10-07 07:35:23] 📤 SENDING: List all files that were created in ~/TestApps/DesktopCalculator
+[2025-10-07 07:35:23] ================================================================================
+[2025-10-07 07:35:23] 💭 orchestrator thinking: 🤔 Processing your request using LangGraph v5.8.1...
+[2025-10-07 07:35:26] 💭 architect thinking: 
+[2025-10-07 07:35:26] 📨 agent_progress: {'type': 'agent_progress', 'agent': 'research', 'timestamp': '2025-10-07T07:35:26.234542', 'content': 'Researching: Analyze the directory structure and file creation metadata in ~/TestApps/DesktopCalc
+[2025-10-07 07:35:31] 📨 agent_progress: {'type': 'agent_progress', 'agent': 'architect', 'timestamp': '2025-10-07T07:35:31.613606', 'content': 'Analyzing requirements with research insights...'}
+[2025-10-07 07:35:31] 📨 agent_progress: {'type': 'agent_progress', 'agent': 'architect', 'timestamp': '2025-10-07T07:35:31.613972', 'content': 'Creating architecture proposal...'}
+[2025-10-07 07:35:55] 
+================================================================================
+[2025-10-07 07:35:55] 📥 RESPONSE from orchestrator:
+[2025-10-07 07:35:55] ================================================================================
+[2025-10-07 07:35:55] Ich habe Ihre Anfrage analysiert:
+
+📋 Query-Typ: command
+🎯 Bereich: general
+💡 Absicht: create
+🤖 Empfohlener Agent: research
+
+Query appears to be a command about general with intent to create
+
+Der research Agent wird sich um Ihre Anfrage kümmern.
+
+[2025-10-07 07:35:55] ================================================================================
+
+[2025-10-07 07:35:55] 
+🧪 TEST 3: Check architecture documentation
+[2025-10-07 07:35:55] 
+================================================================================
+[2025-10-07 07:35:55] 📤 SENDING: Show me the architecture documentation for the calculator app. Was a system architecture scan performed?
+[2025-10-07 07:35:55] ================================================================================
+[2025-10-07 07:35:55] 💭 orchestrator thinking: 🤔 Processing your request using LangGraph v5.8.1...
+[2025-10-07 07:36:03] 💭 architect thinking: 
+[2025-10-07 07:36:03] 📨 agent_progress: {'type': 'agent_progress', 'agent': 'research', 'timestamp': '2025-10-07T07:36:03.124396', 'content': 'Researching: Design system architecture for: Show me the architecture documentation for the calcu
+[2025-10-07 07:36:37] 📨 agent_progress: {'type': 'agent_progress', 'agent': 'architect', 'timestamp': '2025-10-07T07:36:37.352120', 'content': 'Analyzing requirements with research insights...'}
+[2025-10-07 07:36:37] 📨 agent_progress: {'type': 'agent_progress', 'agent': 'architect', 'timestamp': '2025-10-07T07:36:37.352425', 'content': 'Creating architecture proposal...'}
+[2025-10-07 07:37:06] 
+================================================================================
+[2025-10-07 07:37:06] 📥 RESPONSE from orchestrator:
+[2025-10-07 07:37:06] ================================================================================
+[2025-10-07 07:37:06] Hallo! 👋
+
+Ich bin das KI AutoAgent System v5.5.1 - Ihr intelligenter Entwicklungsassistent.
+
+Ich kann Ihnen bei verschiedenen Aufgaben helfen:
+• Software entwickeln und Code schreiben
+• Bestehenden Code analysieren und verbessern
+• Bugs finden und beheben
+• Architekturen entwerfen
+• Dokumentation erstellen
+• Und vieles mehr!
+
+Was möchten Sie heute entwickeln oder verbessern?
+[2025-10-07 07:37:06] ================================================================================
+
+[2025-10-07 07:37:06] 
+🧪 TEST 4: Add new feature (tests workflow adaptation)
+[2025-10-07 07:37:06] 
+================================================================================
+[2025-10-07 07:37:06] 📤 SENDING: Add scientific calculator functions (sin, cos, tan, sqrt, log) to the calculator
+[2025-10-07 07:37:06] ================================================================================
+[2025-10-07 07:37:06] 💭 orchestrator thinking: 🤔 Processing your request using LangGraph v5.8.1...
+[2025-10-07 07:37:15] 📨 step_completed: {'type': 'step_completed', 'agent': 'orchestrator', 'task': 'Validation failed - please review and fix the issues', 'result': 'Pre-execution validation detected critical issues. Manual intervention re
+[2025-10-07 07:37:15] 
+================================================================================
+[2025-10-07 07:37:15] 📥 RESPONSE from orchestrator:
+[2025-10-07 07:37:15] ================================================================================
+[2025-10-07 07:37:15] Pre-execution validation detected critical issues. Manual intervention required.
+[2025-10-07 07:37:15] ================================================================================
+
+[2025-10-07 07:37:15] 
+================================================================================
+[2025-10-07 07:37:15] 📊 SESSION STATISTICS
+[2025-10-07 07:37:15] ================================================================================
+[2025-10-07 07:37:15] Total messages received: 21
+[2025-10-07 07:37:15] Thinking messages: 7
+[2025-10-07 07:37:15] Tool messages: 0
+[2025-10-07 07:37:15] Progress messages: 0
+[2025-10-07 07:37:15] ================================================================================
+
+[2025-10-07 07:37:15] 
+🔍 CHECKING AI SYSTEMS ACTIVITY...
+[2025-10-07 07:37:15] Looking for evidence of Memory/Predictive/Curiosity usage...
+[2025-10-07 07:37:15] 🔌 Connection closed
+[2025-10-07 07:37:15] 
+✅ E2E TEST COMPLETED
+[2025-10-07 07:37:15] Full log saved to: test_desktop_app_creation.log
+[2025-10-07 07:37:15] 🔌 Connection closed

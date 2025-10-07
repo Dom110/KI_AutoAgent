@@ -233,9 +233,9 @@ def merge_state_updates(*updates: Dict[str, Any]) -> Dict[str, Any]:
 
 async def execute_agent_with_retry(agent, task_request, agent_name: str = "unknown", max_attempts: int = 2):
     """
-    Execute agent with retry logic for resilience
+    Execute agent with retry logic and AI system integration
 
-    v5.8.4: Adds exponential backoff retry to agent execution
+    v5.9.0: Adds AI systems (Asimov, Predictive, Curiosity, Framework) to all agent executions
 
     Args:
         agent: Agent instance to execute
@@ -244,31 +244,166 @@ async def execute_agent_with_retry(agent, task_request, agent_name: str = "unkno
         max_attempts: Maximum retry attempts (default: 2)
 
     Returns:
-        TaskResult from agent
+        TaskResult from agent with AI system metadata
 
     Raises:
         Exception: If all retry attempts fail
     """
+    from datetime import datetime
+
+    # 🔍 DEBUG: GUARANTEED LOG - Function was called!
+    logger.info(f"🎯 execute_agent_with_retry CALLED for {agent_name} - prompt: {task_request.prompt[:60]}...")
+
+    # 🧠 PRE-EXECUTION: Check Asimov Rules BEFORE execution
+    if hasattr(agent, 'neurosymbolic_reasoner') and agent.neurosymbolic_reasoner:
+        reasoning_result = agent.neurosymbolic_reasoner.reason(task_request.prompt, {"agent": agent_name})
+        constraints_violated = reasoning_result.get("symbolic_results", {}).get("constraints_violated", [])
+
+        if constraints_violated:
+            first_violation = constraints_violated[0]
+            violation_rule_name = first_violation.get("rule_id", "UNKNOWN_RULE")
+            violation_msg = f"🚫 ASIMOV VIOLATION: {violation_rule_name}"
+            logger.warning(f"{violation_msg} for {agent_name}")
+
+            # Return error result instead of executing
+            return TaskResult(
+                status="error",
+                content=f"Cannot execute: Violates {violation_rule_name}",
+                agent=agent_name,
+                metadata={"asimov_violation": True, "rule": violation_rule_name, "reasoning": reasoning_result}
+            )
+
+    # 📚 PRE-EXECUTION: Make prediction
+    confidence = 0.5
+    task_id = f"{agent_name}_{hash(task_request.prompt)}"
+    if hasattr(agent, 'predictive_memory') and agent.predictive_memory:
+        try:
+            prediction = agent.predictive_memory.make_prediction(
+                task_id=task_id,
+                action=f"Execute task: {task_request.prompt[:50]}...",
+                expected_outcome="Task completion",
+                confidence=0.7,  # Default confidence
+                context={"agent": agent_name, "prompt": task_request.prompt}
+            )
+            confidence = prediction.confidence
+            logger.info(f"📊 {agent_name} prediction confidence: {confidence:.2f}")
+        except Exception as e:
+            logger.warning(f"⚠️ Predictive learning failed: {e}")
+
+    # 🔍 PRE-EXECUTION: Calculate curiosity
+    curiosity_score = 0.5
+    novelty_score = None
+    if hasattr(agent, 'curiosity_module') and agent.curiosity_module:
+        try:
+            final_priority, novelty_score = agent.curiosity_module.calculate_task_priority(
+                task_description=task_request.prompt,
+                base_priority=0.5,  # Default base priority
+                task_embedding=None,
+                category=None
+            )
+            curiosity_score = novelty_score.novelty
+            logger.info(f"🔍 {agent_name} curiosity/novelty score: {curiosity_score:.2f}")
+        except Exception as e:
+            logger.warning(f"⚠️ Curiosity calculation failed: {e}")
+
+    # 🔄 PRE-EXECUTION: Framework comparison if relevant
+    comparison_result = None
+    if hasattr(agent, 'framework_comparator') and agent.framework_comparator:
+        keywords = ['framework', 'autogen', 'crewai', 'langgraph', 'multi-agent', 'architecture']
+        if any(kw in task_request.prompt.lower() for kw in keywords):
+            try:
+                comparison_result = agent.framework_comparator.compare_architecture_decision(
+                    decision=task_request.prompt,
+                    context={"agent": agent_name, "task": "architecture_decision"}
+                )
+                logger.info(f"🔄 {agent_name} performed framework comparison")
+            except Exception as e:
+                logger.warning(f"⚠️ Framework comparison failed: {e}")
+
+    # Execute the agent task
+    start_time = datetime.now()
+
     if not RETRY_LOGIC_AVAILABLE:
         # No retry logic available, execute directly
-        return await agent.execute(task_request)
+        result = await agent.execute(task_request)
+    else:
+        try:
+            result = await retry_with_backoff(
+                agent.execute,
+                task_request,
+                max_attempts=max_attempts,
+                base_delay=2.0,  # Start with 2s delay
+                max_delay=10.0,   # Max 10s delay
+                exponential_base=2.0,  # Double the delay each time
+                retry_on=(ConnectionError, TimeoutError, asyncio.TimeoutError)
+            )
+        except RetryExhaustedError as e:
+            logger.error(f"❌ {agent_name} failed after {max_attempts} attempts: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ {agent_name} failed with non-retryable error: {e}")
+            raise
 
-    try:
-        return await retry_with_backoff(
-            agent.execute,
-            task_request,
-            max_attempts=max_attempts,
-            base_delay=2.0,  # Start with 2s delay
-            max_delay=10.0,   # Max 10s delay
-            exponential_base=2.0,  # Double the delay each time
-            retry_on=(ConnectionError, TimeoutError, asyncio.TimeoutError)
-        )
-    except RetryExhaustedError as e:
-        logger.error(f"❌ {agent_name} failed after {max_attempts} attempts: {e}")
-        raise
-    except Exception as e:
-        logger.error(f"❌ {agent_name} failed with non-retryable error: {e}")
-        raise
+    execution_time = (datetime.now() - start_time).total_seconds()
+
+    # 📚 POST-EXECUTION: Update predictive learning
+    if hasattr(agent, 'predictive_memory') and agent.predictive_memory:
+        try:
+            agent.predictive_memory.record_reality(
+                task_id=task_id,
+                actual_outcome=result.content if result.status == "success" else "Task failed",
+                success=(result.status == "success"),
+                metadata={
+                    "status": result.status,
+                    "execution_time": execution_time,
+                    "agent": agent_name
+                }
+            )
+            agent.predictive_memory.save_to_disk()
+            logger.info(f"💾 {agent_name} predictive memory updated and saved")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to record reality: {e}")
+
+    # 🔍 POST-EXECUTION: Update curiosity
+    if hasattr(agent, 'curiosity_module') and agent.curiosity_module:
+        try:
+            agent.curiosity_module.record_task_encounter(
+                task_id=task_id,
+                task_description=task_request.prompt,
+                task_embedding=None,
+                outcome="success" if result.status == "success" else "failure",
+                category=agent_name
+            )
+            agent.curiosity_module.save_to_disk()
+            logger.info(f"💾 {agent_name} curiosity updated and saved")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to update curiosity: {e}")
+
+    # Add AI system metadata to result
+    if not hasattr(result, 'metadata'):
+        result.metadata = {}
+
+    result.metadata["ai_systems"] = {
+        "predictive_confidence": confidence,
+        "curiosity_score": curiosity_score,
+        "framework_comparison": comparison_result,
+        "asimov_compliant": True
+    }
+
+    # Add framework comparison to content if relevant
+    if comparison_result and isinstance(result.content, str):
+        comparison_text = "\n\n🔄 **Framework Analysis:**\n"
+        for fw, score in comparison_result.items():
+            # v5.9.0: Handle both numeric and string scores
+            if isinstance(score, (int, float)):
+                comparison_text += f"- {fw.upper()}: {score:.2f}/10\n"
+            else:
+                comparison_text += f"- {fw.upper()}: {score}\n"
+        result.content += comparison_text
+
+    logger.info(f"✅ {agent_name} executed with all AI systems active")
+
+    return result
 
 
 class AgentWorkflow:
@@ -1683,7 +1818,7 @@ class AgentWorkflow:
                     context={"session_id": state["session_id"]}
                 )
 
-                result = await research_agent.execute(task_request)
+                result = await execute_agent_with_retry(research_agent, task_request, "research")
                 research_result = result.content
 
                 logger.info(f"✅ Research completed: {len(research_result)} characters")
@@ -1767,7 +1902,7 @@ class AgentWorkflow:
                 }
             )
 
-            result = await fixer_gpt.execute(task_request)
+            result = await execute_agent_with_retry(fixer_gpt, task_request, "fixer")
             fix_result = result.content
 
             logger.info(f"✅ FixerGPT completed: {len(fix_result)} characters")
@@ -1837,7 +1972,7 @@ class AgentWorkflow:
                 )
 
                 # Execute documentation generation
-                result = await agent.execute(task_request)
+                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
                 doc_result = result.content
 
                 logger.info(f"✅ DocBot completed: {len(doc_result)} characters")
@@ -1914,7 +2049,7 @@ class AgentWorkflow:
                 )
 
                 # Execute performance optimization
-                result = await agent.execute(task_request)
+                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
                 perf_result = result.content
 
                 logger.info(f"✅ Performance optimization completed: {len(perf_result)} characters")
@@ -1992,7 +2127,7 @@ class AgentWorkflow:
                 )
 
                 # Execute strategy development
-                result = await agent.execute(task_request)
+                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
                 strategy_result = result.content
 
                 logger.info(f"✅ Trading strategy developed: {len(strategy_result)} characters")
@@ -2073,7 +2208,7 @@ class AgentWorkflow:
                 )
 
                 # Execute arbitration
-                result = await agent.execute(task_request)
+                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
                 arbitration_result = result.content
 
                 logger.info(f"✅ Arbitration completed: {len(arbitration_result)} characters")
@@ -2983,7 +3118,7 @@ Research:
 
             # Use Orchestrator's execute method
             request = TaskRequest(prompt=task, context={"complexity": complexity})
-            result = await orchestrator.execute(request)
+            result = await execute_agent_with_retry(orchestrator, request, "orchestrator")
 
             # Extract execution plan from result metadata
             if result.metadata and "subtasks" in result.metadata:
@@ -3173,7 +3308,7 @@ Research:
                         "session_id": state.get("session_id")
                     }
                 )
-                result = await agent.execute(task_request)
+                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
                 return result.content if hasattr(result, 'content') else str(result)
             except Exception as e:
                 logger.error(f"❌ Real architect agent failed: {e}")
@@ -3259,7 +3394,7 @@ Please create an architecture proposal that incorporates these research findings
             )
 
             try:
-                result = await agent.execute(task_request)
+                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
                 return result.content if hasattr(result, 'content') else str(result)
             except Exception as e:
                 logger.error(f"❌ ArchitectAgent failed: {e}")
@@ -3326,6 +3461,7 @@ Return ONLY valid JSON with these exact keys."""
 
         # Call architect agent to create proposal
         if "architect" in self.real_agents:
+            content = None  # v5.9.0: Initialize content to prevent UnboundLocalError in except block
             try:
                 agent = self.real_agents["architect"]
                 task_request = TaskRequest(
@@ -3337,7 +3473,7 @@ Return ONLY valid JSON with these exact keys."""
                         "research_results": research_results
                     }
                 )
-                result = await agent.execute(task_request)
+                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
                 content = result.content if hasattr(result, 'content') else str(result)
 
                 # v5.7.0: Enhanced debug logging for empty responses
@@ -3574,7 +3710,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                         "user_feedback": user_feedback
                     }
                 )
-                result = await agent.execute(task_request)
+                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
                 content = result.content if hasattr(result, 'content') else str(result)
 
                 # Parse JSON
@@ -3638,7 +3774,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     prompt=step.task,
                     context=context
                 )
-                result = await agent.execute(task_request)
+                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
 
                 # v5.5.3: Store metadata in step for later use by Reviewer
                 if hasattr(result, 'metadata') and hasattr(step, '__dict__'):
@@ -3697,7 +3833,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     prompt=step.task,
                     context=context
                 )
-                result = await agent.execute(task_request)
+                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
 
                 # v5.8.6 Fix 1: Store metadata in step for later use by Fixer
                 if hasattr(result, 'metadata') and hasattr(step, '__dict__'):
@@ -3753,7 +3889,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                     prompt=step.task,
                     context=context
                 )
-                result = await agent.execute(task_request)
+                result = await execute_agent_with_retry(agent, task_request, current_step.agent if hasattr(current_step, "agent") else "unknown")
                 return result.content if hasattr(result, 'content') else str(result)
             except Exception as e:
                 logger.error(f"❌ Real fixer agent failed: {e}")
@@ -3794,7 +3930,7 @@ Return ONLY valid JSON with the same structure: summary, improvements, tech_stac
                 )
 
                 # Execute research
-                result = await research_agent.execute(request)
+                result = await execute_agent_with_retry(research_agent, request, "research")
 
                 if result.status == "success":
                     logger.info(f"✅ ResearchAgent completed: {step.task[:60]}...")

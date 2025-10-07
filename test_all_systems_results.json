@@ -36,27 +36,27 @@
       {
         "task": "Create a hello world program",
         "expected": "familiar",
-        "response_time": 0.3298671245574951
+        "response_time": 0.27602720260620117
       },
       {
         "task": "Implement a blockchain consensus algorithm",
         "expected": "novel",
-        "response_time": 2.001970052719116
+        "response_time": 2.0054190158843994
       },
       {
         "task": "Write another hello world program",
         "expected": "familiar",
-        "response_time": 2.0011048316955566
+        "response_time": 2.0017359256744385
       },
       {
         "task": "Design a quantum computing circuit",
         "expected": "novel",
-        "response_time": 2.8259589672088623
+        "response_time": 2.002185106277466
       },
       {
         "task": "Create one more hello world",
         "expected": "familiar",
-        "response_time": 3.6783158779144287
+        "response_time": 2.001986026763916
       }
     ]
   },

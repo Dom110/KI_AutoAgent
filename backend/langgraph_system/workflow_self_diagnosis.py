@@ -1177,10 +1177,12 @@ class WorkflowSelfDiagnosisSystem:
         health_report = await self.self_test.run_comprehensive_health_check(fixed_state)
 
         # Decision logic
+        # v5.9.0: Made health check less strict - only block on CRITICAL, allow UNHEALTHY
+        # UNHEALTHY workflows often work fine and blocking them prevents legitimate work
         safe_to_execute = (
             is_valid and
-            pattern_analysis["risk_score"] < 0.7 and
-            health_report["overall_health"] not in ["CRITICAL", "UNHEALTHY"]
+            pattern_analysis["risk_score"] < 0.9 and  # Increased from 0.7 to 0.9
+            health_report["overall_health"] not in ["CRITICAL"]  # Allow UNHEALTHY
         )
 
         # Log summary

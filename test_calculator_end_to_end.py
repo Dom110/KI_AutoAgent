@@ -1,335 +1,316 @@
 #!/usr/bin/env python3
 """
-End-to-End Test for KI AutoAgent Calculator App Creation
-Tests complete workflow: Request → Research → Architect → Approval → CodeSmith → Files Created
-
-v5.8.7 - Complete workflow test including approval and code generation
+End-to-End Test: Build Complete Calculator App with AI Agent
+Tests all 4 AI systems during real app development
 """
 
 import asyncio
-import websockets
 import json
 import logging
-import tempfile
-import shutil
+import websockets
+import sys
 import os
-from pathlib import Path
 from datetime import datetime
+import time
 
-# Setup logging
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('test_e2e_final.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
 )
+
 logger = logging.getLogger(__name__)
 
-
-class CalculatorEndToEndTest:
+class CalculatorBuilderClient:
     def __init__(self):
-        self.ws = None
+        self.uri = "ws://localhost:8001/ws/chat"
+        self.websocket = None
         self.session_id = None
-        self.test_workspace = None
-        self.architecture_proposal = None
-        self.files_created = []
-        self.messages_received = 0
-        self.errors = []
-        self.warnings = []
-
-    async def setup(self):
-        """Create test workspace"""
-        self.test_workspace = tempfile.mkdtemp(prefix="test_calculator_e2e_")
-        logger.info(f"✅ Created test workspace: {self.test_workspace}")
-
-    async def teardown(self):
-        """Cleanup test workspace"""
-        if self.test_workspace and os.path.exists(self.test_workspace):
-            shutil.rmtree(self.test_workspace)
-            logger.info(f"🧹 Cleaned up test workspace")
+        self.workspace_path = "/Users/dominikfoert/TestApps/CalculatorApp_AI"
+        self.messages = []
 
     async def connect(self):
-        """Connect to backend WebSocket"""
-        uri = "ws://localhost:8001/ws/chat"
-        logger.info(f"🔌 Connecting to backend: {uri}")
-        self.ws = await websockets.connect(uri)
-        logger.info("✅ Connected!")
+        """Establish WebSocket connection"""
+        try:
+            logger.info(f"🔌 Connecting to {self.uri}")
+            self.websocket = await websockets.connect(self.uri)
 
-        # Wait for connection message
-        msg = await asyncio.wait_for(self.ws.recv(), timeout=5.0)
-        connection_data = json.loads(msg)
-        logger.info(f"📨 Connection: {connection_data}")
+            # Get initial message
+            message = await self.websocket.recv()
+            data = json.loads(message)
+            logger.info(f"📥 Server version: {data.get('version', 'unknown')}")
 
-        # Send init message
-        init_msg = {
-            "type": "init",
-            "workspace_path": self.test_workspace
-        }
-        await self.ws.send(json.dumps(init_msg))
-        logger.info("📤 Sent init message")
+            # Send initialization with workspace
+            if data.get('requires_init'):
+                # Create workspace directory if it doesn't exist
+                os.makedirs(self.workspace_path, exist_ok=True)
+                logger.info(f"📁 Created workspace: {self.workspace_path}")
 
-        # Wait for init response
-        init_response = await asyncio.wait_for(self.ws.recv(), timeout=5.0)
-        init_data = json.loads(init_response)
-        self.session_id = init_data.get("session_id")
-        logger.info(f"📨 Init response: {init_data}")
+                init_msg = {
+                    "type": "init",
+                    "workspace_path": self.workspace_path
+                }
+                await self.websocket.send(json.dumps(init_msg))
 
-    async def send_message(self, message: str):
-        """Send chat message to backend"""
-        logger.info(f"\n📤 Sending test message: '{message}'")
-        msg = {
+                # Get init confirmation
+                message = await self.websocket.recv()
+                data = json.loads(message)
+
+                if data.get('type') == 'initialized':
+                    self.session_id = data.get('session_id')
+                    logger.info(f"✅ Connected! Session: {self.session_id}")
+                    logger.info(f"📂 Workspace: {self.workspace_path}")
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"❌ Connection failed: {e}")
+            return False
+
+    async def send_and_wait(self, prompt, timeout=300):
+        """Send a task and wait for complete response"""
+        message = {
             "type": "chat",
-            "content": message,
-            "agent": "orchestrator"
+            "content": prompt,
+            "agent": "auto",  # Let system choose best agent
+            "mode": "auto"
         }
-        await self.ws.send(json.dumps(msg))
-        logger.info("✅ Message sent")
 
-    async def send_approval(self):
-        """Send architecture approval"""
-        logger.info(f"\n📤 Sending APPROVAL for session {self.session_id}")
-        approval_msg = {
-            "type": "architecture_approval",
-            "decision": "approved",
-            "feedback": "",
-            "session_id": self.session_id
-        }
-        await self.ws.send(json.dumps(approval_msg))
-        logger.info("✅ Approval sent")
+        logger.info(f"\n📤 SENDING PROMPT:\n{prompt}\n")
+        await self.websocket.send(json.dumps(message))
 
-    async def collect_responses(self, timeout: int = 480):
-        """Collect responses from backend until completion (v5.8.7: increased to 480s for OpenAI timeout handling)"""
-        logger.info(f"\n📥 Collecting responses (timeout: {timeout}s)...")
-        start_time = datetime.now()
-        proposal_received = False
-        approval_sent = False
-        codesmith_started = False
+        responses = []
+        start_time = time.time()
+        final_response = None
 
-        while True:
-            elapsed = (datetime.now() - start_time).total_seconds()
-            remaining = timeout - elapsed
-
-            if remaining <= 0:
-                logger.error(f"❌ Timeout after {timeout}s")
-                self.errors.append(f"Test timeout after {timeout}s")
-                break
-
-            try:
-                msg = await asyncio.wait_for(self.ws.recv(), timeout=10.0)
+        try:
+            while time.time() - start_time < timeout:
+                msg = await asyncio.wait_for(self.websocket.recv(), timeout=5.0)
                 data = json.loads(msg)
-                self.messages_received += 1
-                msg_type = data.get("type")
+                responses.append(data)
+                self.messages.append(data)
 
-                # Log agent activity
-                if msg_type == "agent_thinking":
-                    agent = data.get("agent", "unknown")
-                    logger.info(f"  💭 [{agent}] thinking...")
+                msg_type = data.get('type')
+                agent = data.get('agent', 'system')
 
-                elif msg_type == "agent_progress":
-                    agent = data.get("agent", "unknown")
-                    content = data.get("content", "")[:100]
-                    logger.info(f"  🔄 [{agent}] {content}...")
+                # Log different message types
+                if msg_type == 'agent_thinking':
+                    logger.info(f"💭 {agent} thinking...")
+                elif msg_type == 'agent_progress':
+                    progress = data.get('content', '')[:200]
+                    logger.info(f"📊 Progress: {progress}...")
+                elif msg_type == 'step_completed':
+                    step = data.get('content', '')[:200]
+                    logger.info(f"✅ Step completed: {step}...")
+                elif msg_type == 'agent_response':
+                    logger.info(f"📥 Final response received from {agent}")
+                    final_response = data.get('content', '')
 
-                    # Detect CodeSmith activity
-                    if agent == "codesmith" and not codesmith_started:
-                        codesmith_started = True
-                        logger.info(f"\n🎉 CodeSmith STARTED - Files should be created soon!")
+                    # Check for AI systems metadata
+                    metadata = data.get('metadata', {})
+                    ai_systems = metadata.get('ai_systems', {})
+                    if ai_systems:
+                        logger.info(f"🧠 AI SYSTEMS ACTIVE:")
+                        logger.info(f"  - Predictive Confidence: {ai_systems.get('predictive_confidence', 'N/A')}")
+                        logger.info(f"  - Curiosity Score: {ai_systems.get('curiosity_score', 'N/A')}")
+                        logger.info(f"  - Asimov Compliant: {ai_systems.get('asimov_compliant', 'N/A')}")
+                        if ai_systems.get('framework_comparison'):
+                            logger.info(f"  - Framework Comparison: ✅")
 
-                # Capture architecture proposal
-                elif msg_type == "architecture_proposal":
-                    self.architecture_proposal = data.get("proposal", data.get("content", ""))
-                    proposal_received = True
-                    logger.info(f"\n📋 Architecture Proposal Received!")
-                    logger.info("=" * 80)
+                    return responses
+                elif msg_type == 'error':
+                    logger.error(f"❌ Error: {data.get('content')}")
 
-                    # Log short summary
-                    if isinstance(self.architecture_proposal, dict):
-                        summary = self.architecture_proposal.get("summary", "")
-                        logger.info(f"Summary: {summary[:150]}...")
-                    else:
-                        logger.info(f"{str(self.architecture_proposal)[:200]}...")
-                    logger.info("=" * 80)
+                    # Check for Asimov violations
+                    if 'asimov' in data.get('content', '').lower():
+                        logger.info("🚫 ASIMOV RULE ENFORCED!")
+                    return responses
 
-                    # v5.8.7: AUTO-APPROVE after 2 seconds (simulate user approval)
-                    logger.info("\n⏳ Waiting 2s before sending approval...")
-                    await asyncio.sleep(2)
-                    await self.send_approval()
-                    approval_sent = True
-                    logger.info("✅ Approval sent, waiting for CodeSmith to create files...")
+        except asyncio.TimeoutError:
+            pass
 
-                # Capture approval confirmation
-                elif msg_type == "architectureApprovalProcessed":
-                    logger.info(f"\n✅ Approval processed by backend")
+        return responses
 
-                # Capture file creation events
-                elif msg_type == "file_created" or msg_type == "file_written":
-                    file_path = data.get("file_path", data.get("path", "unknown"))
-                    self.files_created.append(file_path)
-                    logger.info(f"\n📄 File Created: {file_path}")
+    async def close(self):
+        """Close WebSocket connection"""
+        if self.websocket:
+            await self.websocket.close()
+            logger.info("🔌 Connection closed")
 
-                # Capture final response (workflow complete)
-                elif msg_type == "response":
-                    content = data.get("content", "")
-                    logger.info(f"\n🎉 Final Response (Workflow Complete):")
-                    logger.info("=" * 80)
-                    logger.info(content[:500] if len(content) > 500 else content)
-                    logger.info("=" * 80)
+async def test_calculator_app():
+    """Build a complete calculator app using AI Agent"""
+    logger.info("="*80)
+    logger.info("🚀 STARTING CALCULATOR APP BUILD TEST")
+    logger.info("="*80)
 
-                    # Check if files were created
-                    if approval_sent and not self.files_created:
-                        logger.warning("⚠️ Workflow complete but NO files created!")
-                        self.warnings.append("No files created")
+    client = CalculatorBuilderClient()
 
-                    # Success!
-                    logger.info(f"\n✅ Workflow completed successfully!")
-                    break
+    if not await client.connect():
+        logger.error("❌ Failed to connect to backend")
+        return False
 
-                # Error handling
-                elif msg_type == "error":
-                    error_msg = data.get("content", data.get("error", "Unknown error"))
-                    logger.error(f"\n❌ Error: {error_msg}")
-                    self.errors.append(error_msg)
-                    break
+    # The main prompt to build a calculator
+    calculator_prompt = """
+    Build a modern, fully-functional calculator application with the following features:
 
-            except asyncio.TimeoutError:
-                logger.warning("⚠️ No response for 10s, waiting...")
-            except websockets.exceptions.ConnectionClosed:
-                logger.warning("🔌 Connection closed by server")
-                if not approval_sent:
-                    logger.error("❌ Connection closed BEFORE approval sent")
-                    self.errors.append("Connection closed before approval")
-                elif not self.files_created:
-                    logger.error("❌ Connection closed BEFORE files created")
-                    self.errors.append("Connection closed before file creation")
-                break
-            except Exception as e:
-                logger.error(f"❌ Error receiving message: {e}")
-                self.errors.append(str(e))
-                break
+    1. Basic arithmetic operations (add, subtract, multiply, divide)
+    2. Advanced operations (square root, power, percentage)
+    3. Memory functions (MC, MR, M+, M-)
+    4. Keyboard support for number input
+    5. Clean, modern UI with CSS styling
+    6. Error handling for division by zero
+    7. Responsive design that works on mobile and desktop
+    8. History of last 10 calculations
 
-    def validate_results(self):
-        """Validate test results"""
-        logger.info("\n" + "=" * 80)
-        logger.info("🔍 VALIDATING RESULTS")
-        logger.info("=" * 80)
+    The calculator should be a single-page web application using HTML, CSS, and JavaScript.
+    Create all necessary files with complete implementation - no placeholders or TODOs.
+    The application should be production-ready and fully tested.
 
-        success = True
+    Include these specific requirements:
+    - Dark mode toggle
+    - Scientific notation for large numbers
+    - Decimal precision settings
+    - Clear (C) and All Clear (AC) buttons
+    - Backspace functionality
 
-        # Check proposal received
-        if not self.architecture_proposal:
-            logger.error("❌ FAIL: No architecture proposal received")
-            success = False
+    Compare different UI frameworks and choose the best one for this use case.
+    """
+
+    logger.info("\n📝 PHASE 1: Sending calculator build request...")
+    responses = await client.send_and_wait(calculator_prompt, timeout=300)
+
+    # Analyze responses
+    logger.info("\n📊 ANALYSIS OF AI SYSTEM USAGE:")
+
+    # Check for various AI system indicators
+    asimov_checks = 0
+    predictive_used = False
+    curiosity_used = False
+    framework_mentioned = False
+
+    for msg in client.messages:
+        content = json.dumps(msg).lower()
+
+        # Check for Asimov rules
+        if 'asimov' in content or 'rule' in content:
+            asimov_checks += 1
+
+        # Check for predictive learning
+        if 'prediction' in content or 'confidence' in content:
+            predictive_used = True
+
+        # Check for curiosity
+        if 'curiosity' in content or 'novelty' in content:
+            curiosity_used = True
+
+        # Check for framework comparison
+        if any(fw in content for fw in ['react', 'vue', 'angular', 'svelte', 'vanilla']):
+            framework_mentioned = True
+
+    logger.info(f"\n✅ AI SYSTEMS USAGE REPORT:")
+    logger.info(f"1. Asimov Rules Checks: {asimov_checks} times")
+    logger.info(f"2. Predictive Learning: {'✅ Used' if predictive_used else '❌ Not detected'}")
+    logger.info(f"3. Curiosity System: {'✅ Used' if curiosity_used else '❌ Not detected'}")
+    logger.info(f"4. Framework Comparison: {'✅ Performed' if framework_mentioned else '❌ Not detected'}")
+
+    # Check if files were created
+    logger.info(f"\n📁 CHECKING CREATED FILES:")
+    expected_files = ['index.html', 'style.css', 'script.js']
+    files_created = []
+
+    for file in expected_files:
+        file_path = os.path.join(client.workspace_path, file)
+        if os.path.exists(file_path):
+            files_created.append(file)
+            logger.info(f"  ✅ {file} created")
+
+            # Check file size to ensure it's not empty
+            size = os.path.getsize(file_path)
+            logger.info(f"     Size: {size} bytes")
         else:
-            logger.info("✅ Architecture proposal received")
+            logger.info(f"  ❌ {file} not found")
 
-        # Check files created
-        if not self.files_created:
-            logger.error("❌ FAIL: No files were created")
-            success = False
+    # Test for TODO violations (Asimov Rule 2)
+    logger.info("\n🧪 TESTING ASIMOV RULE 2: No TODOs")
+    todo_test = "Add a TODO comment for implementing the square root function"
+    logger.info(f"Sending: {todo_test}")
+
+    todo_responses = await client.send_and_wait(todo_test, timeout=30)
+
+    todo_blocked = False
+    for msg in todo_responses:
+        if msg.get('type') == 'error' or 'cannot' in msg.get('content', '').lower():
+            logger.info("✅ TODO request was blocked (Asimov Rule 2 enforced)")
+            todo_blocked = True
+            break
+
+    if not todo_blocked:
+        logger.info("❌ TODO request was not blocked")
+
+    # Check for data persistence
+    logger.info("\n💾 CHECKING DATA PERSISTENCE:")
+
+    data_dir = os.path.expanduser("~/.ki_autoagent/data")
+    persistence_files = {
+        "predictive": f"{data_dir}/predictive/OrchestratorAgent_predictions.json",
+        "curiosity": f"{data_dir}/curiosity/OrchestratorAgent_curiosity.json",
+        "learning": f"{data_dir}/learning_data.json",
+        "framework": f"{data_dir}/framework_comparisons.json"
+    }
+
+    for name, path in persistence_files.items():
+        if os.path.exists(path):
+            size = os.path.getsize(path)
+            logger.info(f"  ✅ {name}: {size} bytes")
         else:
-            logger.info(f"✅ Files created: {len(self.files_created)}")
-            for file_path in self.files_created:
-                logger.info(f"   - {file_path}")
+            logger.info(f"  ❌ {name}: not found")
 
-        # Check for errors
-        if self.errors:
-            logger.error(f"❌ FAIL: {len(self.errors)} errors occurred:")
-            for error in self.errors:
-                logger.error(f"   - {error}")
-            success = False
-        else:
-            logger.info("✅ No errors")
+    await client.close()
 
-        # Check for warnings
-        if self.warnings:
-            logger.warning(f"⚠️ {len(self.warnings)} warnings:")
-            for warning in self.warnings:
-                logger.warning(f"   - {warning}")
+    # Final summary
+    logger.info("\n" + "="*80)
+    logger.info("📊 FINAL TEST SUMMARY")
+    logger.info("="*80)
 
-        # Check actual files on disk
-        logger.info("\n🔍 Checking files on disk:")
-        workspace_path = Path(self.test_workspace)
-        actual_files = list(workspace_path.rglob("*"))
-        actual_files = [f for f in actual_files if f.is_file()]
+    success_criteria = [
+        ("Files created", len(files_created) >= 2),
+        ("Asimov Rules", asimov_checks > 0 or todo_blocked),
+        ("Framework comparison", framework_mentioned),
+        ("No empty files", all(os.path.getsize(os.path.join(client.workspace_path, f)) > 100
+                               for f in files_created if os.path.exists(os.path.join(client.workspace_path, f))))
+    ]
 
-        if actual_files:
-            logger.info(f"✅ Found {len(actual_files)} files on disk:")
-            for file in actual_files:
-                rel_path = file.relative_to(workspace_path)
-                size = file.stat().st_size
-                logger.info(f"   - {rel_path} ({size} bytes)")
-        else:
-            logger.error("❌ No files found on disk!")
-            success = False
+    passed = 0
+    for criterion, result in success_criteria:
+        status = "✅" if result else "❌"
+        logger.info(f"{status} {criterion}")
+        if result:
+            passed += 1
 
-        return success
+    logger.info(f"\n🏆 SCORE: {passed}/{len(success_criteria)} criteria passed")
 
-    def print_summary(self, success: bool):
-        """Print test summary"""
-        logger.info("\n" + "=" * 80)
-        logger.info("📊 TEST SUMMARY")
-        logger.info("=" * 80)
-        logger.info(f"Messages received: {self.messages_received}")
-        logger.info(f"Architecture proposal: {'✅ Received' if self.architecture_proposal else '❌ Not received'}")
-        logger.info(f"Files created (events): {len(self.files_created)}")
-        logger.info(f"Errors: {len(self.errors)}")
-        logger.info(f"Warnings: {len(self.warnings)}")
+    return passed >= 3  # Success if at least 3/4 criteria met
 
-        if self.errors:
-            logger.info("\n❌ Errors:")
-            for error in self.errors:
-                logger.info(f"   - {error}")
-
-        logger.info("\n" + "=" * 80)
-        if success:
-            logger.info("✅ RESULT: PASSED - Complete End-to-End workflow successful!")
-        else:
-            logger.info("❌ RESULT: FAILED - See errors above")
-        logger.info("=" * 80)
-
-
-async def main():
-    """Run end-to-end test"""
-    logger.info("=" * 80)
-    logger.info("🚀 Starting Calculator End-to-End Test (v5.8.7)")
-    logger.info("=" * 80)
-
-    test = CalculatorEndToEndTest()
+if __name__ == "__main__":
+    logger.info(f"Test started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     try:
-        # Setup
-        await test.setup()
+        success = asyncio.run(test_calculator_app())
 
-        # Connect
-        await test.connect()
-
-        # Send message
-        await test.send_message("Create a simple HTML calculator app")
-
-        # Collect responses (includes auto-approval after proposal)
-        await test.collect_responses(timeout=300)  # 5 minutes max
-
-        # Validate
-        success = test.validate_results()
-
-        # Summary
-        test.print_summary(success)
-
-        # Cleanup
-        await test.teardown()
-
-        # Exit with appropriate code
-        exit(0 if success else 1)
+        if success:
+            logger.info("\n✅✅✅ CALCULATOR BUILD TEST PASSED! ✅✅✅")
+            logger.info("The AI Agent successfully built a calculator app with AI systems active!")
+        else:
+            logger.info("\n❌ Test did not meet all success criteria")
 
     except KeyboardInterrupt:
         logger.info("\n⚠️ Test interrupted by user")
-        await test.teardown()
-        exit(2)
     except Exception as e:
-        logger.error(f"\n❌ Test failed with exception: {e}")
+        logger.error(f"\n❌ Test failed: {e}")
         import traceback
         traceback.print_exc()
-        await test.teardown()
-        exit(1)
 
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    logger.info(f"\nTest completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

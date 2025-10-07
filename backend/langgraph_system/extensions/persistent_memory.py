@@ -174,51 +174,22 @@ class PersistentAgentMemory:
 
     def store(
         self,
-        content_or_type: Any,
-        content_or_metadata: Optional[Any] = None,
+        content: str,
+        memory_type: str = "episodic",
         importance: float = 0.5,
         metadata: Optional[Dict[str, Any]] = None,
         session_id: Optional[str] = None
     ) -> int:
         """
-        Flexible store method for compatibility with different calling conventions
+        Store a memory - MODERN SIGNATURE ONLY
         """
-        # Check if first arg looks like a MemoryType enum (has .value attribute)
-        if hasattr(content_or_type, 'value'):
-            # Legacy format: store(MemoryType, dict)
-            memory_type_map = {
-                'WORKING': 'procedural',
-                'EPISODIC': 'episodic',
-                'SEMANTIC': 'semantic',
-                'ENTITY': 'entity'
-            }
-
-            memory_type = memory_type_map.get(content_or_type.name, 'episodic')
-
-            # Convert dict to string content
-            if isinstance(content_or_metadata, dict):
-                content = json.dumps(content_or_metadata)
-                actual_metadata = content_or_metadata
-            else:
-                content = str(content_or_metadata)
-                actual_metadata = {}
-
-            return self.store_memory(
-                content=content,
-                memory_type=memory_type,
-                importance=importance or 0.5,
-                metadata=actual_metadata,
-                session_id=session_id
-            )
-        else:
-            # New format: store(content, memory_type, ...)
-            return self.store_memory(
-                content=str(content_or_type),
-                memory_type=content_or_metadata or "episodic",
-                importance=importance,
-                metadata=metadata,
-                session_id=session_id
-            )
+        return self.store_memory(
+            content=str(content),
+            memory_type=memory_type,
+            importance=importance,
+            metadata=metadata,
+            session_id=session_id
+        )
 
     def store_memory(
         self,

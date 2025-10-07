@@ -103,53 +103,9 @@ class OrchestratorAgent(ChatAgent):
         start_time = datetime.now()
 
         try:
-            # 🧠 1. NEUROSYMBOLIC REASONING - Check Asimov Rules BEFORE execution
-            if hasattr(self, 'neurosymbolic_reasoner') and self.neurosymbolic_reasoner:
-                violations = self.neurosymbolic_reasoner.check_violations(request.prompt)
-                if violations:
-                    # Asimov rule violation detected
-                    violation_msg = f"Cannot execute: Violates {violations[0]['rule'].name}"
-                    if "TODO" in request.prompt.upper() or "todo" in request.prompt:
-                        violation_msg = "Cannot create TODO lists - ASIMOV RULE 2: Complete Implementation required"
-                    elif "fallback" in request.prompt.lower() and "port" in request.prompt.lower():
-                        violation_msg = "Cannot use fallback ports - ASIMOV RULE 1: No Fallbacks, Fail Fast"
-                    elif "eval()" in request.prompt.lower() and "safe" in request.prompt.lower():
-                        violation_msg = "eval() is NOT safe for user input - ASIMOV RULE 5: Challenge Misconceptions"
-
-                    logger.warning(f"🚫 Asimov Rule Violation: {violation_msg}")
-
-                    return TaskResult(
-                        status="error",
-                        content=violation_msg,
-                        agent=self.config.agent_id,
-                        metadata={"asimov_violation": True, "rule": violations[0]['rule'].name}
-                    )
-
-            # 📚 2. PREDICTIVE LEARNING - Make prediction before execution
-            confidence = 0.5
-            if hasattr(self, 'predictive_memory') and self.predictive_memory:
-                prediction = self.predictive_memory.predict(request.prompt, {})
-                confidence = prediction.confidence
-                logger.info(f"📊 Prediction confidence: {confidence:.2f}")
-
-            # 🔍 3. CURIOSITY SYSTEM - Calculate task novelty
-            curiosity_score = 0.5
-            if hasattr(self, 'curiosity_module') and self.curiosity_module:
-                curiosity_score = self.curiosity_module.calculate_curiosity(request.prompt)
-                logger.info(f"🔍 Curiosity score: {curiosity_score:.2f}")
-                # Prioritize novel tasks
-                if curiosity_score > 0.7:
-                    logger.info("✨ High novelty task - prioritizing exploration")
-
-            # 🔄 4. FRAMEWORK COMPARISON - Check if architecture comparison needed
-            comparison_result = None
-            if hasattr(self, 'framework_comparator') and self.framework_comparator:
-                if any(fw in request.prompt.lower() for fw in ['framework', 'autogen', 'crewai', 'langgraph', 'multi-agent']):
-                    comparison_result = self.framework_comparator.compare(
-                        request.prompt,
-                        ['autogen', 'crewai', 'langgraph', 'chatdev', 'babyagi']
-                    )
-                    logger.info(f"🔄 Framework comparison performed")
+            # 🧠 v5.9.0: AI SYSTEMS now handled by execute_agent_with_retry() wrapper in workflow.py
+            # All checks (Asimov Rules, Predictive Learning, Curiosity, Framework Comparison)
+            # are centrally managed to ensure consistent enforcement across all agents
 
             # Analyze task complexity
             complexity = await self.analyze_task_complexity(request.prompt)
@@ -159,20 +115,8 @@ class OrchestratorAgent(ChatAgent):
 
             execution_time = (datetime.now() - start_time).total_seconds()
 
-            # 📚 Update predictive learning after execution
-            if hasattr(self, 'predictive_memory') and self.predictive_memory:
-                actual_outcome = {
-                    "complexity": complexity,
-                    "subtasks": len(decomposition.subtasks),
-                    "duration": execution_time
-                }
-                self.predictive_memory.update_confidence(request.prompt, actual_outcome, success=True)
-                self.predictive_memory.save_to_disk()
-
-            # 🔍 Update curiosity after experiencing task
-            if hasattr(self, 'curiosity_module') and self.curiosity_module:
-                self.curiosity_module.update_experience(request.prompt, {"complexity": complexity})
-                self.curiosity_module.save_to_disk()
+            # v5.9.0: POST-EXECUTION updates now handled by execute_agent_with_retry() wrapper
+            # (Predictive learning and curiosity updates happen centrally in workflow.py)
 
             # v5.8.4: Convert subtasks to serializable format for workflow.py
             # NOTE: Removed execute_workflow() simulation - workflow.py handles real execution
@@ -189,9 +133,15 @@ class OrchestratorAgent(ChatAgent):
                     "expected_output": f"Completion of: {subtask.description[:50]}..."
                 })
 
+            # v5.9.0: AI SYSTEMS (Predictive Learning, Curiosity, Framework Comparison)
+            # now handled by execute_agent_with_retry() wrapper in workflow.py
+            # All metadata about AI systems comes from the wrapper, not individual agents
+
+            response_content = self.format_orchestration_plan(decomposition)
+
             return TaskResult(
                 status="success",
-                content=self.format_orchestration_plan(decomposition),
+                content=response_content,
                 agent=self.config.agent_id,
                 metadata={
                     "complexity": complexity,
@@ -290,15 +240,18 @@ class OrchestratorAgent(ChatAgent):
         # v5.5.3: Fix memory_manager.store() signature
         if self.memory_manager:
             try:
-                from core.memory_manager import MemoryType
+                # Modern signature: store(content, memory_type, ...)
+                memory_data = {
+                    'task': task,
+                    'complexity': complexity,
+                    'decomposition': str(decomposition),  # Convert to string for JSON
+                    'timestamp': datetime.now().isoformat()
+                }
                 self.memory_manager.store(
-                    MemoryType.WORKING,
-                    {
-                        'task': task,
-                        'complexity': complexity,
-                        'decomposition': decomposition,
-                        'timestamp': datetime.now().isoformat()
-                    }
+                    content=json.dumps(memory_data),
+                    memory_type="procedural",  # WORKING → procedural
+                    importance=0.8,
+                    metadata=memory_data
                 )
             except Exception as mem_error:
                 logger.warning(f"⚠️ Memory storage failed (non-critical): {mem_error}")

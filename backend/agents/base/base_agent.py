@@ -25,7 +25,7 @@ except ImportError:
 
 # Import core systems
 try:
-    from core.memory_manager import get_memory_manager, MemoryType
+    from core.memory_manager import get_memory_manager
     from core.shared_context_manager import get_shared_context
     from core.conversation_context_manager import get_conversation_context
     CORE_SYSTEMS_AVAILABLE = True
@@ -543,7 +543,7 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         if self.memory_manager:
             similar_tasks = await self.memory_manager.search(
                 request.prompt,
-                memory_type=MemoryType.EPISODIC,
+                memory_type="episodic",
                 agent_id=self.config.agent_id,
                 k=5
             )
@@ -632,18 +632,20 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         # v5.5.3: Wrap in try/except to prevent corrupting results
         if self.memory_manager:
             try:
-                from core.memory_manager import MemoryType
-                # Use correct signature: store(memory_type, data)
+                # Modern signature: store(content, memory_type, ...)
+                memory_data = {
+                    "agent": self.config.agent_id,
+                    "task": request.prompt,
+                    "result": result.content[:2000],
+                    "status": result.status,
+                    "importance": 0.7 if result.status == "success" else 0.5,
+                    "tags": ["task_result", self.config.agent_id]
+                }
                 self.memory_manager.store(
-                    MemoryType.WORKING,
-                    {
-                        "agent": self.config.agent_id,
-                        "task": request.prompt,
-                        "result": result.content[:2000],
-                        "status": result.status,
-                        "importance": 0.7 if result.status == "success" else 0.5,
-                        "tags": ["task_result", self.config.agent_id]
-                    }
+                    content=json.dumps(memory_data),
+                    memory_type="procedural",  # WORKING → procedural
+                    importance=0.7 if result.status == "success" else 0.5,
+                    metadata=memory_data
                 )
             except Exception as mem_error:
                 logger.warning(f"⚠️ Memory storage failed (non-critical): {mem_error}")
@@ -858,17 +860,19 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
                 # v5.5.3: Wrap memory storage in try/except to not corrupt the result
                 if self.memory_manager:
                     try:
-                        from core.memory_manager import MemoryType
-                        # Use correct signature: store(memory_type, data)
+                        # Modern signature: store(content, memory_type, ...)
+                        memory_data = {
+                            "action": "file_write",
+                            "path": file_path,
+                            "size": result.get('size', 0),
+                            "agent": self.config.agent_id,
+                            "timestamp": datetime.now().isoformat()
+                        }
                         self.memory_manager.store(
-                            MemoryType.WORKING,
-                            {
-                                "action": "file_write",
-                                "path": file_path,
-                                "size": result.get('size', 0),
-                                "agent": self.config.agent_id,
-                                "timestamp": datetime.now().isoformat()
-                            }
+                            content=json.dumps(memory_data),
+                            memory_type="procedural",  # WORKING → procedural
+                            importance=0.6,
+                            metadata=memory_data
                         )
                     except Exception as mem_error:
                         logger.warning(f"⚠️ Memory storage failed (non-critical): {mem_error}")

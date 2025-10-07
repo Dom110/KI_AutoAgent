@@ -168,6 +168,8 @@ class CodeSmithAgent(ChatAgent):
 
         NO hardcoded assumptions about KI_AutoAgent or any specific project.
         Uses AI to understand user intent and generates complete, working applications.
+
+        v5.9.0: Retrieves architecture knowledge from memory before code generation
         """
         start_time = datetime.now()
 
@@ -180,6 +182,39 @@ class CodeSmithAgent(ChatAgent):
 
             logger.info(f"🚀 CodeSmith executing: {prompt[:100]}...")
             logger.info(f"📂 Workspace: {workspace_path}")
+
+            # 🧠 v5.9.0: RETRIEVE ARCHITECTURE KNOWLEDGE from previous architect analyses
+            architecture_context = ""
+            if self.memory_manager:
+                try:
+                    # Search for recent architect analyses in this workspace
+                    arch_memories = self.memory_manager.search(
+                        query=prompt,
+                        memory_type="procedural",
+                        limit=5
+                    )
+
+                    # Filter for architect-generated memories
+                    relevant_arch = [m for m in arch_memories if '"agent": "architect"' in m.get('content', '')]
+
+                    if relevant_arch:
+                        logger.info(f"🏗️ Found {len(relevant_arch)} architecture memories")
+                        architecture_context = "\n\n# ARCHITECTURE KNOWLEDGE (from Architect):\n"
+                        for mem in relevant_arch[:3]:  # Top 3 most relevant
+                            try:
+                                mem_data = json.loads(mem['content'])
+                                architecture_context += f"\n## {mem_data.get('task', 'Analysis')}:\n"
+                                architecture_context += f"{mem_data.get('result', '')[:1000]}\n"
+                            except (json.JSONDecodeError, KeyError):
+                                continue
+
+                        logger.info(f"📚 Loaded {len(architecture_context)} chars of architecture context")
+                    else:
+                        logger.info("ℹ️ No architecture memories found - will rely on AI analysis")
+
+                except Exception as mem_error:
+                    logger.warning(f"⚠️ Memory retrieval failed (non-critical): {mem_error}")
+                    architecture_context = ""
 
             # STEP 1: AI analyzes what user wants to create
             # Raises ValueError if unclear - NO fallback to 'generic'
@@ -200,11 +235,12 @@ class CodeSmithAgent(ChatAgent):
                 file_path = file_spec['path']
 
                 try:
-                    # Generate file content with AI
+                    # Generate file content with AI (v5.9.0: includes architecture context)
                     content = await self._generate_file_content(
                         file_spec=file_spec,
                         project_spec=project_spec,
-                        user_prompt=prompt
+                        user_prompt=prompt,
+                        architecture_context=architecture_context
                     )
 
                     # Write file to workspace
@@ -724,16 +760,23 @@ IMPORTANT:
         self,
         file_spec: Dict[str, Any],
         project_spec: Dict[str, Any],
-        user_prompt: str
+        user_prompt: str,
+        architecture_context: str = ""
     ) -> str:
         """
         ✍️ Use AI to generate production-ready code for each file
         NO templates - pure AI generation based on project context
 
         v5.8.2: COMPLETELY GENERIC - generates ANY file type
+        v5.9.0: Uses architecture knowledge from Architect agent
         """
         file_path = file_spec['path']
         logger.info(f"✍️ Generating content for {file_path}...")
+
+        # v5.9.0: Add architecture context if available
+        arch_section = ""
+        if architecture_context:
+            arch_section = f"\n{architecture_context}\n\nIMPORTANT: Use the architecture knowledge above when generating code. Match existing function names, patterns, and structures.\n"
 
         generation_prompt = f"""Generate COMPLETE, PRODUCTION-READY content for this file.
 
@@ -745,7 +788,7 @@ PROJECT CONTEXT:
 - Language: {project_spec['language']}
 - Tech Stack: {', '.join(project_spec['tech_stack'])}
 - Features: {', '.join(project_spec['features'])}
-
+{arch_section}
 FILE TO GENERATE:
 - Path: {file_path}
 - Type: {file_spec['type']}
@@ -759,6 +802,7 @@ REQUIREMENTS:
 5. This file is part of THE PROJECT USER REQUESTED, NOT KI_AutoAgent or any other system
 6. Make it production-ready and following industry standards
 7. If this is a config file (package.json, etc.), include ALL necessary dependencies
+8. If architecture knowledge is provided above, FOLLOW IT EXACTLY (correct function names, structures, etc.)
 
 RETURN ONLY THE FILE CONTENT. NO markdown code blocks, NO explanations, just the raw file content."""
 
