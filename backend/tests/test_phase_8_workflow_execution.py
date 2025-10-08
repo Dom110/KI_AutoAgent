@@ -29,6 +29,10 @@ import tempfile
 # Add backend to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Load .env file
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
+
 from workflow_v6 import WorkflowV6
 from state_v6 import SupervisorState
 
