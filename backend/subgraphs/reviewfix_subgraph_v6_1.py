@@ -23,7 +23,8 @@ from typing import Any, Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
+# Use ClaudeCLISimple instead of langchain-anthropic (broken)
+from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
 from langgraph.graph import END, StateGraph
 
 from state_v6 import ReviewFixState

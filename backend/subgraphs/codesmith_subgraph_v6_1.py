@@ -21,7 +21,8 @@ import os
 from datetime import datetime
 from typing import Any
 
-from langchain_anthropic import ChatAnthropic
+# Use ClaudeCLISimple instead of langchain-anthropic (broken)
+from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 

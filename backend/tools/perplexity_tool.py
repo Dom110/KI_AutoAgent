@@ -20,7 +20,8 @@ import os
 from typing import Any
 
 from langchain_core.tools import tool
-from langchain_anthropic import ChatAnthropic
+# Use ClaudeCLISimple instead of langchain-anthropic (broken)
+from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
 
 logger = logging.getLogger(__name__)
 

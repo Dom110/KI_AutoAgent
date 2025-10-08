@@ -20,10 +20,11 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
+# Use ClaudeCLISimple instead of langchain-anthropic (broken)
+from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
 from state_v6 import ResearchState
 from tools.perplexity_tool import perplexity_search
 

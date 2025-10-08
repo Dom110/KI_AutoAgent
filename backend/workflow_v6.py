@@ -35,11 +35,13 @@ import os
 from typing import Any
 
 import aiosqlite
-from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import create_react_agent
+
+# Use ClaudeCLISimple instead of langchain-anthropic (which is broken)
+from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
 
 from state_v6 import (
     ArchitectState,
