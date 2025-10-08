@@ -217,32 +217,24 @@ class WorkflowV6:
 
         Agent: Architect Agent
         Model: GPT-4o
-        Implementation: Custom (too specialized for create_react_agent)
+        Implementation: Custom (too specialized for create_react_agent) - Phase 4 ✅
 
         Returns:
             Compiled architect subgraph
         """
-        # TODO: Phase 4 - Full implementation
-        # For now: Placeholder
+        from subgraphs.architect_subgraph_v6 import create_architect_subgraph
 
-        def architect_placeholder(state: ArchitectState) -> ArchitectState:
-            """Placeholder architect node."""
-            logger.debug(f"Architect placeholder called: {state['user_requirements']}")
-            return {
-                **state,
-                "design": {"status": "Phase 4 TODO"},
-                "tech_stack": [],
-                "patterns": [],
-                "diagram": "",
-                "adr": ""
-            }
+        logger.debug("Building Architect subgraph (custom implementation)...")
 
-        graph = StateGraph(ArchitectState)
-        graph.add_node("architect", architect_placeholder)
-        graph.set_entry_point("architect")
-        graph.set_finish_point("architect")
+        # Pass workspace_path and memory to architect subgraph
+        subgraph = create_architect_subgraph(
+            workspace_path=self.workspace_path,
+            memory=self.memory
+        )
 
-        return graph.compile()
+        logger.debug("✅ Architect subgraph built")
+
+        return subgraph
 
     def _build_codesmith_subgraph(self) -> Any:
         """
@@ -322,15 +314,17 @@ class WorkflowV6:
         logger.debug("Building SupervisorGraph...")
 
         # Build subgraphs (Phase-by-phase - only build what we use!)
-        # Phase 3: Research only
+        # Phase 3: Research
         research_subgraph = self._build_research_subgraph()
 
-        # Phase 4+: Architect, Codesmith, ReviewFix (TODO)
-        # architect_subgraph = self._build_architect_subgraph()
+        # Phase 4: Architect
+        architect_subgraph = self._build_architect_subgraph()
+
+        # Phase 5-6: Codesmith, ReviewFix (TODO)
         # codesmith_subgraph = self._build_codesmith_subgraph()
         # reviewfix_subgraph = self._build_reviewfix_subgraph()
 
-        logger.debug("Research subgraph built (Phase 3)")
+        logger.debug("Research + Architect subgraphs built (Phase 3-4)")
 
         # Supervisor node
         def supervisor_node(state: SupervisorState) -> SupervisorState:
@@ -370,21 +364,30 @@ class WorkflowV6:
             research_output = research_subgraph.invoke(research_input)
             return research_to_supervisor(research_output)
 
-        # Phase 3: Only add research node
-        graph.add_node("research", research_node_wrapper)
+        # Architect node with state transformation
+        def architect_node_wrapper(state: SupervisorState) -> dict[str, Any]:
+            """Transform SupervisorState → ArchitectState → call subgraph → transform back"""
+            logger.debug("🏗️ Architect node (with state transformation)")
+            architect_input = supervisor_to_architect(state)
+            architect_output = architect_subgraph.invoke(architect_input)
+            return architect_to_supervisor(architect_output)
 
-        # Phase 4-6: Architect/Codesmith/ReviewFix nodes (TODO)
+        # Phase 3-4: Add research + architect nodes
+        graph.add_node("research", research_node_wrapper)
+        graph.add_node("architect", architect_node_wrapper)
+
+        # Phase 5-6: Codesmith/ReviewFix nodes (TODO)
         # Will be added when those subgraphs are implemented
 
         # Declarative routing (NOT imperative!)
         graph.set_entry_point("supervisor")
 
-        # Phase 3: Test ONLY Research subgraph
+        # Phase 4: Test Research → Architect flow
         graph.add_edge("supervisor", "research")
-        graph.add_edge("research", END)
+        graph.add_edge("research", "architect")
+        graph.add_edge("architect", END)
 
-        # Phase 7: Full routing (TODO)
-        # graph.add_edge("research", "architect")
+        # Phase 7: Full routing (TODO - add codesmith + reviewfix)
         # graph.add_edge("architect", "codesmith")
         # graph.add_edge("codesmith", "reviewfix")
         # graph.add_edge("reviewfix", END)

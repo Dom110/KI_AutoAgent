@@ -6,10 +6,11 @@ Documentation: V6_0_ARCHITECTURE.md
 """
 
 from .research_subgraph_v6 import create_research_subgraph
+from .architect_subgraph_v6 import create_architect_subgraph
 
 __all__ = [
     "create_research_subgraph",
-    # TODO Phase 4: "create_architect_subgraph",
+    "create_architect_subgraph",
     # TODO Phase 5: "create_codesmith_subgraph",
     # TODO Phase 6: "create_reviewfix_subgraph",
 ]
