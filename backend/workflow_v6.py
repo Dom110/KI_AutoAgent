@@ -266,32 +266,25 @@ class WorkflowV6:
         Build ReviewFix loop subgraph.
 
         Agents: Reviewer + Fixer
-        Models: GPT-4o-mini, Claude Sonnet 4.1
-        Implementation: Custom loop
+        Models: GPT-4o-mini (Reviewer), Claude Sonnet 4 (Fixer)
+        Implementation: Custom loop with conditional routing - Phase 6 ✅
 
         Returns:
             Compiled reviewfix loop subgraph
         """
-        # TODO: Phase 6 - Full implementation
+        from subgraphs.reviewfix_subgraph_v6 import create_reviewfix_subgraph
 
-        def reviewfix_placeholder(state: ReviewFixState) -> ReviewFixState:
-            """Placeholder reviewfix node."""
-            logger.debug(f"ReviewFix placeholder called: {len(state['generated_files'])} files")
-            return {
-                **state,
-                "quality_score": 0.8,  # Mock passing score
-                "review_feedback": {"status": "Phase 6 TODO"},
-                "fixes_applied": [],
-                "iteration": 1,
-                "should_continue": False
-            }
+        logger.debug("Building ReviewFix subgraph (custom loop)...")
 
-        graph = StateGraph(ReviewFixState)
-        graph.add_node("reviewfix", reviewfix_placeholder)
-        graph.set_entry_point("reviewfix")
-        graph.set_finish_point("reviewfix")
+        # Pass workspace_path and memory to reviewfix subgraph
+        subgraph = create_reviewfix_subgraph(
+            workspace_path=self.workspace_path,
+            memory=self.memory
+        )
 
-        return graph.compile()
+        logger.debug("✅ ReviewFix subgraph built")
+
+        return subgraph
 
     # ========================================================================
     # SUPERVISOR GRAPH
@@ -318,10 +311,10 @@ class WorkflowV6:
         # Phase 5: Codesmith
         codesmith_subgraph = self._build_codesmith_subgraph()
 
-        # Phase 6: ReviewFix (TODO)
-        # reviewfix_subgraph = self._build_reviewfix_subgraph()
+        # Phase 6: ReviewFix
+        reviewfix_subgraph = self._build_reviewfix_subgraph()
 
-        logger.debug("Research + Architect + Codesmith subgraphs built (Phase 3-5)")
+        logger.debug("Research + Architect + Codesmith + ReviewFix subgraphs built (Phase 3-6)")
 
         # Supervisor node
         def supervisor_node(state: SupervisorState) -> SupervisorState:
@@ -377,28 +370,31 @@ class WorkflowV6:
             codesmith_output = codesmith_subgraph.invoke(codesmith_input)
             return codesmith_to_supervisor(codesmith_output)
 
-        # Phase 3-5: Add research + architect + codesmith nodes
+        # ReviewFix node with state transformation
+        def reviewfix_node_wrapper(state: SupervisorState) -> dict[str, Any]:
+            """Transform SupervisorState → ReviewFixState → call subgraph → transform back"""
+            logger.debug("🔬 ReviewFix node (with state transformation)")
+            reviewfix_input = supervisor_to_reviewfix(state)
+            reviewfix_output = reviewfix_subgraph.invoke(reviewfix_input)
+            return reviewfix_to_supervisor(reviewfix_output)
+
+        # Phase 3-6: Add research + architect + codesmith + reviewfix nodes
         graph.add_node("research", research_node_wrapper)
         graph.add_node("architect", architect_node_wrapper)
         graph.add_node("codesmith", codesmith_node_wrapper)
-
-        # Phase 6: ReviewFix node (TODO)
-        # Will be added when subgraph is implemented
+        graph.add_node("reviewfix", reviewfix_node_wrapper)
 
         # Declarative routing (NOT imperative!)
         graph.set_entry_point("supervisor")
 
-        # Phase 5: Test Research → Architect → Codesmith flow
+        # Phase 6: Full workflow - Research → Architect → Codesmith → ReviewFix → END
         graph.add_edge("supervisor", "research")
         graph.add_edge("research", "architect")
         graph.add_edge("architect", "codesmith")
-        graph.add_edge("codesmith", END)
+        graph.add_edge("codesmith", "reviewfix")
+        graph.add_edge("reviewfix", END)
 
-        # Phase 6-7: Full routing (TODO - add reviewfix)
-        # graph.add_edge("codesmith", "reviewfix")
-        # graph.add_edge("reviewfix", END)
-
-        logger.debug("Graph edges configured")
+        logger.debug("Graph edges configured (Phase 3-6 routing)")
 
         # Compile with checkpointer
         compiled = graph.compile(checkpointer=self.checkpointer)
