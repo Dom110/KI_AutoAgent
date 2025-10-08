@@ -175,7 +175,106 @@ Manual smoke tests passed, unit tests deferred to Phase 2.1
 
 ## Phase 3: Research Subgraph
 
-**Status:** Not started
+**Date:** 2025-10-08
+**Duration:** 2 hours (including debugging)
+**Status:** ✅ Pass (structure tests)
+
+### Structure Tests:
+
+**Test: test_research_structure_v6.py**
+```bash
+./venv/bin/python backend/tests/test_research_structure_v6.py
+```
+- ✅ WorkflowV6 instantiation: PASS
+- ✅ AsyncSqliteSaver setup: PASS
+- ✅ Memory System setup (lazy OpenAI): PASS
+- ✅ Research Subgraph compilation: PASS
+- ✅ Graph routing validation: PASS (supervisor → research → END)
+
+### Key Fixes:
+
+1. ✅ **Lazy OpenAI initialization** in Memory System
+   - Moved from initialize() to store()/search()
+   - No API key required at graph compile time
+
+2. ✅ **Lazy LLM initialization** in Research Subgraph
+   - Moved ChatAnthropic() to research_node()
+   - create_react_agent() created on first invocation
+
+3. ✅ **Fixed unreachable nodes**
+   - Only add nodes that are in routing
+   - LangGraph validates reachability
+
+### Notes:
+
+- **Phase 3 Complete:** Structure tested and working
+- **Full API tests:** Ready but not run (require ANTHROPIC_API_KEY)
+- **Pattern established:** Lazy initialization for all LLMs
+
+---
+
+## Phase 4: Architect Subgraph
+
+**Date:** 2025-10-08
+**Duration:** 1 hour
+**Status:** ⚠️ Partial (imports tested, structure not tested)
+
+### Import Tests:
+
+```bash
+./venv/bin/python -c "from workflow_v6 import WorkflowV6"
+```
+- ✅ Imports successful
+
+### Missing Tests:
+
+- ⚠️ Structure tests not run
+- ⚠️ Graph compilation not validated
+- ⚠️ Memory integration not tested
+
+**TODO:** Create test_architect_structure.py
+
+---
+
+## Phase 5: Codesmith Subgraph + File Tools
+
+**Date:** 2025-10-08
+**Duration:** 1.5 hours
+**Status:** ✅ Pass (file tools fully tested)
+
+### File Tools Tests:
+
+**Test: test_file_tools.py**
+```bash
+./venv/bin/python backend/tests/test_file_tools.py
+```
+- ✅ write_file(): PASS (11 bytes written)
+- ✅ read_file(): PASS (content matches)
+- ✅ edit_file(): PASS (1 replacement)
+- ✅ Edit verification: PASS (content updated)
+- ✅ Security check: PASS (rejects ../outside.txt)
+- ✅ Subdirectory creation: PASS (src/app/main.py)
+
+**All 6 tests PASSED!** ✅
+
+### Structure Tests:
+
+**Test: test_phases_4_5_structure.py**
+```bash
+./venv/bin/python backend/tests/test_phases_4_5_structure.py
+```
+- ✅ WorkflowV6 instantiation: PASS
+- ✅ Initialization (checkpointer + memory + 3 subgraphs): PASS
+- ✅ Graph routing: PASS (supervisor → research → architect → codesmith → END)
+
+**Phase 4-5 structure validated!** ✅
+
+### Notes:
+
+- **File tools:** Fully tested with security validation
+- **Codesmith integration:** Structure validated
+- **Memory integration:** Not tested yet (requires API keys)
+- **Pattern:** Workspace-scoped operations, lazy LLM init
 
 **Planned Tests:**
 - [ ] test_research_agent_v6.py
