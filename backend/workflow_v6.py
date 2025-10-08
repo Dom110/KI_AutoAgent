@@ -367,28 +367,11 @@ class WorkflowV6:
             research_output = research_subgraph.invoke(research_input)
             return research_to_supervisor(research_output)
 
-        # Architect node with state transformation (Phase 4 TODO: implement)
-        def architect_node_wrapper(state: SupervisorState) -> dict[str, Any]:
-            """Transform SupervisorState → ArchitectState → call subgraph → transform back"""
-            logger.debug("🏗️ Architect node (Phase 4 TODO)")
-            return {}  # Placeholder
-
-        # Codesmith node with state transformation (Phase 5 TODO: implement)
-        def codesmith_node_wrapper(state: SupervisorState) -> dict[str, Any]:
-            """Transform SupervisorState → CodesmithState → call subgraph → transform back"""
-            logger.debug("⚙️ Codesmith node (Phase 5 TODO)")
-            return {}  # Placeholder
-
-        # ReviewFix node with state transformation (Phase 6 TODO: implement)
-        def reviewfix_node_wrapper(state: SupervisorState) -> dict[str, Any]:
-            """Transform SupervisorState → ReviewFixState → call subgraph → transform back"""
-            logger.debug("🔬 ReviewFix node (Phase 6 TODO)")
-            return {}  # Placeholder
-
+        # Phase 3: Only add research node
         graph.add_node("research", research_node_wrapper)
-        graph.add_node("architect", architect_node_wrapper)
-        graph.add_node("codesmith", codesmith_node_wrapper)
-        graph.add_node("reviewfix", reviewfix_node_wrapper)
+
+        # Phase 4-6: Architect/Codesmith/ReviewFix nodes (TODO)
+        # Will be added when those subgraphs are implemented
 
         # Declarative routing (NOT imperative!)
         graph.set_entry_point("supervisor")

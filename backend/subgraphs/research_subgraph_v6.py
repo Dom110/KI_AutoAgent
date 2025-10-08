@@ -51,18 +51,12 @@ def create_research_subgraph(
         4. Exit: report generated
     """
 
-    # LLM: Perplexity Sonar Huge 128k (via Anthropic for now, TODO: switch to Perplexity)
-    llm = ChatAnthropic(
-        model="claude-sonnet-4-20250514",
-        temperature=0.3,
-        max_tokens=4096
-    )
-
-    # Tools
+    # LLM and Tools will be lazily initialized in node
+    # (Avoids API key validation at graph compile time)
     tools = [perplexity_search]
 
     # System prompt for Research Agent
-    state_modifier = SystemMessage(content="""You are a research agent specialized in web research and documentation gathering.
+    state_modifier_content = """You are a research agent specialized in web research and documentation gathering.
 
 Your responsibilities:
 1. Conduct thorough web research using the perplexity_search tool
@@ -75,14 +69,7 @@ Output format:
 - Sources: List of URLs cited
 - Report: Markdown-formatted research summary
 
-Be thorough but concise. Focus on actionable insights.""")
-
-    # Create ReAct agent (LangGraph best practice)
-    react_agent = create_react_agent(
-        model=llm,
-        tools=tools,
-        state_modifier=state_modifier
-    )
+Be thorough but concise. Focus on actionable insights."""
 
     # Wrap agent with pre/post hooks
     async def research_node(state: ResearchState) -> ResearchState:
@@ -90,14 +77,30 @@ Be thorough but concise. Focus on actionable insights.""")
         Research node with Memory integration.
 
         Flow:
-        1. Invoke ReAct agent with query
-        2. Extract findings from agent response
-        3. Store in Memory (if provided)
-        4. Return updated state
+        1. Create LLM and ReAct agent (lazy)
+        2. Invoke ReAct agent with query
+        3. Extract findings from agent response
+        4. Store in Memory (if provided)
+        5. Return updated state
         """
         logger.info(f"🔍 Research node executing: {state['query']}")
 
         try:
+            # Lazy initialize LLM and agent (only when actually invoked)
+            logger.debug("Initializing LLM and ReAct agent...")
+            llm = ChatAnthropic(
+                model="claude-sonnet-4-20250514",
+                temperature=0.3,
+                max_tokens=4096
+            )
+
+            react_agent = create_react_agent(
+                model=llm,
+                tools=tools,
+                state_modifier=SystemMessage(content=state_modifier_content)
+            )
+            logger.debug("✅ ReAct agent created")
+
             # Prepare input for ReAct agent
             agent_input = {
                 "messages": [

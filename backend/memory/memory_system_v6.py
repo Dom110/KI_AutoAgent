@@ -135,9 +135,9 @@ class MemorySystem:
         # 3. Initialize SQLite
         await self._initialize_sqlite()
 
-        # 4. Initialize OpenAI
-        self.openai_client = AsyncOpenAI()
-        logger.debug("OpenAI client initialized")
+        # 4. OpenAI client (lazy initialization - only when needed)
+        self.openai_client: AsyncOpenAI | None = None
+        logger.debug("OpenAI client will be initialized on first use (lazy)")
 
         logger.info("MemorySystem initialization complete")
 
@@ -217,8 +217,13 @@ class MemorySystem:
                 metadata={"agent": "research", "type": "technology"}
             )
         """
-        if not self.index or not self.db_conn or not self.openai_client:
+        if not self.index or not self.db_conn:
             raise RuntimeError("MemorySystem not initialized. Call initialize() first.")
+
+        # Lazy initialize OpenAI client
+        if not self.openai_client:
+            self.openai_client = AsyncOpenAI()
+            logger.debug("OpenAI client initialized (lazy)")
 
         logger.debug(f"Storing memory: {content[:50]}...")
 
@@ -309,8 +314,13 @@ class MemorySystem:
             for result in results:
                 print(f"{result['similarity']:.3f}: {result['content']}")
         """
-        if not self.index or not self.db_conn or not self.openai_client:
+        if not self.index or not self.db_conn:
             raise RuntimeError("MemorySystem not initialized. Call initialize() first.")
+
+        # Lazy initialize OpenAI client
+        if not self.openai_client:
+            self.openai_client = AsyncOpenAI()
+            logger.debug("OpenAI client initialized (lazy)")
 
         if self.index.ntotal == 0:
             logger.debug("FAISS index is empty, returning no results")
