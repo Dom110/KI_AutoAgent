@@ -319,12 +319,21 @@ class WorkflowV6:
         # Supervisor node
         def supervisor_node(state: SupervisorState) -> SupervisorState:
             """
-            Supervisor orchestration logic.
+            Supervisor orchestration logic (Phase 7).
 
-            For Phase 2: Just pass through state.
-            Later phases: Task decomposition, routing decisions.
+            This orchestrates the full workflow:
+            1. Research: Web search + knowledge gathering
+            2. Architect: Design architecture based on research
+            3. Codesmith: Generate code based on design
+            4. ReviewFix: Review code quality + apply fixes
+
+            Phase 7: Sequential flow (all tasks go through all agents)
+            Phase 8+: Could add conditional routing based on task type
             """
-            logger.debug(f"Supervisor processing: {state['user_query'][:50]}...")
+            logger.info(f"🎯 Supervisor starting workflow: {state['user_query'][:60]}...")
+            logger.info(f"📂 Workspace: {state['workspace_path']}")
+            logger.info("🔄 Workflow: Research → Architect → Codesmith → ReviewFix")
+
             return state
 
         # Build graph
@@ -387,14 +396,15 @@ class WorkflowV6:
         # Declarative routing (NOT imperative!)
         graph.set_entry_point("supervisor")
 
-        # Phase 6: Full workflow - Research → Architect → Codesmith → ReviewFix → END
+        # Phase 7: Full workflow - All subgraphs connected in sequence
+        # supervisor → research → architect → codesmith → reviewfix → END
         graph.add_edge("supervisor", "research")
         graph.add_edge("research", "architect")
         graph.add_edge("architect", "codesmith")
         graph.add_edge("codesmith", "reviewfix")
         graph.add_edge("reviewfix", END)
 
-        logger.debug("Graph edges configured (Phase 3-6 routing)")
+        logger.debug("✅ Phase 7 routing complete: All subgraphs connected")
 
         # Compile with checkpointer
         compiled = graph.compile(checkpointer=self.checkpointer)
