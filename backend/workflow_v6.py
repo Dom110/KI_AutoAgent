@@ -241,30 +241,25 @@ class WorkflowV6:
         Build Codesmith subgraph using create_react_agent().
 
         Agent: Codesmith Agent
-        Model: Claude Sonnet 4.1
-        Implementation: create_react_agent()
+        Model: Claude Sonnet 4
+        Implementation: create_react_agent() with file tools - Phase 5 ✅
 
         Returns:
             Compiled codesmith agent
         """
-        # TODO: Phase 5 - Full implementation
+        from subgraphs.codesmith_subgraph_v6 import create_codesmith_subgraph
 
-        def codesmith_placeholder(state: CodesmithState) -> CodesmithState:
-            """Placeholder codesmith node."""
-            logger.debug(f"Codesmith placeholder called: {state['requirements']}")
-            return {
-                **state,
-                "generated_files": [],
-                "tests": [],
-                "api_docs": ""
-            }
+        logger.debug("Building Codesmith subgraph (create_react_agent with file tools)...")
 
-        graph = StateGraph(CodesmithState)
-        graph.add_node("codesmith", codesmith_placeholder)
-        graph.set_entry_point("codesmith")
-        graph.set_finish_point("codesmith")
+        # Pass workspace_path and memory to codesmith subgraph
+        subgraph = create_codesmith_subgraph(
+            workspace_path=self.workspace_path,
+            memory=self.memory
+        )
 
-        return graph.compile()
+        logger.debug("✅ Codesmith subgraph built")
+
+        return subgraph
 
     def _build_reviewfix_subgraph(self) -> Any:
         """
@@ -320,11 +315,13 @@ class WorkflowV6:
         # Phase 4: Architect
         architect_subgraph = self._build_architect_subgraph()
 
-        # Phase 5-6: Codesmith, ReviewFix (TODO)
-        # codesmith_subgraph = self._build_codesmith_subgraph()
+        # Phase 5: Codesmith
+        codesmith_subgraph = self._build_codesmith_subgraph()
+
+        # Phase 6: ReviewFix (TODO)
         # reviewfix_subgraph = self._build_reviewfix_subgraph()
 
-        logger.debug("Research + Architect subgraphs built (Phase 3-4)")
+        logger.debug("Research + Architect + Codesmith subgraphs built (Phase 3-5)")
 
         # Supervisor node
         def supervisor_node(state: SupervisorState) -> SupervisorState:
@@ -372,23 +369,32 @@ class WorkflowV6:
             architect_output = architect_subgraph.invoke(architect_input)
             return architect_to_supervisor(architect_output)
 
-        # Phase 3-4: Add research + architect nodes
+        # Codesmith node with state transformation
+        def codesmith_node_wrapper(state: SupervisorState) -> dict[str, Any]:
+            """Transform SupervisorState → CodesmithState → call subgraph → transform back"""
+            logger.debug("⚙️ Codesmith node (with state transformation)")
+            codesmith_input = supervisor_to_codesmith(state)
+            codesmith_output = codesmith_subgraph.invoke(codesmith_input)
+            return codesmith_to_supervisor(codesmith_output)
+
+        # Phase 3-5: Add research + architect + codesmith nodes
         graph.add_node("research", research_node_wrapper)
         graph.add_node("architect", architect_node_wrapper)
+        graph.add_node("codesmith", codesmith_node_wrapper)
 
-        # Phase 5-6: Codesmith/ReviewFix nodes (TODO)
-        # Will be added when those subgraphs are implemented
+        # Phase 6: ReviewFix node (TODO)
+        # Will be added when subgraph is implemented
 
         # Declarative routing (NOT imperative!)
         graph.set_entry_point("supervisor")
 
-        # Phase 4: Test Research → Architect flow
+        # Phase 5: Test Research → Architect → Codesmith flow
         graph.add_edge("supervisor", "research")
         graph.add_edge("research", "architect")
-        graph.add_edge("architect", END)
+        graph.add_edge("architect", "codesmith")
+        graph.add_edge("codesmith", END)
 
-        # Phase 7: Full routing (TODO - add codesmith + reviewfix)
-        # graph.add_edge("architect", "codesmith")
+        # Phase 6-7: Full routing (TODO - add reviewfix)
         # graph.add_edge("codesmith", "reviewfix")
         # graph.add_edge("reviewfix", END)
 
