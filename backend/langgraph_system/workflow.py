@@ -1318,24 +1318,7 @@ class AgentWorkflow:
                 state["approval_status"] = "approved"
                 state["approval_type"] = "none"
                 state["status"] = "executing"
-
-                # v5.9.0 FIX: Set first pending step to in_progress after approval
-                # This fixes infinite loop where codesmith expects in_progress step
-                first_pending = next(
-                    (s for s in state["execution_plan"]
-                     if s.status == "pending" and self._dependencies_met(s, state["execution_plan"])),
-                    None,
-                )
-                if first_pending:
-                    state.update(
-                        update_step_status(state, first_pending.id, "in_progress")
-                    )
-                    logger.info(
-                        f"✅ Set step {first_pending.id} ({first_pending.agent}) to in_progress after approval"
-                    )
-                else:
-                    logger.warning("⚠️ No pending step found after approval")
-
+                # v5.9.0: Agent nodes will auto-promote pending steps to in_progress
                 return state
 
             elif proposal_status == "rejected":
@@ -1572,6 +1555,29 @@ class AgentWorkflow:
                 )
                 logger.info(f"✅ Research completed: {research_result[:200]}...")
 
+                # v5.9.0: Save research results to file
+                workspace_path = state.get("workspace_path", os.getcwd())
+                research_dir = os.path.join(workspace_path, ".ki_autoagent_ws", "research")
+                os.makedirs(research_dir, exist_ok=True)
+
+                # Create filename with timestamp and task
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                # Extract task name for filename (sanitize)
+                task_name = research_step.task[:50].replace(" ", "_").replace("/", "_")
+                import re
+                task_name = re.sub(r'[^\w\-_]', '', task_name)
+                research_file = os.path.join(research_dir, f"research_{timestamp}_{task_name}.md")
+
+                # Save as Markdown
+                with open(research_file, "w", encoding="utf-8") as f:
+                    f.write(f"# Research Results\n\n")
+                    f.write(f"**Task:** {research_step.task}\n\n")
+                    f.write(f"**Timestamp:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                    f.write(f"---\n\n")
+                    f.write(research_result)
+                logger.info(f"💾 Research results saved to: {research_file}")
+
                 # Step 2: Call Architect with research results
                 logger.info(
                     "🏗️ Step 2: Architect analyzing requirements with research insights..."
@@ -1606,6 +1612,22 @@ class AgentWorkflow:
                 state["proposal_status"] = "pending"
                 state["needs_approval"] = True
                 state["approval_type"] = "architecture_proposal"
+
+                # v5.9.0: Save architecture proposal to file
+                workspace_path = state.get("workspace_path", os.getcwd())
+                architecture_dir = os.path.join(workspace_path, ".ki_autoagent_ws", "architecture")
+                os.makedirs(architecture_dir, exist_ok=True)
+
+                # Create filename with timestamp
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                proposal_file = os.path.join(architecture_dir, f"proposal_{timestamp}.json")
+
+                # Save as JSON
+                import json
+                with open(proposal_file, "w", encoding="utf-8") as f:
+                    json.dump(proposal, f, indent=2, ensure_ascii=False)
+                logger.info(f"💾 Architecture proposal saved to: {proposal_file}")
 
                 # Step 3: Format for user
                 formatted_msg = self._format_proposal_for_user(proposal)
@@ -1753,8 +1775,27 @@ class AgentWorkflow:
             None,
         )
         if not current_step:
-            logger.error("❌ No in_progress codesmith step found!")
-            return state
+            # v5.9.0 FIX: If no in_progress step, find pending step and set it to in_progress
+            logger.warning("⚠️ No in_progress codesmith step found - looking for pending step")
+            pending_step = next(
+                (
+                    s
+                    for s in state["execution_plan"]
+                    if s.agent == "codesmith" and s.status == "pending" and self._dependencies_met(s, state["execution_plan"])
+                ),
+                None,
+            )
+            if pending_step:
+                logger.info(f"✅ Found pending codesmith step {pending_step.id}, setting to in_progress")
+                state.update(
+                    update_step_status(state, pending_step.id, "in_progress")
+                )
+                current_step = next(
+                    s for s in state["execution_plan"] if s.id == pending_step.id
+                )
+            else:
+                logger.error("❌ No in_progress OR pending codesmith step found!")
+                return state
 
         logger.info(f"💻 Executing step {current_step.id}: {current_step.task[:100]}...")
 
@@ -2141,6 +2182,27 @@ class AgentWorkflow:
                 research_result = result.content
 
                 logger.info(f"✅ Research completed: {len(research_result)} characters")
+
+                # v5.9.0: Save research results to file (from research_node)
+                workspace_path = state.get("workspace_path", os.getcwd())
+                research_dir = os.path.join(workspace_path, ".ki_autoagent_ws", "research")
+                os.makedirs(research_dir, exist_ok=True)
+
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                task_name = research_query[:50].replace(" ", "_").replace("/", "_")
+                import re
+                task_name = re.sub(r'[^\w\-_]', '', task_name)
+                research_file = os.path.join(research_dir, f"research_{timestamp}_{task_name}.md")
+
+                with open(research_file, "w", encoding="utf-8") as f:
+                    f.write(f"# Research Results\n\n")
+                    f.write(f"**Query:** {research_query}\n\n")
+                    f.write(f"**Timestamp:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                    f.write(f"---\n\n")
+                    f.write(research_result)
+                logger.info(f"💾 Research results saved to: {research_file}")
+
             else:
                 # Fallback if research not available
                 logger.warning("⚠️ ResearchAgent not available - using placeholder")
