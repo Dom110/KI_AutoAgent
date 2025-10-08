@@ -321,13 +321,16 @@ class WorkflowV6:
         """
         logger.debug("Building SupervisorGraph...")
 
-        # Build subgraphs
+        # Build subgraphs (Phase-by-phase - only build what we use!)
+        # Phase 3: Research only
         research_subgraph = self._build_research_subgraph()
-        architect_subgraph = self._build_architect_subgraph()
-        codesmith_subgraph = self._build_codesmith_subgraph()
-        reviewfix_subgraph = self._build_reviewfix_subgraph()
 
-        logger.debug("All subgraphs built")
+        # Phase 4+: Architect, Codesmith, ReviewFix (TODO)
+        # architect_subgraph = self._build_architect_subgraph()
+        # codesmith_subgraph = self._build_codesmith_subgraph()
+        # reviewfix_subgraph = self._build_reviewfix_subgraph()
+
+        logger.debug("Research subgraph built (Phase 3)")
 
         # Supervisor node
         def supervisor_node(state: SupervisorState) -> SupervisorState:
