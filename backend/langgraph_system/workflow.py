@@ -1886,8 +1886,27 @@ class AgentWorkflow:
             None,
         )
         if not current_step:
-            logger.error("❌ No in_progress reviewer step found!")
-            return state
+            # v5.9.0 FIX: If no in_progress step, find pending step and set it to in_progress
+            logger.warning("⚠️ No in_progress reviewer step found - looking for pending step")
+            pending_step = next(
+                (
+                    s
+                    for s in state["execution_plan"]
+                    if s.agent == "reviewer" and s.status == "pending" and self._dependencies_met(s, state["execution_plan"])
+                ),
+                None,
+            )
+            if pending_step:
+                logger.info(f"✅ Found pending reviewer step {pending_step.id}, setting to in_progress")
+                state.update(
+                    update_step_status(state, pending_step.id, "in_progress")
+                )
+                current_step = next(
+                    s for s in state["execution_plan"] if s.id == pending_step.id
+                )
+            else:
+                logger.error("❌ No in_progress OR pending reviewer step found!")
+                return state
 
         logger.info(f"🔎 Executing step {current_step.id}: {current_step.task[:100]}...")
 
@@ -2017,8 +2036,27 @@ class AgentWorkflow:
             None,
         )
         if not current_step:
-            logger.error("❌ No in_progress fixer step found!")
-            return state
+            # v5.9.0 FIX: If no in_progress step, find pending step and set it to in_progress
+            logger.warning("⚠️ No in_progress fixer step found - looking for pending step")
+            pending_step = next(
+                (
+                    s
+                    for s in state["execution_plan"]
+                    if s.agent == "fixer" and s.status == "pending" and self._dependencies_met(s, state["execution_plan"])
+                ),
+                None,
+            )
+            if pending_step:
+                logger.info(f"✅ Found pending fixer step {pending_step.id}, setting to in_progress")
+                state.update(
+                    update_step_status(state, pending_step.id, "in_progress")
+                )
+                current_step = next(
+                    s for s in state["execution_plan"] if s.id == pending_step.id
+                )
+            else:
+                logger.error("❌ No in_progress OR pending fixer step found!")
+                return state
 
         logger.info(f"🔧 Executing step {current_step.id}: {current_step.task[:100]}...")
 
