@@ -181,20 +181,21 @@ class WorkflowV6:
 
     def _build_research_subgraph(self) -> Any:
         """
-        Build Research subgraph using create_react_agent().
+        Build Research subgraph with custom implementation (v6.1).
 
-        This is LANGGRAPH BEST PRACTICE - use prebuilt agents where possible.
+        v6.1: Uses direct LLM calls instead of create_react_agent
+        for compatibility with Claude CLI adapter.
 
         Agent: Research Agent
         Model: Claude Sonnet 4 (with Perplexity tool)
-        Implementation: create_react_agent() - Phase 3 ✅
+        Implementation: Custom node (v6.1) ✅
 
         Returns:
             Compiled research agent
         """
-        from subgraphs.research_subgraph_v6 import create_research_subgraph
+        from subgraphs.research_subgraph_v6_1 import create_research_subgraph
 
-        logger.debug("Building Research subgraph with create_react_agent...")
+        logger.debug("Building Research subgraph v6.1 (custom node)...")
 
         # Pass workspace_path and memory to research subgraph
         subgraph = create_research_subgraph(
@@ -202,7 +203,7 @@ class WorkflowV6:
             memory=self.memory
         )
 
-        logger.debug("✅ Research subgraph built")
+        logger.debug("✅ Research subgraph v6.1 built")
 
         return subgraph
 
@@ -233,18 +234,21 @@ class WorkflowV6:
 
     def _build_codesmith_subgraph(self) -> Any:
         """
-        Build Codesmith subgraph using create_react_agent().
+        Build Codesmith subgraph with custom implementation (v6.1).
+
+        v6.1: Uses direct LLM calls instead of create_react_agent
+        for compatibility with Claude CLI adapter.
 
         Agent: Codesmith Agent
         Model: Claude Sonnet 4
-        Implementation: create_react_agent() with file tools - Phase 5 ✅
+        Implementation: Custom node with file tools (v6.1) ✅
 
         Returns:
             Compiled codesmith agent
         """
-        from subgraphs.codesmith_subgraph_v6 import create_codesmith_subgraph
+        from subgraphs.codesmith_subgraph_v6_1 import create_codesmith_subgraph
 
-        logger.debug("Building Codesmith subgraph (create_react_agent with file tools)...")
+        logger.debug("Building Codesmith subgraph v6.1 (custom node with file tools)...")
 
         # Pass workspace_path and memory to codesmith subgraph
         subgraph = create_codesmith_subgraph(
@@ -252,24 +256,27 @@ class WorkflowV6:
             memory=self.memory
         )
 
-        logger.debug("✅ Codesmith subgraph built")
+        logger.debug("✅ Codesmith subgraph v6.1 built")
 
         return subgraph
 
     def _build_reviewfix_subgraph(self) -> Any:
         """
-        Build ReviewFix loop subgraph.
+        Build ReviewFix loop subgraph with custom Fixer (v6.1).
+
+        v6.1: Fixer uses direct LLM calls instead of create_react_agent
+        for compatibility with Claude CLI adapter.
 
         Agents: Reviewer + Fixer
         Models: GPT-4o-mini (Reviewer), Claude Sonnet 4 (Fixer)
-        Implementation: Custom loop with conditional routing - Phase 6 ✅
+        Implementation: Custom loop with conditional routing (v6.1) ✅
 
         Returns:
             Compiled reviewfix loop subgraph
         """
-        from subgraphs.reviewfix_subgraph_v6 import create_reviewfix_subgraph
+        from subgraphs.reviewfix_subgraph_v6_1 import create_reviewfix_subgraph
 
-        logger.debug("Building ReviewFix subgraph (custom loop)...")
+        logger.debug("Building ReviewFix subgraph v6.1 (custom Fixer node)...")
 
         # Pass workspace_path and memory to reviewfix subgraph
         subgraph = create_reviewfix_subgraph(
@@ -277,7 +284,7 @@ class WorkflowV6:
             memory=self.memory
         )
 
-        logger.debug("✅ ReviewFix subgraph built")
+        logger.debug("✅ ReviewFix subgraph v6.1 built")
 
         return subgraph
 

@@ -36,7 +36,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+import pytest
 
+
+@pytest.mark.asyncio
 async def test_full_workflow_with_cli():
     """
     Test complete workflow execution using Claude CLI.
