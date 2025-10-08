@@ -56,6 +56,7 @@ from state_v6 import (
     supervisor_to_research,
     supervisor_to_reviewfix,
 )
+from memory.memory_system_v6 import MemorySystem
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -85,6 +86,7 @@ class WorkflowV6:
         """
         self.workspace_path = workspace_path
         self.checkpointer: AsyncSqliteSaver | None = None
+        self.memory: MemorySystem | None = None
         self.workflow: Any | None = None
 
         logger.info(f"WorkflowV6 initialized for workspace: {workspace_path}")
@@ -99,9 +101,10 @@ class WorkflowV6:
 
         Steps:
         1. Setup AsyncSqliteSaver (persistent checkpointing)
-        2. Build all subgraphs
-        3. Build supervisor graph
-        4. Compile workflow with checkpointer
+        2. Setup Memory System (FAISS + SQLite)
+        3. Build all subgraphs
+        4. Build supervisor graph
+        5. Compile workflow with checkpointer
         """
         logger.info("Initializing WorkflowV6...")
 
@@ -109,7 +112,11 @@ class WorkflowV6:
         self.checkpointer = await self._setup_checkpointer()
         logger.debug(f"Checkpointer initialized: {self.checkpointer is not None}")
 
-        # 2. Build workflow
+        # 2. Setup Memory System
+        self.memory = await self._setup_memory()
+        logger.debug(f"Memory System initialized: {self.memory is not None}")
+
+        # 3. Build workflow
         self.workflow = self._build_workflow()
         logger.debug(f"Workflow compiled: {self.workflow is not None}")
 
@@ -147,6 +154,32 @@ class WorkflowV6:
 
         return checkpointer
 
+    async def _setup_memory(self) -> MemorySystem:
+        """
+        Setup Memory System for agent communication.
+
+        Returns:
+            Initialized MemorySystem instance
+
+        Storage:
+            $WORKSPACE/.ki_autoagent_ws/cache/memory_v6.db (SQLite metadata)
+            $WORKSPACE/.ki_autoagent_ws/cache/memory_v6.faiss (vector index)
+        """
+        logger.debug("Setting up Memory System...")
+
+        memory_dir = os.path.join(
+            self.workspace_path,
+            ".ki_autoagent_ws/cache"
+        )
+
+        # Memory System will create its own files
+        memory = MemorySystem(workspace_path=memory_dir)
+        await memory.initialize()
+
+        logger.debug(f"Memory System initialized: {memory_dir}")
+
+        return memory
+
     # ========================================================================
     # SUBGRAPH BUILDERS
     # ========================================================================
@@ -158,32 +191,25 @@ class WorkflowV6:
         This is LANGGRAPH BEST PRACTICE - use prebuilt agents where possible.
 
         Agent: Research Agent
-        Model: Perplexity Sonar Huge 128k (TODO: Phase 3)
-        Implementation: create_react_agent()
+        Model: Claude Sonnet 4 (with Perplexity tool)
+        Implementation: create_react_agent() - Phase 3 ✅
 
         Returns:
             Compiled research agent
         """
-        # TODO: Phase 3 - Full implementation
-        # For now: Placeholder that returns empty research
+        from subgraphs.research_subgraph_v6 import create_research_subgraph
 
-        def research_placeholder(state: ResearchState) -> ResearchState:
-            """Placeholder research node."""
-            logger.debug(f"Research placeholder called: {state['query']}")
-            return {
-                **state,
-                "findings": {"status": "Phase 3 TODO"},
-                "sources": [],
-                "report": "# Research Results\n\nTODO: Implement in Phase 3"
-            }
+        logger.debug("Building Research subgraph with create_react_agent...")
 
-        # Build minimal graph
-        graph = StateGraph(ResearchState)
-        graph.add_node("research", research_placeholder)
-        graph.set_entry_point("research")
-        graph.set_finish_point("research")
+        # Pass workspace_path and memory to research subgraph
+        subgraph = create_research_subgraph(
+            workspace_path=self.workspace_path,
+            memory=self.memory
+        )
 
-        return graph.compile()
+        logger.debug("✅ Research subgraph built")
+
+        return subgraph
 
     def _build_architect_subgraph(self) -> Any:
         """
@@ -320,20 +346,62 @@ class WorkflowV6:
         # Add supervisor
         graph.add_node("supervisor", supervisor_node)
 
-        # Add subgraphs (with state transformations in Phase 3+)
-        # For Phase 2: Direct state passing (simplified)
-        graph.add_node("research", research_subgraph)
-        graph.add_node("architect", architect_subgraph)
-        graph.add_node("codesmith", codesmith_subgraph)
-        graph.add_node("reviewfix", reviewfix_subgraph)
+        # Add subgraphs with state transformation wrappers (Phase 3 ✅)
+        # Import state transformations
+        from state_v6 import (
+            supervisor_to_research,
+            research_to_supervisor,
+            supervisor_to_architect,
+            architect_to_supervisor,
+            supervisor_to_codesmith,
+            codesmith_to_supervisor,
+            supervisor_to_reviewfix,
+            reviewfix_to_supervisor
+        )
+
+        # Research node with state transformation
+        def research_node_wrapper(state: SupervisorState) -> dict[str, Any]:
+            """Transform SupervisorState → ResearchState → call subgraph → transform back"""
+            logger.debug("🔍 Research node (with state transformation)")
+            research_input = supervisor_to_research(state)
+            research_output = research_subgraph.invoke(research_input)
+            return research_to_supervisor(research_output)
+
+        # Architect node with state transformation (Phase 4 TODO: implement)
+        def architect_node_wrapper(state: SupervisorState) -> dict[str, Any]:
+            """Transform SupervisorState → ArchitectState → call subgraph → transform back"""
+            logger.debug("🏗️ Architect node (Phase 4 TODO)")
+            return {}  # Placeholder
+
+        # Codesmith node with state transformation (Phase 5 TODO: implement)
+        def codesmith_node_wrapper(state: SupervisorState) -> dict[str, Any]:
+            """Transform SupervisorState → CodesmithState → call subgraph → transform back"""
+            logger.debug("⚙️ Codesmith node (Phase 5 TODO)")
+            return {}  # Placeholder
+
+        # ReviewFix node with state transformation (Phase 6 TODO: implement)
+        def reviewfix_node_wrapper(state: SupervisorState) -> dict[str, Any]:
+            """Transform SupervisorState → ReviewFixState → call subgraph → transform back"""
+            logger.debug("🔬 ReviewFix node (Phase 6 TODO)")
+            return {}  # Placeholder
+
+        graph.add_node("research", research_node_wrapper)
+        graph.add_node("architect", architect_node_wrapper)
+        graph.add_node("codesmith", codesmith_node_wrapper)
+        graph.add_node("reviewfix", reviewfix_node_wrapper)
 
         # Declarative routing (NOT imperative!)
         graph.set_entry_point("supervisor")
+
+        # Phase 3: Test ONLY Research subgraph
         graph.add_edge("supervisor", "research")
-        graph.add_edge("research", "architect")
-        graph.add_edge("architect", "codesmith")
-        graph.add_edge("codesmith", "reviewfix")
-        graph.add_edge("reviewfix", END)
+        graph.add_edge("research", END)
+
+        # Phase 7: Full routing (TODO)
+        # graph.add_edge("research", "architect")
+        # graph.add_edge("architect", "codesmith")
+        # graph.add_edge("codesmith", "reviewfix")
+        # graph.add_edge("reviewfix", END)
 
         logger.debug("Graph edges configured")
 
