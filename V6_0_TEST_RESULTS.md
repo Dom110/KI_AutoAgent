@@ -458,16 +458,54 @@ Manual smoke tests passed, unit tests deferred to Phase 2.1
 
 ## Phase 8: Integration & Testing
 
-**Status:** Not started
+**Date:** 2025-10-08
+**Duration:** 45 minutes
+**Status:** ⚠️ Partial (structure tests pass, full execution needs API keys)
 
-**Planned Tests:**
-- [ ] test_e2e_simple_workflow.py (Calculator app)
-- [ ] test_e2e_complex_workflow.py (API with DB)
-- [ ] test_e2e_error_recovery.py
+### Workflow Execution Tests:
+
+**Test: test_phase_8_workflow_execution.py**
+```bash
+./venv/bin/python backend/tests/test_phase_8_workflow_execution.py
+```
+- ✅ Workflow structure validated: PASS
+- ✅ Checkpointing working: PASS (SQLite databases created)
+- ✅ Memory System working: PASS (metadata.db created, FAISS lazy init)
+- ⚠️ Full execution skipped: Missing ANTHROPIC_API_KEY
+
+**Tests Passed:** 3/3 structure tests ✅
+
+### Key Findings:
+
+1. **API Key Requirements:**
+   - OPENAI_API_KEY: Required for Architect (GPT-4o) + Reviewer (GPT-4o-mini)
+   - ANTHROPIC_API_KEY: Required for Research, Codesmith, Fixer (Claude Sonnet 4)
+   - PERPLEXITY_API_KEY: Optional (Research tool, has Claude fallback)
+
+2. **Bug Fixed:**
+   - Memory System workspace path corrected
+   - Was passing `.ki_autoagent_ws/cache` instead of workspace root
+   - Now correctly creates `.ki_autoagent_ws/memory/` subdirectory
+
+3. **Storage Locations Validated:**
+   - Checkpointer: `$WORKSPACE/.ki_autoagent_ws/cache/workflow_checkpoints_v6.db` ✅
+   - Memory DB: `$WORKSPACE/.ki_autoagent_ws/memory/metadata.db` ✅
+   - FAISS Index: `$WORKSPACE/.ki_autoagent_ws/memory/vectors.faiss` (lazy init)
+
+### Notes:
+
+- **Phase 8 Structure Complete:** All initialization and infrastructure tests pass ✅
+- **Full Execution Blocked:** Requires ANTHROPIC_API_KEY in .env
+- **Ready for E2E:** Once API key added, full workflow can be tested
+- **Pattern:** Test properly detects missing keys and provides helpful guidance
+
+**Pending Tests:**
+- [ ] test_e2e_simple_workflow.py (requires ANTHROPIC_API_KEY)
+- [ ] test_e2e_complex_workflow.py (requires API keys)
+- [ ] test_error_recovery.py
 - [ ] test_feature_memory.py (all agents)
 - [ ] test_feature_asimov.py (all agents)
 - [ ] test_feature_learning.py (all agents)
-- [ ] test_feature_tree_sitter.py (relevant agents)
 - [ ] test_performance.py
 
 ---

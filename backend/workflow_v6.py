@@ -162,21 +162,16 @@ class WorkflowV6:
             Initialized MemorySystem instance
 
         Storage:
-            $WORKSPACE/.ki_autoagent_ws/cache/memory_v6.db (SQLite metadata)
-            $WORKSPACE/.ki_autoagent_ws/cache/memory_v6.faiss (vector index)
+            $WORKSPACE/.ki_autoagent_ws/memory/metadata.db (SQLite metadata)
+            $WORKSPACE/.ki_autoagent_ws/memory/vectors.faiss (FAISS index)
         """
         logger.debug("Setting up Memory System...")
 
-        memory_dir = os.path.join(
-            self.workspace_path,
-            ".ki_autoagent_ws/cache"
-        )
-
-        # Memory System will create its own files
-        memory = MemorySystem(workspace_path=memory_dir)
+        # Memory System expects workspace root, creates its own subdirectories
+        memory = MemorySystem(workspace_path=self.workspace_path)
         await memory.initialize()
 
-        logger.debug(f"Memory System initialized: {memory_dir}")
+        logger.debug(f"Memory System initialized for workspace: {self.workspace_path}")
 
         return memory
 
