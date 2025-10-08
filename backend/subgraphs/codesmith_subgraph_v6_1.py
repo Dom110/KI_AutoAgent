@@ -62,11 +62,12 @@ def create_codesmith_subgraph(
         4. Store implementation in Memory
         5. Return results
         """
-        logger.info(f"⚙️ Codesmith node v6.1 executing: {state['design'][:60]}...")
+        design_preview = str(state.get('design', ''))[:60] if state.get('design') else 'No design'
+        logger.info(f"⚙️ Codesmith node v6.1 executing: {design_preview}...")
 
         try:
             # Step 1: Read from Memory (design + research)
-            design_content = state.get('design', '')
+            design_content = str(state.get('design', ''))
             context_from_memory = ""
 
             if memory:

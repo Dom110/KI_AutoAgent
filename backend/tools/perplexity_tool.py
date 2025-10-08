@@ -83,6 +83,8 @@ async def _fallback_search(query: str) -> dict[str, Any]:
         max_tokens=2048
     )
 
+    from langchain_core.messages import HumanMessage
+
     prompt = f"""You are a research assistant. Answer this query based on your knowledge:
 
 Query: {query}
@@ -95,7 +97,7 @@ Provide:
 Format your response as structured information."""
 
     try:
-        response = await llm.ainvoke(prompt)
+        response = await llm.ainvoke([HumanMessage(content=prompt)])
         answer = response.content if hasattr(response, 'content') else str(response)
 
         logger.info(f"✅ Claude fallback response: {answer[:100]}...")

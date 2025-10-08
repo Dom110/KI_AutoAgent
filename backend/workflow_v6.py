@@ -357,36 +357,36 @@ class WorkflowV6:
             reviewfix_to_supervisor
         )
 
-        # Research node with state transformation
-        def research_node_wrapper(state: SupervisorState) -> dict[str, Any]:
+        # Research node with state transformation (v6.1: async)
+        async def research_node_wrapper(state: SupervisorState) -> dict[str, Any]:
             """Transform SupervisorState → ResearchState → call subgraph → transform back"""
             logger.debug("🔍 Research node (with state transformation)")
             research_input = supervisor_to_research(state)
-            research_output = research_subgraph.invoke(research_input)
+            research_output = await research_subgraph.ainvoke(research_input)
             return research_to_supervisor(research_output)
 
-        # Architect node with state transformation
-        def architect_node_wrapper(state: SupervisorState) -> dict[str, Any]:
+        # Architect node with state transformation (v6.1: async)
+        async def architect_node_wrapper(state: SupervisorState) -> dict[str, Any]:
             """Transform SupervisorState → ArchitectState → call subgraph → transform back"""
             logger.debug("🏗️ Architect node (with state transformation)")
             architect_input = supervisor_to_architect(state)
-            architect_output = architect_subgraph.invoke(architect_input)
+            architect_output = await architect_subgraph.ainvoke(architect_input)
             return architect_to_supervisor(architect_output)
 
-        # Codesmith node with state transformation
-        def codesmith_node_wrapper(state: SupervisorState) -> dict[str, Any]:
+        # Codesmith node with state transformation (v6.1: async)
+        async def codesmith_node_wrapper(state: SupervisorState) -> dict[str, Any]:
             """Transform SupervisorState → CodesmithState → call subgraph → transform back"""
             logger.debug("⚙️ Codesmith node (with state transformation)")
             codesmith_input = supervisor_to_codesmith(state)
-            codesmith_output = codesmith_subgraph.invoke(codesmith_input)
+            codesmith_output = await codesmith_subgraph.ainvoke(codesmith_input)
             return codesmith_to_supervisor(codesmith_output)
 
-        # ReviewFix node with state transformation
-        def reviewfix_node_wrapper(state: SupervisorState) -> dict[str, Any]:
+        # ReviewFix node with state transformation (v6.1: async)
+        async def reviewfix_node_wrapper(state: SupervisorState) -> dict[str, Any]:
             """Transform SupervisorState → ReviewFixState → call subgraph → transform back"""
             logger.debug("🔬 ReviewFix node (with state transformation)")
             reviewfix_input = supervisor_to_reviewfix(state)
-            reviewfix_output = reviewfix_subgraph.invoke(reviewfix_input)
+            reviewfix_output = await reviewfix_subgraph.ainvoke(reviewfix_input)
             return reviewfix_to_supervisor(reviewfix_output)
 
         # Phase 3-6: Add research + architect + codesmith + reviewfix nodes
