@@ -20,7 +20,124 @@
 
 ## 📌 Medium Priority Issues
 
-**None yet**
+### Issue #2: State Transformations Missing
+**Category:** Feature / In Progress
+**Severity:** Medium
+**Status:** Expected for Phase 2
+**Phase:** Phase 2 (detected), Phase 3 (will fix)
+**Date:** 2025-10-08
+
+**Description:**
+workflow_v6.py does not implement state transformations between SupervisorState and subgraph states (ResearchState, ArchitectState, etc.)
+
+**Expected Behavior:**
+When SupervisorGraph invokes Research subgraph, state should be transformed:
+- SupervisorState → ResearchState (via `supervisor_to_research()`)
+- ResearchState → SupervisorState (via `research_to_supervisor()`)
+
+**Actual Behavior:**
+Research subgraph receives SupervisorState directly, causing:
+```
+KeyError: 'query'  # ResearchState expects 'query', gets SupervisorState with 'user_query'
+```
+
+**Steps to Reproduce:**
+```bash
+./venv/bin/python backend/workflow_v6.py
+# Workflow starts, then crashes with KeyError
+```
+
+**Fix:**
+Phase 3 will add state transformations in graph compilation:
+```python
+# Add input/output transformations to subgraph nodes
+graph.add_node(
+    "research",
+    research_subgraph,
+    input=supervisor_to_research,
+    output=research_to_supervisor
+)
+```
+
+**Related:**
+- backend/state_v6.py (transformations defined but not used)
+- V6_0_MIGRATION_PLAN.md Phase 3
+
+---
+
+### Issue #3: Pytest Async Fixtures Not Working
+**Category:** Bug
+**Severity:** Medium
+**Status:** New
+**Phase:** Phase 2
+**Date:** 2025-10-08
+
+**Description:**
+Unit tests in test_workflow_v6_checkpoint.py have async fixture problems
+
+**Expected Behavior:**
+```python
+@pytest.fixture
+async def workflow(temp_workspace):
+    wf = WorkflowV6(workspace_path=temp_workspace)
+    await wf.initialize()
+    yield wf
+    await wf.cleanup()
+```
+Should provide initialized workflow to tests.
+
+**Actual Behavior:**
+```
+AttributeError: 'async_generator' object has no attribute 'run'
+```
+
+**Fix:**
+Need to use pytest-asyncio correctly:
+```python
+@pytest_asyncio.fixture
+async def workflow(temp_workspace):
+    # ...
+```
+
+**Workaround:**
+Use manual smoke tests instead:
+```bash
+./venv/bin/python backend/workflow_v6.py
+```
+
+**Related:**
+- backend/tests/unit/test_workflow_v6_checkpoint.py
+- backend/tests/unit/test_memory_v6_basic.py
+
+---
+
+### Issue #4: Memory System Not Tested
+**Category:** Testing
+**Severity:** Medium
+**Status:** New
+**Phase:** Phase 2
+**Date:** 2025-10-08
+
+**Description:**
+memory_system_v6.py code written but not tested yet
+
+**Impact:**
+- Unknown if FAISS integration works
+- Unknown if OpenAI embeddings work
+- Unknown if SQLite metadata storage works
+
+**Expected Behavior:**
+Run memory system smoke test and unit tests
+
+**Fix Required:**
+Phase 2.1 will:
+1. Fix pytest fixtures
+2. Run unit tests
+3. Run smoke test with dummy embeddings
+
+**Related:**
+- backend/memory/memory_system_v6.py
+- backend/tests/unit/test_memory_v6_basic.py
 
 ---
 

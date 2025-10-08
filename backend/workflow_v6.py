@@ -37,7 +37,7 @@ from typing import Any
 import aiosqlite
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.aiosqlite import AsyncSqliteSaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import create_react_agent
 
