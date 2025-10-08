@@ -674,8 +674,15 @@ CRITICAL RULES:
                 await self._send_progress(
                     client_id, "📝 Generating architecture proposal...", manager
                 )
+
+                # v5.9.0: Check if JSON output requested in prompt
+                output_format = "markdown"  # default
+                if "Return ONLY valid JSON" in request.prompt or "json format" in request.prompt.lower():
+                    output_format = "json"
+                    logger.info("📋 JSON output format requested via prompt")
+
                 documentation = await self.generate_documentation_with_research(
-                    design, research_insights, task_classification
+                    design, research_insights, task_classification, output_format
                 )
 
                 execution_time = (datetime.now() - start_time).total_seconds()
@@ -1224,11 +1231,27 @@ CRITICAL RULES:
 
         return "\n".join(doc)
 
+    def _get_structure_description(
+        self, task_classification: dict[str, Any], design: ArchitectureDesign
+    ) -> str:
+        """Helper to generate structure description for JSON output"""
+        file_structure = task_classification.get("file_structure", "modular")
+
+        if file_structure == "single_file":
+            return f"{design.project_name.lower().replace(' ', '_')}.html - All HTML, CSS, and JavaScript in one file"
+        elif file_structure == "modular":
+            return "index.html (main HTML)\\nstyles.css (styling)\\nscript.js (logic)"
+        elif file_structure == "fullstack":
+            return "frontend/ (UI)\\nbackend/ (API)\\ndatabase/ (persistence)"
+        else:
+            return "Standard modular structure with separated concerns"
+
     async def generate_documentation_with_research(
         self,
         design: ArchitectureDesign,
         research_insights: str | None,
         task_classification: dict[str, Any],
+        output_format: str = "markdown",
     ) -> str:
         """
         Generate enhanced architecture documentation with research insights
@@ -1236,14 +1259,47 @@ CRITICAL RULES:
         v5.8.7: Includes research findings and task classification context
         to provide more informed architecture proposals
 
+        v5.9.0: Added output_format parameter to support JSON output for workflow proposals
+
         Args:
             design: Architecture design specification
             research_insights: Research findings (can be None)
             task_classification: Task complexity classification
+            output_format: "markdown" (default, human-readable) or "json" (for workflow parsing)
 
         Returns:
             Enhanced documentation string with research context
         """
+        # v5.9.0: If JSON format requested, return structured JSON
+        if output_format == "json":
+            import json
+
+            # Extract tech stack
+            suggested_stack = task_classification.get(
+                "suggested_stack", design.technologies
+            )
+
+            # Build structured proposal
+            proposal = {
+                "summary": f"Architecture proposal for {design.project_name}. "
+                           f"Complexity: {task_classification['complexity']}. "
+                           f"Type: {task_classification['type']}. "
+                           f"Architecture: {design.architecture_type}. "
+                           f"Reasoning: {task_classification.get('reasoning', 'N/A')}",
+                "improvements": "\n".join([
+                    "- Modern best practices applied",
+                    f"- {task_classification['complexity'].title()} complexity architecture",
+                    f"- {design.architecture_type} architecture pattern"
+                ]),
+                "tech_stack": "\n".join([f"- {tech}" for tech in suggested_stack]),
+                "structure": self._get_structure_description(task_classification, design),
+                "risks": "\n".join([f"- {risk}" for risk in getattr(design, 'risks', [])]) if getattr(design, 'risks', None) else "No significant risks identified",  # v5.9.0: Handle missing risks attribute
+                "research_insights": research_insights[:500] if research_insights else "Architecture based on best practices"
+            }
+
+            return json.dumps(proposal, indent=2)
+
+        # Original markdown format
         doc = []
         doc.append("# 🏗️ Architecture Proposal\n")
         doc.append(f"## Project: {design.project_name}\n")

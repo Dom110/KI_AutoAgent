@@ -211,7 +211,7 @@ Ich bin hier, um zu helfen! 🤝""",
         match query_lower:
             case s if any(word in s for word in ["was", "what", "wie", "how", "warum", "why"]):
                 intent = "get_info"
-            case s if any(word in s for word in ["erstelle", "create", "build", "mach", "make"]):
+            case s if any(word in s for word in ["erstelle", "create", "build", "mach", "make", "baue"]):
                 intent = "create"
             case s if any(word in s for word in ["ändere", "modify", "change", "update"]):
                 intent = "modify"

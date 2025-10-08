@@ -818,12 +818,17 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
             logger.warning("⚠️ DEBUG: No execution_plan in approval_input!")
 
         logger.info(f"🔄 Resuming workflow with {decision} decision...")
+        logger.info(f"📋 DEBUG: proposal_status = {approval_input.get('proposal_status')}")
+        logger.info(f"📋 DEBUG: resume_from_approval = {approval_input.get('resume_from_approval')}")
+        logger.info(f"📋 DEBUG: waiting_for_approval = {approval_input.get('waiting_for_approval')}")
 
         try:
             config = {"configurable": {"thread_id": session_id}}
+            logger.info(f"📋 DEBUG: Calling workflow.ainvoke with thread_id={session_id}")
             final_state = await workflow_system.workflow.ainvoke(
                 approval_input, config=config
             )
+            logger.info(f"✅ DEBUG: workflow.ainvoke completed, final_state status: {final_state.get('status')}")
 
             # Update stored state
             workflow_system.active_workflows[session_id] = final_state
@@ -846,10 +851,13 @@ async def handle_chat_message(client_id: str, data: dict, session: dict):
 
             return  # Don't continue with normal chat processing
         except Exception as e:
-            logger.error(f"Error processing chat approval: {e}")
+            import traceback
+            logger.error(f"❌ Error processing chat approval: {e}")
+            logger.error(f"📍 Exception type: {type(e).__name__}")
+            logger.error(f"📍 Traceback:\n{traceback.format_exc()}")
             await manager.send_json(
                 client_id,
-                {"type": "error", "message": f"Error processing approval: {str(e)}"},
+                {"type": "error", "message": f"Error processing approval: {str(e)}\n\nCheck backend logs for details."},
             )
             return
 

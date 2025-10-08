@@ -104,6 +104,7 @@ class AgentConfig:
     max_tokens: int = 4000
     instructions_path: str | None = None
     icon: str = "🤖"
+    old_capabilities: list[AgentCapability] | None = None  # v5.9.0: For capabilities_loader compatibility with slots
 
 
 @dataclass(slots=True)
@@ -399,7 +400,7 @@ class BaseAgent(ABC):
                 ),
                 os.path.join(
                     workspace_path,
-                    ".kiautoagent",
+                    ".ki_autoagent_ws",
                     "instructions",
                     f"{agent_id}-custom.md",
                 ),  # Legacy

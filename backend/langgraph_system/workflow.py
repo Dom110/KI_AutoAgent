@@ -441,15 +441,28 @@ async def execute_agent_with_retry(
     }
 
     # Add framework comparison to content if relevant
+    # v5.9.0: Skip appending framework analysis if content is JSON (would break parsing)
     if comparison_result and isinstance(result.content, str):
-        comparison_text = "\n\n🔄 **Framework Analysis:**\n"
-        for fw, score in comparison_result.items():
-            # v5.9.0: Handle both numeric and string scores
-            if isinstance(score, (int, float)):
-                comparison_text += f"- {fw.upper()}: {score:.2f}/10\n"
-            else:
-                comparison_text += f"- {fw.upper()}: {score}\n"
-        result.content += comparison_text
+        # Check if content is JSON by trying to parse it
+        is_json_content = False
+        try:
+            import json
+            json.loads(result.content)
+            is_json_content = True
+            logger.info("🔍 Content is JSON - skipping framework analysis append to preserve JSON validity")
+        except (json.JSONDecodeError, ValueError):
+            # Not JSON, safe to append
+            pass
+
+        if not is_json_content:
+            comparison_text = "\n\n🔄 **Framework Analysis:**\n"
+            for fw, score in comparison_result.items():
+                # v5.9.0: Handle both numeric and string scores
+                if isinstance(score, (int, float)):
+                    comparison_text += f"- {fw.upper()}: {score:.2f}/10\n"
+                else:
+                    comparison_text += f"- {fw.upper()}: {score}\n"
+            result.content += comparison_text
 
     logger.info(f"✅ {agent_name} executed with all AI systems active")
 
@@ -1305,6 +1318,24 @@ class AgentWorkflow:
                 state["approval_status"] = "approved"
                 state["approval_type"] = "none"
                 state["status"] = "executing"
+
+                # v5.9.0 FIX: Set first pending step to in_progress after approval
+                # This fixes infinite loop where codesmith expects in_progress step
+                first_pending = next(
+                    (s for s in state["execution_plan"]
+                     if s.status == "pending" and self._dependencies_met(s, state["execution_plan"])),
+                    None,
+                )
+                if first_pending:
+                    state.update(
+                        update_step_status(state, first_pending.id, "in_progress")
+                    )
+                    logger.info(
+                        f"✅ Set step {first_pending.id} ({first_pending.agent}) to in_progress after approval"
+                    )
+                else:
+                    logger.warning("⚠️ No pending step found after approval")
+
                 return state
 
             elif proposal_status == "rejected":
@@ -3479,25 +3510,28 @@ Research:
         # ============================================
         # v5.5.2: SAFE ORCHESTRATOR EXECUTION CHECK
         # ============================================
-        if self.safe_executor and self.safe_executor.should_use_safe_execution(
-            task, state
-        ):
-            logger.info("🛡️ Using Safe Orchestrator Executor (v5.5.2)")
-
-            # Create safe execution plan without actual orchestrator call
-            try:
-                safe_plan = await self.safe_executor.create_safe_execution_plan(
-                    task, state
-                )
-                if safe_plan:
-                    logger.info(
-                        f"✅ Created safe execution plan with {len(safe_plan)} steps"
-                    )
-                    return safe_plan
-            except Exception as e:
-                logger.error(
-                    f"Safe executor failed: {e}, falling back to standard routing"
-                )
+        # v5.9.0 DISABLED: SafeOrchestratorExecutor blocks execution plan creation
+        # for legitimate development requests like "baue eine App"
+        # TODO: Fix SafeOrchestratorExecutor logic before re-enabling
+        # if self.safe_executor and self.safe_executor.should_use_safe_execution(
+        #     task, state
+        # ):
+        #     logger.info("🛡️ Using Safe Orchestrator Executor (v5.5.2)")
+        #
+        #     # Create safe execution plan without actual orchestrator call
+        #     try:
+        #         safe_plan = await self.safe_executor.create_safe_execution_plan(
+        #             task, state
+        #         )
+        #         if safe_plan:
+        #             logger.info(
+        #                 f"✅ Created safe execution plan with {len(safe_plan)} steps"
+        #             )
+        #             return safe_plan
+        #     except Exception as e:
+        #         logger.error(
+        #             f"Safe executor failed: {e}, falling back to standard routing"
+        #         )
 
         # ============================================
         # PHASE 2: AI-BASED ROUTING (Fast routing disabled)
@@ -4414,7 +4448,7 @@ Please create an architecture proposal that incorporates these research findings
                 result = await execute_agent_with_retry(
                     agent,
                     task_request,
-                    current_step.agent if hasattr(current_step, "agent") else "unknown",
+                    step.agent if hasattr(step, "agent") else "architect",  # v5.9.0 FIX: use 'step' not undefined 'current_step'
                 )
                 return result.content if hasattr(result, "content") else str(result)
             except Exception as e:
@@ -4598,26 +4632,17 @@ Return ONLY valid JSON with these exact keys."""
                 # We just failed to parse it as JSON, but the content is valid
                 logger.info("💡 Using Architect's markdown response for proposal")
 
+                # v5.9.0 FIX: Use FULL research results and architect content, not just 500 chars
                 # Extract summary from markdown content
-                summary_match = (
-                    content[:500] if content else f"Architecture for: {task}"
-                )
+                summary = content[:500] if content else f"Architecture for: {task}"
 
                 return {
-                    "summary": f"Architecture for: {task}",
+                    "summary": summary,
                     "improvements": "- Research-backed design decisions\n- Simple, appropriate architecture\n- Best practices applied",
-                    "tech_stack": content[:500]
-                    if content
-                    else research_results[:500]
-                    if research_results
-                    else "Modern tech stack",
+                    "tech_stack": content if content else (research_results if research_results else "Modern tech stack"),
                     "structure": "Standard modular architecture",
                     "risks": "Standard implementation risks - will be addressed during development",
-                    "research_insights": content[:500]
-                    if content
-                    else research_results[:500]
-                    if research_results
-                    else "Based on research findings",
+                    "research_insights": research_results if research_results else (content if content else "Based on research findings"),
                 }
 
         # Stub fallback if no real agent
