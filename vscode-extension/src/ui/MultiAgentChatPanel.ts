@@ -183,11 +183,18 @@ export class MultiAgentChatPanel {
         });
 
         this.backendClient.on('thinking', (message: BackendMessage) => {
+            // v5.9.0 FIX: Filter out undefined/empty content before sending
+            const content = message.content || message.message || '';
+            if (!content || content === 'undefined' || content === 'null') {
+                MultiAgentChatPanel.debugChannel.appendLine(`⚠️ Skipping thinking message with undefined content from ${message.agent}`);
+                return;
+            }
+
             MultiAgentChatPanel.debugChannel.appendLine(`💭 Agent thinking: ${message.agent || 'orchestrator'}`);
             this.sendMessage({
                 type: 'agent_thinking',  // Use underscore for v5.0.0
                 agent: message.agent || 'orchestrator',
-                content: message.content || message.message || 'Processing...'
+                content: content
             });
         });
 
@@ -436,29 +443,52 @@ export class MultiAgentChatPanel {
         vscode.window.showInformationMessage('New chat session started');
     }
 
+    // ============================================================================
+    // OBSOLETE v5.9.0: Backend message sending for pause/resume
+    // Reason: Backend doesn't implement pause/resume message handlers yet
+    // Error: "Unknown message type: pause/resume" from backend
+    // Status: Functionality works UI-only, backend integration pending
+    // Decision: Keep UI functionality, skip backend messages until implemented
+    // Marked for: Backend implementation OR removal after v5.9.0 testing
+    // ============================================================================
+
     private async handlePause() {
-        // Send pause signal to backend
+        // OBSOLETE v5.9.0: Backend call commented out - not yet implemented
+        // Original backend call that causes errors:
+        /*
         if (this.backendClient) {
             await this.backendClient.sendMessage({
                 type: 'pause'
             });
         }
+        */
+
+        // UI-only pause functionality (still works)
         this.sendMessage({ type: 'pauseActivated' });
         vscode.window.showInformationMessage('Task paused. You can add instructions or stop.');
     }
 
     private async handleResumeWithInstructions(instructions?: string) {
-        // Send resume signal with optional instructions
+        // OBSOLETE v5.9.0: Backend call commented out - not yet implemented
+        // Original backend call that causes errors:
+        /*
         if (this.backendClient) {
             await this.backendClient.sendMessage({
                 type: 'resume',
                 additionalInstructions: instructions
             });
         }
+        */
+
+        // UI-only resume functionality (still works)
         this.sendMessage({ type: 'resumed' });
         vscode.window.showInformationMessage(instructions ?
             'Resuming with additional instructions' : 'Resuming task');
     }
+
+    // ============================================================================
+    // END OBSOLETE SECTION - Backend pause/resume calls above marked for review
+    // ============================================================================
 
     private async handleStopAndRollback() {
         // Send stop and rollback signal
@@ -606,10 +636,10 @@ export class MultiAgentChatPanel {
                 this._panel.webview.postMessage(message);
             }
         } catch (error) {
-            // Webview is disposed - this is expected if user closed the chat
-            // Backend will continue processing and cache results
-            MultiAgentChatPanel.debugChannel.appendLine(`⚠️ Webview disposed, cannot send message (normal if chat was closed)`);
-            this._isDisposed = true;
+            // v5.9.0 FIX: NEVER mark as disposed here - let dispose() handle it
+            // Race conditions can cause temporary errors that don't mean panel is disposed
+            MultiAgentChatPanel.debugChannel.appendLine(`⚠️ Error sending message (${message.type}): ${error}`);
+            // Don't set _isDisposed = true here!
         }
     }
 
