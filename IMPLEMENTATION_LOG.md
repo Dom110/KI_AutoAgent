@@ -249,4 +249,136 @@ Error: Both inputs must be numbers (int or float)
 4. **Learning System** (Iteration 4)
 5. **Port remaining v5 features** (9 systems)
 
-### Next: Iteration 1 - Tree-sitter Integration
+---
+
+## Iteration 1: Tree-sitter Syntax Validation (2025-10-09)
+
+**Goal:** Integrate Tree-sitter to validate generated code BEFORE writing files
+
+### Implementation
+
+**Integration Point:** Codesmith subgraph, between code generation and file writing
+
+**Changes:**
+1. Import `TreeSitterAnalyzer` in codesmith_subgraph_v6_1.py
+2. Initialize analyzer before file loop
+3. For each parsed file:
+   - Detect language from file extension
+   - Call `validate_syntax(code, language)`
+   - If INVALID: Skip file, log error
+   - If VALID: Write file, mark as validated
+
+**Code:**
+```python
+# Initialize Tree-sitter
+tree_sitter = TreeSitterAnalyzer()
+
+for line in lines:
+    if line.startswith('FILE:'):
+        if current_file and current_code:
+            file_content = '\n'.join(current_code).strip()
+            file_path = current_file.strip()
+
+            # Validate BEFORE writing
+            language = tree_sitter.detect_language(file_path)
+
+            if language:
+                logger.info(f"🔍 Validating {file_path} ({language})...")
+                is_valid = tree_sitter.validate_syntax(file_content, language)
+
+                if not is_valid:
+                    logger.error(f"❌ Syntax validation failed")
+                    logger.warning(f"⚠️ Skipping file")
+                    continue  # Don't write!
+
+                logger.info(f"✅ Syntax valid")
+
+            # Write file (only if valid)
+            await write_file.ainvoke(...)
+```
+
+### Test 1: Valid Python Code
+
+**Task:** Generate calculator.py with Calculator class
+
+**Result:**
+```
+INFO:tools.tree_sitter_tools:TreeSitterAnalyzer initialized with 3 languages
+INFO:codesmith:🔍 Validating calculator.py (python)...
+INFO:codesmith:✅ Syntax valid for calculator.py
+INFO:codesmith:✅ Generated 1 files
+```
+
+**Files Created:** calculator.py (3219 bytes)
+
+**Validation:** ✅ Code runs successfully
+```bash
+$ python3 calculator.py
+10 + 5 = 15
+10 - 5 = 5
+10 * 5 = 50
+Division error: Cannot divide by zero
+```
+
+### Test 2: Direct Validation Tests
+
+**Test Invalid Code:**
+```python
+# Missing colons
+class Calculator
+    def add(self, a, b)
+        return a + b
+```
+
+**Result:** ❌ INVALID (EXPECTED!)
+
+**Test Unclosed Parenthesis:**
+```python
+def calculate(x, y):
+    print(result  # Missing closing )
+```
+
+**Result:** ❌ INVALID (EXPECTED!)
+
+**Test Valid Code:**
+```python
+class Calculator:
+    def add(self, a, b):
+        return a + b
+```
+
+**Result:** ✅ VALID
+
+**Conclusion:** ✅ ALL TESTS PASSED
+
+### Performance Impact
+
+**Before Tree-sitter:** 40.1s
+**After Tree-sitter:** 43.7s
+**Overhead:** +3.6s (9% slower)
+
+**Analysis:**
+- Tree-sitter adds minimal overhead
+- Most time spent in LLM calls (Research, Architect, Codesmith, ReviewFix)
+- Validation happens ONCE per file (fast)
+- Worth the cost for quality guarantee!
+
+### Benefits
+
+1. ✅ **Prevents Broken Files:** Invalid syntax files are never written
+2. ✅ **Early Detection:** Catches errors before ReviewFix
+3. ✅ **Multi-Language:** Python, JavaScript, TypeScript supported
+4. ✅ **Graceful Fallback:** Non-code files (.md, .txt) written without validation
+5. ✅ **Metadata Tracking:** Each file marked with `validated: true/false`
+6. ✅ **Clear Logging:** Shows validation status for debugging
+
+### Iteration 1: COMPLETE! ✅
+
+**System Status:**
+- ✅ Tree-sitter validation working
+- ✅ Invalid code rejected
+- ✅ Valid code accepted
+- ✅ Performance acceptable (9% overhead)
+- ✅ All tests passing
+
+### Next: Iteration 2 - Asimov Security Integration
