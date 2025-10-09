@@ -85,6 +85,12 @@ export class ModelSettingsManager {
             const response = await fetch(`http://${this.backendClient.getBackendUrl()}/api/models/descriptions`);
 
             if (!response.ok) {
+                // v6.0.0: Model discovery endpoint not available in integrated server
+                // This is expected - just use defaults silently
+                if (response.status === 404) {
+                    console.log('ℹ️  Model discovery not available in v6 backend (using defaults)');
+                    return;
+                }
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
@@ -114,8 +120,9 @@ export class ModelSettingsManager {
             );
 
         } catch (error) {
-            console.error('Model discovery failed:', error);
-            vscode.window.showWarningMessage(`⚠️ Could not discover AI models: ${error instanceof Error ? error.message : String(error)}\n\nUsing defaults.`);
+            // v6.0.0: Silently use defaults if backend doesn't support model discovery
+            console.log('ℹ️  Model discovery not available (using defaults)');
+            // Don't show warning - this is expected in v6
         }
     }
 
