@@ -112,7 +112,11 @@ def create_codesmith_subgraph(
             llm = ChatAnthropic(
                 model="claude-sonnet-4-20250514",
                 temperature=0.2,
-                max_tokens=8192
+                max_tokens=8192,
+                agent_name="codesmith",
+                agent_description="Expert code generator specializing in clean, maintainable code following best practices",
+                agent_tools=["Read", "Edit", "Bash"],  # NOTE: Write does NOT exist! Use Edit.
+                permission_mode="acceptEdits"
             )
 
             system_prompt = """You are an expert code generator specializing in clean, maintainable code.
@@ -169,6 +173,8 @@ Generate complete, production-ready code files."""
 
             code_output = response.content if hasattr(response, 'content') else str(response)
             logger.info(f"✅ Code generated: {len(code_output)} chars")
+            logger.debug(f"📄 First 500 chars of generated code:\n{code_output[:500]}")
+            logger.debug(f"📄 Last 500 chars of generated code:\n{code_output[-500:]}")
 
             # Step 3: Parse and write files
             logger.info("📝 Writing files to workspace...")

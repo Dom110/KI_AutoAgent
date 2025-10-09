@@ -1,18 +1,20 @@
 """
 Asimov Security Rules for KI AutoAgent v6.0
 
-Enforces the three fundamental Asimov Rules:
+Enforces the four fundamental Asimov Rules:
 1. NO FALLBACKS without documented reason
 2. COMPLETE IMPLEMENTATION (no TODOs, no partial work)
 3. GLOBAL ERROR SEARCH (fix ALL instances, not just one)
+4. HUMAN-IN-THE-LOOP (escalate after 3-5 failed attempts)
 
 These rules are enforced by:
 - File Tools (write_file, edit_file)
 - ReviewFix Agent (ENFORCER role)
 - Codesmith Agent (validation before writing)
+- Workflow System (retry tracking and escalation)
 
 Author: KI AutoAgent Team
-Version: 6.0.0
+Version: 6.0.1
 Python: 3.13+
 """
 
@@ -376,6 +378,102 @@ async def _python_global_search(
 
 
 # ============================================================================
+# ASIMOV RULE 4: HUMAN-IN-THE-LOOP PROTOCOL
+# ============================================================================
+
+class HumanInterventionRequired(Exception):
+    """
+    Exception raised when AI agent needs human guidance.
+
+    This is raised when:
+    - Same operation fails 3+ times
+    - Task takes longer than 15 minutes
+    - Iteration limit (5 attempts) exceeded
+
+    The workflow should catch this and notify the user.
+    """
+    def __init__(self, task_id: str, reason: str, suggestion: str, retry_count: int = 0):
+        self.task_id = task_id
+        self.reason = reason
+        self.suggestion = suggestion
+        self.retry_count = retry_count
+        super().__init__(f"Human intervention required for {task_id}: {reason}")
+
+
+def validate_iteration_limit(context: dict[str, Any]) -> dict[str, Any]:
+    """
+    Check if agent is stuck in retry loop (ASIMOV RULE 4).
+
+    This function should be called BEFORE each retry attempt to check if
+    the agent should escalate to human intervention.
+
+    Args:
+        context: dict with:
+            - retry_count: int (number of retries for this task)
+            - time_spent_minutes: float (time spent on task)
+            - task_id: str (unique task identifier)
+            - last_error: str (optional, last error message)
+
+    Returns:
+        dict with:
+            - valid: bool (False if ERROR level violation)
+            - violations: list[dict] (violation details)
+            - should_ask_human: bool (True if any violations)
+
+    Example:
+        context = {
+            "retry_count": 3,
+            "time_spent_minutes": 12.5,
+            "task_id": "code_generation",
+            "last_error": "Claude CLI syntax error"
+        }
+
+        result = validate_iteration_limit(context)
+        if not result["valid"]:
+            raise HumanInterventionRequired(...)
+    """
+    violations = []
+
+    retry_count = context.get("retry_count", 0)
+    time_spent = context.get("time_spent_minutes", 0)
+    task_id = context.get("task_id", "unknown")
+
+    # Check retry count - WARNING at 3, ERROR at 5
+    if retry_count >= 3:
+        severity = "ERROR" if retry_count >= 5 else "WARNING"
+        violations.append({
+            "rule": "ASIMOV-4",
+            "severity": severity,
+            "type": "iteration_limit",
+            "message": f"Task '{task_id}' retried {retry_count} times",
+            "suggestion": "STOP and ask user for guidance or working example" if severity == "WARNING"
+                         else "MUST stop and escalate to human",
+            "retry_count": retry_count
+        })
+
+    # Check time spent - WARNING at 15 minutes
+    if time_spent > 15:
+        violations.append({
+            "rule": "ASIMOV-4",
+            "severity": "WARNING",
+            "type": "time_limit",
+            "message": f"Spent {time_spent:.1f} minutes on task '{task_id}'",
+            "suggestion": "Consider asking user for guidance to save time",
+            "time_spent_minutes": time_spent
+        })
+
+    # Check for ERROR level violations
+    errors = [v for v in violations if v["severity"] == "ERROR"]
+    is_valid = len(errors) == 0
+
+    return {
+        "valid": is_valid,
+        "violations": violations,
+        "should_ask_human": len(violations) > 0
+    }
+
+
+# ============================================================================
 # MAIN VALIDATOR
 # ============================================================================
 
@@ -469,5 +567,7 @@ __all__ = [
     "check_fallback_violations",
     "check_incomplete_implementation",
     "format_violations_report",
-    "perform_global_error_search"
+    "perform_global_error_search",
+    "validate_iteration_limit",
+    "HumanInterventionRequired"
 ]

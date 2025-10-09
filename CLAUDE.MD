@@ -402,3 +402,149 @@ Ref: #123
 ```
 
 ---
+
+## 🤖 CLAUDE CLI INTEGRATION (v6.0+)
+
+### **CRITICAL: Correct Claude CLI Syntax**
+
+**Model:** `claude-sonnet-4-20250514` (Sonnet 4.5) - Default for all agents
+
+**Valid Tools:** ONLY `["Read", "Edit", "Bash"]`
+- ❌ **"Write" does NOT exist!** Use "Edit" instead
+- ✅ Read - Read files
+- ✅ Edit - Create/modify files
+- ✅ Bash - Execute shell commands
+
+### **Complete CLI Command Template**
+
+```bash
+claude \
+  --model claude-sonnet-4-20250514 \
+  --permission-mode acceptEdits \
+  --allowedTools Read Edit Bash \
+  --agents '{
+    "agent_name": {
+      "description": "Brief description of agent role",
+      "prompt": "System prompt defining agent behavior and instructions",
+      "tools": ["Read","Edit","Bash"]
+    }
+  }' \
+  --output-format stream-json \
+  --verbose \
+  -p "User task/prompt here"
+```
+
+### **Key Parameters**
+
+1. **--permission-mode acceptEdits**
+   - Auto-approves file edits (no manual confirmation needed)
+   - Required for automated code generation
+
+2. **--allowedTools Read Edit Bash**
+   - Global tool whitelist
+   - Space-separated list
+
+3. **--agents '{...}'**
+   - **OBJECT syntax**, not array: `{"name": {...}}`
+   - NOT: `[{"name": "...", ...}]` ❌
+   - Contains: description, prompt, tools
+
+4. **--output-format stream-json**
+   - Returns JSONL (JSON Lines)
+   - Avoids truncation bug in regular JSON (Issue #2904)
+   - Each line is a complete JSON event
+
+5. **--verbose**
+   - **REQUIRED** for stream-json to work properly
+   - Without this, stream-json may timeout
+
+6. **-p "..."**
+   - User prompt/task (separate from agent.prompt)
+   - Agent.prompt = system instructions
+   - -p = user task
+
+### **Python Integration Example**
+
+```python
+from adapters.use_claude_cli import use_claude_cli
+use_claude_cli()
+
+from langchain_anthropic import ChatAnthropic
+
+llm = ChatAnthropic(
+    model="claude-sonnet-4-20250514",
+    temperature=0.2,
+    max_tokens=8192,
+    agent_name="codesmith",
+    agent_description="Expert code generator following best practices",
+    agent_tools=["Read", "Edit", "Bash"],  # NO Write!
+    permission_mode="acceptEdits"
+)
+
+response = await llm.ainvoke([
+    SystemMessage(content="Agent instructions..."),
+    HumanMessage(content="User task...")
+])
+```
+
+### **JSONL Response Format**
+
+Claude CLI returns JSON Lines (one JSON object per line):
+
+```jsonl
+{"type":"system","subtype":"init",...}
+{"type":"assistant","message":{...}}
+{"type":"user","message":{...}}
+{"type":"result","subtype":"success","result":"...",duration_ms:1234,...}
+```
+
+**Last line** contains the final result in `result` field.
+
+### **Common Mistakes**
+
+❌ **Using Write tool**
+```python
+agent_tools=["Read", "Write", "Edit"]  # WRONG! Write doesn't exist
+```
+
+✅ **Correct**
+```python
+agent_tools=["Read", "Edit", "Bash"]  # RIGHT!
+```
+
+❌ **Array syntax for --agents**
+```bash
+--agents '[{"name":"agent",...}]'  # WRONG!
+```
+
+✅ **Object syntax**
+```bash
+--agents '{"agent": {...}}'  # RIGHT!
+```
+
+❌ **Missing --verbose with stream-json**
+```bash
+--output-format stream-json  # WRONG! May timeout
+```
+
+✅ **Include --verbose**
+```bash
+--output-format stream-json --verbose  # RIGHT!
+```
+
+### **File Generation Best Practices**
+
+When generating code, specify exact file paths in prompt:
+
+```bash
+-p "Generate Task Manager app.
+Write files to:
+  src/task.py
+  src/manager.py
+  main.py
+  tests/test_manager.py"
+```
+
+This ensures Claude creates files at exact locations without asking.
+
+---
