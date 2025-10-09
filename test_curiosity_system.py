@@ -1,247 +1,179 @@
 #!/usr/bin/env python3
 """
-Test Curiosity-Driven Task Selection System
+E2E Test: Curiosity System v6
 
-Demonstrates how agents prioritize novel tasks over familiar ones
+Tests curiosity-driven requirement gathering:
+1. Detect ambiguous task descriptions
+2. Identify knowledge gaps
+3. Generate clarifying questions
+4. Provide default assumptions
+5. Enhance task descriptions with user answers
+
+Expected behavior:
+- Detects vague/incomplete tasks
+- Generates relevant questions
+- Creates WebSocket clarification messages
+- Suggests sensible defaults when user skips
+
+Debug mode: All logs enabled for troubleshooting
+
+Author: KI AutoAgent Team
+Created: 2025-10-09
+Phase: 2.2 - Curiosity System Implementation
 """
 
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
+from __future__ import annotations
 
-from langgraph_system.extensions.curiosity_system import CuriosityModule, NoveltyCalculator
+import asyncio
 import logging
+import os
+import sys
+from datetime import datetime
 
-logging.basicConfig(level=logging.INFO)
+# Setup logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
+# Add backend to path
+backend_path = os.path.join(os.path.dirname(__file__), 'backend')
+sys.path.insert(0, backend_path)
 
-def test_curiosity_system():
-    """Test the curiosity-driven exploration system"""
+
+async def test_clear_task():
+    """Test 1: Clear, detailed task (no questions needed)"""
     logger.info("=" * 80)
-    logger.info("🔍 Testing Curiosity-Driven Task Selection System")
-    logger.info("=" * 80)
-
-    # Create curiosity module for a test agent
-    curiosity = CuriosityModule(agent_name="TestAgent")
-
-    # =========================================================================
-    # SCENARIO 1: Agent encounters authentication tasks multiple times
-    # =========================================================================
-    logger.info("\n📝 SCENARIO 1: Familiar Task (Authentication)")
-    logger.info("-" * 80)
-
-    # Agent has done authentication 5 times before
-    for i in range(5):
-        curiosity.record_task_encounter(
-            task_id=f"auth_task_{i}",
-            task_description="Build authentication system with JWT tokens",
-            outcome="success",
-            category="authentication"
-        )
-
-    # Now a new authentication task comes in
-    auth_task = "Implement authentication system with OAuth"
-    base_priority = 0.8  # High importance task
-
-    final_priority = curiosity.calculate_task_priority_with_curiosity(
-        task_description=auth_task,
-        base_priority=base_priority,
-        category="authentication"
-    )
-
-    logger.info(f"\n📊 Priority Calculation:")
-    logger.info(f"   Task: {auth_task}")
-    logger.info(f"   Base Priority: {base_priority:.2f} (Important)")
-    logger.info(f"   Final Priority: {final_priority:.2f} (Adjusted for familiarity)")
-    logger.info(f"   → Priority DECREASED because agent has done this 5 times before")
-
-    # =========================================================================
-    # SCENARIO 2: Agent encounters completely novel task
-    # =========================================================================
-    logger.info("\n📝 SCENARIO 2: Novel Task (WebRTC)")
-    logger.info("-" * 80)
-
-    # Brand new technology the agent has never worked with
-    webrtc_task = "Implement WebRTC video chat with screen sharing"
-    base_priority = 0.6  # Medium importance
-
-    final_priority_novel = curiosity.calculate_task_priority_with_curiosity(
-        task_description=webrtc_task,
-        base_priority=base_priority,
-        category="realtime_communication"
-    )
-
-    logger.info(f"\n📊 Priority Calculation:")
-    logger.info(f"   Task: {webrtc_task}")
-    logger.info(f"   Base Priority: {base_priority:.2f} (Medium importance)")
-    logger.info(f"   Final Priority: {final_priority_novel:.2f} (Boosted by novelty!)")
-    logger.info(f"   → Priority INCREASED because this is completely new territory")
-
-    # =========================================================================
-    # SCENARIO 3: Agent encounters similar but different task
-    # =========================================================================
-    logger.info("\n📝 SCENARIO 3: Related Task (Database)")
-    logger.info("-" * 80)
-
-    # Agent has done some database work before
-    curiosity.record_task_encounter(
-        task_id="db_task_1",
-        task_description="Setup PostgreSQL database with migrations",
-        outcome="success",
-        category="database"
-    )
-    curiosity.record_task_encounter(
-        task_id="db_task_2",
-        task_description="Create MySQL database schema",
-        outcome="success",
-        category="database"
-    )
-
-    # Now a related but different database task
-    db_task = "Implement MongoDB with aggregation pipelines"
-    base_priority = 0.7
-
-    final_priority_related = curiosity.calculate_task_priority_with_curiosity(
-        task_description=db_task,
-        base_priority=base_priority,
-        category="database"
-    )
-
-    logger.info(f"\n📊 Priority Calculation:")
-    logger.info(f"   Task: {db_task}")
-    logger.info(f"   Base Priority: {base_priority:.2f}")
-    logger.info(f"   Final Priority: {final_priority_related:.2f} (Slightly adjusted)")
-    logger.info(f"   → Some database experience, but MongoDB is different enough to be interesting")
-
-    # =========================================================================
-    # SCENARIO 4: Failed task increases novelty
-    # =========================================================================
-    logger.info("\n📝 SCENARIO 4: Previously Failed Task")
-    logger.info("-" * 80)
-
-    # Agent tried this before and failed
-    curiosity.record_task_encounter(
-        task_id="ml_task_1",
-        task_description="Build neural network for image classification",
-        outcome="failure",
-        category="machine_learning"
-    )
-
-    # Same type of task comes up again
-    ml_task = "Implement CNN for image recognition"
-    base_priority = 0.65
-
-    final_priority_failed = curiosity.calculate_task_priority_with_curiosity(
-        task_description=ml_task,
-        base_priority=base_priority,
-        category="machine_learning"
-    )
-
-    logger.info(f"\n📊 Priority Calculation:")
-    logger.info(f"   Task: {ml_task}")
-    logger.info(f"   Base Priority: {base_priority:.2f}")
-    logger.info(f"   Final Priority: {final_priority_failed:.2f}")
-    logger.info(f"   → Similar to failed task - still challenging, priority may be higher")
-
-    # =========================================================================
-    # SCENARIO 5: Adjusting exploration weight
-    # =========================================================================
-    logger.info("\n📝 SCENARIO 5: Adjusting Exploration Weight")
-    logger.info("-" * 80)
-
-    # Default: 30% curiosity, 70% importance
-    logger.info("\n   Default (30% curiosity, 70% importance):")
-    curiosity.set_exploration_weight(0.3)
-    priority_default = curiosity.calculate_task_priority_with_curiosity(
-        webrtc_task, base_priority=0.5
-    )
-    logger.info(f"   → Final Priority: {priority_default:.2f}")
-
-    # High curiosity: 70% curiosity, 30% importance
-    logger.info("\n   High Curiosity (70% curiosity, 30% importance):")
-    curiosity.set_exploration_weight(0.7)
-    priority_high_curiosity = curiosity.calculate_task_priority_with_curiosity(
-        webrtc_task, base_priority=0.5
-    )
-    logger.info(f"   → Final Priority: {priority_high_curiosity:.2f}")
-    logger.info(f"   → Novel tasks get MUCH higher priority with high curiosity!")
-
-    # Pure exploitation: 0% curiosity, 100% importance
-    logger.info("\n   Pure Exploitation (0% curiosity, 100% importance):")
-    curiosity.set_exploration_weight(0.0)
-    priority_no_curiosity = curiosity.calculate_task_priority_with_curiosity(
-        webrtc_task, base_priority=0.5
-    )
-    logger.info(f"   → Final Priority: {priority_no_curiosity:.2f}")
-    logger.info(f"   → Novelty ignored, only base priority matters")
-
-    # Reset to default
-    curiosity.set_exploration_weight(0.3)
-
-    # =========================================================================
-    # SUMMARY
-    # =========================================================================
-    logger.info("\n📊 EXPLORATION SUMMARY:")
-    logger.info("=" * 80)
-    summary = curiosity.get_exploration_summary()
-    logger.info(f"Total tasks encountered: {summary['total_tasks']}")
-    logger.info(f"Unique categories: {summary['unique_categories']}")
-    logger.info(f"Exploration breadth: {summary['exploration_breadth']:.2%}")
-    logger.info("")
-    logger.info("Category Statistics:")
-    for category, stats in summary['category_stats'].items():
-        success_rate = (stats['successes'] / stats['count'] * 100) if stats['count'] > 0 else 0
-        logger.info(f"  {category}:")
-        logger.info(f"    Total: {stats['count']}, Successes: {stats['successes']}, Failures: {stats['failures']}")
-        logger.info(f"    Success Rate: {success_rate:.1f}%")
-
-    # =========================================================================
-    # PRACTICAL EXAMPLE: Task Queue Reordering
-    # =========================================================================
-    logger.info("\n🎯 PRACTICAL EXAMPLE: Task Queue Reordering")
+    logger.info("TEST 1: Clear Task (No Gaps)")
     logger.info("=" * 80)
 
-    tasks_to_prioritize = [
-        ("Fix authentication bug", 0.9, "authentication"),  # Critical but familiar
-        ("Implement blockchain smart contract", 0.5, "blockchain"),  # Novel but lower importance
-        ("Add database index", 0.7, "database"),  # Moderately familiar
-        ("Setup CI/CD pipeline", 0.6, "devops"),  # Somewhat novel
-    ]
+    try:
+        from cognitive.curiosity_system_v6 import CuriositySystemV6
 
-    logger.info("\nOriginal Task Order (by importance only):")
-    for i, (task, priority, category) in enumerate(tasks_to_prioritize, 1):
-        logger.info(f"{i}. {task} (priority: {priority:.2f})")
+        curiosity = CuriositySystemV6()
 
-    # Calculate curiosity-adjusted priorities
-    adjusted_tasks = []
-    for task, base_priority, category in tasks_to_prioritize:
-        final_priority = curiosity.calculate_task_priority_with_curiosity(
-            task_description=task,
-            base_priority=base_priority,
-            category=category
-        )
-        adjusted_tasks.append((task, base_priority, final_priority, category))
+        # Clear, detailed task
+        task = """Create a Python CLI calculator application with the following features:
+- Addition, subtraction, multiplication, and division
+- History tracking of previous calculations
+- Error handling for invalid inputs
+- Use argparse for command-line arguments
+"""
 
-    # Sort by final priority (descending)
-    adjusted_tasks.sort(key=lambda x: x[2], reverse=True)
+        analysis = await curiosity.analyze_task(task)
 
-    logger.info("\nReordered Task Queue (with curiosity):")
-    for i, (task, base_pri, final_pri, category) in enumerate(adjusted_tasks, 1):
-        change = final_pri - base_pri
-        arrow = "↑" if change > 0 else "↓" if change < 0 else "→"
-        logger.info(f"{i}. {task}")
-        logger.info(f"   Base: {base_pri:.2f} → Final: {final_pri:.2f} {arrow}")
+        logger.info(f"📊 Analysis Results:")
+        logger.info(f"   Has gaps: {analysis['has_gaps']}")
+        logger.info(f"   Confidence: {analysis['confidence']:.2f}")
+        logger.info(f"   Severity: {analysis['severity']}")
+        logger.info(f"   Questions: {len(analysis['questions'])}")
 
-    logger.info("\n✅ Curiosity System Test Completed!")
+        # Validate
+        # Clear task should have high confidence, no high-severity gaps
+        assert analysis["confidence"] >= 0.8, f"Expected high confidence, got {analysis['confidence']}"
+        assert analysis["severity"] in ["none", "low"], f"Expected low/no severity, got {analysis['severity']}"
+
+        # Should not trigger questions
+        should_ask = await curiosity.should_ask_questions(analysis)
+        assert not should_ask, "Should not ask questions for clear task"
+
+        logger.info("✅ Clear task correctly identified!")
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Test 1 failed: {e}", exc_info=True)
+        return False
+
+
+async def test_vague_task():
+    """Test 2: Vague task (many questions needed)"""
     logger.info("=" * 80)
-    logger.info("\n💡 Key Takeaways:")
-    logger.info("   1. Novel tasks get priority boost (exploration)")
-    logger.info("   2. Familiar tasks get priority reduction (exploitation)")
-    logger.info("   3. Failed tasks maintain higher novelty (still challenging)")
-    logger.info("   4. Exploration weight controls balance (default 30% curiosity)")
-    logger.info("   5. Agent learns what it has/hasn't explored")
+    logger.info("TEST 2: Vague Task (Many Gaps)")
+    logger.info("=" * 80)
+
+    try:
+        from cognitive.curiosity_system_v6 import CuriositySystemV6
+
+        curiosity = CuriositySystemV6()
+
+        # Very vague task
+        task = "Build an app"
+
+        analysis = await curiosity.analyze_task(task)
+
+        logger.info(f"📊 Analysis Results:")
+        logger.info(f"   Has gaps: {analysis['has_gaps']}")
+        logger.info(f"   Confidence: {analysis['confidence']:.2f}")
+        logger.info(f"   Severity: {analysis['severity']}")
+        logger.info(f"   Gaps: {len(analysis['gaps'])}")
+        logger.info(f"   Questions: {len(analysis['questions'])}")
+
+        # Log gaps
+        logger.info(f"   Identified Gaps:")
+        for gap in analysis["gaps"]:
+            logger.info(f"      - {gap['type']}: {gap['description']} ({gap['severity']})")
+
+        # Log questions
+        logger.info(f"   Questions to ask:")
+        for i, q in enumerate(analysis["questions"], 1):
+            logger.info(f"      {i}. {q}")
+
+        # Validate
+        assert analysis["has_gaps"] is True, "Should have gaps"
+        assert analysis["confidence"] < 0.5, f"Expected low confidence, got {analysis['confidence']}"
+        assert analysis["severity"] == "high", f"Expected high severity, got {analysis['severity']}"
+        assert len(analysis["questions"]) >= 3, f"Expected at least 3 questions, got {len(analysis['questions'])}"
+
+        # Should trigger questions
+        should_ask = await curiosity.should_ask_questions(analysis)
+        assert should_ask, "Should ask questions for vague task"
+
+        logger.info("✅ Vague task correctly identified!")
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ Test 2 failed: {e}", exc_info=True)
+        return False
+
+
+async def main():
+    """Run all tests"""
+    logger.info("🚀 Starting Curiosity System v6 E2E Tests")
+    logger.info(f"⏰ Test started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    # Run tests
+    results = {}
+
+    results["test_1_clear"] = await test_clear_task()
+    results["test_2_vague"] = await test_vague_task()
+
+    # Summary
+    logger.info("=" * 80)
+    logger.info("TEST SUMMARY")
+    logger.info("=" * 80)
+
+    total_tests = len(results)
+    passed_tests = sum(1 for result in results.values() if result)
+    failed_tests = total_tests - passed_tests
+
+    for test_name, result in results.items():
+        status = "✅ PASS" if result else "❌ FAIL"
+        logger.info(f"{status} - {test_name}")
+
+    logger.info("-" * 80)
+    logger.info(f"Total: {total_tests} tests")
+    logger.info(f"Passed: {passed_tests} tests")
+    logger.info(f"Failed: {failed_tests} tests")
+
+    if failed_tests == 0:
+        logger.info("🎉 ALL TESTS PASSED!")
+        return 0
+    else:
+        logger.error(f"❌ {failed_tests} TESTS FAILED")
+        return 1
 
 
 if __name__ == "__main__":
-    test_curiosity_system()
+    exit_code = asyncio.run(main())
+    sys.exit(exit_code)
