@@ -28,6 +28,7 @@ from langgraph.graph import END, StateGraph
 
 from state_v6 import CodesmithState
 from tools.file_tools import write_file, read_file
+from tools.tree_sitter_tools import TreeSitterAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -179,29 +180,54 @@ Generate complete, production-ready code files."""
             current_code = []
             in_code_block = False
 
+            # Initialize Tree-sitter analyzer
+            tree_sitter = TreeSitterAnalyzer()
+
             for line in lines:
                 if line.startswith('FILE:'):
                     # Save previous file
                     if current_file and current_code:
                         file_content = '\n'.join(current_code).strip()
 
+                        # Validate syntax with Tree-sitter BEFORE writing
+                        file_path = current_file.strip()
+                        language = tree_sitter.detect_language(file_path)
+
+                        if language:
+                            logger.info(f"🔍 Validating {file_path} ({language})...")
+                            is_valid = tree_sitter.validate_syntax(file_content, language)
+
+                            if not is_valid:
+                                logger.error(f"❌ Syntax validation failed for {file_path}")
+                                logger.warning(f"⚠️ Skipping file due to syntax errors")
+                                # Don't write invalid files
+                                current_file = line.replace('FILE:', '').strip()
+                                current_code = []
+                                in_code_block = False
+                                continue
+
+                            logger.info(f"✅ Syntax valid for {file_path}")
+                        else:
+                            logger.debug(f"⚠️ No parser for {file_path}, skipping validation")
+
                         # Write file (tool expects relative path + workspace_path)
                         try:
                             await write_file.ainvoke({
-                                "file_path": current_file.strip(),
+                                "file_path": file_path,
                                 "content": file_content,
                                 "workspace_path": workspace_path
                             })
 
                             generated_files.append({
-                                "path": current_file.strip(),
+                                "path": file_path,
                                 "size": len(file_content),
-                                "timestamp": datetime.now().isoformat()
+                                "timestamp": datetime.now().isoformat(),
+                                "validated": language is not None
                             })
 
-                            logger.debug(f"✅ Wrote {current_file.strip()}")
+                            logger.debug(f"✅ Wrote {file_path}")
                         except Exception as e:
-                            logger.error(f"❌ Failed to write {current_file}: {e}")
+                            logger.error(f"❌ Failed to write {file_path}: {e}")
 
                     # Start new file
                     current_file = line.replace('FILE:', '').strip()
@@ -219,26 +245,63 @@ Generate complete, production-ready code files."""
                 elif in_code_block and current_file:
                     current_code.append(line)
 
-            # Save last file
+            # Save last file (with validation)
             if current_file and current_code:
                 file_content = '\n'.join(current_code).strip()
+                file_path = current_file.strip()
 
-                try:
-                    await write_file.ainvoke({
-                        "file_path": current_file.strip(),
-                        "content": file_content,
-                        "workspace_path": workspace_path
-                    })
+                # Validate syntax with Tree-sitter
+                language = tree_sitter.detect_language(file_path)
 
-                    generated_files.append({
-                        "path": current_file.strip(),
-                        "size": len(file_content),
-                        "timestamp": datetime.now().isoformat()
-                    })
+                if language:
+                    logger.info(f"🔍 Validating {file_path} ({language})...")
+                    is_valid = tree_sitter.validate_syntax(file_content, language)
 
-                    logger.debug(f"✅ Wrote {current_file.strip()}")
-                except Exception as e:
-                    logger.error(f"❌ Failed to write {current_file}: {e}")
+                    if not is_valid:
+                        logger.error(f"❌ Syntax validation failed for {file_path}")
+                        logger.warning(f"⚠️ Skipping file due to syntax errors")
+                    else:
+                        logger.info(f"✅ Syntax valid for {file_path}")
+
+                        # Write file only if valid
+                        try:
+                            await write_file.ainvoke({
+                                "file_path": file_path,
+                                "content": file_content,
+                                "workspace_path": workspace_path
+                            })
+
+                            generated_files.append({
+                                "path": file_path,
+                                "size": len(file_content),
+                                "timestamp": datetime.now().isoformat(),
+                                "validated": True
+                            })
+
+                            logger.debug(f"✅ Wrote {file_path}")
+                        except Exception as e:
+                            logger.error(f"❌ Failed to write {file_path}: {e}")
+                else:
+                    logger.debug(f"⚠️ No parser for {file_path}, writing without validation")
+
+                    # Write file without validation (e.g., .txt, .md)
+                    try:
+                        await write_file.ainvoke({
+                            "file_path": file_path,
+                            "content": file_content,
+                            "workspace_path": workspace_path
+                        })
+
+                        generated_files.append({
+                            "path": file_path,
+                            "size": len(file_content),
+                            "timestamp": datetime.now().isoformat(),
+                            "validated": False
+                        })
+
+                        logger.debug(f"✅ Wrote {file_path}")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to write {file_path}: {e}")
 
             logger.info(f"✅ Generated {len(generated_files)} files")
 
