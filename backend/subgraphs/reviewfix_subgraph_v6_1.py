@@ -223,7 +223,11 @@ Provide quality score and detailed feedback."""
             llm = ChatAnthropic(
                 model="claude-sonnet-4-20250514",
                 temperature=0.2,
-                max_tokens=8192
+                max_tokens=8192,
+                agent_name="fixer",
+                agent_description="Code fixer who implements corrections based on review feedback",
+                agent_tools=["Read", "Edit", "Bash"],
+                permission_mode="acceptEdits"
             )
 
             system_prompt = """You are an expert code fixer.

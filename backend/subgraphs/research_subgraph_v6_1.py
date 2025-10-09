@@ -77,7 +77,11 @@ def create_research_subgraph(
             llm = ChatAnthropic(
                 model="claude-sonnet-4-20250514",
                 temperature=0.3,
-                max_tokens=4096
+                max_tokens=4096,
+                agent_name="research",
+                agent_description="Research analyst specializing in software development and technology",
+                agent_tools=["Read", "Grep", "Bash"],
+                permission_mode="acceptEdits"
             )
 
             system_prompt = """You are a research analyst specializing in software development.
