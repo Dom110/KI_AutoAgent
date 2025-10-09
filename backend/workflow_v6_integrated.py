@@ -431,6 +431,137 @@ class WorkflowV6Integrated:
         return subgraph
 
     # ========================================================================
+    # DECISION FUNCTIONS (v6.1: Intelligent Flow)
+    # ========================================================================
+
+    def _research_decide_next(self, state: SupervisorState) -> str:
+        """
+        Research decides next step based on results.
+
+        Returns:
+            - "architect": Research found info, proceed to design
+            - "hitl": Can't find necessary information
+        """
+        result = state.get("research_results", {})
+
+        # Check if research was successful
+        if isinstance(result, dict) and result.get("findings"):
+            logger.info("✅ Research → Architect (findings available)")
+            return "architect"
+
+        # No findings after research
+        logger.warning("⚠️ Research → HITL (no findings)")
+        return "hitl"
+
+    def _architect_decide_next(self, state: SupervisorState) -> str:
+        """
+        Architect decides next step based on design quality.
+
+        Returns:
+            - "codesmith": Architecture ready, proceed to implementation
+            - "research": Need more technical details
+            - "hitl": Can't design (unclear requirements)
+        """
+        result = state.get("architecture_design")
+
+        # Check if design is complete
+        if result:
+            # Check confidence if available
+            if isinstance(result, dict):
+                confidence = result.get("confidence", 0.8)
+
+                if confidence < 0.5:
+                    logger.warning("⚠️ Architect → Research (low confidence, need more info)")
+                    return "research"
+
+            logger.info("✅ Architect → Codesmith (design complete)")
+            return "codesmith"
+
+        # Can't create design
+        logger.warning("⚠️ Architect → HITL (no design created)")
+        return "hitl"
+
+    def _codesmith_decide_next(self, state: SupervisorState) -> str:
+        """
+        Codesmith decides next step based on code generation results.
+
+        Returns:
+            - "research": Need more information
+            - "reviewfix": Code needs review
+            - "hitl": Stuck, need human help (ASIMOV RULE 4)
+            - END: All done
+        """
+        generated_files = state.get("generated_files", [])
+        errors = state.get("errors", [])
+
+        # Check for errors first
+        if errors:
+            error_count = len(errors)
+            if error_count >= 3:
+                logger.warning("🛑 Codesmith → HITL (3+ errors, ASIMOV RULE 4)")
+                return "hitl"
+
+            logger.info("🔬 Codesmith → ReviewFix (has errors)")
+            return "reviewfix"
+
+        # Check if files were generated
+        if not generated_files:
+            logger.warning("⚠️ Codesmith → ReviewFix (no files generated)")
+            return "reviewfix"
+
+        # All good - proceed to review
+        logger.info("✅ Codesmith → ReviewFix (files generated)")
+        return "reviewfix"
+
+    def _reviewfix_decide_next(self, state: SupervisorState) -> str:
+        """
+        ReviewFix decides next step after review.
+
+        Returns:
+            - "codesmith": Need to regenerate code
+            - "hitl": Can't fix, need human (ASIMOV RULE 4)
+            - END: All fixed
+        """
+        review_feedback = state.get("review_feedback")
+        errors = state.get("errors", [])
+
+        # Check if there are unfixable errors
+        if errors:
+            error_count = len(errors)
+            if error_count >= 3:
+                logger.warning("🛑 ReviewFix → HITL (can't fix after 3 attempts)")
+                return "hitl"
+
+        # Check if review found issues
+        if isinstance(review_feedback, dict):
+            issues = review_feedback.get("issues", [])
+            if issues:
+                logger.info("⚒️ ReviewFix → Codesmith (found issues to fix)")
+                return "codesmith"
+
+        # All good!
+        logger.info("✅ ReviewFix → END (all fixed)")
+        return END
+
+    def _hitl_decide_next(self, state: SupervisorState) -> str:
+        """
+        HITL decides next step after human intervention.
+
+        Returns:
+            - Agent name: Retry specified agent
+            - END: Abort workflow
+        """
+        hitl_response = state.get("hitl_response", {})
+        next_step = hitl_response.get("next_step")
+
+        if next_step and next_step != END:
+            logger.info(f"👤 HITL → {next_step} (human decision)")
+            return next_step
+
+        logger.info("👤 HITL → END (human abort)")
+        return END
+
+    # ========================================================================
     # SUPERVISOR GRAPH (with Workflow Adapter)
     # ========================================================================
 
@@ -647,20 +778,117 @@ class WorkflowV6Integrated:
                 self.current_session["errors"].append({"agent": "reviewfix", "error": str(e)})
                 return {"errors": [str(e)]}
 
+        # HITL Node (Human-in-the-Loop) - v6.1
+        async def hitl_node(state: SupervisorState) -> dict[str, Any]:
+            """
+            Human-in-the-Loop node (ASIMOV RULE 4).
+
+            Triggered when agents are stuck or need human guidance.
+            """
+            logger.info("🛑 HITL: Requesting human intervention")
+
+            # Determine what failed
+            failed_phase = self.current_session.get("current_phase", "unknown")
+            errors = state.get("errors", [])
+            last_error = errors[-1] if errors else "Unknown error"
+
+            # Send HITL request via WebSocket
+            if self.websocket_callback:
+                hitl_request = {
+                    "type": "hitl_request",
+                    "agent": failed_phase,
+                    "error": str(last_error),
+                    "suggestion": "Agent is stuck. Please provide guidance or corrections.",
+                    "options": ["retry", "skip", "abort"]
+                }
+
+                logger.info(f"  📡 Sending HITL request to user...")
+                await self.websocket_callback(hitl_request)
+
+                # TODO: Wait for human response (with timeout)
+                # For now, return abort
+                logger.warning("  ⏳ HITL waiting not implemented, aborting")
+
+                return {
+                    "hitl_response": {"next_step": END, "action": "abort"},
+                    "errors": [f"HITL: User intervention required for {failed_phase}"]
+                }
+
+            # No WebSocket = can't continue
+            logger.error("❌ No WebSocket callback for HITL")
+            return {
+                "hitl_response": {"next_step": END},
+                "errors": ["HITL required but no callback available"]
+            }
+
         # Add nodes
         graph.add_node("supervisor", supervisor_node)
         graph.add_node("research", research_node_wrapper)
         graph.add_node("architect", architect_node_wrapper)
         graph.add_node("codesmith", codesmith_node_wrapper)
         graph.add_node("reviewfix", reviewfix_node_wrapper)
+        graph.add_node("hitl", hitl_node)  # NEW!
 
-        # Declarative routing
+        # Intelligent routing with conditional edges (v6.1)
         graph.set_entry_point("supervisor")
+
+        # Supervisor → Research (always start with research)
         graph.add_edge("supervisor", "research")
-        graph.add_edge("research", "architect")
-        graph.add_edge("architect", "codesmith")
-        graph.add_edge("codesmith", "reviewfix")
-        graph.add_edge("reviewfix", END)
+
+        # Research → Architect OR HITL (conditional)
+        graph.add_conditional_edges(
+            "research",
+            self._research_decide_next,
+            {
+                "architect": "architect",
+                "hitl": "hitl"
+            }
+        )
+
+        # Architect → Codesmith OR Research OR HITL (conditional)
+        graph.add_conditional_edges(
+            "architect",
+            self._architect_decide_next,
+            {
+                "codesmith": "codesmith",
+                "research": "research",  # Can loop back for more info!
+                "hitl": "hitl"
+            }
+        )
+
+        # Codesmith → ReviewFix OR HITL (conditional)
+        graph.add_conditional_edges(
+            "codesmith",
+            self._codesmith_decide_next,
+            {
+                "reviewfix": "reviewfix",
+                "hitl": "hitl"
+            }
+        )
+
+        # ReviewFix → Codesmith OR HITL OR END (conditional)
+        graph.add_conditional_edges(
+            "reviewfix",
+            self._reviewfix_decide_next,
+            {
+                "codesmith": "codesmith",  # Can loop back for fixes!
+                "hitl": "hitl",
+                END: END
+            }
+        )
+
+        # HITL → Any agent OR END (conditional)
+        graph.add_conditional_edges(
+            "hitl",
+            self._hitl_decide_next,
+            {
+                "research": "research",
+                "architect": "architect",
+                "codesmith": "codesmith",
+                "reviewfix": "reviewfix",
+                END: END
+            }
+        )
 
         # Compile
         compiled = graph.compile(checkpointer=self.checkpointer)
