@@ -167,7 +167,6 @@ Generate complete, production-ready code files."""
 
             code_output = response.content if hasattr(response, 'content') else str(response)
             logger.info(f"✅ Code generated: {len(code_output)} chars")
-            logger.debug(f"📄 Generated code:\n{code_output[:500]}...")
 
             # Step 3: Parse and write files
             logger.info("📝 Writing files to workspace...")
