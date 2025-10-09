@@ -27,12 +27,21 @@ Python: 3.13+
 from __future__ import annotations
 
 # v5.9.0: Install uvloop FIRST
+# ⚠️ FALLBACK: uvloop is optional performance optimization (not required for functionality)
+# Reason: uvloop provides 2-4x faster event loop, but asyncio works without it
+# Date: 2025-10-09
+# Performance impact: ~30% slower without uvloop, but fully functional
 try:
     import uvloop
     uvloop.install()
     _UVLOOP_INSTALLED = True
 except ImportError:
     _UVLOOP_INSTALLED = False
+    # Log fallback activation (ASIMOV RULE 1 compliance)
+    import logging
+    logging.warning("⚠️ FALLBACK ACTIVE: uvloop not installed - using standard asyncio event loop (30% slower)")
+    logging.warning("   Install with: pip install uvloop")
+    logging.warning("   File: server_v6_integrated.py Line: 30")
 
 import os
 import sys
