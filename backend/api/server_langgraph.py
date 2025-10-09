@@ -43,8 +43,8 @@ from fastapi import (FastAPI, Header, HTTPException, WebSocket,
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocketState
 
-# Import LangGraph system
-from langgraph_system import create_agent_workflow
+# Import v6 workflow system
+from workflow_v6 import create_workflow_v6
 
 # Import Models Endpoint
 try:
@@ -197,34 +197,17 @@ async def lifespan(app: FastAPI):
         logger.info("🔍 DEBUG: Initializing LangGraph StateGraph workflow system")
         logger.info("🔍 DEBUG: Using port 8001 (NOT 8000)")
 
-        # Initialize LangGraph workflow system
-        logger.info("📦 Creating agent workflow...")
+        # Initialize v6 workflow system
+        logger.info("📦 Creating v6 workflow...")
         global workflow_system
-        workflow_system = await create_agent_workflow(
-            websocket_manager=manager,
-            db_path="langgraph_state.db",
-            memory_db_path="agent_memories.db",
-        )
-
-        # Initialize active workflows storage
-        workflow_system.active_workflows = {}
+        workflow_system = create_workflow_v6()
 
         if workflow_system is None:
-            logger.error("❌ CRITICAL: create_agent_workflow returned None!")
-            raise RuntimeError("Failed to create workflow system")
+            logger.error("❌ CRITICAL: create_workflow_v6 returned None!")
+            raise RuntimeError("Failed to create v6 workflow system")
 
-        logger.info("✅ LangGraph workflow system initialized")
+        logger.info("✅ v6 workflow system initialized")
         logger.info(f"✅ workflow_system type: {type(workflow_system).__name__}")
-
-        # Initialize tool registry
-        tool_registry = workflow_system.tool_registry
-        logger.info(
-            f"🔧 Tool registry initialized with {len(tool_registry.tools)} tools"
-        )
-
-        # Initialize approval manager
-        workflow_system.approval_manager
-        logger.info("✅ Approval manager initialized")
 
         logger.info("=" * 80)
         logger.info("🎉 STARTUP COMPLETE - Ready to accept connections!")

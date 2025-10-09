@@ -78,14 +78,14 @@ def create_codesmith_subgraph(
                 research_results = await memory.search(
                     query="research findings",
                     filters={"agent": "research"},
-                    limit=2
+                    k=2
                 )
 
                 # Get architecture design
                 architect_results = await memory.search(
                     query="architecture design",
                     filters={"agent": "architect"},
-                    limit=2
+                    k=2
                 )
 
                 # Build context

@@ -27,6 +27,25 @@ from memory.memory_system_v6 import MemorySystem
 
 logger = logging.getLogger(__name__)
 
+# Lazy LLM initialization to avoid Pydantic issues
+_llm_cache: ChatOpenAI | None = None
+
+def _get_llm() -> ChatOpenAI:
+    """Get or create LLM instance (lazy initialization)."""
+    global _llm_cache
+    if _llm_cache is None:
+        try:
+            _llm_cache = ChatOpenAI(
+                model="gpt-4o",
+                temperature=0.3,
+                max_tokens=4096
+            )
+        except Exception as e:
+            logger.error(f"Failed to initialize ChatOpenAI: {e}")
+            # Try with minimal parameters
+            _llm_cache = ChatOpenAI(model="gpt-4o")
+    return _llm_cache
+
 
 def create_architect_subgraph(
     workspace_path: str,
@@ -97,11 +116,7 @@ def create_architect_subgraph(
 
             # 3. Generate architecture design with LLM
             logger.debug("Initializing GPT-4o for architecture design...")
-            llm = ChatOpenAI(
-                model="gpt-4o",
-                temperature=0.3,
-                max_tokens=4096
-            )
+            llm = _get_llm()
 
             system_prompt = """You are an expert software architect specializing in modern web development.
 

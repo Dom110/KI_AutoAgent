@@ -38,7 +38,6 @@ import aiosqlite
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, StateGraph
-from langgraph.prebuilt import create_react_agent
 
 # Use ClaudeCLISimple instead of langchain-anthropic (which is broken)
 from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
@@ -569,6 +568,100 @@ async def main():
     finally:
         # Cleanup
         await workflow.cleanup()
+
+
+# ============================================================================
+# SERVER INTEGRATION
+# ============================================================================
+
+def create_workflow_v6() -> StateGraph:
+    """
+    Create and return compiled v6 workflow for server integration.
+
+    This function is called by server_langgraph.py during startup.
+    Returns a compiled StateGraph that can be invoked directly.
+
+    Returns:
+        Compiled LangGraph StateGraph
+    """
+    from subgraphs.research_subgraph_v6_1 import create_research_subgraph
+    from subgraphs.architect_subgraph_v6 import create_architect_subgraph
+    from subgraphs.codesmith_subgraph_v6_1 import create_codesmith_subgraph
+    from subgraphs.reviewfix_subgraph_v6_1 import create_reviewfix_subgraph
+
+    logger.info("🔧 Creating v6 workflow for server...")
+
+    # Create subgraphs
+    research_graph = create_research_subgraph()
+    architect_graph = create_architect_subgraph()
+    codesmith_graph = create_codesmith_subgraph()
+    reviewfix_graph = create_reviewfix_subgraph()
+
+    # Create supervisor graph
+    supervisor = StateGraph(SupervisorState)
+
+    # Add subgraphs
+    supervisor.add_node("research", research_graph, input=supervisor_to_research)
+    supervisor.add_node("architect", architect_graph, input=supervisor_to_architect)
+    supervisor.add_node("codesmith", codesmith_graph, input=supervisor_to_codesmith)
+    supervisor.add_node("reviewfix", reviewfix_graph, input=supervisor_to_reviewfix)
+
+    # Supervisor node
+    async def supervisor_node(state: SupervisorState) -> SupervisorState:
+        """Supervisor decides next agent based on workflow state"""
+        logger.info(f"🎯 Supervisor analyzing state (phase: {state.get('workflow_phase', 'unknown')})")
+
+        phase = state.get("workflow_phase", "research")
+        errors = state.get("errors", [])
+
+        # Decision logic
+        if phase == "research":
+            state["next_agent"] = "architect"
+            state["workflow_phase"] = "architecture"
+        elif phase == "architecture":
+            state["next_agent"] = "codesmith"
+            state["workflow_phase"] = "implementation"
+        elif phase == "implementation":
+            state["next_agent"] = "reviewfix"
+            state["workflow_phase"] = "review"
+        elif phase == "review":
+            if errors:
+                state["next_agent"] = "codesmith"  # Fix errors
+                state["workflow_phase"] = "implementation"
+            else:
+                state["next_agent"] = "FINISH"
+                state["workflow_phase"] = "complete"
+        else:
+            state["next_agent"] = "FINISH"
+
+        logger.info(f"✅ Supervisor decision: {state['next_agent']}")
+        return state
+
+    supervisor.add_node("supervisor", supervisor_node)
+
+    # Routing
+    def route_supervisor(state: SupervisorState) -> str:
+        """Route to next agent or END"""
+        next_agent = state.get("next_agent", "FINISH")
+        if next_agent == "FINISH":
+            return END
+        return next_agent
+
+    # Build graph
+    supervisor.set_entry_point("supervisor")
+    supervisor.add_conditional_edges("supervisor", route_supervisor)
+
+    # All agents return to supervisor
+    supervisor.add_edge("research", "supervisor")
+    supervisor.add_edge("architect", "supervisor")
+    supervisor.add_edge("codesmith", "supervisor")
+    supervisor.add_edge("reviewfix", "supervisor")
+
+    # Compile (without checkpointer for server - server manages state)
+    compiled = supervisor.compile()
+
+    logger.info("✅ v6 workflow compiled successfully")
+    return compiled
 
 
 if __name__ == "__main__":
