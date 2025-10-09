@@ -49,7 +49,7 @@ from workflow_v6 import WorkflowV6
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Changed to DEBUG for troubleshooting
     format="%(levelname)s:%(name)s:%(message)s",
     force=True,
 )

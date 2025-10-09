@@ -122,15 +122,20 @@ Your responsibilities:
 4. Include error handling and type hints
 5. Generate complete, runnable files
 
-Output format:
-For each file to create, output:
+CRITICAL: You MUST follow this EXACT output format. Do NOT add any explanation or commentary.
+Do NOT say "I've generated..." or "Here is the code...". ONLY output the format below:
 
 FILE: <relative_path>
 ```<language>
 <code content>
 ```
 
-Example:
+FILE: <next_file_path>
+```<language>
+<code content>
+```
+
+Example (this is the ONLY format allowed):
 FILE: src/app.py
 ```python
 def hello():
@@ -141,7 +146,9 @@ FILE: src/utils.py
 ```python
 def helper():
     return 42
-```"""
+```
+
+START YOUR RESPONSE WITH "FILE:" - Nothing else!"""
 
             user_prompt = f"""Generate code based on the following design:
 
@@ -160,6 +167,7 @@ Generate complete, production-ready code files."""
 
             code_output = response.content if hasattr(response, 'content') else str(response)
             logger.info(f"✅ Code generated: {len(code_output)} chars")
+            logger.debug(f"📄 Generated code:\n{code_output[:500]}...")
 
             # Step 3: Parse and write files
             logger.info("📝 Writing files to workspace...")
@@ -176,17 +184,14 @@ Generate complete, production-ready code files."""
                 if line.startswith('FILE:'):
                     # Save previous file
                     if current_file and current_code:
-                        file_path = os.path.join(workspace_path, current_file.strip())
                         file_content = '\n'.join(current_code).strip()
 
-                        # Ensure directory exists
-                        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-                        # Write file
+                        # Write file (tool expects relative path + workspace_path)
                         try:
                             await write_file.ainvoke({
-                                "file_path": file_path,
-                                "content": file_content
+                                "file_path": current_file.strip(),
+                                "content": file_content,
+                                "workspace_path": workspace_path
                             })
 
                             generated_files.append({
@@ -217,15 +222,13 @@ Generate complete, production-ready code files."""
 
             # Save last file
             if current_file and current_code:
-                file_path = os.path.join(workspace_path, current_file.strip())
                 file_content = '\n'.join(current_code).strip()
-
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
                 try:
                     await write_file.ainvoke({
-                        "file_path": file_path,
-                        "content": file_content
+                        "file_path": current_file.strip(),
+                        "content": file_content,
+                        "workspace_path": workspace_path
                     })
 
                     generated_files.append({
