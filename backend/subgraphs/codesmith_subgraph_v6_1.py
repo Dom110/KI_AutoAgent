@@ -29,6 +29,7 @@ from langgraph.graph import END, StateGraph
 from state_v6 import CodesmithState
 from tools.file_tools import write_file, read_file
 from tools.tree_sitter_tools import TreeSitterAnalyzer
+from security.asimov_rules import validate_asimov_rules, format_violations_report
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +209,36 @@ Generate complete, production-ready code files."""
 
                             logger.info(f"✅ Syntax valid for {file_path}")
                         else:
-                            logger.debug(f"⚠️ No parser for {file_path}, skipping validation")
+                            logger.debug(f"⚠️ No parser for {file_path}, skipping Tree-sitter validation")
+
+                        # Asimov Security Check (for code files)
+                        if language:  # Only check code files
+                            logger.info(f"🔒 Asimov security check for {file_path}...")
+                            asimov_result = validate_asimov_rules(
+                                code=file_content,
+                                file_path=file_path,
+                                strict=False  # Warnings allowed, errors block
+                            )
+
+                            if not asimov_result["valid"]:
+                                # Log violations
+                                report = format_violations_report(asimov_result, file_path)
+                                logger.warning(f"\n{report}")
+
+                                # Count errors (not warnings)
+                                error_count = asimov_result["summary"]["errors"]
+                                if error_count > 0:
+                                    logger.error(f"❌ Asimov Rule violations: {error_count} errors")
+                                    logger.warning(f"⚠️ Skipping file due to Asimov violations")
+                                    current_file = line.replace('FILE:', '').strip()
+                                    current_code = []
+                                    in_code_block = False
+                                    continue
+                                else:
+                                    # Only warnings, write anyway but log
+                                    logger.warning(f"⚠️ Asimov warnings present, but writing file")
+                            else:
+                                logger.info(f"✅ Asimov rules passed for {file_path}")
 
                         # Write file (tool expects relative path + workspace_path)
                         try:
@@ -263,24 +293,48 @@ Generate complete, production-ready code files."""
                     else:
                         logger.info(f"✅ Syntax valid for {file_path}")
 
+                        # Asimov Security Check
+                        logger.info(f"🔒 Asimov security check for {file_path}...")
+                        asimov_result = validate_asimov_rules(
+                            code=file_content,
+                            file_path=file_path,
+                            strict=False
+                        )
+
+                        asimov_passed = True
+                        if not asimov_result["valid"]:
+                            report = format_violations_report(asimov_result, file_path)
+                            logger.warning(f"\n{report}")
+
+                            error_count = asimov_result["summary"]["errors"]
+                            if error_count > 0:
+                                logger.error(f"❌ Asimov violations: {error_count} errors")
+                                logger.warning(f"⚠️ Skipping file due to Asimov violations")
+                                asimov_passed = False  # Don't write file with errors
+                            else:
+                                logger.warning(f"⚠️ Asimov warnings, but writing file")
+                        else:
+                            logger.info(f"✅ Asimov rules passed for {file_path}")
+
                         # Write file only if valid
-                        try:
-                            await write_file.ainvoke({
-                                "file_path": file_path,
-                                "content": file_content,
-                                "workspace_path": workspace_path
-                            })
+                        if asimov_passed:
+                            try:
+                                await write_file.ainvoke({
+                                    "file_path": file_path,
+                                    "content": file_content,
+                                    "workspace_path": workspace_path
+                                })
 
-                            generated_files.append({
-                                "path": file_path,
-                                "size": len(file_content),
-                                "timestamp": datetime.now().isoformat(),
-                                "validated": True
-                            })
+                                generated_files.append({
+                                    "path": file_path,
+                                    "size": len(file_content),
+                                    "timestamp": datetime.now().isoformat(),
+                                    "validated": True
+                                })
 
-                            logger.debug(f"✅ Wrote {file_path}")
-                        except Exception as e:
-                            logger.error(f"❌ Failed to write {file_path}: {e}")
+                                logger.debug(f"✅ Wrote {file_path}")
+                            except Exception as e:
+                                logger.error(f"❌ Failed to write {file_path}: {e}")
                 else:
                     logger.debug(f"⚠️ No parser for {file_path}, writing without validation")
 
