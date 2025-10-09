@@ -33,6 +33,13 @@ from typing import Any
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+# Load environment variables
+env_path = os.path.expanduser("~/.ki_autoagent/config/.env")
+load_dotenv(env_path)
+logger_setup = logging.getLogger(__name__)
+logger_setup.info(f"✅ Loaded environment from: {env_path}")
 
 # Import v6 workflow
 import sys
