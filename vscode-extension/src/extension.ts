@@ -1,150 +1,44 @@
 /**
- * KI AutoAgent VS Code Extension - BACKEND INTEGRATED VERSION
- * Connects to Python backend for all agent intelligence
+ * KI AutoAgent VS Code Extension - v6.0.0 INTEGRATION
+ * Connects to manually started v6 Python backend
+ * NO auto-start, NO BackendManager
  */
 import * as vscode from 'vscode';
-import { BackendManager } from './backend/BackendManager';
 import { BackendClient } from './backend/BackendClient';
 import { MultiAgentChatPanel } from './ui/MultiAgentChatPanel';
 import { ModelSettingsManager } from './config/modelSettings';
 
 // Global instances
 let outputChannel: vscode.OutputChannel;
-let backendManager: BackendManager;
 let backendClient: BackendClient;
 let modelSettingsManager: ModelSettingsManager;
 
-/**
- * Sync VS Code settings to backend/.env file
- * This ensures Python backend always has latest API keys
- */
-async function syncSettingsToEnv(channel: vscode.OutputChannel): Promise<void> {
-    const fs = require('fs').promises;
-    const path = require('path');
-
-    try {
-        // Get settings
-        const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        const openaiKey = config.get<string>('openai.apiKey', '');
-        const anthropicKey = config.get<string>('anthropic.apiKey', '');
-        const perplexityKey = config.get<string>('perplexity.apiKey', '');
-
-        // Get workspace folder
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (!workspaceFolders || workspaceFolders.length === 0) {
-            channel.appendLine('⚠️ No workspace folder found, skipping .env sync');
-            return;
-        }
-
-        const workspacePath = workspaceFolders[0].uri.fsPath;
-        const envPath = path.join(workspacePath, 'backend', '.env');
-
-        // Read existing .env if it exists
-        let envContent = '';
-        try {
-            envContent = await fs.readFile(envPath, 'utf8');
-        } catch (error) {
-            // .env doesn't exist, will create new one
-            channel.appendLine('📝 Creating new .env file...');
-        }
-
-        // Parse existing .env
-        const envLines: string[] = envContent.split('\n');
-        const envMap = new Map<string, string>();
-
-        for (const line of envLines) {
-            if (line.trim() && !line.startsWith('#')) {
-                const [key, ...valueParts] = line.split('=');
-                if (key) {
-                    envMap.set(key.trim(), valueParts.join('='));
-                }
-            }
-        }
-
-        // Update with settings values (only if provided in settings)
-        if (openaiKey) {
-            envMap.set('OPENAI_API_KEY', openaiKey);
-            channel.appendLine('  ✓ Updated OPENAI_API_KEY');
-        }
-        if (anthropicKey) {
-            envMap.set('ANTHROPIC_API_KEY', anthropicKey);
-            channel.appendLine('  ✓ Updated ANTHROPIC_API_KEY');
-        }
-        if (perplexityKey) {
-            envMap.set('PERPLEXITY_API_KEY', perplexityKey);
-            channel.appendLine('  ✓ Updated PERPLEXITY_API_KEY');
-        }
-
-        // Build new .env content
-        const newEnvLines: string[] = [];
-        newEnvLines.push('# API Keys - Auto-synced from VS Code settings');
-        newEnvLines.push('# Edit in: VS Code Settings → KI AutoAgent');
-        newEnvLines.push('');
-
-        for (const [key, value] of envMap) {
-            newEnvLines.push(`${key}=${value}`);
-        }
-
-        // Write back to .env
-        await fs.writeFile(envPath, newEnvLines.join('\n'), 'utf8');
-        channel.appendLine(`  📁 Written to: ${envPath}`);
-
-    } catch (error: any) {
-        channel.appendLine(`❌ Failed to sync settings to .env: ${error.message}`);
-        // Don't throw - allow extension to continue even if sync fails
-    }
-}
-
-/**
- * Watch for settings changes and auto-sync to .env
- */
-function watchSettingsChanges(channel: vscode.OutputChannel): vscode.Disposable {
-    return vscode.workspace.onDidChangeConfiguration(async (e) => {
-        if (e.affectsConfiguration('kiAutoAgent.openai.apiKey') ||
-            e.affectsConfiguration('kiAutoAgent.anthropic.apiKey') ||
-            e.affectsConfiguration('kiAutoAgent.perplexity.apiKey')) {
-
-            channel.appendLine('🔄 Settings changed, re-syncing to .env...');
-            await syncSettingsToEnv(channel);
-            channel.appendLine('✅ Settings re-synced');
-
-            // Notify user that backend may need restart
-            const action = await vscode.window.showInformationMessage(
-                'API keys updated. Restart backend for changes to take effect?',
-                'Restart Backend',
-                'Not Now'
-            );
-
-            if (action === 'Restart Backend') {
-                vscode.commands.executeCommand('ki-autoagent.restartBackend');
-            }
-        }
-    });
-}
-
 export async function activate(context: vscode.ExtensionContext) {
-    // VERSION 4.0.0 - PYTHON BACKEND ARCHITECTURE
-    console.log('🚀 KI AutoAgent v4.0.0: Python Backend Architecture');
+    // VERSION 6.0.0 - MANUAL BACKEND START (NO AUTO-START)
+    console.log('🚀 KI AutoAgent v6.0.0: v6 Integration Complete');
 
     // Create output channel
     outputChannel = vscode.window.createOutputChannel('KI AutoAgent');
     outputChannel.clear();
     outputChannel.show(true);
 
-    outputChannel.appendLine('🚀 KI AutoAgent Extension v4.0.5 Activating');
+    outputChannel.appendLine('🚀 KI AutoAgent Extension v6.0.0 Activating');
     outputChannel.appendLine('============================================');
     outputChannel.appendLine(`Time: ${new Date().toLocaleString()}`);
     outputChannel.appendLine(`VS Code Version: ${vscode.version}`);
     outputChannel.appendLine('');
-    outputChannel.appendLine('🆕 NEW: Python Backend Architecture');
-    outputChannel.appendLine('🆕 NEW: All agents run in Python backend');
-    outputChannel.appendLine('🆕 NEW: WebSocket real-time communication');
-    outputChannel.appendLine('🆕 NEW: Auto-start backend on extension activation');
+    outputChannel.appendLine('🆕 v6.0.0: 12 Intelligence Systems Integrated');
+    outputChannel.appendLine('🆕 v6.0.0: Manual Backend Start Required');
+    outputChannel.appendLine('🆕 v6.0.0: LangGraph Workflow Architecture');
+    outputChannel.appendLine('🆕 v6.0.0: Connects to ws://localhost:8002/ws/chat');
     outputChannel.appendLine('');
 
-    // Initialize Backend Manager early
-    outputChannel.appendLine('📦 Initializing Backend Manager...');
-    backendManager = BackendManager.getInstance(context);
+    // v6.0.0: NO BackendManager - Extension does NOT start backend!
+    // User must start backend manually with:
+    // ~/git/KI_AutoAgent/venv/bin/python3 backend/api/server_v6_integrated.py
+    outputChannel.appendLine('⚠️  v6.0.0: Extension does NOT auto-start backend');
+    outputChannel.appendLine('📝 Start backend manually: ~/git/KI_AutoAgent/venv/bin/python3 backend/api/server_v6_integrated.py');
+    outputChannel.appendLine('');
 
     // Register commands early so they're always available
     outputChannel.appendLine('📝 Registering commands...');
@@ -164,61 +58,37 @@ export async function activate(context: vscode.ExtensionContext) {
 
     try {
 
-        // Sync settings to .env BEFORE starting backend
-        outputChannel.appendLine('🔑 Syncing API keys from settings to .env...');
-        await syncSettingsToEnv(outputChannel);
-        outputChannel.appendLine('✅ Settings synced to .env');
+        // v6.0.0: NO .env sync - backend manages its own .env at ~/.ki_autoagent/config/.env
+        outputChannel.appendLine('ℹ️  v6.0.0: Backend manages .env at ~/.ki_autoagent/config/.env');
 
-        // Check if backend service is running
-        outputChannel.appendLine('🔍 Checking backend service...');
-        const backendRunning = await backendManager.ensureBackendRunning();
-
-        if (!backendRunning) {
-            // Backend is not running - instructions already shown by BackendManager
-            outputChannel.appendLine('⚠️  Extension activated but backend is not available');
-            outputChannel.appendLine('💡 Start the backend service to enable AI features');
-            return; // Exit activation early
-        } else {
-            outputChannel.appendLine('✅ Backend service is running!');
-        }
-
-        // Initialize Backend Client
-        outputChannel.appendLine('🔌 Initializing Backend Client...');
-        const wsUrl = backendManager.getWebSocketUrl();
+        // v6.0.0: Connect DIRECTLY to v6 server (NO BackendManager auto-start!)
+        outputChannel.appendLine('🔌 Initializing Backend Client for v6 server...');
+        const wsUrl = 'ws://localhost:8002/ws/chat';
         backendClient = BackendClient.getInstance(wsUrl);
 
         // Connect to backend
-        outputChannel.appendLine('🔗 Connecting to backend WebSocket...');
-        await backendClient.connect();
-        outputChannel.appendLine('✅ Connected to backend!');
-
-        // Initialize Model Settings Manager
-        outputChannel.appendLine('🤖 Initializing Model Settings Manager...');
-        modelSettingsManager = ModelSettingsManager.getInstance(backendClient);
-
-        // Auto-discover models if enabled (with rich descriptions)
-        const config = vscode.workspace.getConfiguration('kiAutoAgent.models');
-        if (config.get('autoDiscover', true)) {
-            outputChannel.appendLine('🔍 Auto-discovering available AI models with descriptions...');
-            outputChannel.appendLine('   Fetching 15 GPT models (incl. Realtime, o1)...');
-            outputChannel.appendLine('   Fetching 5 Claude models (Opus, Sonnet)...');
-            outputChannel.appendLine('   Fetching 5 Perplexity models (Research)...');
-            try {
-                // Use new rich discovery method instead of legacy refreshAvailableModels
-                await modelSettingsManager.discoverModelsOnStartup();
-                outputChannel.appendLine('✅ Model discovery complete with pros/cons/cost info!');
-            } catch (error) {
-                outputChannel.appendLine(`⚠️ Model discovery failed: ${error}`);
-                outputChannel.appendLine('   Continuing with default models...');
-            }
+        outputChannel.appendLine('🔗 Connecting to v6 backend WebSocket...');
+        outputChannel.appendLine('📍 URL: ws://localhost:8002/ws/chat');
+        try {
+            await backendClient.connect();
+            outputChannel.appendLine('✅ Connected to v6 backend!');
+        } catch (error: any) {
+            outputChannel.appendLine(`❌ Connection failed: ${error.message}`);
+            outputChannel.appendLine('');
+            outputChannel.appendLine('⚠️  Backend not running! Start manually:');
+            outputChannel.appendLine('    ~/git/KI_AutoAgent/venv/bin/python3 backend/api/server_v6_integrated.py');
+            outputChannel.appendLine('');
+            vscode.window.showWarningMessage(
+                'v6 Backend not running. Start manually: ~/git/KI_AutoAgent/venv/bin/python3 backend/api/server_v6_integrated.py'
+            );
+            // Continue activation even if connection fails (user can reconnect later)
         }
 
-        // Register model management commands
+        // v6.0.0: Simplified model settings (NO auto-discovery in v6)
+        outputChannel.appendLine('🤖 Initializing Model Settings Manager...');
+        modelSettingsManager = ModelSettingsManager.getInstance(backendClient);
         modelSettingsManager.registerCommands(context);
-
-        // Watch for settings changes and auto-sync
-        const settingsWatcher = watchSettingsChanges(outputChannel);
-        context.subscriptions.push(settingsWatcher);
+        outputChannel.appendLine('ℹ️  v6.0.0: Model discovery disabled (v6 uses default models)');
 
         // Set up event handlers
         setupBackendEventHandlers();
@@ -228,15 +98,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
         // Success message
         outputChannel.appendLine('');
-        outputChannel.appendLine('✅ KI AutoAgent Extension activated successfully!');
-        outputChannel.appendLine('✅ Python backend is running on http://localhost:8002');
-        outputChannel.appendLine('✅ WebSocket connected to ws://localhost:8002/ws/chat');
+        outputChannel.appendLine('✅ KI AutoAgent Extension v6.0.0 activated successfully!');
+        outputChannel.appendLine('✅ WebSocket connected to v6 backend: ws://localhost:8002/ws/chat');
+        outputChannel.appendLine('✅ All 12 v6 Intelligence Systems ready');
         outputChannel.appendLine('');
         outputChannel.appendLine('Use Ctrl+Shift+P and type "KI AutoAgent" to see available commands');
 
         // Show success notification
         vscode.window.showInformationMessage(
-            '🤖 KI AutoAgent is ready! Python backend is running.'
+            '🤖 KI AutoAgent v6.0.0 is ready! Connected to v6 backend.'
         );
 
     } catch (error: any) {
@@ -312,84 +182,61 @@ function registerCommandsEarly(context: vscode.ExtensionContext) {
         'ki-autoagent.showHelp',
         () => {
             vscode.window.showInformationMessage(
-                'KI AutoAgent v4.0.5 - Use Ctrl+Shift+P and type "KI AutoAgent" to see all commands'
+                'KI AutoAgent v6.0.0 - Use Ctrl+Shift+P and type "KI AutoAgent" to see all commands'
             );
         }
     );
     context.subscriptions.push(helpCmd);
 
-    // Stop backend command
-    const stopBackendCmd = vscode.commands.registerCommand(
-        'ki-autoagent.stopBackend',
-        async () => {
-            if (backendManager) {
-                outputChannel.appendLine('🛑 Stopping backend...');
-                await backendManager.stopBackend();
-                vscode.window.showInformationMessage('Backend stopped');
-            } else {
-                vscode.window.showWarningMessage('Backend manager not initialized');
-            }
-        }
-    );
-    context.subscriptions.push(stopBackendCmd);
-
-    // Reconnect to backend command
+    // v6.0.0: Reconnect command (NO stop/start - backend is manually managed)
     const restartBackendCmd = vscode.commands.registerCommand(
         'ki-autoagent.restartBackend',
         async () => {
-            if (backendManager && backendClient) {
-                outputChannel.appendLine('🔄 Reconnecting to backend...');
-
-                // Check if backend is running
-                const isRunning = await backendManager.ensureBackendRunning();
-                if (!isRunning) {
-                    vscode.window.showWarningMessage('Backend service is not running. Please start it first.');
-                    return;
-                }
-
-                // Reconnect client
+            if (backendClient) {
+                outputChannel.appendLine('🔄 Reconnecting to v6 backend...');
                 try {
                     await backendClient.connect();
-                    vscode.window.showInformationMessage('✅ Reconnected to backend successfully');
+                    vscode.window.showInformationMessage('✅ Reconnected to v6 backend successfully');
                 } catch (error: any) {
-                    vscode.window.showErrorMessage(`Failed to reconnect: ${error.message}`);
+                    outputChannel.appendLine(`❌ Reconnection failed: ${error.message}`);
+                    vscode.window.showErrorMessage(
+                        `Failed to reconnect. Start backend manually: ~/git/KI_AutoAgent/venv/bin/python3 backend/api/server_v6_integrated.py`
+                    );
                 }
             } else {
-                vscode.window.showWarningMessage('Backend manager not initialized');
+                vscode.window.showWarningMessage('Backend client not initialized');
             }
         }
     );
     context.subscriptions.push(restartBackendCmd);
 
-    // Backend status command
+    // v6.0.0: Backend status command (simplified - just checks connection)
     const backendStatusCmd = vscode.commands.registerCommand(
         'ki-autoagent.showBackendStatus',
         async () => {
-            if (backendManager) {
-                const status = backendManager.getStatus();
-                const health = await backendManager.checkBackendHealth();
+            if (backendClient) {
+                const connected = backendClient.isConnectedToBackend();
                 vscode.window.showInformationMessage(
-                    `Backend: ${status.running ? 'Running ✅' : 'Stopped ❌'} | ` +
-                    `Health: ${health ? 'Healthy ✅' : 'Unhealthy ❌'} | ` +
-                    `URL: ${status.url}`
+                    `v6 Backend: ${connected ? 'Connected ✅' : 'Disconnected ❌'} | ` +
+                    `URL: ws://localhost:8002/ws/chat`
                 );
             } else {
-                vscode.window.showWarningMessage('Backend not yet initialized');
+                vscode.window.showWarningMessage('Backend client not initialized');
             }
         }
     );
     context.subscriptions.push(backendStatusCmd);
 }
 
-// Register commands that need backend connection
+// v6.0.0: Register minimal backend commands
 function registerBackendCommands(context: vscode.ExtensionContext) {
-    // Manual backend start instructions
+    // v6.0.0: Manual backend start instructions
     const showInstructionsCmd = vscode.commands.registerCommand(
         'ki-autoagent.showBackendInstructions',
         () => {
             const panel = vscode.window.createWebviewPanel(
                 'backendInstructions',
-                'Backend Start Instructions',
+                'v6 Backend Start Instructions',
                 vscode.ViewColumn.One,
                 {}
             );
@@ -397,14 +244,33 @@ function registerBackendCommands(context: vscode.ExtensionContext) {
             panel.webview.html = `
                 <html>
                 <body>
-                    <h1>Start Python Backend Manually</h1>
+                    <h1>Start v6 Backend Manually</h1>
+                    <h2>Required for v6.0.0</h2>
                     <ol>
                         <li>Open a terminal</li>
-                        <li>Navigate to backend directory: <code>cd backend</code></li>
-                        <li>Activate virtual environment: <code>source venv/bin/activate</code></li>
-                        <li>Start server: <code>python -m uvicorn api.server:app --reload</code></li>
+                        <li>Navigate to KI_AutoAgent directory: <code>cd ~/git/KI_AutoAgent</code></li>
+                        <li>Start v6 server: <code>./venv/bin/python3 backend/api/server_v6_integrated.py</code></li>
                     </ol>
-                    <p>The backend should be available at <a href="http://localhost:8000">http://localhost:8000</a></p>
+                    <p>The backend will be available at:</p>
+                    <ul>
+                        <li>HTTP: <a href="http://localhost:8002">http://localhost:8002</a></li>
+                        <li>WebSocket: <code>ws://localhost:8002/ws/chat</code></li>
+                    </ul>
+                    <h3>v6 Features:</h3>
+                    <ul>
+                        <li>✅ Query Classifier</li>
+                        <li>✅ Curiosity System</li>
+                        <li>✅ Predictive System</li>
+                        <li>✅ Neurosymbolic Engine</li>
+                        <li>✅ Tool Registry</li>
+                        <li>✅ Approval Manager</li>
+                        <li>✅ Workflow Adapter</li>
+                        <li>✅ Perplexity Integration</li>
+                        <li>✅ Asimov Rule 3</li>
+                        <li>✅ Learning System</li>
+                        <li>✅ Self-Diagnosis</li>
+                        <li>✅ Memory System v6</li>
+                    </ul>
                 </body>
                 </html>
             `;
@@ -416,18 +282,14 @@ function registerBackendCommands(context: vscode.ExtensionContext) {
 export function deactivate() {
     outputChannel.appendLine('🛑 KI AutoAgent Extension deactivating...');
 
-    // Stop backend
-    if (backendManager) {
-        backendManager.stopBackend();
-        backendManager.dispose();
-    }
-
-    // Disconnect client
+    // v6.0.0: NO BackendManager - just disconnect client
+    // Backend stays running (manually managed)
     if (backendClient) {
         backendClient.disconnect();
         backendClient.dispose();
     }
 
     outputChannel.appendLine('✅ Extension deactivated');
+    outputChannel.appendLine('ℹ️  v6 backend keeps running (manual management)');
     outputChannel.dispose();
 }
