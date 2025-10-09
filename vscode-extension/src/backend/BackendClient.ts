@@ -49,6 +49,21 @@ export interface BackendMessage {
         dependencies?: Record<string, string>;
         [key: string]: any;  // Allow additional properties
     };
+    // v6.0.0: Approval Manager fields
+    request_id?: string;  // For approval_request/response
+    action_type?: string;  // For approval_request
+    description?: string;  // For approval_request
+    approved?: boolean;  // For approval_response
+    // v6.0.0: Workflow complete fields
+    success?: boolean;  // For workflow_complete
+    quality_score?: number;  // For workflow_complete
+    execution_time?: number;  // For workflow_complete
+    analysis?: any;  // For workflow_complete (v6 insights)
+    adaptations?: any;  // For workflow_complete (v6 insights)
+    health?: any;  // For workflow_complete (v6 insights)
+    errors?: any[];  // For workflow_complete
+    warnings?: any[];  // For workflow_complete
+    v6_systems_used?: any;  // For workflow_complete
 }
 
 export interface ChatRequest {
@@ -420,13 +435,13 @@ export class BackendClient extends EventEmitter {
 
             case 'approval_request':
                 // v6.0.0: Approval requests from Approval Manager
-                this.log(`🔐 v6 Approval Request: ${message.metadata?.action_type}`);
+                this.log(`🔐 v6 Approval Request: ${message.action_type} - ${message.description}`);
                 this.emit('approval_request', message);
                 break;
 
             case 'workflow_complete':
                 // v6.0.0: Workflow completion with v6 insights
-                this.log(`🎉 v6 Workflow Complete - Quality: ${message.metadata?.quality_score}`);
+                this.log(`🎉 v6 Workflow Complete - Quality: ${message.quality_score} - Success: ${message.success}`);
                 this.emit('workflow_complete', message);
                 this.emit('complete', message);
                 break;
