@@ -62,10 +62,10 @@ def create_reviewfix_subgraph(
         logger.info(f"🔬 Reviewer analyzing iteration {state['iteration']}...")
 
         try:
-            # Read generated files
-            files_to_review = state.get('files_to_review', [])
+            # Read generated files from Codesmith
+            generated_files = state.get('generated_files', [])
 
-            if not files_to_review:
+            if not generated_files:
                 logger.warning("⚠️  No files to review")
                 return {
                     **state,
@@ -77,12 +77,18 @@ def create_reviewfix_subgraph(
             # Collect file contents
             file_contents = {}
 
-            for file_path in files_to_review:
+            for file_info in generated_files:
+                file_path = file_info.get('path')
+                if not file_path:
+                    continue
                 full_path = os.path.join(workspace_path, file_path)
 
                 if os.path.exists(full_path):
                     try:
-                        result = await read_file.ainvoke({"file_path": full_path})
+                        result = await read_file.ainvoke({
+                            "file_path": file_path,
+                            "workspace_path": workspace_path
+                        })
                         file_contents[file_path] = result.get("content", "")
                     except Exception as e:
                         logger.error(f"Failed to read {file_path}: {e}")

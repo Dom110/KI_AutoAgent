@@ -2,7 +2,6 @@
 Perplexity API Tool for Research Agent
 
 Provides web search capabilities using Perplexity Sonar API.
-Fallback: Uses Anthropic Claude if Perplexity API key not available.
 
 Documentation:
 - Perplexity API: https://docs.perplexity.ai/
@@ -11,6 +10,11 @@ Documentation:
 Integration:
 - Research Subgraph: Used by create_react_agent()
 - Asimov: Requires can_web_search permission (TODO: Phase 8)
+
+Important: NO AUTO FALLBACKS
+- If PERPLEXITY_API_KEY not set → Fail
+- If Perplexity API not implemented → Fail
+- User requirement: "NIEMALS auto Fallbacks für gar nichts"
 """
 
 from __future__ import annotations
@@ -20,8 +24,6 @@ import os
 from typing import Any
 
 from langchain_core.tools import tool
-# Use ClaudeCLISimple instead of langchain-anthropic (broken)
-from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
 
 logger = logging.getLogger(__name__)
 
@@ -50,71 +52,33 @@ async def perplexity_search(query: str) -> dict[str, Any]:
         # Check for Perplexity API key
         perplexity_key = os.getenv("PERPLEXITY_API_KEY")
 
-        if perplexity_key:
-            # TODO: Implement actual Perplexity API call
-            # For now: Use placeholder
-            logger.warning("⚠️ Perplexity API not yet implemented, using fallback")
-            return await _fallback_search(query)
-        else:
-            # Fallback: Use Anthropic Claude
-            logger.info("ℹ️ No Perplexity API key, using Claude fallback")
-            return await _fallback_search(query)
+        if not perplexity_key:
+            # NO AUTO FALLBACK: Fail if key not configured
+            logger.error("❌ PERPLEXITY_API_KEY not set in environment")
+            return {
+                "answer": "Perplexity API key not configured. Please set PERPLEXITY_API_KEY in ~/.ki_autoagent/config/.env",
+                "sources": [],
+                "success": False,
+                "error": "missing_api_key"
+            }
+
+        # TODO: Implement actual Perplexity API call
+        # For now: Return error (NO AUTO FALLBACK)
+        logger.error("❌ Perplexity API not yet implemented")
+        return {
+            "answer": "Perplexity API integration pending. See backend/tools/perplexity_tool.py",
+            "sources": [],
+            "success": False,
+            "error": "not_implemented"
+        }
 
     except Exception as e:
         logger.error(f"❌ Perplexity search failed: {e}", exc_info=True)
         return {
             "answer": f"Search failed: {e}",
             "sources": [],
-            "success": False
-        }
-
-
-async def _fallback_search(query: str) -> dict[str, Any]:
-    """
-    Fallback search using Claude (when Perplexity not available).
-
-    Note: This is NOT a real web search, just an LLM response.
-    For production, implement actual Perplexity API integration.
-    """
-    logger.info("🔄 Using Claude fallback for search")
-
-    llm = ChatAnthropic(
-        model="claude-sonnet-4-20250514",
-        temperature=0.3,
-        max_tokens=2048
-    )
-
-    from langchain_core.messages import HumanMessage
-
-    prompt = f"""You are a research assistant. Answer this query based on your knowledge:
-
-Query: {query}
-
-Provide:
-1. A concise answer (2-3 paragraphs)
-2. Key points
-3. Relevant considerations
-
-Format your response as structured information."""
-
-    try:
-        response = await llm.ainvoke([HumanMessage(content=prompt)])
-        answer = response.content if hasattr(response, 'content') else str(response)
-
-        logger.info(f"✅ Claude fallback response: {answer[:100]}...")
-
-        return {
-            "answer": answer,
-            "sources": ["(Claude knowledge base - not real-time web search)"],
-            "success": True
-        }
-
-    except Exception as e:
-        logger.error(f"❌ Claude fallback failed: {e}", exc_info=True)
-        return {
-            "answer": f"Fallback search failed: {e}",
-            "sources": [],
-            "success": False
+            "success": False,
+            "error": "exception"
         }
 
 
