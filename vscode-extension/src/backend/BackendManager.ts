@@ -14,13 +14,13 @@ export class BackendManager {
     // Get configuration from settings
     private get backendUrl(): string {
         const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        const url = config.get<string>('backend.url', 'localhost:8001');
+        const url = config.get<string>('backend.url', 'localhost:8002');
         return url.startsWith('http') ? url : `http://${url}`;
     }
 
     private get wsUrl(): string {
         const config = vscode.workspace.getConfiguration('kiAutoAgent');
-        const url = config.get<string>('backend.url', 'localhost:8001');
+        const url = config.get<string>('backend.url', 'localhost:8002');
         const wsProtocol = url.startsWith('https') ? 'wss' : 'ws';
         const cleanUrl = url.replace(/^https?:\/\//, '');
         return `${wsProtocol}://${cleanUrl}/ws/chat`;

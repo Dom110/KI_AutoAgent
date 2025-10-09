@@ -36,6 +36,7 @@ except ImportError:
 
 import os
 import sys
+from pathlib import Path
 
 # Add paths
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -50,6 +51,14 @@ if grandparent_dir not in sys.path:
 import asyncio
 import logging
 import uuid
+
+# Load .env from global config (BEFORE logger setup)
+from dotenv import load_dotenv
+global_env = Path.home() / ".ki_autoagent" / "config" / ".env"
+_env_loaded = False
+if global_env.exists():
+    load_dotenv(global_env)
+    _env_loaded = True
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
@@ -74,6 +83,12 @@ if _UVLOOP_INSTALLED:
     logger.info("⚡ uvloop ENABLED: Event loop performance boosted 2-4x")
 else:
     logger.warning("⚠️  uvloop NOT installed - using standard asyncio")
+
+# Log .env loading
+if _env_loaded:
+    logger.info(f"✅ Loaded API keys from: {global_env}")
+else:
+    logger.warning(f"⚠️  .env not found at: {global_env}")
 
 # ============================================================================
 # CONNECTION MANAGER

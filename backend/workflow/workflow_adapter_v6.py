@@ -64,6 +64,10 @@ class WorkflowContext:
     quality_scores: dict[str, float]
     metadata: dict[str, Any]
 
+    # Essential for multi-workspace support
+    workspace_path: str
+    start_time: Any  # datetime object
+
 
 @dataclass(slots=True)
 class AdaptationDecision:

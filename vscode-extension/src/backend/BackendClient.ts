@@ -8,7 +8,7 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 
 export interface BackendMessage {
-    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'agent_complete' | 'agent_tool_start' | 'agent_tool_complete' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed' | 'architecture_proposal' | 'architecture_proposal_revised' | 'architectureApprovalProcessed';
+    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'agent_complete' | 'agent_tool_start' | 'agent_tool_complete' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed' | 'architecture_proposal' | 'architecture_proposal_revised' | 'architectureApprovalProcessed' | 'status' | 'approval_request' | 'approval_response' | 'workflow_complete';
     content?: string;
     agent?: string;
     metadata?: any;
@@ -85,8 +85,8 @@ export class BackendClient extends EventEmitter {
         if (match) {
             return match[1];
         }
-        // Fallback to default (v5.0.0 LangGraph port)
-        return 'localhost:8001';
+        // Fallback to default (v6.0.0 Integrated port)
+        return 'localhost:8002';
     }
 
     /**
@@ -111,7 +111,7 @@ export class BackendClient extends EventEmitter {
         // Get URL from configuration if not provided
         if (!wsUrl) {
             const config = vscode.workspace.getConfiguration('kiAutoAgent');
-            const backendUrl = config.get<string>('backend.url', 'localhost:8001');  // v5.0.0 LangGraph port
+            const backendUrl = config.get<string>('backend.url', 'localhost:8002');  // v6.0.0 Integrated port
             const wsProtocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
             const cleanUrl = backendUrl.replace(/^https?:\/\//, '');
             wsUrl = `${wsProtocol}://${cleanUrl}/ws/chat`;
@@ -410,6 +410,25 @@ export class BackendClient extends EventEmitter {
                 const toolAction = message.type === 'agent_tool_start' ? 'started' : 'completed';
                 this.log(`🔧 ${message.agent} tool ${toolAction}: ${message.tool} [${message.tool_status}]`);
                 this.emit('agent_activity', message);
+                break;
+
+            case 'status':
+                // v6.0.0: Workflow status updates
+                this.log(`📊 v6 Status: ${message.status} - ${message.message}`);
+                this.emit('progress', message);
+                break;
+
+            case 'approval_request':
+                // v6.0.0: Approval requests from Approval Manager
+                this.log(`🔐 v6 Approval Request: ${message.metadata?.action_type}`);
+                this.emit('approval_request', message);
+                break;
+
+            case 'workflow_complete':
+                // v6.0.0: Workflow completion with v6 insights
+                this.log(`🎉 v6 Workflow Complete - Quality: ${message.metadata?.quality_score}`);
+                this.emit('workflow_complete', message);
+                this.emit('complete', message);
                 break;
 
             default:

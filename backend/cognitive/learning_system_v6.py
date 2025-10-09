@@ -340,7 +340,7 @@ class LearningSystemV6:
             query = f"project_type: {project_type}" if project_type else "type: learning_record"
             results = await self.memory.search(
                 query=query,
-                filter_dict={"type": "learning_record"},
+                filters={"type": "learning_record"},
                 k=100
             )
 

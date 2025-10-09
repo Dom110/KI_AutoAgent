@@ -470,6 +470,7 @@ class WorkflowV6Integrated:
             # Store in current session for adapter
             self.current_session = {
                 "task_description": state["user_query"],
+                "current_phase": "initialization",
                 "workspace_path": state["workspace_path"],
                 "start_time": datetime.now(),
                 "completed_agents": [],
@@ -491,6 +492,7 @@ class WorkflowV6Integrated:
             logger.info("🔬 Research Agent executing...")
 
             try:
+                self.current_session["current_phase"] = "research"
                 research_input = supervisor_to_research(state)
                 research_output = await research_subgraph.ainvoke(research_input)
                 result = research_to_supervisor(research_output)
@@ -528,6 +530,7 @@ class WorkflowV6Integrated:
             logger.info("📐 Architect Agent executing...")
 
             try:
+                self.current_session["current_phase"] = "architect"
                 architect_input = supervisor_to_architect(state)
                 architect_output = await architect_subgraph.ainvoke(architect_input)
                 result = architect_to_supervisor(architect_output)
@@ -574,6 +577,7 @@ class WorkflowV6Integrated:
             logger.info("⚒️  Codesmith Agent executing...")
 
             try:
+                self.current_session["current_phase"] = "codesmith"
                 # Request approval for file writes (if enabled)
                 if self.approval_manager:
                     approval = await self.approval_manager.request_approval(
@@ -617,6 +621,7 @@ class WorkflowV6Integrated:
             logger.info("🔬 ReviewFix Loop executing...")
 
             try:
+                self.current_session["current_phase"] = "reviewfix"
                 reviewfix_input = supervisor_to_reviewfix(state)
                 reviewfix_output = await reviewfix_subgraph.ainvoke(reviewfix_input)
                 result = reviewfix_to_supervisor(reviewfix_output)
@@ -766,6 +771,8 @@ class WorkflowV6Integrated:
         # Record in learning system
         await self.learning.record_workflow_execution(
             workflow_id=session_id,
+            task_description=user_query,
+            project_type=analysis.get("classification", {}).get("type", "unknown"),
             execution_metrics={
                 "total_time": execution_time,
                 "agents_used": self.current_session.get("completed_agents", []),
@@ -773,7 +780,8 @@ class WorkflowV6Integrated:
                 "adaptations": len(self.workflow_adapter.adaptation_history)
             },
             quality_score=quality_score,
-            status="success" if error_count == 0 else "partial"
+            status="success" if error_count == 0 else "partial",
+            errors=[str(err) for err in result.get("errors", [])]
         )
 
         logger.info(f"  ✅ Learning recorded (quality: {quality_score:.2f})")
