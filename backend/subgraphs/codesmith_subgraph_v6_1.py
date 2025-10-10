@@ -36,7 +36,8 @@ logger = logging.getLogger(__name__)
 
 def create_codesmith_subgraph(
     workspace_path: str,
-    memory: Any | None = None
+    memory: Any | None = None,
+    hitl_callback: Any | None = None
 ) -> Any:
     """
     Create Codesmith subgraph with custom node implementation.
@@ -47,6 +48,7 @@ def create_codesmith_subgraph(
     Args:
         workspace_path: Path to workspace
         memory: Memory system instance (optional)
+        hitl_callback: Optional HITL callback for debug info
 
     Returns:
         Compiled codesmith subgraph
@@ -116,7 +118,8 @@ def create_codesmith_subgraph(
                 agent_name="codesmith",
                 agent_description="Expert code generator specializing in clean, maintainable code following best practices",
                 agent_tools=["Read", "Edit", "Bash"],  # NOTE: Write does NOT exist! Use Edit.
-                permission_mode="acceptEdits"
+                permission_mode="acceptEdits",
+                hitl_callback=hitl_callback  # Pass HITL callback for debug info
             )
 
             system_prompt = """You are an expert code generator specializing in clean, maintainable code.

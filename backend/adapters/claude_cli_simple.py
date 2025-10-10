@@ -53,7 +53,8 @@ class ClaudeCLISimple:
         agent_description: str = "AI Assistant",
         agent_tools: list[str] | None = None,
         permission_mode: str = "acceptEdits",
-        allowed_tools: list[str] | None = None
+        allowed_tools: list[str] | None = None,
+        hitl_callback: Any = None
     ):
         """
         Initialize Claude CLI wrapper.
@@ -69,6 +70,8 @@ class ClaudeCLISimple:
                         CRITICAL: "Write" does NOT exist! Use "Edit" instead.
             permission_mode: Permission mode (default: "acceptEdits" = auto-approve)
             allowed_tools: Global allowed tools (passed to --allowedTools parameter)
+            hitl_callback: Async callback for HITL debug info
+                          Signature: async def(debug_info: dict) -> None
         """
         self.model = model
         self.temperature = temperature
@@ -80,6 +83,17 @@ class ClaudeCLISimple:
         self.agent_tools = agent_tools or ["Read", "Edit", "Bash"]
         self.permission_mode = permission_mode
         self.allowed_tools = allowed_tools or ["Read", "Edit", "Bash"]
+        self.hitl_callback = hitl_callback
+
+        # HITL Debug Info (captured during execution)
+        self.last_command: list[str] | None = None
+        self.last_system_prompt: str | None = None
+        self.last_user_prompt: str | None = None
+        self.last_combined_prompt: str | None = None
+        self.last_raw_output: str | None = None
+        self.last_events: list[dict] | None = None
+        self.last_duration_ms: float = 0.0
+        self.last_error: str | None = None
 
     def _extract_system_and_user_prompts(
         self,
@@ -188,6 +202,9 @@ class ClaudeCLISimple:
         Raises:
             RuntimeError: If CLI call fails
         """
+        import time
+        start_time = time.time()
+
         # Extract system prompt (agent instructions) and user prompt (task)
         system_prompt, user_prompt = self._extract_system_and_user_prompts(messages)
 
@@ -196,6 +213,11 @@ class ClaudeCLISimple:
         # - MUST combine system + user in -p parameter
         # - Keep agent.prompt minimal
         combined_prompt = f"{system_prompt}\n\n{user_prompt}"
+
+        # HITL: Capture prompts
+        self.last_system_prompt = system_prompt
+        self.last_user_prompt = user_prompt
+        self.last_combined_prompt = combined_prompt
 
         # Build agent definition with MINIMAL prompt
         agent_definition = {
@@ -218,6 +240,9 @@ class ClaudeCLISimple:
             "--verbose",                      # REQUIRED with stream-json!
             "-p", combined_prompt             # System + User COMBINED!
         ]
+
+        # HITL: Capture command
+        self.last_command = cmd.copy()
 
         # LOG COMPLETE COMMAND FOR USER
         with open("/tmp/claude_cli_command.txt", "w") as f:
@@ -249,6 +274,26 @@ class ClaudeCLISimple:
             print("="*80 + "\n")
 
         logger.debug(f"Calling Claude CLI: --agents {self.agent_name} + stream-json + verbose")
+
+        # HITL: Send debug info BEFORE execution
+        if self.hitl_callback:
+            try:
+                await self.hitl_callback({
+                    "type": "claude_cli_start",
+                    "agent": self.agent_name,
+                    "model": self.model,
+                    "command": cmd,
+                    "system_prompt": system_prompt,
+                    "system_prompt_length": len(system_prompt),
+                    "user_prompt": user_prompt,
+                    "user_prompt_length": len(user_prompt),
+                    "combined_prompt_length": len(combined_prompt),
+                    "tools": self.agent_tools,
+                    "permission_mode": self.permission_mode,
+                    "timestamp": start_time
+                })
+            except Exception as e:
+                logger.warning(f"HITL callback failed (start): {e}")
 
         try:
             # Run CLI command
@@ -356,9 +401,63 @@ class ClaudeCLISimple:
 
             logger.debug(f"Parsed {len(events)} events, final type: {final_event.get('type')}")
 
+            # Calculate duration
+            end_time = time.time()
+            duration_ms = (end_time - start_time) * 1000
+
+            # HITL: Capture execution info
+            self.last_raw_output = output_str
+            self.last_events = events
+            self.last_duration_ms = duration_ms
+            self.last_error = None
+
+            # HITL: Send debug info AFTER successful execution
+            if self.hitl_callback:
+                try:
+                    await self.hitl_callback({
+                        "type": "claude_cli_complete",
+                        "agent": self.agent_name,
+                        "model": self.model,
+                        "duration_ms": duration_ms,
+                        "output_length": len(output_str),
+                        "raw_output": output_str,
+                        "events_count": len(events),
+                        "events": events,
+                        "final_event_type": final_event.get('type'),
+                        "result_preview": str(final_event.get('result', ''))[:500],
+                        "success": True,
+                        "timestamp": end_time
+                    })
+                except Exception as e:
+                    logger.warning(f"HITL callback failed (complete): {e}")
+
             return final_event
 
         except Exception as e:
+            # Calculate duration even on error
+            end_time = time.time()
+            duration_ms = (end_time - start_time) * 1000
+
+            # HITL: Capture error info
+            self.last_error = str(e)
+            self.last_duration_ms = duration_ms
+
+            # HITL: Send debug info AFTER error
+            if self.hitl_callback:
+                try:
+                    await self.hitl_callback({
+                        "type": "claude_cli_error",
+                        "agent": self.agent_name,
+                        "model": self.model,
+                        "duration_ms": duration_ms,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                        "success": False,
+                        "timestamp": end_time
+                    })
+                except Exception as callback_error:
+                    logger.warning(f"HITL callback failed (error): {callback_error}")
+
             logger.error(f"Claude CLI error: {e}", exc_info=True)
             raise
 

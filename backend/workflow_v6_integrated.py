@@ -1,7 +1,7 @@
 """
-KI AutoAgent v6.0 - INTEGRATED Workflow with ALL v6 Systems
+KI AutoAgent v6.1 - INTEGRATED Workflow with ALL v6 Systems
 
-This is the PRODUCTION workflow with COMPLETE v6 integration:
+This is the PRODUCTION workflow with COMPLETE v6.1 integration:
 
 ✅ Phase 1: Perplexity API (Research Agent)
 ✅ Phase 1: Asimov Rule 3 (ReviewFix Agent)
@@ -39,7 +39,7 @@ Usage:
     )
 
 Author: KI AutoAgent Team
-Version: 6.0.0-integrated
+Version: 6.1.0-alpha
 Python: 3.13+
 """
 
@@ -112,9 +112,10 @@ logger = logging.getLogger(__name__)
 
 class WorkflowV6Integrated:
     """
-    Complete v6.0 workflow with ALL v6 systems integrated.
+    Complete v6.1 workflow with ALL v6 systems integrated.
 
-    This class extends the base WorkflowV6 with full v6 intelligence.
+    All agents use v6_1 subgraphs with Claude CLI and HITL callback support.
+    This class provides full v6 intelligence + complete HITL transparency.
     """
 
     def __init__(
@@ -382,24 +383,26 @@ class WorkflowV6Integrated:
 
         subgraph = create_research_subgraph(
             workspace_path=self.workspace_path,
-            memory=self.memory
+            memory=self.memory,
+            hitl_callback=self.websocket_callback  # Pass HITL callback
         )
 
         logger.debug("  ✅ Research subgraph built (Perplexity enabled)")
         return subgraph
 
     def _build_architect_subgraph(self) -> Any:
-        """Build Architect subgraph (custom)."""
-        from subgraphs.architect_subgraph_v6 import create_architect_subgraph
+        """Build Architect subgraph v6.1 (with Claude Sonnet 4)."""
+        from subgraphs.architect_subgraph_v6_1 import create_architect_subgraph
 
-        logger.debug("📐 Building Architect subgraph...")
+        logger.debug("📐 Building Architect subgraph v6.1 (with Claude)...")
 
         subgraph = create_architect_subgraph(
             workspace_path=self.workspace_path,
-            memory=self.memory
+            memory=self.memory,
+            hitl_callback=self.websocket_callback  # Pass HITL callback
         )
 
-        logger.debug("  ✅ Architect subgraph built")
+        logger.debug("  ✅ Architect subgraph v6.1 built")
         return subgraph
 
     def _build_codesmith_subgraph(self) -> Any:
@@ -410,7 +413,8 @@ class WorkflowV6Integrated:
 
         subgraph = create_codesmith_subgraph(
             workspace_path=self.workspace_path,
-            memory=self.memory
+            memory=self.memory,
+            hitl_callback=self.websocket_callback  # Pass HITL callback
         )
 
         logger.debug("  ✅ Codesmith subgraph built (tool registry ready)")
@@ -424,7 +428,8 @@ class WorkflowV6Integrated:
 
         subgraph = create_reviewfix_subgraph(
             workspace_path=self.workspace_path,
-            memory=self.memory
+            memory=self.memory,
+            hitl_callback=self.websocket_callback  # Pass HITL callback
         )
 
         logger.debug("  ✅ ReviewFix subgraph built (global error search enabled)")

@@ -35,7 +35,8 @@ logger = logging.getLogger(__name__)
 
 def create_reviewfix_subgraph(
     workspace_path: str,
-    memory: Any | None = None
+    memory: Any | None = None,
+    hitl_callback: Any | None = None
 ) -> Any:
     """
     Create ReviewFix loop subgraph with custom Fixer implementation.
@@ -46,6 +47,7 @@ def create_reviewfix_subgraph(
     Args:
         workspace_path: Path to workspace
         memory: Memory system instance (optional)
+        hitl_callback: Optional HITL callback for debug info
 
     Returns:
         Compiled reviewfix subgraph
@@ -227,7 +229,8 @@ Provide quality score and detailed feedback."""
                 agent_name="fixer",
                 agent_description="Code fixer who implements corrections based on review feedback",
                 agent_tools=["Read", "Edit", "Bash"],
-                permission_mode="acceptEdits"
+                permission_mode="acceptEdits",
+                hitl_callback=hitl_callback  # Pass HITL callback for debug info
             )
 
             system_prompt = """You are an expert code fixer.

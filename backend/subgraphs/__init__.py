@@ -8,7 +8,7 @@ Documentation: V6_0_ARCHITECTURE.md
 
 # Use v6.1 versions (no langchain-anthropic dependency)
 from .research_subgraph_v6_1 import create_research_subgraph
-from .architect_subgraph_v6 import create_architect_subgraph
+from .architect_subgraph_v6_1 import create_architect_subgraph
 from .codesmith_subgraph_v6_1 import create_codesmith_subgraph
 from .reviewfix_subgraph_v6_1 import create_reviewfix_subgraph
 

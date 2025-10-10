@@ -33,7 +33,8 @@ logger = logging.getLogger(__name__)
 
 def create_research_subgraph(
     workspace_path: str,
-    memory: Any | None = None
+    memory: Any | None = None,
+    hitl_callback: Any | None = None
 ) -> Any:
     """
     Create Research subgraph with custom node implementation.
@@ -44,6 +45,7 @@ def create_research_subgraph(
     Args:
         workspace_path: Path to workspace
         memory: Memory system instance (optional)
+        hitl_callback: Optional HITL callback for debug info
 
     Returns:
         Compiled research subgraph
@@ -92,7 +94,8 @@ def create_research_subgraph(
                 agent_name="research",
                 agent_description="Research analyst specializing in software development and technology",
                 agent_tools=["Read", "Bash"],  # Read for context, Bash for utilities (NOT Edit - no file creation needed)
-                permission_mode="acceptEdits"  # Not strictly needed but harmless
+                permission_mode="acceptEdits",  # Not strictly needed but harmless
+                hitl_callback=hitl_callback  # Pass HITL callback for debug info
             )
             print(f"  Step 2: LLM created, calling Claude CLI...")
 
