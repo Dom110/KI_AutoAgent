@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧮 Simple Calculator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .calculator {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 300px;
+        }
+
+        .calculator h1 {
+            text-align: center;
+            margin: 0 0 20px 0;
+            color: #333;
+            font-size: 1.5em;
+        }
+
+        .display {
+            width: 100%;
+            height: 80px;
+            border: none;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-size: 2em;
+            text-align: right;
+            padding: 0 15px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .btn {
+            height: 60px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-number {
+            background: #6c757d;
+        }
+
+        .btn-number:hover {
+            background: #5a6268;
+        }
+
+        .btn-operator {
+            background: #007bff;
+        }
+
+        .btn-operator:hover {
+            background: #0056b3;
+        }
+
+        .btn-equals {
+            background: #28a745;
+            grid-column: span 2;
+        }
+
+        .btn-equals:hover {
+            background: #1e7e34;
+        }
+
+        .btn-clear {
+            background: #dc3545;
+        }
+
+        .btn-clear:hover {
+            background: #c82333;
+        }
+
+        .btn-zero {
+            grid-column: span 2;
+        }
+
+        .error {
+            color: #dc3545;
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <h1>🧮 Simple Calculator</h1>
+        <input type="text" class="display" id="display" value="0" readonly>
+
+        <div class="buttons">
+            <button class="btn btn-clear" onclick="clearCalculator()">C</button>
+            <button class="btn btn-operator" onclick="toggleSign()">±</button>
+            <button class="btn btn-operator" onclick="percentage()">%</button>
+            <button class="btn btn-operator" onclick="setOperator('/')">÷</button>
+
+            <button class="btn btn-number" onclick="inputNumber('7')">7</button>
+            <button class="btn btn-number" onclick="inputNumber('8')">8</button>
+            <button class="btn btn-number" onclick="inputNumber('9')">9</button>
+            <button class="btn btn-operator" onclick="setOperator('*')">×</button>
+
+            <button class="btn btn-number" onclick="inputNumber('4')">4</button>
+            <button class="btn btn-number" onclick="inputNumber('5')">5</button>
+            <button class="btn btn-number" onclick="inputNumber('6')">6</button>
+            <button class="btn btn-operator" onclick="setOperator('-')">-</button>
+
+            <button class="btn btn-number" onclick="inputNumber('1')">1</button>
+            <button class="btn btn-number" onclick="inputNumber('2')">2</button>
+            <button class="btn btn-number" onclick="inputNumber('3')">3</button>
+            <button class="btn btn-operator" onclick="setOperator('+')">+</button>
+
+            <button class="btn btn-number btn-zero" onclick="inputNumber('0')">0</button>
+            <button class="btn btn-number" onclick="inputDecimal()">.</button>
+            <button class="btn btn-equals" onclick="calculate()">=</button>
+        </div>
+
+        <div id="error" class="error"></div>
+    </div>
+
+    <script>
+        class Calculator {
+            constructor() {
+                this.display = document.getElementById('display');
+                this.errorDiv = document.getElementById('error');
+                this.current = '0';
+                this.previous = '0';
+                this.operator = null;
+                this.waitingForOperand = false;
+            }
+
+            updateDisplay() {
+                // Limit display length
+                if (this.current.length > 12) {
+                    this.current = this.current.substring(0, 12);
+                }
+                this.display.value = this.current;
+                this.clearError();
+            }
+
+            showError(message) {
+                this.errorDiv.textContent = message;
+                setTimeout(() => this.clearError(), 3000);
+            }
+
+            clearError() {
+                this.errorDiv.textContent = '';
+            }
+
+            inputNumber(num) {
+                if (this.waitingForOperand) {
+                    this.current = num;
+                    this.waitingForOperand = false;
+                } else {
+                    this.current = this.current === '0' ? num : this.current + num;
+                }
+                this.updateDisplay();
+            }
+
+            inputDecimal() {
+                if (this.waitingForOperand) {
+                    this.current = '0.';
+                    this.waitingForOperand = false;
+                } else if (this.current.indexOf('.') === -1) {
+                    this.current += '.';
+                }
+                this.updateDisplay();
+            }
+
+            setOperator(nextOperator) {
+                const inputValue = parseFloat(this.current);
+
+                if (this.operator && !this.waitingForOperand) {
+                    this.calculate();
+                }
+
+                this.previous = this.current;
+                this.operator = nextOperator;
+                this.waitingForOperand = true;
+            }
+
+            calculate() {
+                if (this.operator && !this.waitingForOperand) {
+                    const prev = parseFloat(this.previous);
+                    const current = parseFloat(this.current);
+                    let result;
+
+                    try {
+                        switch (this.operator) {
+                            case '+':
+                                result = prev + current;
+                                break;
+                            case '-':
+                                result = prev - current;
+                                break;
+                            case '*':
+                                result = prev * current;
+                                break;
+                            case '/':
+                                if (current === 0) {
+                                    throw new Error('Cannot divide by zero!');
+                                }
+                                result = prev / current;
+                                break;
+                            default:
+                                return;
+                        }
+
+                        // Format result
+                        if (Number.isInteger(result)) {
+                            this.current = result.toString();
+                        } else {
+                            this.current = parseFloat(result.toFixed(10)).toString();
+                        }
+
+                        this.operator = null;
+                        this.waitingForOperand = true;
+                        this.updateDisplay();
+
+                    } catch (error) {
+                        this.showError(error.message);
+                    }
+                }
+            }
+
+            clear() {
+                this.current = '0';
+                this.previous = '0';
+                this.operator = null;
+                this.waitingForOperand = false;
+                this.updateDisplay();
+            }
+
+            toggleSign() {
+                if (this.current !== '0') {
+                    this.current = this.current.startsWith('-')
+                        ? this.current.substring(1)
+                        : '-' + this.current;
+                    this.updateDisplay();
+                }
+            }
+
+            percentage() {
+                const value = parseFloat(this.current) / 100;
+                this.current = value.toString();
+                this.updateDisplay();
+            }
+        }
+
+        // Create calculator instance
+        const calc = new Calculator();
+
+        // Global functions for button clicks
+        function inputNumber(num) { calc.inputNumber(num); }
+        function inputDecimal() { calc.inputDecimal(); }
+        function setOperator(op) { calc.setOperator(op); }
+        function calculate() { calc.calculate(); }
+        function clearCalculator() { calc.clear(); }
+        function toggleSign() { calc.toggleSign(); }
+        function percentage() { calc.percentage(); }
+
+        // Keyboard support
+        document.addEventListener('keydown', function(event) {
+            const key = event.key;
+
+            if (key >= '0' && key <= '9') {
+                inputNumber(key);
+            } else if (key === '.') {
+                inputDecimal();
+            } else if (key === '+' || key === '-' || key === '*' || key === '/') {
+                setOperator(key);
+            } else if (key === 'Enter' || key === '=') {
+                calculate();
+            } else if (key === 'Escape' || key === 'c' || key === 'C') {
+                clearCalculator();
+            }
+        });
+
+        // Initialize display
+        calc.updateDisplay();
+    </script>
+</body>
+</html>

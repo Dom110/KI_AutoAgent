@@ -1,0 +1,41 @@
+  ⚠️  2 knowledge gaps detected
+⚠️  No LLM available for neural reasoning
+⚠️  No LLM available for neural reasoning
+⚠️  No WebSocket callback, auto-approving
+⚠️  No files to review
+⚠️  No feedback or files to fix
+⚠️  No files to review
+⚠️  No feedback or files to fix
+⚠️  No files to review
+✅ Loaded .env from /Users/dominikfoert/.ki_autoagent/config/.env
+✅ Claude CLI adapter activated
+   All ChatAnthropic calls will use `claude --print`
+✅ Claude CLI adapter activated
+
+================================================================================
+🧪 INTELLIGENT MULTI-AGENT FLOW TEST SUITE (v6.1)
+================================================================================
+
+================================================================================
+TEST 1: Simple Calculator App (Linear Flow)
+================================================================================
+
+🔧 Initializing workflow...
+
+📝 Running workflow...
+
+📊 Results:
+  Success: False
+  Execution Time: 194.7s
+  Quality Score: 0.80
+  Errors: 1
+
+📂 Files created:
+
+❌ TEST 1 FAILED
+
+================================================================================
+🏁 FINAL RESULTS: 0/1 tests passed
+================================================================================
+
+❌ ALL TESTS FAILED - Need debugging

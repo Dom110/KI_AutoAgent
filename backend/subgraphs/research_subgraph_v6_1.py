@@ -61,17 +61,28 @@ def create_research_subgraph(
         3. Store in Memory
         4. Return results
         """
+        print(f"🔍 === RESEARCH SUBGRAPH START ===")
         logger.info(f"🔍 Research node v6.1 executing: {state['query']}")
 
         try:
             # Step 1: Search with Perplexity
+            print(f"  Step 1: Calling Perplexity...")
             logger.info("🌐 Searching with Perplexity...")
             search_result = await perplexity_search.ainvoke({"query": state['query']})
+            print(f"  Step 1: Perplexity returned {type(search_result)}")
+
+            # LOG COMPLETE PERPLEXITY OUTPUT
+            import json
+            with open("/tmp/perplexity_output.json", "w") as f:
+                json.dump(search_result, f, indent=2)
+            print(f"  📝 Perplexity complete output: /tmp/perplexity_output.json")
 
             search_findings = search_result.get("content", "No results found")
+            print(f"  Step 1: Got {len(search_findings)} chars")
             logger.info(f"✅ Perplexity results: {len(search_findings)} chars")
 
             # Step 2: Analyze with Claude
+            print(f"  Step 2: Creating Claude LLM...")
             logger.info("🤖 Analyzing findings with Claude...")
 
             llm = ChatAnthropic(
@@ -80,9 +91,10 @@ def create_research_subgraph(
                 max_tokens=4096,
                 agent_name="research",
                 agent_description="Research analyst specializing in software development and technology",
-                agent_tools=["Read", "Grep", "Bash"],
-                permission_mode="acceptEdits"
+                agent_tools=["Read", "Bash"],  # Read for context, Bash for utilities (NOT Edit - no file creation needed)
+                permission_mode="acceptEdits"  # Not strictly needed but harmless
             )
+            print(f"  Step 2: LLM created, calling Claude CLI...")
 
             system_prompt = """You are a research analyst specializing in software development.
 
@@ -107,12 +119,22 @@ Output format:
 
 Provide a structured summary of the key findings."""
 
+            # LOG PROMPTS FOR DEBUGGING
+            with open("/tmp/claude_system_prompt.txt", "w") as f:
+                f.write(system_prompt)
+            with open("/tmp/claude_user_prompt.txt", "w") as f:
+                f.write(user_prompt)
+            print(f"  📝 System prompt: /tmp/claude_system_prompt.txt ({len(system_prompt)} chars)")
+            print(f"  📝 User prompt: /tmp/claude_user_prompt.txt ({len(user_prompt)} chars)")
+
             response = await llm.ainvoke([
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_prompt)
             ])
+            print(f"  Step 2: Claude returned {type(response)}")
 
             analysis = response.content if hasattr(response, 'content') else str(response)
+            print(f"  Step 2: Analysis complete: {len(analysis)} chars")
             logger.info(f"✅ Analysis complete: {len(analysis)} chars")
 
             # Step 3: Create research report
@@ -140,7 +162,9 @@ Provide a structured summary of the key findings."""
             }
 
             # Step 4: Store in Memory (if available)
+            print(f"  Step 3: Memory store...")
             if memory:
+                print(f"  Step 3: Storing in memory...")
                 logger.info("💾 Storing findings in Memory...")
                 await memory.store(
                     content=analysis,
@@ -151,9 +175,13 @@ Provide a structured summary of the key findings."""
                         "timestamp": findings["timestamp"]
                     }
                 )
+                print(f"  Step 3: Memory stored")
                 logger.debug("✅ Findings stored in Memory")
+            else:
+                print(f"  Step 3: No memory, skipping")
 
             # Return updated state
+            print(f"  Step 4: Returning state")
             return {
                 **state,
                 "findings": findings,

@@ -31,6 +31,9 @@ from langchain_core.messages import (
 
 logger = logging.getLogger(__name__)
 
+# DEBUG_OUTPUT: Set to True to enable detailed output during development
+DEBUG_OUTPUT = True  # Set to False in production
+
 
 class ClaudeCLISimple:
     """
@@ -188,17 +191,23 @@ class ClaudeCLISimple:
         # Extract system prompt (agent instructions) and user prompt (task)
         system_prompt, user_prompt = self._extract_system_and_user_prompts(messages)
 
-        # Build agent definition
+        # CRITICAL: Based on testing (2025-10-10):
+        # - System prompt in agent.prompt ALONE causes timeout!
+        # - MUST combine system + user in -p parameter
+        # - Keep agent.prompt minimal
+        combined_prompt = f"{system_prompt}\n\n{user_prompt}"
+
+        # Build agent definition with MINIMAL prompt
         agent_definition = {
             self.agent_name: {
                 "description": self.agent_description,
-                "prompt": system_prompt,
-                "tools": self.agent_tools
+                "prompt": "You are a helpful assistant.",  # Minimal! System goes in -p
+                "tools": self.agent_tools  # MUST be non-empty! Empty = timeout
             }
         }
 
         # Build CLI command with ALL working parameters
-        # SUCCESS: --agents + stream-json + --verbose + -p WORKS!
+        # SUCCESS: --agents + stream-json + --verbose + combined prompt in -p!
         cmd = [
             self.cli_path,
             "--model", self.model,
@@ -206,29 +215,71 @@ class ClaudeCLISimple:
             "--allowedTools", " ".join(self.allowed_tools),
             "--agents", json.dumps(agent_definition),
             "--output-format", "stream-json",
-            "--verbose",                      # Required for stream-json!
-            "-p", user_prompt
+            "--verbose",                      # REQUIRED with stream-json!
+            "-p", combined_prompt             # System + User COMBINED!
         ]
+
+        # LOG COMPLETE COMMAND FOR USER
+        with open("/tmp/claude_cli_command.txt", "w") as f:
+            f.write(f"# Complete Claude CLI command\n\n")
+            f.write(f"# Command as list:\n{cmd}\n\n")
+            f.write(f"# Command as shell (for manual testing):\n")
+            f.write(f"claude \\\n")
+            f.write(f'  --model {self.model} \\\n')
+            f.write(f'  --permission-mode {self.permission_mode} \\\n')
+            f.write(f'  --allowedTools "{" ".join(self.allowed_tools)}" \\\n')
+            f.write(f"  --agents '{json.dumps(agent_definition)}' \\\n")
+            f.write(f'  --output-format stream-json \\\n')
+            f.write(f'  --verbose \\\n')
+            f.write(f'  -p "$(cat /tmp/claude_user_prompt.txt)"\n')
+        logger.info(f"📝 Complete command saved to /tmp/claude_cli_command.txt")
+
+        # DEBUG: Show exact command
+        if DEBUG_OUTPUT:
+            print("\n" + "="*80)
+            print("🚀 EXECUTING CLAUDE CLI")
+            print("="*80)
+            print(f"Command parts:")
+            for i, arg in enumerate(cmd):
+                if arg.startswith("--"):
+                    print(f"  [{i}] {arg}")
+                elif i > 0 and cmd[i-1].startswith("--"):
+                    preview = arg[:150] + "..." if len(arg) > 150 else arg
+                    print(f"       → {preview}")
+            print("="*80 + "\n")
 
         logger.debug(f"Calling Claude CLI: --agents {self.agent_name} + stream-json + verbose")
 
         try:
             # Run CLI command
+            if DEBUG_OUTPUT:
+                print("⏳ Starting subprocess...")
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
+                stdin=asyncio.subprocess.DEVNULL  # Prevent CLI from waiting on stdin
             )
+            if DEBUG_OUTPUT:
+                print(f"✅ Process started, PID: {process.pid}")
 
+            if DEBUG_OUTPUT:
+                print("⏳ Waiting for response...")
             stdout, stderr = await process.communicate()
+            if DEBUG_OUTPUT:
+                print(f"✅ Process completed, returncode: {process.returncode}")
 
             if process.returncode != 0:
                 error_msg = stderr.decode() if stderr else "Unknown error"
+                if DEBUG_OUTPUT:
+                    print(f"❌ ERROR: {error_msg[:500]}")
                 raise RuntimeError(f"Claude CLI failed: {error_msg}")
 
             # Decode output (stream-json format = JSONL)
             output_str = stdout.decode().strip()
 
+            if DEBUG_OUTPUT:
+                print(f"\n📦 Received {len(output_str)} chars of output")
             logger.debug(f"CLI returned {len(output_str)} chars")
 
             # DEBUG: Save raw output to file for inspection
@@ -236,22 +287,54 @@ class ClaudeCLISimple:
             debug_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='_claude_raw.jsonl')
             debug_file.write(output_str)
             debug_file.close()
+            if DEBUG_OUTPUT:
+                print(f"💾 Raw output saved to: {debug_file.name}")
             logger.info(f"🔍 DEBUG: Raw CLI output saved to: {debug_file.name}")
 
             # Parse JSONL (JSON Lines) - each line is a separate event
             if not output_str:
+                if DEBUG_OUTPUT:
+                    print("❌ ERROR: Empty response!")
                 raise RuntimeError("Empty response from Claude CLI")
 
             lines = output_str.split('\n')
             events = []
+
+            if DEBUG_OUTPUT:
+                print(f"\n📊 Parsing {len(lines)} lines...")
+                print("="*80)
 
             for i, line in enumerate(lines, 1):
                 if line.strip():
                     try:
                         event = json.loads(line)
                         events.append(event)
+
+                        # Show event details
+                        if DEBUG_OUTPUT:
+                            event_type = event.get('type', 'unknown')
+                            event_subtype = event.get('subtype', '')
+
+                            if event_type == "system":
+                                print(f"  [{i}] 🔧 SYSTEM: {event_subtype}")
+                            elif event_type == "assistant":
+                                message = event.get('message', {})
+                                content_preview = str(message)[:100]
+                                print(f"  [{i}] 🤖 ASSISTANT: {content_preview}...")
+                            elif event_type == "user":
+                                print(f"  [{i}] 👤 USER")
+                            elif event_type == "result":
+                                result_preview = str(event.get('result', ''))[:100]
+                                print(f"  [{i}] ✅ RESULT: {result_preview}...")
+                            else:
+                                print(f"  [{i}] ❓ {event_type}: {str(event)[:100]}...")
+
                         logger.debug(f"✅ Parsed line {i}: type={event.get('type')}")
                     except json.JSONDecodeError as e:
+                        if DEBUG_OUTPUT:
+                            print(f"  [{i}] ❌ JSON PARSE ERROR")
+                            print(f"        Length: {len(line)} chars")
+                            print(f"        Preview: {line[:200]}...")
                         logger.error(f"❌ JSON parse error on line {i}: {e}")
                         logger.error(f"   Line length: {len(line)} chars")
                         logger.error(f"   First 200: {line[:200]}")
@@ -259,7 +342,13 @@ class ClaudeCLISimple:
                         # Try to parse anyway - might be incomplete but salvageable
                         continue
 
+            if DEBUG_OUTPUT:
+                print("="*80)
+                print(f"✅ Parsed {len(events)} events total\n")
+
             if not events:
+                if DEBUG_OUTPUT:
+                    print("❌ ERROR: No valid events!")
                 raise RuntimeError("No valid JSON events in response")
 
             # Last event contains the final result
@@ -314,17 +403,22 @@ class ClaudeCLISimple:
         # Extract system prompt (agent instructions) and user prompt (task)
         system_prompt, user_prompt = self._extract_system_and_user_prompts(messages)
 
-        # Build agent definition
+        # CRITICAL: Based on testing (2025-10-10):
+        # - System prompt in agent.prompt ALONE causes timeout!
+        # - MUST combine system + user in -p parameter
+        combined_prompt = f"{system_prompt}\n\n{user_prompt}"
+
+        # Build agent definition with MINIMAL prompt
         agent_definition = {
             self.agent_name: {
                 "description": self.agent_description,
-                "prompt": system_prompt,
-                "tools": self.agent_tools
+                "prompt": "You are a helpful assistant.",  # Minimal! System goes in -p
+                "tools": self.agent_tools  # MUST be non-empty!
             }
         }
 
         # Build CLI command
-        # SUCCESS: --agents + stream-json + --verbose + -p WORKS!
+        # SUCCESS: --agents + stream-json + --verbose + combined prompt!
         cmd = [
             self.cli_path,
             "--model", self.model,
@@ -332,8 +426,8 @@ class ClaudeCLISimple:
             "--allowedTools", " ".join(self.allowed_tools),
             "--agents", json.dumps(agent_definition),
             "--output-format", "stream-json",
-            "--verbose",                      # Required for stream-json!
-            "-p", user_prompt
+            "--verbose",                      # REQUIRED with stream-json!
+            "-p", combined_prompt             # System + User COMBINED!
         ]
 
         logger.debug(f"Calling Claude CLI sync: --agents {self.agent_name} + stream-json + verbose")

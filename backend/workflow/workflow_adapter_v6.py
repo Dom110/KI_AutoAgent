@@ -320,9 +320,16 @@ class WorkflowAdapterV6:
                 project_type=context.metadata.get("project_type")
             )
 
-            # Parse suggestions
+            # Parse suggestions - handle both string and dict formats
             for suggestion in suggestions.get("suggestions", []):
-                if suggestion.get("type") == "skip_agent":
+                # Current learning_system returns strings, not structured dicts
+                if isinstance(suggestion, str):
+                    # Log informational suggestion, skip structured parsing
+                    logger.debug(f"💡 Optimization suggestion: {suggestion}")
+                    continue
+
+                # Future format: structured dict with type, agent, confidence
+                if isinstance(suggestion, dict) and suggestion.get("type") == "skip_agent":
                     agent_to_skip = suggestion.get("agent")
                     if agent_to_skip in context.pending_agents:
                         logger.info(f"⚡ Optimization: Skipping {agent_to_skip}")

@@ -442,14 +442,19 @@ class WorkflowV6Integrated:
             - "architect": Research found info, proceed to design
             - "hitl": Can't find necessary information
         """
+        print("🔀 === RESEARCH DECISION ===")
         result = state.get("research_results", {})
+        print(f"  research_results type: {type(result)}")
+        print(f"  research_results: {str(result)[:200]}")
 
         # Check if research was successful
         if isinstance(result, dict) and result.get("findings"):
+            print("  ✅ Decision: architect")
             logger.info("✅ Research → Architect (findings available)")
             return "architect"
 
         # No findings after research
+        print("  ⚠️  Decision: hitl")
         logger.warning("⚠️ Research → HITL (no findings)")
         return "hitl"
 
@@ -462,22 +467,29 @@ class WorkflowV6Integrated:
             - "research": Need more technical details
             - "hitl": Can't design (unclear requirements)
         """
+        print("🔀 === ARCHITECT DECISION ===")
         result = state.get("architecture_design")
+        print(f"  architecture_design type: {type(result)}")
+        print(f"  architecture_design: {str(result)[:200]}")
 
         # Check if design is complete
         if result:
             # Check confidence if available
             if isinstance(result, dict):
                 confidence = result.get("confidence", 0.8)
+                print(f"  confidence: {confidence}")
 
                 if confidence < 0.5:
+                    print("  ⚠️  Decision: research")
                     logger.warning("⚠️ Architect → Research (low confidence, need more info)")
                     return "research"
 
+            print("  ✅ Decision: codesmith")
             logger.info("✅ Architect → Codesmith (design complete)")
             return "codesmith"
 
         # Can't create design
+        print("  ⚠️  Decision: hitl")
         logger.warning("⚠️ Architect → HITL (no design created)")
         return "hitl"
 
@@ -491,25 +503,33 @@ class WorkflowV6Integrated:
             - "hitl": Stuck, need human help (ASIMOV RULE 4)
             - END: All done
         """
+        print("🔀 === CODESMITH DECISION ===")
         generated_files = state.get("generated_files", [])
         errors = state.get("errors", [])
+        print(f"  generated_files: {generated_files}")
+        print(f"  errors: {errors}")
 
         # Check for errors first
         if errors:
             error_count = len(errors)
+            print(f"  error_count: {error_count}")
             if error_count >= 3:
+                print("  🛑 Decision: hitl (ASIMOV RULE 4)")
                 logger.warning("🛑 Codesmith → HITL (3+ errors, ASIMOV RULE 4)")
                 return "hitl"
 
+            print("  🔬 Decision: reviewfix (has errors)")
             logger.info("🔬 Codesmith → ReviewFix (has errors)")
             return "reviewfix"
 
         # Check if files were generated
         if not generated_files:
+            print("  ⚠️  Decision: reviewfix (no files)")
             logger.warning("⚠️ Codesmith → ReviewFix (no files generated)")
             return "reviewfix"
 
         # All good - proceed to review
+        print("  ✅ Decision: reviewfix (files ok)")
         logger.info("✅ Codesmith → ReviewFix (files generated)")
         return "reviewfix"
 
@@ -522,24 +542,33 @@ class WorkflowV6Integrated:
             - "hitl": Can't fix, need human (ASIMOV RULE 4)
             - END: All fixed
         """
+        print("🔀 === REVIEWFIX DECISION ===")
         review_feedback = state.get("review_feedback")
         errors = state.get("errors", [])
+        print(f"  review_feedback type: {type(review_feedback)}")
+        print(f"  review_feedback: {str(review_feedback)[:200]}")
+        print(f"  errors: {errors}")
 
         # Check if there are unfixable errors
         if errors:
             error_count = len(errors)
+            print(f"  error_count: {error_count}")
             if error_count >= 3:
+                print("  🛑 Decision: hitl (ASIMOV RULE 4)")
                 logger.warning("🛑 ReviewFix → HITL (can't fix after 3 attempts)")
                 return "hitl"
 
         # Check if review found issues
         if isinstance(review_feedback, dict):
             issues = review_feedback.get("issues", [])
+            print(f"  issues: {issues}")
             if issues:
+                print("  ⚒️  Decision: codesmith (found issues)")
                 logger.info("⚒️ ReviewFix → Codesmith (found issues to fix)")
                 return "codesmith"
 
         # All good!
+        print("  ✅ Decision: END (all fixed)")
         logger.info("✅ ReviewFix → END (all fixed)")
         return END
 
@@ -620,13 +649,21 @@ class WorkflowV6Integrated:
         # Enhanced agent wrappers with Workflow Adapter
         async def research_node_wrapper(state: SupervisorState) -> dict[str, Any]:
             """Research with adaptation monitoring."""
+            print("🔬 === RESEARCH NODE START ===")
             logger.info("🔬 Research Agent executing...")
 
             try:
                 self.current_session["current_phase"] = "research"
+                print(f"  Input query: {state.get('user_query', 'N/A')[:80]}")
+
                 research_input = supervisor_to_research(state)
+                print(f"  Calling research subgraph...")
                 research_output = await research_subgraph.ainvoke(research_input)
+                print(f"  Research subgraph returned: {type(research_output)}")
+
                 result = research_to_supervisor(research_output)
+                print(f"  Result keys: {result.keys()}")
+                print(f"  Research results: {str(result.get('research_results', 'N/A'))[:100]}")
 
                 # Track completion
                 self.current_session["completed_agents"].append("research")
@@ -643,9 +680,11 @@ class WorkflowV6Integrated:
                         context = await self.workflow_adapter.apply_adaptation(adaptation, context)
                         self.current_session = {**context.__dict__}
 
+                print("🔬 === RESEARCH NODE END ===")
                 return result
 
             except Exception as e:
+                print(f"  ❌ RESEARCH EXCEPTION: {e}")
                 logger.error(f"  ❌ Research failed: {e}")
                 # Self-diagnosis
                 healing = await self.self_diagnosis.self_heal(e, auto_apply=True)
@@ -658,13 +697,21 @@ class WorkflowV6Integrated:
 
         async def architect_node_wrapper(state: SupervisorState) -> dict[str, Any]:
             """Architect with neurosymbolic validation."""
+            print("📐 === ARCHITECT NODE START ===")
             logger.info("📐 Architect Agent executing...")
 
             try:
                 self.current_session["current_phase"] = "architect"
+                print(f"  Research results available: {bool(state.get('research_results'))}")
+
                 architect_input = supervisor_to_architect(state)
+                print(f"  Calling architect subgraph...")
                 architect_output = await architect_subgraph.ainvoke(architect_input)
+                print(f"  Architect subgraph returned: {type(architect_output)}")
+
                 result = architect_to_supervisor(architect_output)
+                print(f"  Result keys: {result.keys()}")
+                print(f"  Architecture design: {str(result.get('architecture_design', 'N/A'))[:100]}")
 
                 # Validate architecture with neurosymbolic reasoning
                 if result.get("architecture_design"):
@@ -695,9 +742,11 @@ class WorkflowV6Integrated:
                     context = await self.workflow_adapter.apply_adaptation(adaptation, context)
                     self.current_session = {**context.__dict__}
 
+                print("📐 === ARCHITECT NODE END ===")
                 return result
 
             except Exception as e:
+                print(f"  ❌ ARCHITECT EXCEPTION: {e}")
                 logger.error(f"  ❌ Architect failed: {e}")
                 healing = await self.self_diagnosis.self_heal(e, auto_apply=True)
                 self.current_session["errors"].append({"agent": "architect", "error": str(e)})
@@ -705,25 +754,36 @@ class WorkflowV6Integrated:
 
         async def codesmith_node_wrapper(state: SupervisorState) -> dict[str, Any]:
             """Codesmith with approval management."""
+            print("⚒️  === CODESMITH NODE START ===")
             logger.info("⚒️  Codesmith Agent executing...")
 
             try:
                 self.current_session["current_phase"] = "codesmith"
+                print(f"  Architecture design available: {bool(state.get('architecture_design'))}")
+
                 # Request approval for file writes (if enabled)
                 if self.approval_manager:
+                    print(f"  Requesting approval...")
                     approval = await self.approval_manager.request_approval(
                         action_type=ApprovalAction.FILE_WRITE,
                         description="Codesmith will generate code files",
                         details={"workspace": state["workspace_path"]}
                     )
+                    print(f"  Approval result: {approval}")
 
                     if not approval["approved"]:
+                        print(f"  ⚠️  APPROVAL DENIED!")
                         logger.warning("  ⚠️  File write approval denied")
                         return {"errors": ["User denied file write approval"]}
 
                 codesmith_input = supervisor_to_codesmith(state)
+                print(f"  Calling codesmith subgraph...")
                 codesmith_output = await codesmith_subgraph.ainvoke(codesmith_input)
+                print(f"  Codesmith subgraph returned: {type(codesmith_output)}")
+
                 result = codesmith_to_supervisor(codesmith_output)
+                print(f"  Result keys: {result.keys()}")
+                print(f"  Generated files: {result.get('generated_files', [])}")
 
                 # Track completion with quality score
                 self.current_session["completed_agents"].append("codesmith")
@@ -739,9 +799,11 @@ class WorkflowV6Integrated:
                     context = await self.workflow_adapter.apply_adaptation(adaptation, context)
                     self.current_session = {**context.__dict__}
 
+                print("⚒️  === CODESMITH NODE END ===")
                 return result
 
             except Exception as e:
+                print(f"  ❌ CODESMITH EXCEPTION: {e}")
                 logger.error(f"  ❌ Codesmith failed: {e}")
                 healing = await self.self_diagnosis.self_heal(e, auto_apply=True)
                 self.current_session["errors"].append({"agent": "codesmith", "error": str(e)})
@@ -749,13 +811,21 @@ class WorkflowV6Integrated:
 
         async def reviewfix_node_wrapper(state: SupervisorState) -> dict[str, Any]:
             """ReviewFix with Asimov Rule 3 and self-healing."""
+            print("🔬 === REVIEWFIX NODE START ===")
             logger.info("🔬 ReviewFix Loop executing...")
 
             try:
                 self.current_session["current_phase"] = "reviewfix"
+                print(f"  Generated files in state: {state.get('generated_files', [])}")
+
                 reviewfix_input = supervisor_to_reviewfix(state)
+                print(f"  Calling reviewfix subgraph...")
                 reviewfix_output = await reviewfix_subgraph.ainvoke(reviewfix_input)
+                print(f"  ReviewFix subgraph returned: {type(reviewfix_output)}")
+
                 result = reviewfix_to_supervisor(reviewfix_output)
+                print(f"  Result keys: {result.keys()}")
+                print(f"  Review feedback: {str(result.get('review_feedback', 'N/A'))[:100]}")
 
                 # Track completion
                 self.current_session["completed_agents"].append("reviewfix")
@@ -770,9 +840,11 @@ class WorkflowV6Integrated:
                     context = await self.workflow_adapter.apply_adaptation(adaptation, context)
                     self.current_session = {**context.__dict__}
 
+                print("🔬 === REVIEWFIX NODE END ===")
                 return result
 
             except Exception as e:
+                print(f"  ❌ REVIEWFIX EXCEPTION: {e}")
                 logger.error(f"  ❌ ReviewFix failed: {e}")
                 healing = await self.self_diagnosis.self_heal(e, auto_apply=True)
                 self.current_session["errors"].append({"agent": "reviewfix", "error": str(e)})

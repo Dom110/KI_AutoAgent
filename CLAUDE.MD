@@ -2,6 +2,31 @@
 
 ---
 
+## 📚 MANDATORY READING - Claude Official Documentation
+
+**CRITICAL:** Read these before making any Claude-related changes!
+
+- **Claude Best Practices & Workflows:** `/CLAUDE_BEST_PRACTICES.md` (Complete guide)
+- **Claude 4 Best Practices:** https://docs.claude.com/en/docs/build-with-claude/prompt-engineering/claude-4-best-practices
+- **Usage Limits & Optimization:** https://support.claude.com/en/articles/9797557-usage-limit-best-practices
+- **Command Pipelining (Claude Code):** https://www.anthropic.com/engineering/claude-code-best-practices
+- **Claude Opus 4.1 Announcement:** https://www.anthropic.com/news/claude-opus-4-1
+- **Prompt Caching (90% cost savings!):** https://docs.claude.com/en/docs/build-with-claude/prompt-caching
+- **Streaming:** https://docs.claude.com/en/docs/build-with-claude/streaming
+- **Context Editing/Memory:** https://docs.claude.com/en/docs/build-with-claude/context-editing
+
+**Key Takeaways:**
+1. **Prompt Caching:** Cache system prompts for 90% cost savings
+2. **XML Tags:** Use `<task>`, `<context>`, `<requirements>` for structure
+3. **Explicit Instructions:** "Go beyond the basics to create a fully-featured implementation"
+4. **Parallel Execution:** Run independent tasks with `asyncio.gather()`
+5. **Streaming:** Use for long responses, better UX
+6. **Context Management:** Clear old tool results after 30k tokens
+7. **Model Selection:** Opus 4.1 for complex coding, Sonnet 4.5 for general tasks
+8. **NO Shell Substitution:** `subprocess.exec()` doesn't expand `$(...)` - read files in Python!
+
+---
+
 ## 🏗️ SYSTEM-ARCHITEKTUR (v5.9.0+)
 
 ### **⚡ NEW in v5.9.0: Performance Optimizations**

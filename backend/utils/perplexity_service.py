@@ -93,7 +93,8 @@ class PerplexityService:
             payload["search_recency_filter"] = search_recency_filter
 
         try:
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=30.0)  # 30 second timeout
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
                     f"{self.base_url}/chat/completions",
                     headers=self.headers,
@@ -163,7 +164,8 @@ class PerplexityService:
             payload["search_domain_filter"] = search_domain_filter
 
         try:
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=30.0)  # 30 second timeout
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
                     f"{self.base_url}/chat/completions",
                     headers=self.headers,
