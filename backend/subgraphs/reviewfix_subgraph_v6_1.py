@@ -177,6 +177,13 @@ Provide quality score and detailed feedback."""
             build_validation_passed = True
             build_errors = []
 
+            #================================================================
+            # IMPORTANT: Changed from elif to if for polyglot project support!
+            # This allows running MULTIPLE validation checks for projects
+            # with mixed languages (e.g., TypeScript + Python backend).
+            # For true parallel execution: TODO - use asyncio.gather()
+            #================================================================
+
             # TypeScript compilation check
             if has_typescript:
                 logger.info("📘 Project Type: TypeScript")
@@ -227,20 +234,130 @@ Provide quality score and detailed feedback."""
                     logger.warning("⚠️  No tsconfig.json or package.json found - skipping TS compilation check")
 
             # Python type checking with mypy
-            elif has_python:
+            if has_python:
                 logger.info("🐍 Project Type: Python")
                 logger.info("   Quality Threshold: 0.85")
 
-                # TODO: Implement mypy check
-                logger.info("⏭️  Python mypy check - TODO")
+                # Check if mypy is available and there are .py files
+                python_files = [
+                    f.get('path') for f in generated_files
+                    if f.get('path', '').endswith('.py')
+                ]
+
+                if python_files:
+                    logger.info(f"🔬 Running Python mypy type check ({len(python_files)} files)...")
+
+                    try:
+                        import subprocess
+
+                        # Run mypy on all Python files
+                        result = subprocess.run(
+                            ['python3', '-m', 'mypy'] + [
+                                os.path.join(workspace_path, f) for f in python_files
+                            ] + ['--ignore-missing-imports', '--no-strict-optional'],
+                            capture_output=True,
+                            text=True,
+                            timeout=60
+                        )
+
+                        if result.returncode == 0:
+                            logger.info("✅ Python mypy type check passed!")
+                        else:
+                            logger.error("❌ Python mypy type check failed!")
+                            logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
+                            build_validation_passed = False
+                            build_errors.append({
+                                "type": "python_mypy",
+                                "errors": result.stdout + result.stderr
+                            })
+
+                    except subprocess.TimeoutExpired:
+                        logger.error("❌ Python mypy timeout (60s)")
+                        build_validation_passed = False
+                        build_errors.append({
+                            "type": "python_mypy",
+                            "errors": "Mypy type check timeout after 60 seconds"
+                        })
+                    except FileNotFoundError:
+                        logger.warning("⚠️  mypy not installed - skipping Python type check")
+                        logger.warning("   Install with: pip install mypy")
+                    except Exception as e:
+                        logger.error(f"❌ Python mypy check failed: {e}")
+                        build_validation_passed = False
+                        build_errors.append({
+                            "type": "python_mypy",
+                            "errors": str(e)
+                        })
+                else:
+                    logger.warning("⚠️  No Python files found - skipping mypy check")
 
             # JavaScript linting with ESLint
-            elif has_javascript:
+            if has_javascript:
                 logger.info("📙 Project Type: JavaScript")
                 logger.info("   Quality Threshold: 0.75")
 
-                # TODO: Implement ESLint check
-                logger.info("⏭️  JavaScript ESLint check - TODO")
+                # Check if ESLint is available
+                eslint_config_path = os.path.join(workspace_path, '.eslintrc.json')
+                package_json_path = os.path.join(workspace_path, 'package.json')
+
+                javascript_files = [
+                    f.get('path') for f in generated_files
+                    if f.get('path', '').endswith(('.js', '.jsx'))
+                ]
+
+                if javascript_files:
+                    logger.info(f"🔬 Running JavaScript ESLint check ({len(javascript_files)} files)...")
+
+                    try:
+                        import subprocess
+
+                        # Run ESLint on all JavaScript files
+                        result = subprocess.run(
+                            ['npx', 'eslint'] + [
+                                os.path.join(workspace_path, f) for f in javascript_files
+                            ],
+                            cwd=workspace_path,
+                            capture_output=True,
+                            text=True,
+                            timeout=60
+                        )
+
+                        # ESLint returns 0 for no errors, 1 for errors, 2 for fatal errors
+                        if result.returncode == 0:
+                            logger.info("✅ JavaScript ESLint check passed!")
+                        elif result.returncode == 1:
+                            logger.error("❌ JavaScript ESLint check failed!")
+                            logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
+                            build_validation_passed = False
+                            build_errors.append({
+                                "type": "javascript_eslint",
+                                "errors": result.stdout + result.stderr
+                            })
+                        else:
+                            logger.error(f"❌ JavaScript ESLint fatal error (code {result.returncode})")
+                            logger.error(f"   Output:\n{result.stdout}\n{result.stderr}")
+                            # Don't fail build on configuration issues
+                            logger.warning("   Continuing without ESLint check")
+
+                    except subprocess.TimeoutExpired:
+                        logger.error("❌ JavaScript ESLint timeout (60s)")
+                        build_validation_passed = False
+                        build_errors.append({
+                            "type": "javascript_eslint",
+                            "errors": "ESLint check timeout after 60 seconds"
+                        })
+                    except FileNotFoundError:
+                        logger.warning("⚠️  ESLint not found - skipping JavaScript linting")
+                        logger.warning("   Install with: npm install --save-dev eslint")
+                    except Exception as e:
+                        logger.error(f"❌ JavaScript ESLint check failed: {e}")
+                        build_validation_passed = False
+                        build_errors.append({
+                            "type": "javascript_eslint",
+                            "errors": str(e)
+                        })
+                else:
+                    logger.warning("⚠️  No JavaScript files found - skipping ESLint check")
 
             # Adjust quality score based on build validation
             if not build_validation_passed:
