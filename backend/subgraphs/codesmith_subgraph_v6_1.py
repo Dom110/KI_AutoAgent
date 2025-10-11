@@ -368,9 +368,26 @@ Generate complete, production-ready code files."""
                     except Exception as e:
                         logger.error(f"❌ Failed to write {file_path}: {e}")
 
-            logger.info(f"✅ Generated {len(generated_files)} files")
+            logger.info(f"✅ Generated {len(generated_files)} files from parsing")
 
-            # Step 3.5: Validate generated files (NEW!)
+            # Step 3.5: FALLBACK - Extract files from Claude CLI events
+            # (Claude CLI uses Edit tool, not FILE: format in text output)
+            if len(generated_files) == 0:
+                logger.info("🔍 No files from parsing - extracting from Claude CLI Edit tool events...")
+
+                # The LLM wrapper (claude_cli_simple) stores events in last_events
+                if hasattr(llm, 'last_events') and llm.last_events:
+                    extracted_files = llm.extract_file_paths_from_events(llm.last_events)
+
+                    if extracted_files:
+                        logger.info(f"✅ Extracted {len(extracted_files)} files from Claude CLI events")
+                        generated_files = extracted_files
+                    else:
+                        logger.warning("⚠️  No files found in Claude CLI events")
+                else:
+                    logger.warning("⚠️  No Claude CLI events available for file extraction")
+
+            # Step 3.6: Validate generated files (NEW!)
             logger.info("🔍 Validating file completeness...")
             validation_result = validate_generated_files(
                 workspace_path=workspace_path,

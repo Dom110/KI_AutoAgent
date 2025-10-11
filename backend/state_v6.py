@@ -272,6 +272,7 @@ class ReviewFixState(TypedDict):
     # Input
     workspace_path: str
     generated_files: list[dict[str, Any]]
+    files_to_review: list[str]  # ← NEW! File paths extracted for review
     design: dict[str, Any]  # From Memory
 
     # Review results
@@ -419,9 +420,24 @@ def supervisor_to_reviewfix(state: SupervisorState) -> ReviewFixState:
     Called when Supervisor invokes ReviewFix subgraph.
     Note: design populated from Memory.
     """
+    # Extract file paths from generated_files for ReviewFix
+    generated_files = state["generated_files"]
+    files_to_review = []
+
+    for file_info in generated_files:
+        if isinstance(file_info, dict):
+            # Try different possible keys for file path
+            file_path = file_info.get("path") or file_info.get("file_path") or file_info.get("filepath")
+            if file_path:
+                files_to_review.append(file_path)
+        elif isinstance(file_info, str):
+            # If it's just a string, use it directly
+            files_to_review.append(file_info)
+
     return {
         "workspace_path": state["workspace_path"],
         "generated_files": state["generated_files"],
+        "files_to_review": files_to_review,  # ← NEW! Extract file paths for ReviewFix
         "design": {},  # Populated from Memory in agent
         "quality_score": 0.0,
         "review_feedback": {},

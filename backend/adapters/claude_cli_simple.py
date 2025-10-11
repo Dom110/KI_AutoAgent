@@ -191,6 +191,68 @@ class ClaudeCLISimple:
             logger.error(f"JSON repair failed: {e}")
             return None
 
+    def extract_file_paths_from_events(self, events: list[dict]) -> list[dict[str, Any]]:
+        """
+        Extract file paths from Claude CLI Edit tool use events.
+
+        Claude CLI uses Edit tool to create/modify files. These operations
+        are logged in JSONL events. This method extracts the file paths from
+        those tool_use events.
+
+        Args:
+            events: List of JSONL events from Claude CLI
+
+        Returns:
+            List of file info dicts with format:
+            [{"path": "src/file.ts", "size": 1234, "validated": True, ...}, ...]
+        """
+        import os
+
+        files = []
+        file_paths_seen = set()
+
+        for event in events:
+            event_type = event.get("type")
+
+            # Look for assistant messages with tool use
+            if event_type == "assistant":
+                message = event.get("message", {})
+                content = message.get("content", [])
+
+                # Content can be a list of content blocks
+                if isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "tool_use":
+                            tool_name = block.get("name")
+                            tool_input = block.get("input", {})
+
+                            # Edit tool creates/modifies files
+                            if tool_name == "Edit":
+                                file_path = tool_input.get("file_path") or tool_input.get("path")
+
+                                if file_path and file_path not in file_paths_seen:
+                                    file_paths_seen.add(file_path)
+
+                                    # Check if file actually exists in workspace
+                                    full_path = os.path.join(self.workspace_path, file_path) if self.workspace_path else file_path
+                                    file_exists = os.path.isfile(full_path)
+
+                                    if file_exists:
+                                        size = os.path.getsize(full_path)
+                                        files.append({
+                                            "path": file_path,
+                                            "size": size,
+                                            "validated": True,  # Edit tool was used
+                                            "tool": "Edit"
+                                        })
+                                        logger.info(f"📄 Extracted file from Edit tool: {file_path} ({size} bytes)")
+                                    else:
+                                        # File mentioned but not found (might be error case)
+                                        logger.warning(f"⚠️  Edit tool mentioned {file_path} but file not found")
+
+        logger.info(f"✅ Extracted {len(files)} files from {len(events)} Claude CLI events")
+        return files
+
     async def _call_cli(self, messages: List[BaseMessage]) -> dict[str, Any]:
         """
         Call Claude CLI with stream-json format to avoid truncation.
