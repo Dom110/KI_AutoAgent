@@ -230,7 +230,8 @@ Provide quality score and detailed feedback."""
                 agent_description="Code fixer who implements corrections based on review feedback",
                 agent_tools=["Read", "Edit", "Bash"],
                 permission_mode="acceptEdits",
-                hitl_callback=hitl_callback  # Pass HITL callback for debug info
+                hitl_callback=hitl_callback,  # Pass HITL callback for debug info
+                workspace_path=workspace_path  # 🎯 FIX (2025-10-11): Set CWD for subprocess!
             )
 
             system_prompt = """You are an expert code fixer.

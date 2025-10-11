@@ -54,7 +54,8 @@ class ClaudeCLISimple:
         agent_tools: list[str] | None = None,
         permission_mode: str = "acceptEdits",
         allowed_tools: list[str] | None = None,
-        hitl_callback: Any = None
+        hitl_callback: Any = None,
+        workspace_path: str | None = None
     ):
         """
         Initialize Claude CLI wrapper.
@@ -72,6 +73,9 @@ class ClaudeCLISimple:
             allowed_tools: Global allowed tools (passed to --allowedTools parameter)
             hitl_callback: Async callback for HITL debug info
                           Signature: async def(debug_info: dict) -> None
+            workspace_path: Working directory for Claude CLI subprocess
+                          CRITICAL: Must be set to target workspace to avoid confusion!
+                          Bug found 2025-10-11: Without this, CLI runs from dev repo
         """
         self.model = model
         self.temperature = temperature
@@ -84,6 +88,7 @@ class ClaudeCLISimple:
         self.permission_mode = permission_mode
         self.allowed_tools = allowed_tools or ["Read", "Edit", "Bash"]
         self.hitl_callback = hitl_callback
+        self.workspace_path = workspace_path  # 🎯 FIX: Set CWD for subprocess
 
         # HITL Debug Info (captured during execution)
         self.last_command: list[str] | None = None
@@ -208,22 +213,33 @@ class ClaudeCLISimple:
         # Extract system prompt (agent instructions) and user prompt (task)
         system_prompt, user_prompt = self._extract_system_and_user_prompts(messages)
 
-        # CRITICAL: Based on testing (2025-10-10):
-        # - System prompt in agent.prompt ALONE causes timeout!
-        # - MUST combine system + user in -p parameter
-        # - Keep agent.prompt minimal
-        combined_prompt = f"{system_prompt}\n\n{user_prompt}"
+        # 🎯 FIX (2025-10-11): Special handling for Codesmith (needs strict format!)
+        # Problem: Long combined prompts → Format instructions get lost
+        # Solution: For codesmith, use short focused prompt in agent.prompt
+        if self.agent_name == "codesmith":
+            agent_prompt = """You are a code generator.
+CRITICAL: START YOUR RESPONSE WITH 'FILE:' immediately!
+Format: FILE: path
+```language
+code
+```
+NO explanations!"""
+            combined_prompt = user_prompt  # Only user task in -p
+        else:
+            # For other agents: Original strategy (works, no timeout issues)
+            agent_prompt = "You are a helpful assistant."
+            combined_prompt = f"{system_prompt}\n\n{user_prompt}"
 
         # HITL: Capture prompts
         self.last_system_prompt = system_prompt
         self.last_user_prompt = user_prompt
         self.last_combined_prompt = combined_prompt
 
-        # Build agent definition with MINIMAL prompt
+        # Build agent definition
         agent_definition = {
             self.agent_name: {
                 "description": self.agent_description,
-                "prompt": "You are a helpful assistant.",  # Minimal! System goes in -p
+                "prompt": agent_prompt,  # 🎯 Conditional: focused for codesmith, minimal for others
                 "tools": self.agent_tools  # MUST be non-empty! Empty = timeout
             }
         }
@@ -299,11 +315,20 @@ class ClaudeCLISimple:
             # Run CLI command
             if DEBUG_OUTPUT:
                 print("⏳ Starting subprocess...")
+                if self.workspace_path:
+                    print(f"   CWD: {self.workspace_path}")
+
+            # 🎯 FIX (2025-10-11): Set correct working directory!
+            # Bug: Without cwd, subprocess runs from wherever Python started
+            # → Claude finds old test artifacts in dev repo
+            # → Gets confused, crashes after 5 minutes
+            # Solution: Explicit CWD to target workspace
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                stdin=asyncio.subprocess.DEVNULL  # Prevent CLI from waiting on stdin
+                stdin=asyncio.subprocess.DEVNULL,  # Prevent CLI from waiting on stdin
+                cwd=self.workspace_path  # 🎯 USE WORKSPACE AS WORKING DIRECTORY!
             )
             if DEBUG_OUTPUT:
                 print(f"✅ Process started, PID: {process.pid}")
@@ -532,11 +557,13 @@ class ClaudeCLISimple:
         logger.debug(f"Calling Claude CLI sync: --agents {self.agent_name} + stream-json + verbose")
 
         try:
+            # 🎯 FIX (2025-10-11): Set correct working directory!
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
+                cwd=self.workspace_path  # 🎯 USE WORKSPACE AS WORKING DIRECTORY!
             )
 
             # Parse JSONL (stream-json format)

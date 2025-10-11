@@ -329,7 +329,8 @@ async def websocket_chat(websocket: WebSocket):
                 continue
 
             # CHAT MESSAGE (execute workflow)
-            if message_type == "chat":
+            # Accept both "chat" and "message" for compatibility
+            if message_type in ["chat", "message"]:
                 user_query = data.get("content") or data.get("message", "")
                 if not user_query:
                     await manager.send_json(client_id, {
@@ -370,8 +371,10 @@ async def websocket_chat(websocket: WebSocket):
                     )
 
                     # Send comprehensive result
+                    # Use "result" type for E2E test compatibility
                     await manager.send_json(client_id, {
-                        "type": "workflow_complete",
+                        "type": "result",
+                        "subtype": "workflow_complete",
                         "success": result["success"],
                         "session_id": session["session_id"],
                         "execution_time": result["execution_time"],
@@ -405,12 +408,16 @@ async def websocket_chat(websocket: WebSocket):
                     logger.info(f"  Adaptations: {result['adaptations']['total_adaptations']}")
 
                 except Exception as e:
-                    logger.error(f"❌ Workflow failed: {e}", exc_info=True)
+                    logger.error(f"❌ Workflow failed for {client_id}: {e}", exc_info=True)
+                    logger.error(f"   Query: {user_query[:100]}...")
+                    logger.error(f"   Workspace: {session.get('workspace_path')}")
 
                     await manager.send_json(client_id, {
                         "type": "error",
                         "message": f"Workflow execution failed: {str(e)}",
-                        "error": str(e)
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                        "query": user_query[:100]
                     })
 
             # PLAN MODE (optional)

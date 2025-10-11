@@ -165,6 +165,18 @@ class MemorySystem:
         """
         self.db_conn = await aiosqlite.connect(self.metadata_db_path)
 
+        # ⚠️ FIX: Ensure DB file has write permissions (Bug found 2025-10-11)
+        # Without this, memory.store() fails with "attempt to write a readonly database"
+        if os.path.exists(self.metadata_db_path):
+            os.chmod(self.metadata_db_path, 0o664)  # rw-rw-r--
+            logger.debug(f"SQLite permissions set: {self.metadata_db_path}")
+
+        # Also ensure parent directory is writable
+        db_dir = os.path.dirname(self.metadata_db_path)
+        if os.path.exists(db_dir):
+            os.chmod(db_dir, 0o775)  # rwxrwxr-x
+            logger.debug(f"Memory directory permissions set: {db_dir}")
+
         # Create table
         await self.db_conn.execute("""
             CREATE TABLE IF NOT EXISTS memory_items (

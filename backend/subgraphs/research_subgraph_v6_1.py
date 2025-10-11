@@ -95,7 +95,8 @@ def create_research_subgraph(
                 agent_description="Research analyst specializing in software development and technology",
                 agent_tools=["Read", "Bash"],  # Read for context, Bash for utilities (NOT Edit - no file creation needed)
                 permission_mode="acceptEdits",  # Not strictly needed but harmless
-                hitl_callback=hitl_callback  # Pass HITL callback for debug info
+                hitl_callback=hitl_callback,  # Pass HITL callback for debug info
+                workspace_path=workspace_path  # 🎯 FIX (2025-10-11): Set CWD for subprocess!
             )
             print(f"  Step 2: LLM created, calling Claude CLI...")
 
