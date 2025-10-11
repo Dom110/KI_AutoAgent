@@ -7,6 +7,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [6.0.0] - 2025-10-12
+
+### 🎉 STABLE RELEASE: Build Validation & Claude CLI Integration
+
+This is the first stable release of v6, introducing comprehensive build validation for TypeScript projects and complete Claude CLI integration with Write tool support.
+
+### Added
+
+#### Build Validation System
+- **TypeScript Compilation Check** - Automatic `tsc --noEmit` validation
+  - Runs after code generation in ReviewFix agent
+  - Quality score reduction to 0.50 when build fails (forces retry)
+  - Progressive quality thresholds: TypeScript (0.90), Python (0.85), JavaScript (0.75)
+  - Detailed error reporting in review feedback
+  - 60-second timeout for compilation check
+
+#### Claude CLI Write Tool Support
+- **Event Extraction from JSONL** - Extract file paths from Claude CLI tool use events
+  - Supports both "Write" and "Edit" tools
+  - Discovered: Claude CLI uses "Write" tool for new files (not "Edit")
+  - Path normalization (removes workspace prefix)
+  - File existence validation
+  - 16+ files successfully extracted per run
+
+### Changed
+- **claude_cli_simple.py** - Enhanced event extraction
+  - `extract_file_paths_from_events()` now checks for both Write and Edit tools
+  - Path normalization for absolute paths
+  - Improved logging with tool attribution
+  - File size validation
+
+- **reviewfix_subgraph_v6_1.py** - Build validation integration
+  - Build validation runs after GPT-4o-mini review
+  - Project type detection (TypeScript/Python/JavaScript)
+  - TypeScript compilation check with subprocess
+  - Quality score adjustment based on build results
+  - Build error appending to review feedback
+
+- **codesmith_subgraph_v6_1.py** - Fallback file extraction
+  - Fallback to event extraction when parser finds 0 files
+  - Uses Claude CLI events from `llm.last_events`
+  - Successfully handles Write tool format
+
+### Fixed
+- **File Extraction Issue** - Parser not finding files from Claude CLI
+  - Root cause: Claude uses Write tool, not FILE: format
+  - Solution: Event-based extraction from JSONL
+  - Result: 14-16 files extracted consistently
+
+- **Build Validation Not Running** - Code missing from installed backend
+  - Root cause: Build validation code removed in refactor
+  - Solution: Re-added 110 lines of build validation logic
+  - Result: TypeScript compilation check runs successfully
+
+- **Deployment Issues** - Server running old code
+  - Root cause: Forgot to restart server or copy all files
+  - Solution: Explicit copy + kill + restart workflow
+  - Result: All files deployed correctly
+
+### Tested
+- ✅ **E2E Build Validation Test** - Full workflow with TypeScript compilation check
+  - Duration: 526s (~8.7 minutes)
+  - Quality Score: 1.0 (perfect)
+  - Files Generated: 16 TypeScript files
+  - Build Validation: PASSED
+  - Test Output Files: 808 (includes node_modules)
+
+### Performance
+- **TypeScript Compilation Check**: 0.8s (fast!)
+- **Build Validation Overhead**: Minimal (~1-2s total)
+- **Event Extraction**: 16 files from 80 Claude CLI events
+- **E2E Execution Time**: 526s for React TypeScript Counter App
+
+### Documentation
+- **CLAUDE.md** - Updated with:
+  - Claude CLI Write vs Edit tool discovery
+  - E2E testing best practices (workspace isolation)
+  - Build validation architecture
+  - Event extraction pattern documentation
+
+### Breaking Changes
+- None - Fully backward compatible with v6.0-alpha
+
+### Known Issues
+- Python mypy validation not yet implemented (TODO)
+- JavaScript ESLint validation not yet implemented (TODO)
+- Parallel validation not yet implemented (TODO)
+
+### Upgrade Notes
+From v6.0-alpha to v6.0.0:
+1. Copy updated files to `~/.ki_autoagent/backend/`
+2. Restart backend server
+3. Build validation will run automatically for TypeScript projects
+
+---
+
 ### 🚀 MCP Server Development - Memory Integration (Phase 2 Part 3)
 
 **Date:** 2025-10-10

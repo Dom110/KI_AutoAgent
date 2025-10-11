@@ -193,18 +193,21 @@ class ClaudeCLISimple:
 
     def extract_file_paths_from_events(self, events: list[dict]) -> list[dict[str, Any]]:
         """
-        Extract file paths from Claude CLI Edit tool use events.
+        Extract file paths from Claude CLI file creation tool use events.
 
-        Claude CLI uses Edit tool to create/modify files. These operations
+        Claude CLI uses Edit and Write tools to create/modify files. These operations
         are logged in JSONL events. This method extracts the file paths from
         those tool_use events.
+
+        Discovered 2025-10-11: Claude CLI has BOTH Edit and Write tools.
+        Write tool is used for creating new files, Edit for modifying existing files.
 
         Args:
             events: List of JSONL events from Claude CLI
 
         Returns:
             List of file info dicts with format:
-            [{"path": "src/file.ts", "size": 1234, "validated": True, ...}, ...]
+            [{"path": "src/file.ts", "size": 1234, "validated": True, "tool": "Write"}, ...]
         """
         import os
 
@@ -227,11 +230,16 @@ class ClaudeCLISimple:
                             tool_input = block.get("input", {})
 
                             # Edit tool creates/modifies files
-                            if tool_name == "Edit":
+                            # Write tool ALSO creates files (discovered 2025-10-11)
+                            if tool_name in ["Edit", "Write"]:
                                 file_path = tool_input.get("file_path") or tool_input.get("path")
 
                                 if file_path and file_path not in file_paths_seen:
                                     file_paths_seen.add(file_path)
+
+                                    # Normalize path (remove workspace prefix if present)
+                                    if self.workspace_path and file_path.startswith(self.workspace_path):
+                                        file_path = os.path.relpath(file_path, self.workspace_path)
 
                                     # Check if file actually exists in workspace
                                     full_path = os.path.join(self.workspace_path, file_path) if self.workspace_path else file_path
@@ -242,13 +250,13 @@ class ClaudeCLISimple:
                                         files.append({
                                             "path": file_path,
                                             "size": size,
-                                            "validated": True,  # Edit tool was used
-                                            "tool": "Edit"
+                                            "validated": True,  # Tool was used
+                                            "tool": tool_name
                                         })
-                                        logger.info(f"📄 Extracted file from Edit tool: {file_path} ({size} bytes)")
+                                        logger.info(f"📄 Extracted file from {tool_name} tool: {file_path} ({size} bytes)")
                                     else:
                                         # File mentioned but not found (might be error case)
-                                        logger.warning(f"⚠️  Edit tool mentioned {file_path} but file not found")
+                                        logger.warning(f"⚠️  {tool_name} tool mentioned {file_path} but file not found")
 
         logger.info(f"✅ Extracted {len(files)} files from {len(events)} Claude CLI events")
         return files

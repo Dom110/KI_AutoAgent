@@ -154,6 +154,111 @@ Provide quality score and detailed feedback."""
 
             logger.info(f"✅ Review complete - Quality: {quality_score:.2f}")
 
+            # ================================================================
+            # BUILD VALIDATION - Run actual build checks (TypeScript/Python)
+            # ================================================================
+            logger.info("🔬 Running build validation checks...")
+
+            # Detect project type from generated files
+            has_typescript = any(
+                f.get('path', '').endswith(('.ts', '.tsx'))
+                for f in generated_files
+            )
+            has_python = any(
+                f.get('path', '').endswith('.py')
+                for f in generated_files
+            )
+            has_javascript = any(
+                f.get('path', '').endswith(('.js', '.jsx'))
+                and not f.get('path', '').endswith(('.ts', '.tsx'))
+                for f in generated_files
+            )
+
+            build_validation_passed = True
+            build_errors = []
+
+            # TypeScript compilation check
+            if has_typescript:
+                logger.info("📘 Project Type: TypeScript")
+                logger.info("   Quality Threshold: 0.90 (highest)")
+
+                tsconfig_path = os.path.join(workspace_path, 'tsconfig.json')
+                package_json_path = os.path.join(workspace_path, 'package.json')
+
+                if os.path.exists(tsconfig_path) and os.path.exists(package_json_path):
+                    logger.info("🔬 Running TypeScript compilation check (tsc --noEmit)...")
+
+                    try:
+                        import subprocess
+                        result = subprocess.run(
+                            ['npx', 'tsc', '--noEmit'],
+                            cwd=workspace_path,
+                            capture_output=True,
+                            text=True,
+                            timeout=60
+                        )
+
+                        if result.returncode == 0:
+                            logger.info("✅ TypeScript compilation passed!")
+                        else:
+                            logger.error("❌ TypeScript compilation failed!")
+                            logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
+                            build_validation_passed = False
+                            build_errors.append({
+                                "type": "typescript_compilation",
+                                "errors": result.stdout + result.stderr
+                            })
+
+                    except subprocess.TimeoutExpired:
+                        logger.error("❌ TypeScript compilation timeout (60s)")
+                        build_validation_passed = False
+                        build_errors.append({
+                            "type": "typescript_compilation",
+                            "errors": "Compilation timeout after 60 seconds"
+                        })
+                    except Exception as e:
+                        logger.error(f"❌ TypeScript compilation check failed: {e}")
+                        build_validation_passed = False
+                        build_errors.append({
+                            "type": "typescript_compilation",
+                            "errors": str(e)
+                        })
+                else:
+                    logger.warning("⚠️  No tsconfig.json or package.json found - skipping TS compilation check")
+
+            # Python type checking with mypy
+            elif has_python:
+                logger.info("🐍 Project Type: Python")
+                logger.info("   Quality Threshold: 0.85")
+
+                # TODO: Implement mypy check
+                logger.info("⏭️  Python mypy check - TODO")
+
+            # JavaScript linting with ESLint
+            elif has_javascript:
+                logger.info("📙 Project Type: JavaScript")
+                logger.info("   Quality Threshold: 0.75")
+
+                # TODO: Implement ESLint check
+                logger.info("⏭️  JavaScript ESLint check - TODO")
+
+            # Adjust quality score based on build validation
+            if not build_validation_passed:
+                logger.warning("⚠️  Build validation FAILED - reducing quality score to 0.50")
+                logger.warning(f"   Original quality score: {quality_score:.2f}")
+                quality_score = 0.50  # Force another iteration
+                logger.warning(f"   New quality score: {quality_score:.2f}")
+
+                # Append build errors to review feedback
+                build_error_text = "\n\n## BUILD VALIDATION ERRORS\n\n"
+                for err in build_errors:
+                    build_error_text += f"**{err['type']}:**\n```\n{err['errors']}\n```\n\n"
+
+                review_output += build_error_text
+
+            else:
+                logger.info("✅ Build validation PASSED")
+
             # Store review in Memory
             if memory:
                 await memory.store(
