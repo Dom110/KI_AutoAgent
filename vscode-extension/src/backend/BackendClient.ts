@@ -8,7 +8,7 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 
 export interface BackendMessage {
-    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'agent_complete' | 'agent_tool_start' | 'agent_tool_complete' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed' | 'architecture_proposal' | 'architecture_proposal_revised' | 'architectureApprovalProcessed' | 'status' | 'approval_request' | 'approval_response' | 'workflow_complete' | 'claude_cli_start' | 'claude_cli_complete' | 'claude_cli_error';
+    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'agent_complete' | 'agent_tool_start' | 'agent_tool_complete' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed' | 'architecture_proposal' | 'architecture_proposal_revised' | 'architectureApprovalProcessed' | 'status' | 'approval_request' | 'approval_response' | 'workflow_complete' | 'result' | 'claude_cli_start' | 'claude_cli_complete' | 'claude_cli_error';
     content?: string;
     agent?: string;
     model?: string;  // v6.1-alpha: Claude model name
@@ -438,6 +438,21 @@ export class BackendClient extends EventEmitter {
                 // v6.0.0: Approval requests from Approval Manager
                 this.log(`🔐 v6 Approval Request: ${message.action_type} - ${message.description}`);
                 this.emit('approval_request', message);
+                break;
+
+            case 'result':
+                // v6.1-alpha: Final workflow result (comprehensive format)
+                const resultMsg = message as any;
+                this.log(`🎉 Workflow Result - Success: ${resultMsg.success} - Quality: ${resultMsg.quality_score}`);
+                if (resultMsg.subtype === 'workflow_complete') {
+                    this.log(`   ⏱️ Execution Time: ${resultMsg.execution_time}`);
+                    this.log(`   📊 Agents Completed: ${resultMsg.agents_completed?.length || 0}`);
+                    this.log(`   💾 Files Generated: ${resultMsg.files_generated || 0}`);
+                }
+                // Emit as both 'result' and 'workflow_complete' for compatibility
+                this.emit('result', message);
+                this.emit('workflow_complete', message);
+                this.emit('complete', message);
                 break;
 
             case 'workflow_complete':
