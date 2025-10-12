@@ -20,11 +20,17 @@ Usage:
     WebSocket: ws://localhost:8002/ws/chat
 
 Author: KI AutoAgent Team
-Version: 6.0.0-integrated
+Version: Dynamic (imported from __version__.py)
 Python: 3.13+
 """
 
 from __future__ import annotations
+
+# Import version FIRST
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from __version__ import __version__, __release_tag__
 
 # v5.9.0: Install uvloop FIRST
 # ⚠️ FALLBACK: uvloop is optional performance optimization (not required for functionality)
@@ -166,9 +172,9 @@ async def lifespan(app: FastAPI):
 # ============================================================================
 
 app = FastAPI(
-    title="KI AutoAgent v6 Integrated",
+    title=f"KI AutoAgent {__release_tag__}",
     description="Complete v6 workflow with ALL intelligence systems",
-    version="6.0.0-integrated",
+    version=__version__,
     lifespan=lifespan
 )
 
@@ -190,7 +196,8 @@ async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "version": "6.0.0-integrated",
+        "version": __version__,
+        "release_tag": __release_tag__,
         "timestamp": datetime.now().isoformat(),
         "active_connections": len(manager.active_connections),
         "active_workflows": len(workflows),
@@ -246,10 +253,11 @@ async def websocket_chat(websocket: WebSocket):
         # Welcome message
         await manager.send_json(client_id, {
             "type": "connected",
-            "message": "Connected to KI AutoAgent v6 Integrated. Send init message with workspace_path.",
+            "message": f"Connected to KI AutoAgent {__release_tag__}. Send init message with workspace_path.",
             "session_id": session["session_id"],
             "client_id": client_id,
-            "version": "6.0.0-integrated",
+            "version": __version__,
+            "release_tag": __release_tag__,
             "requires_init": True,
             "v6_systems": "ALL_ACTIVE"
         })
