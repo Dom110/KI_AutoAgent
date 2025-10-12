@@ -270,6 +270,9 @@ class BaseAgent(ABC):
         self.collaboration_sessions: set[str] = set()
         self.active_help_requests: dict[str, AgentMessage] = {}
 
+        # Response queues (correlation_id -> asyncio.Queue)
+        self._response_queues: dict[str, asyncio.Queue] = {}
+
         # Initialize pause and git checkpoint systems if available
         if PAUSE_AVAILABLE:
             from pathlib import Path
@@ -1198,8 +1201,17 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
             logger.warning(f"Collaboration request to {agent_id} timed out")
             return None
 
-    async def request_help(self, task: str) -> list[Any]:
-        """Broadcast help request to all agents"""
+    async def request_help(self, task: str, wait_time: float = 2.0) -> list[Any]:
+        """
+        Broadcast help request to all agents and collect responses.
+
+        Args:
+            task: Task description
+            wait_time: Time to wait for responses in seconds (default: 2.0)
+
+        Returns:
+            List of help responses from agents
+        """
         if not self.communication_bus:
             return []
 
@@ -1216,15 +1228,35 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         # Store help request
         self.active_help_requests[correlation_id] = message
 
+        # Create response queue for this request
+        self._response_queues[correlation_id] = asyncio.Queue()
+
         # Broadcast request
         await self.communication_bus.publish("agent.help_request", message)
+        logger.info(f"📢 {self.name} broadcasted help request: {task[:100]}")
 
         # Wait for responses
-        await asyncio.sleep(2)  # Give agents time to respond
+        await asyncio.sleep(wait_time)
 
-        # Collect responses
-        # TODO: Implement response collection
-        return []
+        # Collect responses from queue
+        responses = []
+        try:
+            # Drain queue (non-blocking)
+            while not self._response_queues[correlation_id].empty():
+                try:
+                    response_message = self._response_queues[correlation_id].get_nowait()
+                    responses.append(response_message.content)
+                except asyncio.QueueEmpty:
+                    break
+        finally:
+            # Clean up
+            if correlation_id in self._response_queues:
+                del self._response_queues[correlation_id]
+            if correlation_id in self.active_help_requests:
+                del self.active_help_requests[correlation_id]
+
+        logger.info(f"✅ {self.name} collected {len(responses)} help responses")
+        return responses
 
     async def send_response(
         self, to_agent: str, content: Any, correlation_id: str | None = None
@@ -1243,11 +1275,38 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
 
         await self.communication_bus.publish(f"agent.{to_agent}", message)
 
-    async def _wait_for_response(self, correlation_id: str) -> Any:
-        """Wait for response with specific correlation ID"""
-        # TODO: Implement response waiting mechanism
-        await asyncio.sleep(1)
-        return None
+    async def _wait_for_response(self, correlation_id: str, timeout: float = 30.0) -> Any:
+        """
+        Wait for response with specific correlation ID.
+
+        Args:
+            correlation_id: Correlation ID to wait for
+            timeout: Timeout in seconds (default: 30.0)
+
+        Returns:
+            Response message content or None if timeout
+
+        Raises:
+            asyncio.TimeoutError: If timeout occurs
+        """
+        # Create queue for this correlation_id if it doesn't exist
+        if correlation_id not in self._response_queues:
+            self._response_queues[correlation_id] = asyncio.Queue()
+
+        try:
+            # Wait for response with timeout
+            message = await asyncio.wait_for(
+                self._response_queues[correlation_id].get(),
+                timeout=timeout
+            )
+            return message.content
+        except asyncio.TimeoutError:
+            logger.warning(f"⏱️ Timeout waiting for response (correlation_id: {correlation_id})")
+            raise
+        finally:
+            # Clean up queue
+            if correlation_id in self._response_queues:
+                del self._response_queues[correlation_id]
 
     @abstractmethod
     async def _process_agent_request(self, message: AgentMessage) -> Any:
@@ -1257,20 +1316,142 @@ Dies gilt für ALLE Antworten, Erklärungen, Fehlermeldungen und Ausgaben.
         """Process response from another agent"""
         logger.info(f"Received response from {message.from_agent}: {message.content}")
 
+        # Put response into correlation queue
+        if message.correlation_id and message.correlation_id in self._response_queues:
+            await self._response_queues[message.correlation_id].put(message)
+
     async def _process_broadcast(self, message: AgentMessage):
         """Process broadcast message"""
         logger.info(f"Processing broadcast from {message.from_agent}")
 
     async def _can_help_with(self, task: dict[str, Any]) -> bool:
-        """Check if agent can help with a task"""
-        # Check if task matches agent capabilities
-        # TODO: Implement capability matching
+        """
+        Check if agent can help with a task based on capabilities.
+
+        Args:
+            task: Task dictionary with 'task' and optionally 'capabilities_needed'
+
+        Returns:
+            True if agent can help, False otherwise
+        """
+        # Extract required capabilities from task
+        required_capabilities = task.get("capabilities_needed", [])
+
+        # If no specific capabilities requested, check task content against agent capabilities
+        if not required_capabilities:
+            task_text = task.get("task", "").lower()
+
+            # Map keywords to capabilities
+            capability_keywords = {
+                AgentCapability.CODE_GENERATION: ["code", "implement", "write", "develop", "create"],
+                AgentCapability.ARCHITECTURE_DESIGN: ["architecture", "design", "structure", "system"],
+                AgentCapability.CODE_REVIEW: ["review", "check", "validate", "analyze code"],
+                AgentCapability.BUG_FIXING: ["fix", "bug", "error", "debug", "issue"],
+                AgentCapability.RESEARCH: ["research", "find", "investigate", "learn about"],
+                AgentCapability.WEB_SEARCH: ["search", "web", "online", "internet"],
+                AgentCapability.DOCUMENTATION: ["document", "docs", "readme", "explain"],
+                AgentCapability.SECURITY_ANALYSIS: ["security", "vulnerability", "secure", "safety"],
+            }
+
+            # Check if any keywords match agent capabilities
+            for capability in self.config.capabilities:
+                if capability in capability_keywords:
+                    keywords = capability_keywords[capability]
+                    if any(keyword in task_text for keyword in keywords):
+                        logger.info(f"✅ {self.name} can help with task (matched {capability.value})")
+                        return True
+
+            return False
+
+        # Check if agent has required capabilities
+        agent_capability_values = [cap.value for cap in self.config.capabilities]
+
+        for required_cap in required_capabilities:
+            if required_cap in agent_capability_values:
+                logger.info(f"✅ {self.name} can help (has {required_cap} capability)")
+                return True
+
+        logger.debug(f"❌ {self.name} cannot help - missing required capabilities")
         return False
 
     async def _provide_help(self, task: dict[str, Any]) -> Any:
-        """Provide help for a task"""
-        # TODO: Implement help provision
-        return {"help": "Generic help from " + self.name}
+        """
+        Provide help for a task based on agent capabilities.
+
+        Args:
+            task: Task dictionary with 'task' description
+
+        Returns:
+            Help response with suggestions, capabilities, and optional execution result
+        """
+        task_description = task.get("task", "Unknown task")
+
+        logger.info(f"🤝 {self.name} providing help for: {task_description[:100]}")
+
+        # Build help response
+        help_response = {
+            "agent": self.name,
+            "agent_id": self.config.agent_id,
+            "capabilities": [cap.value for cap in self.config.capabilities],
+            "help_type": "suggestions",
+            "task": task_description,
+        }
+
+        # Provide capability-specific help
+        suggestions = []
+
+        if AgentCapability.CODE_GENERATION in self.config.capabilities:
+            suggestions.append(
+                "I can generate code implementations for this task"
+            )
+
+        if AgentCapability.ARCHITECTURE_DESIGN in self.config.capabilities:
+            suggestions.append(
+                "I can design system architecture and recommend patterns"
+            )
+
+        if AgentCapability.CODE_REVIEW in self.config.capabilities:
+            suggestions.append(
+                "I can review code for best practices and potential issues"
+            )
+
+        if AgentCapability.BUG_FIXING in self.config.capabilities:
+            suggestions.append(
+                "I can help identify and fix bugs"
+            )
+
+        if AgentCapability.RESEARCH in self.config.capabilities:
+            suggestions.append(
+                "I can research best practices and technologies"
+            )
+
+        if AgentCapability.SECURITY_ANALYSIS in self.config.capabilities:
+            suggestions.append(
+                "I can analyze security vulnerabilities"
+            )
+
+        if AgentCapability.DOCUMENTATION in self.config.capabilities:
+            suggestions.append(
+                "I can create documentation and explanations"
+            )
+
+        help_response["suggestions"] = suggestions
+
+        # If task is simple enough, try to execute it
+        task_text_lower = task_description.lower()
+
+        if any(keyword in task_text_lower for keyword in ["suggest", "recommend", "advice"]):
+            # Provide recommendations
+            help_response["help_type"] = "recommendations"
+            help_response["recommendations"] = [
+                f"Based on my role as {self.role}, I recommend researching best practices for this task",
+                "Consider breaking down the task into smaller subtasks",
+                f"Leverage my {', '.join(cap.value for cap in self.config.capabilities[:3])} capabilities"
+            ]
+
+        logger.info(f"✅ {self.name} prepared help response with {len(suggestions)} suggestions")
+
+        return help_response
 
     # ============ PAUSE/RESUME/STOP METHODS ============
     async def pause_current_task(
