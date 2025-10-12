@@ -405,7 +405,20 @@ NO explanations!"""
 
             if DEBUG_OUTPUT:
                 print("⏳ Waiting for response...")
-            stdout, stderr = await process.communicate()
+
+            # 🎯 FIX: Add timeout to prevent hanging forever
+            # Code generation can take 5-10 minutes, so use generous timeout
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(),
+                    timeout=900  # 15 minutes timeout for code generation
+                )
+            except asyncio.TimeoutError:
+                logger.error(f"❌ Claude CLI timed out after 15 minutes")
+                process.kill()
+                await process.wait()
+                raise RuntimeError("Claude CLI subprocess timed out after 15 minutes - process killed")
+
             if DEBUG_OUTPUT:
                 print(f"✅ Process completed, returncode: {process.returncode}")
 
@@ -628,11 +641,13 @@ NO explanations!"""
 
         try:
             # 🎯 FIX (2025-10-11): Set correct working directory!
+            # 🎯 FIX (2025-10-12): Add timeout to prevent hanging
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 check=True,
+                timeout=900,  # 15 minutes timeout for code generation
                 cwd=self.workspace_path  # 🎯 USE WORKSPACE AS WORKING DIRECTORY!
             )
 
@@ -676,6 +691,9 @@ NO explanations!"""
 
             return final_event
 
+        except subprocess.TimeoutExpired:
+            logger.error(f"❌ Claude CLI timed out after 15 minutes (sync)")
+            raise RuntimeError("Claude CLI subprocess timed out after 15 minutes")
         except subprocess.CalledProcessError as e:
             error_msg = e.stderr if e.stderr else "Unknown error"
             raise RuntimeError(f"Claude CLI failed: {error_msg}")
