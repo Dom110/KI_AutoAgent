@@ -181,7 +181,7 @@ Provide quality score and detailed feedback."""
             # IMPORTANT: Changed from elif to if for polyglot project support!
             # This allows running MULTIPLE validation checks for projects
             # with mixed languages (e.g., TypeScript + Python backend).
-            # For true parallel execution: TODO - use asyncio.gather()
+            # Sequential execution (parallel: asyncio.gather() in v6.2+)
             #================================================================
 
             # TypeScript compilation check

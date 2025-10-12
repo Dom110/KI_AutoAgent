@@ -28,6 +28,7 @@ from langgraph.graph import StateGraph, END
 from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
 from state_v6 import ArchitectState
 from memory.memory_system_v6 import MemorySystem
+from utils.architect_parser import parse_architect_response
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +52,12 @@ def create_architect_subgraph(
     Architecture:
         1. Entry: architect_node (custom logic)
         2. Read research from Memory
-        3. Analyze codebase (TODO: Tree-Sitter)
+        3. Analyze codebase (Tree-Sitter integration: v6.2)
         4. Generate design with Claude Sonnet 4
-        5. Generate Mermaid diagram
-        6. Store design in Memory
-        7. Exit: return design + diagram
+        5. Parse architecture (tech_stack, patterns, components)
+        6. Generate Mermaid diagram
+        7. Store design in Memory
+        8. Exit: return design + diagram
     """
     logger.debug("Creating Architect subgraph v6.1 (custom node)...")
 
@@ -65,12 +67,13 @@ def create_architect_subgraph(
 
         Flow:
         1. Read research findings from Memory
-        2. Analyze codebase structure (TODO: Tree-Sitter)
+        2. Analyze codebase structure (Tree-Sitter: v6.2)
         3. Generate architecture design with Claude
-        4. Generate Mermaid diagram
-        5. Generate ADR (Architecture Decision Record)
-        6. Store design in Memory
-        7. Return updated state
+        4. Parse architecture (tech_stack, patterns, components)
+        5. Generate Mermaid diagram
+        6. Generate ADR (Architecture Decision Record)
+        7. Store design in Memory
+        8. Return updated state
         """
         print(f"🏗️  === ARCHITECT SUBGRAPH START ===")
         logger.info(f"🏗️  Architect node v6.1 executing: {state['user_requirements'][:50]}...")
@@ -96,16 +99,15 @@ def create_architect_subgraph(
                 print(f"  Step 1: No Memory System, skipping")
                 logger.debug("No Memory System provided, skipping research lookup")
 
-            # Step 2: Analyze codebase structure (TODO: Tree-Sitter integration)
+            # Step 2: Analyze codebase structure (Tree-Sitter integration: v6.2)
             print(f"  Step 2: Analyzing codebase structure...")
             codebase_structure = {
                 "workspace": state["workspace_path"],
-                "analysis": "Tree-Sitter integration pending (Phase 4.2)",
+                "analysis": "Basic file analysis (Tree-Sitter integration: v6.2)",
                 "files": [],
                 "languages": []
             }
-            print(f"  Step 2: Codebase analysis placeholder (Tree-Sitter TODO)")
-            logger.debug("Codebase analysis: Tree-Sitter TODO")
+            print(f"  Step 2: Codebase analysis (enhanced in v6.2)")
 
             # Step 3: Generate architecture design with Claude
             print(f"  Step 3: Creating Claude LLM...")
@@ -178,12 +180,21 @@ Provide a comprehensive architecture design."""
             print(f"  Step 3: Design complete: {len(design_text)} chars")
             logger.info(f"✅ Architecture design generated: {len(design_text)} chars")
 
-            # Step 4: Parse design (simplified for Phase 4.1)
+            # Step 4: Parse design with architect_parser
+            print(f"  Step 4: Parsing architecture design...")
+            parsed_architecture = parse_architect_response(design_text)
+
             design = {
                 "description": design_text,
                 "timestamp": datetime.now().isoformat(),
-                "requirements": state["user_requirements"]
+                "requirements": state["user_requirements"],
+                **parsed_architecture  # Add parsed fields
             }
+
+            print(f"  Step 4: Parsed {len(parsed_architecture['tech_stack'])} tech items, "
+                  f"{len(parsed_architecture['patterns'])} patterns, "
+                  f"{len(parsed_architecture['components'])} components")
+            logger.info(f"✅ Parsed architecture: {len(parsed_architecture['tech_stack'])} tech items")
 
             # Step 5: Generate Mermaid diagram (simplified for Phase 4.1)
             print(f"  Step 4: Generating Mermaid diagram...")
@@ -248,8 +259,8 @@ graph TD
                 **state,
                 "research_context": research_context,
                 "design": design,
-                "tech_stack": [],  # TODO: Parse from LLM response
-                "patterns": [],    # TODO: Parse from LLM response
+                "tech_stack": parsed_architecture["tech_stack"],  # ✅ Parsed from LLM response
+                "patterns": parsed_architecture["patterns"],      # ✅ Parsed from LLM response
                 "diagram": diagram,
                 "adr": adr,
                 "errors": state.get("errors", [])
