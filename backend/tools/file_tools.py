@@ -2,15 +2,16 @@
 File Tools for Codesmith Agent
 
 Provides file system operations for code generation.
-Follows Asimov safety rules (TODO: Phase 8).
+Follows Asimov safety rules with permission checks (v6.2).
 
 Documentation:
 - LangChain Tool: https://python.langchain.com/docs/modules/tools/
 - File Operations: Safe, workspace-scoped only
+- Permissions: Asimov Permissions Manager (v6.2 Phase 3)
 
 Integration:
 - Codesmith Subgraph: Used by create_react_agent()
-- Asimov: Requires can_write_files permission (TODO: Phase 8)
+- Asimov: Requires can_write_files permission (v6.2 Phase 3.2)
 """
 
 from __future__ import annotations
@@ -21,17 +22,28 @@ from typing import Any
 
 from langchain_core.tools import tool
 
+# NEW v6.2 Phase 3: Asimov Permissions
+from security.asimov_permissions_v6 import get_permissions_manager, Permission
+
 logger = logging.getLogger(__name__)
+
+# Get global permissions manager
+permissions_manager = get_permissions_manager()
 
 
 @tool
-async def read_file(file_path: str, workspace_path: str) -> dict[str, Any]:
+async def read_file(
+    file_path: str,
+    workspace_path: str,
+    agent_id: str = "unknown"
+) -> dict[str, Any]:
     """
     Read a file from the workspace.
 
     Args:
         file_path: Relative path to file (e.g., "src/App.tsx")
         workspace_path: Absolute path to workspace root
+        agent_id: Calling agent identifier (for permission check)
 
     Returns:
         dict with:
@@ -40,15 +52,33 @@ async def read_file(file_path: str, workspace_path: str) -> dict[str, Any]:
             - success: bool
 
     Example:
-        result = await read_file("src/App.tsx", "/Users/me/project")
+        result = await read_file("src/App.tsx", "/Users/me/project", "codesmith")
         print(result["content"])
 
     Safety:
         - Only reads files within workspace_path
         - Returns error if file outside workspace
-        - TODO Phase 8: Asimov permission check
+        - v6.2 Phase 3: Checks CAN_READ_FILES permission
     """
-    logger.info(f"📖 Reading file: {file_path}")
+    logger.info(f"📖 Reading file: {file_path} (agent: {agent_id})")
+
+    # NEW v6.2 Phase 3: Permission check
+    allowed, msg = await permissions_manager.check_and_enforce(
+        agent_id=agent_id,
+        action=f"read_file('{file_path}')",
+        permission=Permission.CAN_READ_FILES,
+        raise_on_deny=False
+    )
+
+    if not allowed:
+        logger.warning(f"🚫 Permission denied: {msg}")
+        return {
+            "content": "",
+            "path": file_path,
+            "success": False,
+            "error": msg,
+            "permission_denied": True
+        }
 
     try:
         # Safety: Ensure file is within workspace
@@ -99,7 +129,8 @@ async def read_file(file_path: str, workspace_path: str) -> dict[str, Any]:
 async def write_file(
     file_path: str,
     content: str,
-    workspace_path: str
+    workspace_path: str,
+    agent_id: str = "unknown"
 ) -> dict[str, Any]:
     """
     Write a file to the workspace.
@@ -108,6 +139,7 @@ async def write_file(
         file_path: Relative path to file (e.g., "src/App.tsx")
         content: File content to write
         workspace_path: Absolute path to workspace root
+        agent_id: Calling agent identifier (for permission check)
 
     Returns:
         dict with:
@@ -119,16 +151,35 @@ async def write_file(
         result = await write_file(
             "src/App.tsx",
             "import React from 'react'...",
-            "/Users/me/project"
+            "/Users/me/project",
+            "codesmith"
         )
 
     Safety:
         - Only writes files within workspace_path
         - Creates parent directories automatically
         - Returns error if file outside workspace
-        - TODO Phase 8: Asimov permission check
+        - v6.2 Phase 3: Checks CAN_WRITE_FILES permission
     """
-    logger.info(f"✍️ Writing file: {file_path} ({len(content)} chars)")
+    logger.info(f"✍️ Writing file: {file_path} ({len(content)} chars, agent: {agent_id})")
+
+    # NEW v6.2 Phase 3: Permission check
+    allowed, msg = await permissions_manager.check_and_enforce(
+        agent_id=agent_id,
+        action=f"write_file('{file_path}')",
+        permission=Permission.CAN_WRITE_FILES,
+        raise_on_deny=False
+    )
+
+    if not allowed:
+        logger.warning(f"🚫 Permission denied: {msg}")
+        return {
+            "path": file_path,
+            "bytes_written": 0,
+            "success": False,
+            "error": msg,
+            "permission_denied": True
+        }
 
     try:
         # Safety: Ensure file is within workspace
@@ -174,7 +225,8 @@ async def edit_file(
     file_path: str,
     old_content: str,
     new_content: str,
-    workspace_path: str
+    workspace_path: str,
+    agent_id: str = "unknown"
 ) -> dict[str, Any]:
     """
     Edit a file by replacing old_content with new_content.
@@ -184,6 +236,7 @@ async def edit_file(
         old_content: String to find and replace
         new_content: Replacement string
         workspace_path: Absolute path to workspace root
+        agent_id: Calling agent identifier (for permission check)
 
     Returns:
         dict with:
@@ -196,15 +249,34 @@ async def edit_file(
             "src/App.tsx",
             "console.log('old')",
             "console.log('new')",
-            "/Users/me/project"
+            "/Users/me/project",
+            "reviewfix"
         )
 
     Safety:
         - Only edits files within workspace_path
         - Returns error if old_content not found
-        - TODO Phase 8: Asimov permission check
+        - v6.2 Phase 3: Checks CAN_WRITE_FILES permission
     """
-    logger.info(f"✏️ Editing file: {file_path}")
+    logger.info(f"✏️ Editing file: {file_path} (agent: {agent_id})")
+
+    # NEW v6.2 Phase 3: Permission check
+    allowed, msg = await permissions_manager.check_and_enforce(
+        agent_id=agent_id,
+        action=f"edit_file('{file_path}')",
+        permission=Permission.CAN_WRITE_FILES,
+        raise_on_deny=False
+    )
+
+    if not allowed:
+        logger.warning(f"🚫 Permission denied: {msg}")
+        return {
+            "path": file_path,
+            "replacements": 0,
+            "success": False,
+            "error": msg,
+            "permission_denied": True
+        }
 
     try:
         # Safety: Ensure file is within workspace
