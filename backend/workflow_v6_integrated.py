@@ -1014,6 +1014,11 @@ class WorkflowV6Integrated:
             intent = state.get("intent", "create")
             workflow_path = state.get("workflow_path", ["research"])
 
+            # Safety check: Ensure workflow_path is not empty
+            if not workflow_path or len(workflow_path) == 0:
+                logger.warning(f"⚠️  Empty workflow_path, defaulting to 'research'")
+                workflow_path = ["research"]
+
             logger.info(f"🔀 Intent routing: {intent} → {workflow_path[0]}")
 
             # Return first step in workflow path

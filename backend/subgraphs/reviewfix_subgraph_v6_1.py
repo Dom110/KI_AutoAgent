@@ -67,14 +67,38 @@ def create_reviewfix_subgraph(
             # Read generated files from Codesmith
             generated_files = state.get('generated_files', [])
 
+            # NEW v6.2: If no generated_files (FIX intent bypass), discover workspace files
             if not generated_files:
-                logger.warning("⚠️  No files to review")
-                return {
-                    **state,
-                    "quality_score": 0.0,
-                    "feedback": "No files to review",
-                    "iteration": state.get('iteration', 0) + 1
-                }
+                logger.info("🔍 No generated_files in state, discovering workspace files...")
+
+                import glob
+
+                # Discover code files in workspace
+                code_patterns = ['*.py', '*.ts', '*.tsx', '*.js', '*.jsx', '*.go', '*.rs', '*.java', '*.c', '*.cpp', '*.h']
+                discovered_files = []
+
+                for pattern in code_patterns:
+                    matches = glob.glob(os.path.join(workspace_path, '**', pattern), recursive=True)
+                    for match in matches:
+                        # Skip node_modules, venv, build dirs
+                        if any(skip in match for skip in ['node_modules', 'venv', 'dist', 'build', '__pycache__', '.git']):
+                            continue
+
+                        # Make path relative to workspace
+                        rel_path = os.path.relpath(match, workspace_path)
+                        discovered_files.append({"path": rel_path})
+
+                if not discovered_files:
+                    logger.warning("⚠️  No code files found in workspace")
+                    return {
+                        **state,
+                        "quality_score": 0.0,
+                        "feedback": "No code files found in workspace",
+                        "iteration": state.get('iteration', 0) + 1
+                    }
+
+                logger.info(f"  ✅ Discovered {len(discovered_files)} code files in workspace")
+                generated_files = discovered_files
 
             # Collect file contents
             file_contents = {}
@@ -673,10 +697,14 @@ Provide quality score and detailed feedback."""
                     }
                 )
 
+            # Extract file paths for fixer
+            file_paths_to_fix = [f.get('path') for f in generated_files if f.get('path')]
+
             return {
                 **state,
                 "quality_score": quality_score,
                 "feedback": review_output,
+                "files_to_review": file_paths_to_fix,  # NEW v6.2: For FIX intent workflow
                 "iteration": state.get('iteration', 0) + 1
             }
 
