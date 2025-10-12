@@ -2091,6 +2091,15 @@ export class MultiAgentChatPanel {
                 function showAgentActivity(message) {
                     const {activity_type, agent, content, tool, tool_status, tool_result} = message;
 
+                    // v6.1-alpha: Extract message content (support both 'content' and 'message' fields)
+                    const messageContent = content || message.message || '';
+
+                    // Skip if no content available
+                    if (!messageContent && activity_type !== 'agent_tool_start' && activity_type !== 'agent_tool_complete') {
+                        console.warn('Agent activity has no content:', message);
+                        return;
+                    }
+
                     // Get or create agent activity container
                     let activityDiv = agentActivityMap.get(agent);
 
@@ -2110,11 +2119,11 @@ export class MultiAgentChatPanel {
                     const activityContent = activityDiv.querySelector('.activity-content');
 
                     if (activity_type === 'agent_thinking') {
-                        activityContent.innerHTML = \`<div class="activity-item thinking">💭 \${content}</div>\`;
+                        activityContent.innerHTML = \`<div class="activity-item thinking">💭 \${messageContent}</div>\`;
                     } else if (activity_type === 'agent_progress') {
                         const progressItem = document.createElement('div');
                         progressItem.className = 'activity-item progress';
-                        progressItem.innerHTML = \`📊 \${content}\`;
+                        progressItem.innerHTML = \`📊 \${messageContent}\`;
                         activityContent.appendChild(progressItem);
                     } else if (activity_type === 'agent_tool_start') {
                         const toolItem = document.createElement('div');
