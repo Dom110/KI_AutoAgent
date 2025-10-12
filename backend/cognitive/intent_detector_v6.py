@@ -125,14 +125,16 @@ Classify the user's request into ONE of these intents:
 3. REFACTOR - Restructure/reorganize existing code
    Examples: "Refactor the auth module", "Clean up the codebase", "Improve code structure"
 
-4. EXPLAIN - Explain/document existing code
+4. EXPLAIN - Explain/document/analyze existing code
    Examples: "Explain how authentication works", "Document the API", "What does this code do?"
+   German: "Untersuche die App", "Analysiere den Code", "Was macht diese Datei?"
 
 Rules:
 - If workspace is EMPTY and user wants to build → CREATE
 - If workspace HAS CODE and user mentions fixing/debugging → FIX
 - If workspace HAS CODE and user wants to restructure → REFACTOR
-- If user asks questions about code → EXPLAIN
+- If user asks questions about code OR wants to analyze/investigate/examine code → EXPLAIN
+- Keywords for EXPLAIN: "explain", "untersuche", "analysiere", "what is", "was ist", "examine", "investigate"
 - Default to CREATE if uncertain
 
 Respond with JSON:
