@@ -30,6 +30,9 @@ from state_v6 import ArchitectState
 from memory.memory_system_v6 import MemorySystem
 from utils.architect_parser import parse_architect_response
 
+# NEW v6.2: Tree-Sitter Code Analysis
+from utils.tree_sitter_analyzer import TreeSitterAnalyzer, TREE_SITTER_AVAILABLE
+
 logger = logging.getLogger(__name__)
 
 
@@ -99,15 +102,57 @@ def create_architect_subgraph(
                 print(f"  Step 1: No Memory System, skipping")
                 logger.debug("No Memory System provided, skipping research lookup")
 
-            # Step 2: Analyze codebase structure (Tree-Sitter integration: v6.2)
+            # Step 2: Analyze codebase structure (Tree-Sitter v6.2)
             print(f"  Step 2: Analyzing codebase structure...")
-            codebase_structure = {
-                "workspace": state["workspace_path"],
-                "analysis": "Basic file analysis (Tree-Sitter integration: v6.2)",
-                "files": [],
-                "languages": []
-            }
-            print(f"  Step 2: Codebase analysis (enhanced in v6.2)")
+
+            if TREE_SITTER_AVAILABLE:
+                try:
+                    logger.info("🌳 Running Tree-Sitter codebase analysis...")
+                    analyzer = TreeSitterAnalyzer(state["workspace_path"])
+                    analysis_result = analyzer.analyze_workspace(
+                        max_files=50,  # Limit for performance
+                        exclude_dirs=["node_modules", "venv", ".git", "__pycache__"]
+                    )
+
+                    # Generate summary for LLM
+                    codebase_summary = analyzer.get_codebase_summary(analysis_result)
+
+                    codebase_structure = {
+                        "workspace": state["workspace_path"],
+                        "analysis": codebase_summary,
+                        "files": analysis_result.analyzed_files,
+                        "languages": list(analysis_result.languages.keys()),
+                        "total_classes": analysis_result.total_classes,
+                        "total_functions": analysis_result.total_functions,
+                        "total_lines": analysis_result.total_lines,
+                        "avg_complexity": analysis_result.avg_complexity
+                    }
+
+                    print(f"  Step 2: Tree-Sitter analysis complete:")
+                    print(f"    - {analysis_result.analyzed_files} files analyzed")
+                    print(f"    - Languages: {', '.join(analysis_result.languages.keys())}")
+                    print(f"    - {analysis_result.total_classes} classes, {analysis_result.total_functions} functions")
+                    logger.info(f"✅ Tree-Sitter analysis: {analysis_result.analyzed_files} files")
+
+                except Exception as e:
+                    logger.warning(f"⚠️  Tree-Sitter analysis failed: {e}")
+                    # Fallback to basic analysis
+                    codebase_structure = {
+                        "workspace": state["workspace_path"],
+                        "analysis": f"Tree-Sitter analysis unavailable ({str(e)}). Using basic file analysis.",
+                        "files": [],
+                        "languages": []
+                    }
+                    print(f"  Step 2: Tree-Sitter failed, using fallback")
+            else:
+                logger.warning("⚠️  Tree-Sitter not available - install with: pip install tree-sitter")
+                codebase_structure = {
+                    "workspace": state["workspace_path"],
+                    "analysis": "Tree-Sitter not installed. To enable code analysis: pip install tree-sitter tree-sitter-python tree-sitter-javascript",
+                    "files": [],
+                    "languages": []
+                }
+                print(f"  Step 2: Tree-Sitter not available (install required)")
 
             # Step 3: Generate architecture design with Claude
             print(f"  Step 3: Creating Claude LLM...")
