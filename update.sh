@@ -1,5 +1,5 @@
 #!/bin/bash
-# KI AutoAgent Update Script v5.8.0
+# KI AutoAgent Update Script v6.1-alpha
 # Updates existing KI AutoAgent installation
 
 set -e
@@ -44,7 +44,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🔄 KI AutoAgent v5.8.0 - Update"
+echo "🔄 KI AutoAgent v6.1-alpha - Update"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -67,11 +67,11 @@ NEW_VERSION=$(python3 -c "import sys; sys.path.insert(0, '$SCRIPT_DIR/backend');
 echo "📦 New version: $NEW_VERSION"
 echo ""
 
-# Check if backend is running
-PID=$(lsof -ti :8001 2>/dev/null)
+# Check if backend is running (v6.1-alpha uses port 8002)
+PID=$(lsof -ti :8002 2>/dev/null)
 if [ -n "$PID" ]; then
     if [ "$NO_PROMPT" = false ]; then
-        echo "⚠️  Backend is currently running (PID: $PID)"
+        echo "⚠️  Backend is currently running on port 8002 (PID: $PID)"
         read -p "Stop backend for update? [Y/n]: " stop_backend
         if [[ ! $stop_backend =~ ^[Nn]$ ]]; then
             kill $PID
@@ -81,7 +81,7 @@ if [ -n "$PID" ]; then
             echo "⚠️  Updating while backend is running may cause issues"
         fi
     else
-        echo "🛑 Stopping backend (PID: $PID)..."
+        echo "🛑 Stopping v6.1-alpha backend (PID: $PID)..."
         kill $PID
         sleep 2
     fi
@@ -151,6 +151,9 @@ echo "📦 Updated from $CURRENT_VERSION → $NEW_VERSION"
 echo "💾 Backup: $BACKUP_DIR"
 echo ""
 echo "🚀 Start backend:"
-echo "   $INSTALL_DIR/start.sh [workspace_path]"
+echo "   $INSTALL_DIR/start.sh"
+echo ""
+echo "📝 Note: v6.1-alpha uses WebSocket init protocol"
+echo "   Workspace is sent by VS Code extension during connection"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

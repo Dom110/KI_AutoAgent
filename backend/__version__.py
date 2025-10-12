@@ -3,14 +3,14 @@ from __future__ import annotations
 """
 KI AutoAgent Backend Version Information
 
-Version 5.8.1 - Multi-Client Architecture
+Version 6.1.0 - v6 Integrated Architecture with Phase 5 Multi-Agent Communication
 """
 
 # Version numbers - Single source of truth
-__version__ = "5.8.1"
-__version_info__ = (5, 8, 1)
-__release_tag__ = "v5.8.1-multi-client-architecture"
-__release_date__ = "2025-10-04"
+__version__ = "6.1.0"
+__version_info__ = (6, 1, 0)
+__release_tag__ = "v6.1-alpha"
+__release_date__ = "2025-10-12"
 __author__ = "KI AutoAgent Team"
 __description__ = (
     "Cognitive AI Development Platform with Self-Understanding Capabilities"

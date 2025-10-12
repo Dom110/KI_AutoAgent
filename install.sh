@@ -1,5 +1,5 @@
 #!/bin/bash
-# KI AutoAgent Installation Script v5.8.0
+# KI AutoAgent Installation Script v6.1-alpha
 # Installs KI AutoAgent as a global service in $HOME/.ki_autoagent/
 
 set -e
@@ -8,7 +8,7 @@ INSTALL_DIR="$HOME/.ki_autoagent"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🚀 KI AutoAgent v5.8.0 - Global Agent Service Installation"
+echo "🚀 KI AutoAgent v6.1-alpha - Global Agent Service Installation"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -113,20 +113,22 @@ echo "🔧 Creating convenience scripts..."
 # Start script
 cat > "$INSTALL_DIR/start.sh" << 'EOF'
 #!/bin/bash
-# Start KI AutoAgent Backend Server
+# Start KI AutoAgent Backend Server v6.1-alpha
 
 INSTALL_DIR="$HOME/.ki_autoagent"
 cd "$INSTALL_DIR"
 source venv/bin/activate
 cd backend
 
-# Check for workspace parameter
-if [ -n "$1" ]; then
-    export KI_WORKSPACE_PATH="$1"
-    echo "🎯 Workspace: $KI_WORKSPACE_PATH"
-fi
+echo "🚀 Starting KI AutoAgent v6.1-alpha Backend..."
+echo "📍 Port: 8002 (v6 Integrated Server)"
+echo "🔗 WebSocket: ws://localhost:8002/ws/chat"
+echo "📊 Health: http://localhost:8002/health"
+echo ""
 
-python api/server_langgraph.py
+# Note: v6.1-alpha uses WebSocket init protocol
+# Workspace is sent by client via init message
+python api/server_v6_integrated.py
 EOF
 
 chmod +x "$INSTALL_DIR/start.sh"
@@ -135,15 +137,15 @@ echo "   ✓ Created start.sh"
 # Stop script
 cat > "$INSTALL_DIR/stop.sh" << 'EOF'
 #!/bin/bash
-# Stop KI AutoAgent Backend Server
+# Stop KI AutoAgent Backend Server v6.1-alpha
 
-PID=$(lsof -ti :8001)
+PID=$(lsof -ti :8002)
 if [ -n "$PID" ]; then
-    echo "🛑 Stopping backend (PID: $PID)..."
+    echo "🛑 Stopping v6.1-alpha backend (PID: $PID)..."
     kill $PID
     echo "✅ Backend stopped"
 else
-    echo "ℹ️  No backend process running on port 8001"
+    echo "ℹ️  No backend process running on port 8002"
 fi
 EOF
 
@@ -176,9 +178,11 @@ if [ -f "$INSTALL_DIR/version.json" ]; then
 fi
 
 # Check backend process
-PID=$(lsof -ti :8001 2>/dev/null)
+PID=$(lsof -ti :8002 2>/dev/null)
 if [ -n "$PID" ]; then
-    echo "✅ Backend: Running (PID: $PID)"
+    echo "✅ Backend: Running on port 8002 (PID: $PID)"
+    echo "   🔗 WebSocket: ws://localhost:8002/ws/chat"
+    echo "   📊 Health: http://localhost:8002/health"
 else
     echo "⏹️  Backend: Not running"
 fi
