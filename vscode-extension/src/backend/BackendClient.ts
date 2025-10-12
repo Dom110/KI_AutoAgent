@@ -8,9 +8,10 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 
 export interface BackendMessage {
-    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'agent_complete' | 'agent_tool_start' | 'agent_tool_complete' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed' | 'architecture_proposal' | 'architecture_proposal_revised' | 'architectureApprovalProcessed' | 'status' | 'approval_request' | 'approval_response' | 'workflow_complete';
+    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'agent_complete' | 'agent_tool_start' | 'agent_tool_complete' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed' | 'architecture_proposal' | 'architecture_proposal_revised' | 'architectureApprovalProcessed' | 'status' | 'approval_request' | 'approval_response' | 'workflow_complete' | 'claude_cli_start' | 'claude_cli_complete' | 'claude_cli_error';
     content?: string;
     agent?: string;
+    model?: string;  // v6.1-alpha: Claude model name
     metadata?: any;
     timestamp?: string;
     done?: boolean;  // For stream_chunk messages
@@ -444,6 +445,58 @@ export class BackendClient extends EventEmitter {
                 this.log(`🎉 v6 Workflow Complete - Quality: ${message.quality_score} - Success: ${message.success}`);
                 this.emit('workflow_complete', message);
                 this.emit('complete', message);
+                break;
+
+            case 'claude_cli_start':
+                // v6.1-alpha: Claude CLI subprocess started
+                this.log(`🚀 Claude CLI Started: ${message.agent} (${message.model})`);
+                this.log(`   Tools: ${(message as any).tools?.join(', ') || 'unknown'}`);
+                this.log(`   Permission Mode: ${(message as any).permission_mode || 'unknown'}`);
+                this.emit('agent_activity', {
+                    type: 'agent_progress',
+                    agent: message.agent,
+                    message: `🚀 Starting Claude CLI code generation...`,
+                    tool: 'claude-cli',
+                    tool_status: 'running'
+                });
+                break;
+
+            case 'claude_cli_complete':
+                // v6.1-alpha: Claude CLI subprocess completed successfully
+                const cliMsg = message as any;
+                this.log(`✅ Claude CLI Complete: ${message.agent}`);
+                this.log(`   Duration: ${cliMsg.duration_ms ? (cliMsg.duration_ms / 1000).toFixed(2) + 's' : 'unknown'}`);
+                this.log(`   Events: ${cliMsg.events_count || 'unknown'}`);
+                this.log(`   Output Length: ${cliMsg.output_length || 'unknown'} chars`);
+                this.emit('agent_activity', {
+                    type: 'agent_tool_complete',
+                    agent: message.agent,
+                    message: `✅ Code generation completed (${cliMsg.duration_ms ? (cliMsg.duration_ms / 1000).toFixed(1) + 's' : 'unknown'})`,
+                    tool: 'claude-cli',
+                    tool_status: 'success'
+                });
+                break;
+
+            case 'claude_cli_error':
+                // v6.1-alpha: Claude CLI subprocess failed
+                const errMsg = message as any;
+                this.log(`❌ Claude CLI Error: ${message.agent}`);
+                this.log(`   Error Type: ${errMsg.error_type || 'unknown'}`);
+                this.log(`   Error: ${errMsg.error || 'unknown'}`);
+                this.emit('agent_activity', {
+                    type: 'agent_tool_complete',
+                    agent: message.agent,
+                    message: `❌ Code generation failed: ${errMsg.error || 'unknown error'}`,
+                    tool: 'claude-cli',
+                    tool_status: 'error'
+                });
+                // Also emit as error for error handling
+                this.emit('error', {
+                    type: 'error',
+                    agent: message.agent,
+                    message: `Claude CLI error: ${errMsg.error}`,
+                    details: { error_type: errMsg.error_type, duration_ms: errMsg.duration_ms }
+                });
                 break;
 
             default:
