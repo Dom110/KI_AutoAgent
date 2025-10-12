@@ -44,7 +44,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🔄 KI AutoAgent v6.1-alpha - Update"
+echo "🔄 KI AutoAgent v6.2-alpha - Update"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -67,7 +67,7 @@ NEW_VERSION=$(python3 -c "import sys; sys.path.insert(0, '$SCRIPT_DIR/backend');
 echo "📦 New version: $NEW_VERSION"
 echo ""
 
-# Check if backend is running (v6.1-alpha uses port 8002)
+# Check if backend is running (v6.2-alpha uses port 8002)
 PID=$(lsof -ti :8002 2>/dev/null)
 if [ -n "$PID" ]; then
     if [ "$NO_PROMPT" = false ]; then
@@ -81,7 +81,7 @@ if [ -n "$PID" ]; then
             echo "⚠️  Updating while backend is running may cause issues"
         fi
     else
-        echo "🛑 Stopping v6.1-alpha backend (PID: $PID)..."
+        echo "🛑 Stopping v6.2-alpha backend (PID: $PID)..."
         kill $PID
         sleep 2
     fi
@@ -153,7 +153,7 @@ echo ""
 echo "🚀 Start backend:"
 echo "   $INSTALL_DIR/start.sh"
 echo ""
-echo "📝 Note: v6.1-alpha uses WebSocket init protocol"
+echo "📝 Note: v6.2-alpha uses AI-based dynamic workflow planning"
 echo "   Workspace is sent by VS Code extension during connection"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

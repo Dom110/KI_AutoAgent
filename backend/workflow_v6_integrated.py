@@ -39,7 +39,7 @@ Usage:
     )
 
 Author: KI AutoAgent Team
-Version: 6.1.0-alpha
+Version: 6.2.0-alpha
 Python: 3.13+
 """
 
@@ -102,8 +102,8 @@ from cognitive.neurosymbolic_reasoner_v6 import (
 )
 from cognitive.self_diagnosis_v6 import SelfDiagnosisV6
 
-# NEW v6.2: Intent Detection & Timeout Handler
-from cognitive.intent_detector_v6 import IntentDetectorV6, UserIntent, IntentResult
+# NEW v6.2: Workflow Planner & Timeout Handler
+from cognitive.workflow_planner_v6 import WorkflowPlannerV6, WorkflowPlan, AgentType, ConditionType
 from utils.timeout_handler import HumanResponseManager, TimeoutPolicy
 
 # Setup logging
@@ -153,8 +153,8 @@ class WorkflowV6Integrated:
         self.neurosymbolic: NeurosymbolicReasonerV6 | None = None
         self.self_diagnosis: SelfDiagnosisV6 | None = None
 
-        # NEW v6.2: Intent Detection & Human Response Timeout Handler
-        self.intent_detector: IntentDetectorV6 | None = None
+        # NEW v6.2: Workflow Planner & Human Response Timeout Handler
+        self.workflow_planner: WorkflowPlannerV6 | None = None
         self.response_manager: HumanResponseManager | None = None
 
         # Execution tracking
@@ -257,9 +257,9 @@ class WorkflowV6Integrated:
         self.self_diagnosis = SelfDiagnosisV6(learning_system=self.learning)
         logger.debug("  ✅ Self-Diagnosis System")
 
-        # NEW v6.2: Intent Detection & Human Response Timeout Handler
-        self.intent_detector = IntentDetectorV6()
-        logger.debug("  ✅ Intent Detector")
+        # NEW v6.2: Workflow Planner & Human Response Timeout Handler
+        self.workflow_planner = WorkflowPlannerV6()
+        logger.debug("  ✅ Workflow Planner")
 
         self.response_manager = HumanResponseManager()
         logger.debug("  ✅ Human Response Manager")
@@ -635,67 +635,113 @@ class WorkflowV6Integrated:
         # Create graph
         graph = StateGraph(SupervisorState)
 
-        # NEW v6.2: Intent Detection Node (Entry Point)
-        async def intent_detection_node(state: SupervisorState) -> dict[str, Any]:
+        # NEW v6.2: Workflow Planning Node (Entry Point)
+        async def workflow_planning_node(state: SupervisorState) -> dict[str, Any]:
             """
-            Intent detection node - determines workflow path.
+            NEW v6.2: Dynamic workflow planning using AI.
 
-            Routes to:
-            - FIX → ReviewFix directly
-            - CREATE → Full workflow (Research → Architect → Codesmith → ReviewFix)
-            - REFACTOR → Architect → Codesmith → ReviewFix
-            - EXPLAIN → Research only
+            Replaces fixed intent detection with flexible, context-aware planning.
+            The AI analyzes the task and creates an optimal execution plan.
+
+            Returns workflow_path for routing to first agent.
             """
-            logger.info("🎯 Intent Detection: Analyzing user request")
+            logger.info("🎯 Workflow Planning: Analyzing user request with AI")
 
-            # Check if workspace has existing code
             workspace_path = state["workspace_path"]
-            workspace_has_code = False
+            user_query = state["user_query"]
 
-            # Quick check: does workspace have source files?
+            # Gather context for planner
             import glob
+            existing_files: list[str] = []
+            workspace_has_code = False
             code_patterns = ["*.py", "*.ts", "*.tsx", "*.js", "*.jsx"]
             for pattern in code_patterns:
                 matches = glob.glob(os.path.join(workspace_path, "**", pattern), recursive=True)
                 if matches:
                     workspace_has_code = True
-                    break
+                    existing_files.extend([os.path.basename(m) for m in matches[:10]])  # First 10
 
             logger.debug(f"  Workspace has code: {workspace_has_code}")
+            logger.debug(f"  Existing files: {len(existing_files)} found")
 
-            # Detect intent
-            intent_result = await self.intent_detector.detect_intent(
-                user_query=state["user_query"],
-                workspace_has_code=workspace_has_code
-            )
+            # Create dynamic workflow plan using AI
+            try:
+                plan = await self.workflow_planner.plan_workflow(
+                    user_task=user_query,
+                    workspace_path=workspace_path,
+                    context={
+                        "existing_files": existing_files[:10],
+                        "workspace_has_code": workspace_has_code
+                    }
+                )
 
-            logger.info(f"  ✅ Intent: {intent_result.intent.value} (confidence: {intent_result.confidence:.2f})")
-            logger.debug(f"  Workflow: {' → '.join(intent_result.workflow_path)}")
-            logger.debug(f"  Reasoning: {intent_result.reasoning}")
+                # Validate plan
+                is_valid, issues = await self.workflow_planner.validate_plan(plan)
+                if not is_valid:
+                    logger.warning(f"  ⚠️  Plan validation issues: {issues}")
+                    # Continue anyway - fallback in plan should be safe
 
-            # Store intent in current session
-            self.current_session = {
-                "task_description": state["user_query"],
-                "current_phase": "intent_detection",
-                "workspace_path": state["workspace_path"],
-                "start_time": datetime.now(),
-                "completed_agents": [],
-                "pending_agents": intent_result.workflow_path,
-                "results": {},
-                "errors": [],
-                "quality_scores": {},
-                "metadata": {
-                    "intent": intent_result.to_dict(),
-                    "workspace_has_code": workspace_has_code
+                # Extract agent names from plan
+                workflow_path = [step.agent.value for step in plan.agents]
+
+                logger.info(f"  ✅ Workflow planned: {plan.workflow_type} ({plan.complexity})")
+                logger.info(f"  📋 Agents: {' → '.join(workflow_path)}")
+                logger.debug(f"  ⏱️  Estimated: {plan.estimated_duration}")
+                logger.debug(f"  🎯 Success criteria: {', '.join(plan.success_criteria)}")
+
+                # Store plan in current session
+                self.current_session = {
+                    "task_description": user_query,
+                    "current_phase": "workflow_planning",
+                    "workspace_path": workspace_path,
+                    "start_time": datetime.now(),
+                    "completed_agents": [],
+                    "pending_agents": workflow_path.copy(),
+                    "results": {},
+                    "errors": [],
+                    "quality_scores": {},
+                    "metadata": {
+                        "workflow_plan": {
+                            "type": plan.workflow_type,
+                            "complexity": plan.complexity,
+                            "agents": workflow_path,
+                            "estimated_duration": plan.estimated_duration,
+                            "success_criteria": plan.success_criteria
+                        },
+                        "workspace_has_code": workspace_has_code
+                    }
                 }
-            }
 
-            return {
-                "final_result": f"Intent detected: {intent_result.intent.value}",
-                "errors": [],
-                "intent": intent_result.intent.value,  # Store intent for routing
-                "workflow_path": intent_result.workflow_path
-            }
+                return {
+                    "final_result": f"Workflow planned: {plan.workflow_type} with {len(workflow_path)} agents",
+                    "errors": [],
+                    "workflow_path": workflow_path
+                }
+
+            except Exception as e:
+                logger.error(f"  ❌ Workflow planning failed: {e}")
+                # Fallback to simple CREATE workflow
+                logger.warning("  ⚠️  Using fallback CREATE workflow")
+                fallback_path = ["research", "architect", "codesmith", "reviewfix"]
+
+                self.current_session = {
+                    "task_description": user_query,
+                    "current_phase": "workflow_planning",
+                    "workspace_path": workspace_path,
+                    "start_time": datetime.now(),
+                    "completed_agents": [],
+                    "pending_agents": fallback_path.copy(),
+                    "results": {},
+                    "errors": [f"Planning error: {str(e)}"],
+                    "quality_scores": {},
+                    "metadata": {"fallback": True}
+                }
+
+                return {
+                    "final_result": "Using fallback CREATE workflow",
+                    "errors": [f"Planning failed: {str(e)}"],
+                    "workflow_path": fallback_path
+                }
 
         # Supervisor node (enhanced with v6)
         async def supervisor_node(state: SupervisorState) -> dict[str, Any]:
@@ -1010,10 +1056,9 @@ class WorkflowV6Integrated:
                 "errors": ["HITL required but no callback available"]
             }
 
-        # Decision function for intent routing
+        # Decision function for workflow routing
         def _intent_decide_next(state: SupervisorState) -> str:
-            """Route based on detected intent."""
-            intent = state.get("intent", "create")
+            """Route based on AI workflow plan."""
             workflow_path = state.get("workflow_path", ["research"])
 
             # Safety check: Ensure workflow_path is not empty
@@ -1021,13 +1066,13 @@ class WorkflowV6Integrated:
                 logger.warning(f"⚠️  Empty workflow_path, defaulting to 'research'")
                 workflow_path = ["research"]
 
-            logger.info(f"🔀 Intent routing: {intent} → {workflow_path[0]}")
+            logger.info(f"🔀 Workflow routing: {workflow_path[0]}")
 
             # Return first step in workflow path
             return workflow_path[0]
 
         # Add nodes
-        graph.add_node("intent_detection", intent_detection_node)  # NEW!
+        graph.add_node("workflow_planning", workflow_planning_node)  # NEW v6.2!
         graph.add_node("supervisor", supervisor_node)
         graph.add_node("research", research_node_wrapper)
         graph.add_node("architect", architect_node_wrapper)
@@ -1035,17 +1080,18 @@ class WorkflowV6Integrated:
         graph.add_node("reviewfix", reviewfix_node_wrapper)
         graph.add_node("hitl", hitl_node)
 
-        # NEW v6.2: Intent Detection is Entry Point
-        graph.set_entry_point("intent_detection")
+        # NEW v6.2: Workflow Planning is Entry Point
+        graph.set_entry_point("workflow_planning")
 
-        # Intent Detection → Dynamic routing based on intent
+        # Workflow Planning → Dynamic routing based on AI plan
         graph.add_conditional_edges(
-            "intent_detection",
+            "workflow_planning",
             _intent_decide_next,
             {
-                "research": "research",      # CREATE, EXPLAIN
-                "architect": "architect",    # REFACTOR
-                "reviewfix": "reviewfix"     # FIX (🎯 Direct!)
+                "research": "research",      # Most workflows start here
+                "architect": "architect",    # REFACTOR (skip research)
+                "reviewfix": "reviewfix",    # FIX (direct to review)
+                "explain": "research"        # EXPLAIN (research only) - maps to research for now
             }
         )
 
@@ -1167,8 +1213,7 @@ class WorkflowV6Integrated:
         initial_state: SupervisorState = {
             "user_query": user_query,
             "workspace_path": self.workspace_path,
-            "intent": None,  # NEW v6.2: Set by intent_detection_node
-            "workflow_path": None,  # NEW v6.2: Set by intent_detection_node
+            "workflow_path": None,  # NEW v6.2: Set by workflow_planning_node
             "research_results": None,
             "architecture_design": None,
             "generated_files": [],

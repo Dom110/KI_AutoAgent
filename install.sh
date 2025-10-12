@@ -1,5 +1,5 @@
 #!/bin/bash
-# KI AutoAgent Installation Script v6.1-alpha
+# KI AutoAgent Installation Script v6.2-alpha
 # Installs KI AutoAgent as a global service in $HOME/.ki_autoagent/
 
 set -e
@@ -8,7 +8,7 @@ INSTALL_DIR="$HOME/.ki_autoagent"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🚀 KI AutoAgent v6.1-alpha - Global Agent Service Installation"
+echo "🚀 KI AutoAgent v6.2-alpha - Global Agent Service Installation"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -120,13 +120,13 @@ cd "$INSTALL_DIR"
 source venv/bin/activate
 cd backend
 
-echo "🚀 Starting KI AutoAgent v6.1-alpha Backend..."
+echo "🚀 Starting KI AutoAgent v6.2-alpha Backend..."
 echo "📍 Port: 8002 (v6 Integrated Server)"
 echo "🔗 WebSocket: ws://localhost:8002/ws/chat"
 echo "📊 Health: http://localhost:8002/health"
 echo ""
 
-# Note: v6.1-alpha uses WebSocket init protocol
+# Note: v6.2-alpha uses AI-based dynamic workflow planning
 # Workspace is sent by client via init message
 python api/server_v6_integrated.py
 EOF
@@ -137,11 +137,11 @@ echo "   ✓ Created start.sh"
 # Stop script
 cat > "$INSTALL_DIR/stop.sh" << 'EOF'
 #!/bin/bash
-# Stop KI AutoAgent Backend Server v6.1-alpha
+# Stop KI AutoAgent Backend Server v6.2-alpha
 
 PID=$(lsof -ti :8002)
 if [ -n "$PID" ]; then
-    echo "🛑 Stopping v6.1-alpha backend (PID: $PID)..."
+    echo "🛑 Stopping v6.2-alpha backend (PID: $PID)..."
     kill $PID
     echo "✅ Backend stopped"
 else

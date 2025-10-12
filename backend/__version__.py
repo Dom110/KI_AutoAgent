@@ -3,13 +3,13 @@ from __future__ import annotations
 """
 KI AutoAgent Backend Version Information
 
-Version 6.1.0 - v6 Integrated Architecture with Phase 5 Multi-Agent Communication
+Version 6.2.0 - AI-Based Dynamic Workflow Planning (replaces Intent Detection)
 """
 
 # Version numbers - Single source of truth
-__version__ = "6.1.0"
-__version_info__ = (6, 1, 0)
-__release_tag__ = "v6.1-alpha"
+__version__ = "6.2.0"
+__version_info__ = (6, 2, 0)
+__release_tag__ = "v6.2-alpha"
 __release_date__ = "2025-10-12"
 __author__ = "KI AutoAgent Team"
 __description__ = (
