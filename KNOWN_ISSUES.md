@@ -6,59 +6,7 @@
 
 ## 🐛 Critical Issues
 
-### Issue #1: Research Subgraph `list.remove()` Error
-
-**Severity:** HIGH
-**Status:** OPEN
-**Discovered:** 2025-10-12 (E2E Testing)
-
-**Description:**
-The Research Subgraph crashes with a `list.remove(x): x not in list` error when processing complex CREATE requests. This causes the workflow to enter HITL (Human-in-the-Loop) mode and block indefinitely waiting for user input.
-
-**Error Message:**
-```
-Research failed: list.remove(x): x not in list
-```
-
-**Reproduction Steps:**
-1. Send a complex CREATE request with 8+ files and multiple features
-2. System routes to Research Subgraph for analysis
-3. Research Subgraph crashes
-4. System enters HITL mode
-5. Workflow blocks (timeout: 300s)
-
-**Affected Workflows:**
-- ✅ Simple CREATE requests work (no research needed)
-- ❌ Complex CREATE requests fail (research triggered)
-- ✅ FIX workflow works (no research needed)
-
-**Example Request that Fails:**
-```
-Create a complete Task Manager web application with:
-- Backend (Python FastAPI) with CRUD API
-- Frontend (HTML/CSS/JS) with modern UI
-- 8+ files: backend/main.py, models.py, storage.py, frontend/index.html, style.css, app.js, etc.
-- Multiple features: filtering, priority, persistence, validation
-```
-
-**Workaround:**
-- Use simpler CREATE requests with fewer files
-- Use FIX workflow instead to iteratively build complex apps
-- Manually approve HITL request (if available)
-
-**Root Cause:**
-Research Subgraph tries to remove an element from a list that doesn't exist. Likely issue with cleanup or state management in `backend/subgraphs/research_subgraph_v6_1.py`.
-
-**Suggested Fix:**
-1. Add proper exception handling in Research Subgraph
-2. Use `if x in list: list.remove(x)` instead of `list.remove(x)`
-3. Improve error recovery (don't go to HITL for known errors)
-4. Add fallback: skip research if it fails
-
-**Impact:**
-- Blocks complex app generation
-- Users cannot create multi-file projects in one shot
-- Requires iterative approach via FIX workflow
+None currently! All critical bugs have been fixed.
 
 ---
 
@@ -137,7 +85,51 @@ If Research fails:
 
 ## ✅ Fixed Issues
 
-None yet (v6.1-alpha initial release)
+### Issue #1: Research Subgraph `list.remove()` Error
+
+**Severity:** HIGH
+**Status:** FIXED (2025-10-12)
+**Discovered:** 2025-10-12 (E2E Testing)
+**Fixed In:** backend/workflow_v6_integrated.py:753-755
+
+**Description:**
+The Research Subgraph crashed with a `list.remove(x): x not in list` error when processing complex CREATE requests. This caused the workflow to enter HITL (Human-in-the-Loop) mode and block indefinitely.
+
+**Error Message:**
+```
+Research failed: list.remove(x): x not in list
+```
+
+**Root Cause:**
+After Research Subgraph completed (or failed), the code tried to remove "research" from `pending_agents` list without checking if it was present. If research was never added or already removed, this caused a crash.
+
+**Location:** `backend/workflow_v6_integrated.py` line 753
+
+**Fix Applied:**
+```python
+# Before (BROKEN):
+self.current_session["pending_agents"].remove("research")
+
+# After (FIXED):
+if "research" in self.current_session["pending_agents"]:
+    self.current_session["pending_agents"].remove("research")
+```
+
+**Verification:**
+Verified that all other `.remove()` calls in workflow_v6_integrated.py already had safe-remove checks:
+- Line 819-820 (architect): Already safe ✅
+- Line 875-876 (codesmith): Already safe ✅
+- Line 917-918 (reviewfix): Already safe ✅
+
+**Impact Before Fix:**
+- Blocked complex app generation
+- Users could not create multi-file projects in one shot
+- Workflow entered HITL and timed out
+
+**Impact After Fix:**
+- Complex CREATE requests should now work
+- Research Subgraph errors handled gracefully
+- No more HITL blocking on list operations
 
 ---
 
@@ -168,7 +160,11 @@ If you encounter issues:
 
 ## 🔄 Update History
 
-- **2025-10-12:** Initial Known Issues document created
-  - Documented Research Subgraph bug
-  - Documented FIX workflow timeout
+- **2025-10-12 (v6.1-alpha):**
+  - Initial Known Issues document created
+  - Documented Research Subgraph bug (Issue #1)
+  - Documented FIX workflow timeout (Issue #2)
   - Added E2E test results
+  - **FIXED Issue #1:** Research Subgraph `list.remove()` error
+    - Applied safe-remove check in workflow_v6_integrated.py:753-755
+    - Verified all other remove() calls were already safe

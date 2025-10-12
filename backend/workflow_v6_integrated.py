@@ -750,7 +750,9 @@ class WorkflowV6Integrated:
 
                 # Track completion
                 self.current_session["completed_agents"].append("research")
-                self.current_session["pending_agents"].remove("research")
+                # Safe remove: only remove if present
+                if "research" in self.current_session["pending_agents"]:
+                    self.current_session["pending_agents"].remove("research")
                 self.current_session["results"]["research"] = result
 
                 # Check for adaptation needs
