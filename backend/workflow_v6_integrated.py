@@ -1234,6 +1234,17 @@ class WorkflowV6Integrated:
         # PHASE 4: COMPILE FINAL RESULT
         # ====================================================================
 
+        # Extract clean result summary for UI
+        result_summary = result.get("final_result", "Workflow complete")
+        if not result_summary or result_summary == "Workflow complete":
+            # Try to build a better summary
+            generated_files = result.get("generated_files", [])
+            if generated_files:
+                result_summary = f"✅ Successfully generated {len(generated_files)} files"
+            elif self.current_session.get("completed_agents"):
+                agents = ", ".join(self.current_session["completed_agents"])
+                result_summary = f"✅ Workflow complete (agents: {agents})"
+
         final_result = {
             "success": error_count == 0,
             "session_id": session_id,
@@ -1246,9 +1257,12 @@ class WorkflowV6Integrated:
             "health": self.self_diagnosis.get_health_report(),
 
             # Workflow Results
-            "result": result,
+            "result": result_summary,  # Clean summary instead of full state
+            "raw_result": result,      # Keep full result for debugging
             "errors": result.get("errors", []),
             "warnings": analysis["warnings"],
+            "agents_completed": self.current_session.get("completed_agents", []),
+            "files_generated": len(result.get("generated_files", [])),
 
             # Metadata
             "v6_systems_used": {
