@@ -102,6 +102,9 @@ from cognitive.neurosymbolic_reasoner_v6 import (
 )
 from cognitive.self_diagnosis_v6 import SelfDiagnosisV6
 
+# NEW v6.2: Timeout Handler
+from utils.timeout_handler import HumanResponseManager, TimeoutPolicy
+
 # Setup logging
 logger = logging.getLogger(__name__)
 
@@ -148,6 +151,9 @@ class WorkflowV6Integrated:
         self.workflow_adapter: WorkflowAdapterV6 | None = None
         self.neurosymbolic: NeurosymbolicReasonerV6 | None = None
         self.self_diagnosis: SelfDiagnosisV6 | None = None
+
+        # NEW v6.2: Human Response Timeout Handler
+        self.response_manager: HumanResponseManager | None = None
 
         # Execution tracking
         self.current_session: dict[str, Any] = {}
@@ -248,6 +254,10 @@ class WorkflowV6Integrated:
 
         self.self_diagnosis = SelfDiagnosisV6(learning_system=self.learning)
         logger.debug("  ✅ Self-Diagnosis System")
+
+        # NEW v6.2: Human Response Timeout Handler
+        self.response_manager = HumanResponseManager()
+        logger.debug("  ✅ Human Response Manager")
 
         logger.info("🎉 All v6 systems initialized successfully!")
 
@@ -855,12 +865,13 @@ class WorkflowV6Integrated:
                 self.current_session["errors"].append({"agent": "reviewfix", "error": str(e)})
                 return {"errors": [str(e)]}
 
-        # HITL Node (Human-in-the-Loop) - v6.1
+        # HITL Node (Human-in-the-Loop) - v6.2 with Timeout Handler
         async def hitl_node(state: SupervisorState) -> dict[str, Any]:
             """
             Human-in-the-Loop node (ASIMOV RULE 4).
 
             Triggered when agents are stuck or need human guidance.
+            Uses timeout handler to wait for human response.
             """
             logger.info("🛑 HITL: Requesting human intervention")
 
@@ -882,14 +893,45 @@ class WorkflowV6Integrated:
                 logger.info(f"  📡 Sending HITL request to user...")
                 await self.websocket_callback(hitl_request)
 
-                # TODO: Wait for human response (with timeout)
-                # For now, return abort
-                logger.warning("  ⏳ HITL waiting not implemented, aborting")
+                # NEW v6.2: Wait for human response with timeout handler
+                request_id = f"hitl_{failed_phase}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-                return {
-                    "hitl_response": {"next_step": END, "action": "abort"},
-                    "errors": [f"HITL: User intervention required for {failed_phase}"]
-                }
+                logger.info(f"  ⏳ Waiting for human response (timeout: 300s)...")
+
+                try:
+                    # Use HumanResponseManager to wait with timeout
+                    result = await self.response_manager.request_response(
+                        request_id=request_id,
+                        timeout=300.0,  # 5 minutes
+                        policy=TimeoutPolicy.AUTO_ABORT  # Abort on timeout
+                    )
+
+                    if result["success"]:
+                        logger.info(f"  ✅ Human responded: {result['response']}")
+                        response_data = result["response"]
+
+                        return {
+                            "hitl_response": {
+                                "next_step": response_data.get("next_step", END),
+                                "action": response_data.get("action", "continue")
+                            },
+                            "errors": []
+                        }
+                    else:
+                        # Timeout or error
+                        logger.warning(f"  ⏱️  Human response timeout/error: {result.get('policy_applied')}")
+
+                        return {
+                            "hitl_response": {"next_step": END, "action": "abort"},
+                            "errors": [f"HITL: No response after timeout ({result.get('policy_applied')})"]
+                        }
+
+                except Exception as e:
+                    logger.error(f"  ❌ HITL response error: {e}")
+                    return {
+                        "hitl_response": {"next_step": END, "action": "abort"},
+                        "errors": [f"HITL error: {str(e)}"]
+                    }
 
             # No WebSocket = can't continue
             logger.error("❌ No WebSocket callback for HITL")

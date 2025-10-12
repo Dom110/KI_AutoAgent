@@ -97,6 +97,8 @@ class SessionReport:
     user_interventions: int = 0
     autonomous_time_ms: float = 0.0
     waiting_time_ms: float = 0.0
+    approval_requests: int = 0  # NEW v6.2: Track approval requests
+    approval_time_ms: float = 0.0  # NEW v6.2: Time spent waiting for approvals
 
 
 class HITLManagerV6:
@@ -125,6 +127,13 @@ class HITLManagerV6:
         self.session_start = datetime.now()
         self.user_last_seen = datetime.now()
         self._task_counter = 0
+
+        # NEW v6.2: HITL Metrics Tracking
+        self.intervention_count = 0  # User interventions requested
+        self.approval_request_count = 0  # Approval requests sent
+        self.total_waiting_time_ms: float = 0.0  # Total time waiting for human
+        self.total_approval_time_ms: float = 0.0  # Total time waiting for approvals
+        self.autonomous_start: datetime | None = None  # Track autonomous execution
 
         logger.info(f"🤝 HITL Manager v6 initialized (mode: {default_mode.value})")
 
@@ -185,6 +194,18 @@ class HITLManagerV6:
         self.mode = mode
 
         logger.info(f"🔄 HITL mode changed: {old_mode.value} → {mode.value}")
+
+        # NEW v6.2: Track mode changes for metrics
+        if mode == HITLMode.AUTONOMOUS and old_mode != HITLMode.AUTONOMOUS:
+            # Starting autonomous mode - start timer
+            self.autonomous_start = datetime.now()
+            logger.debug(f"  ⏱️  Autonomous timer started")
+        elif old_mode == HITLMode.AUTONOMOUS and mode != HITLMode.AUTONOMOUS:
+            # Leaving autonomous mode - stop timer
+            if self.autonomous_start:
+                autonomous_duration = (datetime.now() - self.autonomous_start).total_seconds() * 1000
+                logger.debug(f"  ⏱️  Autonomous session: {autonomous_duration:.0f}ms")
+                self.autonomous_start = None
 
         # Send mode change via WebSocket
         if self.websocket_callback:
@@ -438,17 +459,66 @@ class HITLManagerV6:
         # Default
         return "Review error logs, check configuration, retry with debug output"
 
+    def track_intervention(self, intervention_type: str = "manual") -> None:
+        """
+        Track a user intervention (v6.2).
+
+        Args:
+            intervention_type: Type of intervention (manual, approval, timeout, etc.)
+        """
+        self.intervention_count += 1
+        logger.debug(f"📊 Intervention tracked: {intervention_type} (total: {self.intervention_count})")
+
+    def track_waiting_start(self) -> datetime:
+        """
+        Mark start of waiting for human response (v6.2).
+
+        Returns:
+            Start time for tracking
+        """
+        return datetime.now()
+
+    def track_waiting_end(self, start_time: datetime, is_approval: bool = False) -> None:
+        """
+        Mark end of waiting for human response and record duration (v6.2).
+
+        Args:
+            start_time: When waiting started
+            is_approval: Whether this was an approval wait
+        """
+        duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+
+        if is_approval:
+            self.approval_request_count += 1
+            self.total_approval_time_ms += duration_ms
+            logger.debug(f"📊 Approval wait: {duration_ms:.0f}ms (total approvals: {self.approval_request_count})")
+        else:
+            self.total_waiting_time_ms += duration_ms
+            logger.debug(f"📊 Wait time: {duration_ms:.0f}ms")
+
     def _generate_report(
         self,
         start_time: datetime,
         end_time: datetime,
         duration_ms: float
     ) -> SessionReport:
-        """Generate session report."""
+        """Generate session report with v6.2 metrics."""
         success_count = sum(1 for t in self.tasks if t.status == TaskStatus.COMPLETED)
         failed_count = sum(1 for t in self.tasks if t.status == TaskStatus.FAILED)
         skipped_count = sum(1 for t in self.tasks if t.status == TaskStatus.SKIPPED)
         deferred_count = sum(1 for t in self.tasks if t.status == TaskStatus.DEFERRED)
+
+        # NEW v6.2: Calculate actual autonomous time
+        # Autonomous time = Total time - (waiting time + approval time)
+        total_wait_time = self.total_waiting_time_ms + self.total_approval_time_ms
+        autonomous_time_ms = max(0.0, duration_ms - total_wait_time)
+
+        logger.debug(f"📊 Report metrics:")
+        logger.debug(f"  Total duration: {duration_ms:.0f}ms")
+        logger.debug(f"  Autonomous time: {autonomous_time_ms:.0f}ms ({autonomous_time_ms/duration_ms*100:.1f}%)")
+        logger.debug(f"  Waiting time: {self.total_waiting_time_ms:.0f}ms")
+        logger.debug(f"  Approval time: {self.total_approval_time_ms:.0f}ms")
+        logger.debug(f"  Interventions: {self.intervention_count}")
 
         return SessionReport(
             session_id=f"session_{start_time.strftime('%Y%m%d_%H%M%S')}",
@@ -461,9 +531,11 @@ class HITLManagerV6:
             failed_count=failed_count,
             skipped_count=skipped_count,
             deferred_count=deferred_count,
-            user_interventions=0,  # TODO: Track from approval manager
-            autonomous_time_ms=duration_ms,  # TODO: Calculate actual autonomous time
-            waiting_time_ms=0.0  # TODO: Calculate actual waiting time
+            user_interventions=self.intervention_count,  # ✅ v6.2: Tracked
+            autonomous_time_ms=autonomous_time_ms,  # ✅ v6.2: Calculated
+            waiting_time_ms=self.total_waiting_time_ms,  # ✅ v6.2: Tracked
+            approval_requests=self.approval_request_count,  # ✅ v6.2: NEW
+            approval_time_ms=self.total_approval_time_ms  # ✅ v6.2: NEW
         )
 
     async def _notify_task_start(self, task: Task) -> None:
@@ -524,6 +596,11 @@ class HITLManagerV6:
         duration_s = report.total_duration_ms / 1000
         success_rate = (report.success_count / len(report.tasks) * 100) if report.tasks else 0
 
+        # NEW v6.2: Calculate percentages
+        autonomous_pct = (report.autonomous_time_ms / report.total_duration_ms * 100) if report.total_duration_ms > 0 else 0
+        waiting_pct = (report.waiting_time_ms / report.total_duration_ms * 100) if report.total_duration_ms > 0 else 0
+        approval_pct = (report.approval_time_ms / report.total_duration_ms * 100) if report.total_duration_ms > 0 else 0
+
         md = f"""# HITL Session Report - {report.started_at.strftime('%Y-%m-%d %H:%M')}
 
 ## Summary
@@ -537,6 +614,12 @@ class HITLManagerV6:
 - ❌ Failed: {report.failed_count}
 - ⏸️  Skipped: {report.skipped_count}
 - ⏳ Deferred: {report.deferred_count}
+
+## HITL Metrics (v6.2)
+**Autonomous Execution:** {report.autonomous_time_ms/1000:.1f}s ({autonomous_pct:.1f}%)
+**Waiting for Human:** {report.waiting_time_ms/1000:.1f}s ({waiting_pct:.1f}%)
+**Approval Requests:** {report.approval_requests} ({report.approval_time_ms/1000:.1f}s, {approval_pct:.1f}%)
+**User Interventions:** {report.user_interventions}
 
 ## Tasks Detail
 

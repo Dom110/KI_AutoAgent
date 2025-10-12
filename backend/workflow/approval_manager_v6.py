@@ -102,6 +102,15 @@ class ApprovalManagerV6:
         self.history: list[ApprovalRequest] = []
         self._request_counter = 0
 
+        # NEW v6.2: HITL Metrics Tracking
+        self.total_approval_time_ms: float = 0.0  # Total time waiting for approvals
+        self.total_requests: int = 0  # Total approval requests sent
+        self.auto_approved: int = 0  # Auto-approved by pattern/rule
+        self.auto_rejected: int = 0  # Auto-rejected by pattern/rule
+        self.user_approved: int = 0  # User manually approved
+        self.user_rejected: int = 0  # User manually rejected
+        self.timeout_count: int = 0  # Requests that timed out
+
         # Default rules
         self._setup_default_rules()
 
@@ -223,6 +232,9 @@ class ApprovalManagerV6:
         """
         logger.info(f"🔐 Approval requested: {action_type.value} - {description}")
 
+        # NEW v6.2: Track total requests
+        self.total_requests += 1
+
         # Helper to record auto-decision
         def record_auto_decision(approved: bool, status: ApprovalStatus, response: str) -> dict[str, Any]:
             request = ApprovalRequest(
@@ -237,6 +249,13 @@ class ApprovalManagerV6:
                 responded_at=datetime.now()
             )
             self.history.append(request)
+
+            # NEW v6.2: Track auto-decision metrics
+            if approved:
+                self.auto_approved += 1
+            else:
+                self.auto_rejected += 1
+
             return {
                 "approved": approved,
                 "status": status,
@@ -358,6 +377,9 @@ class ApprovalManagerV6:
             "timeout_seconds": request.timeout_seconds
         }
 
+        # NEW v6.2: Track approval wait time
+        wait_start = datetime.now()
+
         try:
             # Call WebSocket callback
             response = await asyncio.wait_for(
@@ -365,9 +387,20 @@ class ApprovalManagerV6:
                 timeout=request.timeout_seconds
             )
 
+            # NEW v6.2: Record wait time
+            wait_duration_ms = (datetime.now() - wait_start).total_seconds() * 1000
+            self.total_approval_time_ms += wait_duration_ms
+            logger.debug(f"📊 Approval wait time: {wait_duration_ms:.0f}ms")
+
             # Parse response
             approved = response.get("approved", False)
             user_response = response.get("response", "")
+
+            # NEW v6.2: Track user decision
+            if approved:
+                self.user_approved += 1
+            else:
+                self.user_rejected += 1
 
             logger.info(f"{'✅' if approved else '❌'} Approval {'granted' if approved else 'denied'}: {request.request_id}")
 
@@ -379,6 +412,11 @@ class ApprovalManagerV6:
             }
 
         except asyncio.TimeoutError:
+            # NEW v6.2: Record timeout time and count
+            wait_duration_ms = (datetime.now() - wait_start).total_seconds() * 1000
+            self.total_approval_time_ms += wait_duration_ms
+            self.timeout_count += 1
+
             logger.warning(f"⏱️  Approval timeout: {request.request_id}")
             return {
                 "approved": False,
@@ -459,7 +497,7 @@ class ApprovalManagerV6:
         ]
 
     def get_approval_stats(self) -> dict[str, Any]:
-        """Get approval statistics."""
+        """Get approval statistics (v6.2 with metrics)."""
         total = len(self.history)
 
         if total == 0:
@@ -469,7 +507,15 @@ class ApprovalManagerV6:
                 "rejected": 0,
                 "timeout": 0,
                 "cancelled": 0,
-                "approval_rate": 0.0
+                "approval_rate": 0.0,
+                # NEW v6.2: Additional metrics
+                "auto_approved": 0,
+                "auto_rejected": 0,
+                "user_approved": 0,
+                "user_rejected": 0,
+                "timeout_count": 0,
+                "total_approval_time_ms": 0.0,
+                "avg_approval_time_ms": 0.0
             }
 
         approved = sum(1 for req in self.history if req.status == ApprovalStatus.APPROVED)
@@ -477,13 +523,29 @@ class ApprovalManagerV6:
         timeout = sum(1 for req in self.history if req.status == ApprovalStatus.TIMEOUT)
         cancelled = sum(1 for req in self.history if req.status == ApprovalStatus.CANCELLED)
 
+        # NEW v6.2: Calculate average approval time
+        user_decisions = self.user_approved + self.user_rejected + self.timeout_count
+        avg_approval_time = (
+            self.total_approval_time_ms / user_decisions
+            if user_decisions > 0
+            else 0.0
+        )
+
         return {
             "total_requests": total,
             "approved": approved,
             "rejected": rejected,
             "timeout": timeout,
             "cancelled": cancelled,
-            "approval_rate": approved / total if total > 0 else 0.0
+            "approval_rate": approved / total if total > 0 else 0.0,
+            # NEW v6.2: Additional metrics
+            "auto_approved": self.auto_approved,
+            "auto_rejected": self.auto_rejected,
+            "user_approved": self.user_approved,
+            "user_rejected": self.user_rejected,
+            "timeout_count": self.timeout_count,
+            "total_approval_time_ms": self.total_approval_time_ms,
+            "avg_approval_time_ms": avg_approval_time
         }
 
     def _matches_pattern(self, target: str, pattern: str) -> bool:
