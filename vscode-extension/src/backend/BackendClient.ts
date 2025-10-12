@@ -468,9 +468,10 @@ export class BackendClient extends EventEmitter {
                 this.log(`   Tools: ${(message as any).tools?.join(', ') || 'unknown'}`);
                 this.log(`   Permission Mode: ${(message as any).permission_mode || 'unknown'}`);
                 this.emit('agent_activity', {
-                    type: 'agent_progress',
+                    type: 'agent_activity',
+                    activity_type: 'agent_progress',
                     agent: message.agent,
-                    message: `🚀 Starting Claude CLI code generation...`,
+                    content: `🚀 Starting Claude CLI code generation...`,
                     tool: 'claude-cli',
                     tool_status: 'running'
                 });
@@ -484,9 +485,10 @@ export class BackendClient extends EventEmitter {
                 this.log(`   Events: ${cliMsg.events_count || 'unknown'}`);
                 this.log(`   Output Length: ${cliMsg.output_length || 'unknown'} chars`);
                 this.emit('agent_activity', {
-                    type: 'agent_tool_complete',
+                    type: 'agent_activity',
+                    activity_type: 'agent_tool_complete',
                     agent: message.agent,
-                    message: `✅ Code generation completed (${cliMsg.duration_ms ? (cliMsg.duration_ms / 1000).toFixed(1) + 's' : 'unknown'})`,
+                    content: `✅ Code generation completed (${cliMsg.duration_ms ? (cliMsg.duration_ms / 1000).toFixed(1) + 's' : 'unknown'})`,
                     tool: 'claude-cli',
                     tool_status: 'success'
                 });
@@ -499,9 +501,10 @@ export class BackendClient extends EventEmitter {
                 this.log(`   Error Type: ${errMsg.error_type || 'unknown'}`);
                 this.log(`   Error: ${errMsg.error || 'unknown'}`);
                 this.emit('agent_activity', {
-                    type: 'agent_tool_complete',
+                    type: 'agent_activity',
+                    activity_type: 'agent_tool_complete',
                     agent: message.agent,
-                    message: `❌ Code generation failed: ${errMsg.error || 'unknown error'}`,
+                    content: `❌ Code generation failed: ${errMsg.error || 'unknown error'}`,
                     tool: 'claude-cli',
                     tool_status: 'error'
                 });
