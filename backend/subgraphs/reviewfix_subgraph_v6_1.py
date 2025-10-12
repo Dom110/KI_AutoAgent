@@ -359,6 +359,289 @@ Provide quality score and detailed feedback."""
                 else:
                     logger.warning("⚠️  No JavaScript files found - skipping ESLint check")
 
+            # Go validation with go vet
+            has_go = any(
+                f.get('path', '').endswith('.go')
+                for f in generated_files
+            )
+
+            if has_go:
+                logger.info("🔵 Project Type: Go")
+                logger.info("   Quality Threshold: 0.85")
+
+                go_mod_path = os.path.join(workspace_path, 'go.mod')
+                go_files = [
+                    f.get('path') for f in generated_files
+                    if f.get('path', '').endswith('.go')
+                ]
+
+                if go_files:
+                    logger.info(f"🔬 Running Go validation ({len(go_files)} files)...")
+
+                    try:
+                        import subprocess
+
+                        # Run go vet (linting/static analysis)
+                        result = subprocess.run(
+                            ['go', 'vet', './...'],
+                            cwd=workspace_path,
+                            capture_output=True,
+                            text=True,
+                            timeout=90
+                        )
+
+                        if result.returncode == 0:
+                            logger.info("✅ Go vet passed!")
+
+                            # Also run go build -n (dry run compilation check)
+                            if os.path.exists(go_mod_path):
+                                logger.info("🔬 Running Go build check...")
+                                build_result = subprocess.run(
+                                    ['go', 'build', '-n', './...'],
+                                    cwd=workspace_path,
+                                    capture_output=True,
+                                    text=True,
+                                    timeout=90
+                                )
+
+                                if build_result.returncode == 0:
+                                    logger.info("✅ Go build check passed!")
+                                else:
+                                    logger.error("❌ Go build check failed!")
+                                    logger.error(f"   Errors:\n{build_result.stdout}\n{build_result.stderr}")
+                                    build_validation_passed = False
+                                    build_errors.append({
+                                        "type": "go_build",
+                                        "errors": build_result.stdout + build_result.stderr
+                                    })
+                        else:
+                            logger.error("❌ Go vet failed!")
+                            logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
+                            build_validation_passed = False
+                            build_errors.append({
+                                "type": "go_vet",
+                                "errors": result.stdout + result.stderr
+                            })
+
+                    except subprocess.TimeoutExpired:
+                        logger.error("❌ Go validation timeout (90s)")
+                        build_validation_passed = False
+                        build_errors.append({
+                            "type": "go_validation",
+                            "errors": "Go validation timeout after 90 seconds"
+                        })
+                    except FileNotFoundError:
+                        logger.warning("⚠️  Go not installed - skipping Go validation")
+                        logger.warning("   Install from: https://golang.org/dl/")
+                    except Exception as e:
+                        logger.error(f"❌ Go validation failed: {e}")
+                        build_validation_passed = False
+                        build_errors.append({
+                            "type": "go_validation",
+                            "errors": str(e)
+                        })
+                else:
+                    logger.warning("⚠️  No Go files found - skipping Go validation")
+
+            # Rust validation with cargo check
+            has_rust = any(
+                f.get('path', '').endswith('.rs')
+                for f in generated_files
+            )
+
+            if has_rust:
+                logger.info("🦀 Project Type: Rust")
+                logger.info("   Quality Threshold: 0.85")
+
+                cargo_toml_path = os.path.join(workspace_path, 'Cargo.toml')
+                rust_files = [
+                    f.get('path') for f in generated_files
+                    if f.get('path', '').endswith('.rs')
+                ]
+
+                if rust_files and os.path.exists(cargo_toml_path):
+                    logger.info(f"🔬 Running Rust validation ({len(rust_files)} files)...")
+
+                    try:
+                        import subprocess
+
+                        # Run cargo check (fast compilation check)
+                        logger.info("🔬 Running cargo check...")
+                        result = subprocess.run(
+                            ['cargo', 'check'],
+                            cwd=workspace_path,
+                            capture_output=True,
+                            text=True,
+                            timeout=120
+                        )
+
+                        if result.returncode == 0:
+                            logger.info("✅ Cargo check passed!")
+
+                            # Optionally run cargo clippy (linting)
+                            logger.info("🔬 Running cargo clippy (linting)...")
+                            clippy_result = subprocess.run(
+                                ['cargo', 'clippy', '--', '-D', 'warnings'],
+                                cwd=workspace_path,
+                                capture_output=True,
+                                text=True,
+                                timeout=120
+                            )
+
+                            if clippy_result.returncode == 0:
+                                logger.info("✅ Cargo clippy passed!")
+                            else:
+                                logger.warning("⚠️  Cargo clippy found warnings")
+                                logger.warning(f"   Warnings:\n{clippy_result.stdout}\n{clippy_result.stderr}")
+                                # Don't fail build on clippy warnings, just log them
+                        else:
+                            logger.error("❌ Cargo check failed!")
+                            logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
+                            build_validation_passed = False
+                            build_errors.append({
+                                "type": "rust_cargo_check",
+                                "errors": result.stdout + result.stderr
+                            })
+
+                    except subprocess.TimeoutExpired:
+                        logger.error("❌ Rust validation timeout (120s)")
+                        build_validation_passed = False
+                        build_errors.append({
+                            "type": "rust_validation",
+                            "errors": "Rust validation timeout after 120 seconds"
+                        })
+                    except FileNotFoundError:
+                        logger.warning("⚠️  Cargo not installed - skipping Rust validation")
+                        logger.warning("   Install from: https://www.rust-lang.org/tools/install")
+                    except Exception as e:
+                        logger.error(f"❌ Rust validation failed: {e}")
+                        build_validation_passed = False
+                        build_errors.append({
+                            "type": "rust_validation",
+                            "errors": str(e)
+                        })
+                else:
+                    if not os.path.exists(cargo_toml_path):
+                        logger.warning("⚠️  No Cargo.toml found - skipping Rust validation")
+                    else:
+                        logger.warning("⚠️  No Rust files found - skipping Rust validation")
+
+            # Java validation with javac/Maven/Gradle
+            has_java = any(
+                f.get('path', '').endswith('.java')
+                for f in generated_files
+            )
+
+            if has_java:
+                logger.info("☕ Project Type: Java")
+                logger.info("   Quality Threshold: 0.80")
+
+                pom_xml_path = os.path.join(workspace_path, 'pom.xml')
+                build_gradle_path = os.path.join(workspace_path, 'build.gradle')
+                java_files = [
+                    f.get('path') for f in generated_files
+                    if f.get('path', '').endswith('.java')
+                ]
+
+                if java_files:
+                    logger.info(f"🔬 Running Java validation ({len(java_files)} files)...")
+
+                    try:
+                        import subprocess
+
+                        # Try Maven first
+                        if os.path.exists(pom_xml_path):
+                            logger.info("🔬 Running Maven compile...")
+                            result = subprocess.run(
+                                ['mvn', 'compile', '-q'],
+                                cwd=workspace_path,
+                                capture_output=True,
+                                text=True,
+                                timeout=180
+                            )
+
+                            if result.returncode == 0:
+                                logger.info("✅ Maven compile passed!")
+                            else:
+                                logger.error("❌ Maven compile failed!")
+                                logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
+                                build_validation_passed = False
+                                build_errors.append({
+                                    "type": "java_maven_compile",
+                                    "errors": result.stdout + result.stderr
+                                })
+
+                        # Try Gradle if Maven not available
+                        elif os.path.exists(build_gradle_path):
+                            logger.info("🔬 Running Gradle compileJava...")
+                            result = subprocess.run(
+                                ['./gradlew', 'compileJava'],
+                                cwd=workspace_path,
+                                capture_output=True,
+                                text=True,
+                                timeout=180
+                            )
+
+                            if result.returncode == 0:
+                                logger.info("✅ Gradle compileJava passed!")
+                            else:
+                                logger.error("❌ Gradle compileJava failed!")
+                                logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
+                                build_validation_passed = False
+                                build_errors.append({
+                                    "type": "java_gradle_compile",
+                                    "errors": result.stdout + result.stderr
+                                })
+
+                        # Fallback to plain javac
+                        else:
+                            logger.info("🔬 Running javac (plain Java compilation)...")
+                            target_dir = os.path.join(workspace_path, 'target', 'classes')
+                            os.makedirs(target_dir, exist_ok=True)
+
+                            java_file_paths = [
+                                os.path.join(workspace_path, f) for f in java_files
+                            ]
+
+                            result = subprocess.run(
+                                ['javac', '-d', target_dir] + java_file_paths,
+                                cwd=workspace_path,
+                                capture_output=True,
+                                text=True,
+                                timeout=180
+                            )
+
+                            if result.returncode == 0:
+                                logger.info("✅ javac compilation passed!")
+                            else:
+                                logger.error("❌ javac compilation failed!")
+                                logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
+                                build_validation_passed = False
+                                build_errors.append({
+                                    "type": "java_javac_compile",
+                                    "errors": result.stdout + result.stderr
+                                })
+
+                    except subprocess.TimeoutExpired:
+                        logger.error("❌ Java validation timeout (180s)")
+                        build_validation_passed = False
+                        build_errors.append({
+                            "type": "java_validation",
+                            "errors": "Java validation timeout after 180 seconds"
+                        })
+                    except FileNotFoundError as e:
+                        logger.warning(f"⚠️  Java build tool not found: {e}")
+                        logger.warning("   Install Java Development Kit (JDK)")
+                    except Exception as e:
+                        logger.error(f"❌ Java validation failed: {e}")
+                        build_validation_passed = False
+                        build_errors.append({
+                            "type": "java_validation",
+                            "errors": str(e)
+                        })
+                else:
+                    logger.warning("⚠️  No Java files found - skipping Java validation")
+
             # Adjust quality score based on build validation
             if not build_validation_passed:
                 logger.warning("⚠️  Build validation FAILED - reducing quality score to 0.50")
