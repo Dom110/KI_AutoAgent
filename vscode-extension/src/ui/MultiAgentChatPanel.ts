@@ -1901,6 +1901,49 @@ export class MultiAgentChatPanel {
                             if (messageInput) messageInput.disabled = false;
                             break;
 
+                        case 'result':
+                            // v6.1-alpha: Final workflow result with comprehensive output
+                            isProcessing = false;
+                            updatePauseButtonState();
+                            updateActivityIndicator(false);
+                            removeThinkingMessage();
+                            removeProgressMessages();
+
+                            // Extract result content - check multiple possible fields
+                            let resultContent = '';
+                            if (message.result && typeof message.result === 'object') {
+                                // result.result might be a string or object
+                                if (typeof message.result.result === 'string') {
+                                    resultContent = message.result.result;
+                                } else if (message.result.result) {
+                                    resultContent = JSON.stringify(message.result.result, null, 2);
+                                } else if (message.result.content) {
+                                    resultContent = message.result.content;
+                                } else {
+                                    // Fallback: stringify entire result
+                                    resultContent = JSON.stringify(message.result, null, 2);
+                                }
+                            } else if (typeof message.result === 'string') {
+                                resultContent = message.result;
+                            } else if (message.content) {
+                                resultContent = message.content;
+                            } else {
+                                resultContent = message.message || '✅ Workflow complete!';
+                            }
+
+                            // Add result as agent message
+                            if (resultContent) {
+                                addMessage(resultContent, 'agent', 'orchestrator');
+                            }
+
+                            // Re-enable input
+                            if (stopButton) {
+                                stopButton.style.display = 'none';
+                                sendButton.style.display = 'inline-block';
+                            }
+                            if (messageInput) messageInput.disabled = false;
+                            break;
+
                         case 'complete':
                         case 'step_completed':  // LangGraph v5.0.0 sends 'step_completed' for intermediate steps
                             // For step_completed, don't reset processing state yet
