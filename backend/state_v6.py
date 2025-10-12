@@ -52,6 +52,10 @@ class SupervisorState(TypedDict):
     user_query: str
     workspace_path: str
 
+    # NEW v6.2: Intent Detection
+    intent: str | None  # "create", "fix", "refactor", "explain"
+    workflow_path: list[str] | None  # ["research", "architect", ...] or ["reviewfix"]
+
     # Results from each subgraph
     research_results: dict[str, Any] | None
     architecture_design: dict[str, Any] | None

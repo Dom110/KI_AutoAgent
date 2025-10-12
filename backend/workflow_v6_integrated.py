@@ -102,7 +102,8 @@ from cognitive.neurosymbolic_reasoner_v6 import (
 )
 from cognitive.self_diagnosis_v6 import SelfDiagnosisV6
 
-# NEW v6.2: Timeout Handler
+# NEW v6.2: Intent Detection & Timeout Handler
+from cognitive.intent_detector_v6 import IntentDetectorV6, UserIntent, IntentResult
 from utils.timeout_handler import HumanResponseManager, TimeoutPolicy
 
 # Setup logging
@@ -152,7 +153,8 @@ class WorkflowV6Integrated:
         self.neurosymbolic: NeurosymbolicReasonerV6 | None = None
         self.self_diagnosis: SelfDiagnosisV6 | None = None
 
-        # NEW v6.2: Human Response Timeout Handler
+        # NEW v6.2: Intent Detection & Human Response Timeout Handler
+        self.intent_detector: IntentDetectorV6 | None = None
         self.response_manager: HumanResponseManager | None = None
 
         # Execution tracking
@@ -255,7 +257,10 @@ class WorkflowV6Integrated:
         self.self_diagnosis = SelfDiagnosisV6(learning_system=self.learning)
         logger.debug("  ✅ Self-Diagnosis System")
 
-        # NEW v6.2: Human Response Timeout Handler
+        # NEW v6.2: Intent Detection & Human Response Timeout Handler
+        self.intent_detector = IntentDetectorV6()
+        logger.debug("  ✅ Intent Detector")
+
         self.response_manager = HumanResponseManager()
         logger.debug("  ✅ Human Response Manager")
 
@@ -630,6 +635,68 @@ class WorkflowV6Integrated:
         # Create graph
         graph = StateGraph(SupervisorState)
 
+        # NEW v6.2: Intent Detection Node (Entry Point)
+        async def intent_detection_node(state: SupervisorState) -> dict[str, Any]:
+            """
+            Intent detection node - determines workflow path.
+
+            Routes to:
+            - FIX → ReviewFix directly
+            - CREATE → Full workflow (Research → Architect → Codesmith → ReviewFix)
+            - REFACTOR → Architect → Codesmith → ReviewFix
+            - EXPLAIN → Research only
+            """
+            logger.info("🎯 Intent Detection: Analyzing user request")
+
+            # Check if workspace has existing code
+            workspace_path = state["workspace_path"]
+            workspace_has_code = False
+
+            # Quick check: does workspace have source files?
+            import glob
+            code_patterns = ["*.py", "*.ts", "*.tsx", "*.js", "*.jsx"]
+            for pattern in code_patterns:
+                matches = glob.glob(os.path.join(workspace_path, "**", pattern), recursive=True)
+                if matches:
+                    workspace_has_code = True
+                    break
+
+            logger.debug(f"  Workspace has code: {workspace_has_code}")
+
+            # Detect intent
+            intent_result = await self.intent_detector.detect_intent(
+                user_query=state["user_query"],
+                workspace_has_code=workspace_has_code
+            )
+
+            logger.info(f"  ✅ Intent: {intent_result.intent.value} (confidence: {intent_result.confidence:.2f})")
+            logger.debug(f"  Workflow: {' → '.join(intent_result.workflow_path)}")
+            logger.debug(f"  Reasoning: {intent_result.reasoning}")
+
+            # Store intent in current session
+            self.current_session = {
+                "task_description": state["user_query"],
+                "current_phase": "intent_detection",
+                "workspace_path": state["workspace_path"],
+                "start_time": datetime.now(),
+                "completed_agents": [],
+                "pending_agents": intent_result.workflow_path,
+                "results": {},
+                "errors": [],
+                "quality_scores": {},
+                "metadata": {
+                    "intent": intent_result.to_dict(),
+                    "workspace_has_code": workspace_has_code
+                }
+            }
+
+            return {
+                "final_result": f"Intent detected: {intent_result.intent.value}",
+                "errors": [],
+                "intent": intent_result.intent.value,  # Store intent for routing
+                "workflow_path": intent_result.workflow_path
+            }
+
         # Supervisor node (enhanced with v6)
         async def supervisor_node(state: SupervisorState) -> dict[str, Any]:
             """
@@ -642,19 +709,20 @@ class WorkflowV6Integrated:
             """
             logger.info("👔 Supervisor: Initializing workflow execution")
 
-            # Store in current session for adapter
-            self.current_session = {
-                "task_description": state["user_query"],
-                "current_phase": "initialization",
-                "workspace_path": state["workspace_path"],
-                "start_time": datetime.now(),
-                "completed_agents": [],
-                "pending_agents": ["research", "architect", "codesmith", "reviewfix"],
-                "results": {},
-                "errors": [],
-                "quality_scores": {},
-                "metadata": {}
-            }
+            # Update current session (intent detection already set it up)
+            if not self.current_session:
+                self.current_session = {
+                    "task_description": state["user_query"],
+                    "current_phase": "initialization",
+                    "workspace_path": state["workspace_path"],
+                    "start_time": datetime.now(),
+                    "completed_agents": [],
+                    "pending_agents": ["research", "architect", "codesmith", "reviewfix"],
+                    "results": {},
+                    "errors": [],
+                    "quality_scores": {},
+                    "metadata": {}
+                }
 
             return {
                 "final_result": "Supervisor initialized workflow",
@@ -940,19 +1008,39 @@ class WorkflowV6Integrated:
                 "errors": ["HITL required but no callback available"]
             }
 
+        # Decision function for intent routing
+        def _intent_decide_next(state: SupervisorState) -> str:
+            """Route based on detected intent."""
+            intent = state.get("intent", "create")
+            workflow_path = state.get("workflow_path", ["research"])
+
+            logger.info(f"🔀 Intent routing: {intent} → {workflow_path[0]}")
+
+            # Return first step in workflow path
+            return workflow_path[0]
+
         # Add nodes
+        graph.add_node("intent_detection", intent_detection_node)  # NEW!
         graph.add_node("supervisor", supervisor_node)
         graph.add_node("research", research_node_wrapper)
         graph.add_node("architect", architect_node_wrapper)
         graph.add_node("codesmith", codesmith_node_wrapper)
         graph.add_node("reviewfix", reviewfix_node_wrapper)
-        graph.add_node("hitl", hitl_node)  # NEW!
+        graph.add_node("hitl", hitl_node)
 
-        # Intelligent routing with conditional edges (v6.1)
-        graph.set_entry_point("supervisor")
+        # NEW v6.2: Intent Detection is Entry Point
+        graph.set_entry_point("intent_detection")
 
-        # Supervisor → Research (always start with research)
-        graph.add_edge("supervisor", "research")
+        # Intent Detection → Dynamic routing based on intent
+        graph.add_conditional_edges(
+            "intent_detection",
+            _intent_decide_next,
+            {
+                "research": "research",      # CREATE, EXPLAIN
+                "architect": "architect",    # REFACTOR
+                "reviewfix": "reviewfix"     # FIX (🎯 Direct!)
+            }
+        )
 
         # Research → Architect OR HITL (conditional)
         graph.add_conditional_edges(
@@ -1072,6 +1160,8 @@ class WorkflowV6Integrated:
         initial_state: SupervisorState = {
             "user_query": user_query,
             "workspace_path": self.workspace_path,
+            "intent": None,  # NEW v6.2: Set by intent_detection_node
+            "workflow_path": None,  # NEW v6.2: Set by intent_detection_node
             "research_results": None,
             "architecture_design": None,
             "generated_files": [],

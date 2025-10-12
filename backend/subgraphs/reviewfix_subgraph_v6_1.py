@@ -89,7 +89,8 @@ def create_reviewfix_subgraph(
                     try:
                         result = await read_file.ainvoke({
                             "file_path": file_path,
-                            "workspace_path": workspace_path
+                            "workspace_path": workspace_path,
+                            "agent_id": "reviewer"  # 🔧 FIX: Pass agent_id for Asimov permissions
                         })
                         file_contents[file_path] = result.get("content", "")
                     except Exception as e:
@@ -715,7 +716,11 @@ Provide quality score and detailed feedback."""
 
                 if os.path.exists(full_path):
                     try:
-                        result = await read_file.ainvoke({"file_path": full_path})
+                        result = await read_file.ainvoke({
+                            "file_path": file_path,
+                            "workspace_path": workspace_path,
+                            "agent_id": "fixer"  # 🔧 FIX: Pass agent_id for Asimov permissions
+                        })
                         file_contents[file_path] = result.get("content", "")
                     except Exception as e:
                         logger.error(f"Failed to read {file_path}: {e}")
@@ -806,7 +811,9 @@ Generate complete fixed versions of all files."""
                         try:
                             await write_file.ainvoke({
                                 "file_path": file_path,
-                                "content": file_content
+                                "content": file_content,
+                                "workspace_path": workspace_path,
+                                "agent_id": "fixer"  # 🔧 FIX: Pass agent_id for Asimov permissions
                             })
 
                             fixed_files.append(current_file.strip())
@@ -836,7 +843,9 @@ Generate complete fixed versions of all files."""
                 try:
                     await write_file.ainvoke({
                         "file_path": file_path,
-                        "content": file_content
+                        "content": file_content,
+                        "workspace_path": workspace_path,
+                        "agent_id": "fixer"  # 🔧 FIX: Pass agent_id for Asimov permissions
                     })
 
                     fixed_files.append(current_file.strip())
