@@ -1,0 +1,404 @@
+"""
+MCP Client Manager - Unified interface for all MCP tool calls
+
+This replaces ALL direct service calls with MCP protocol calls.
+
+Usage:
+    from mcp.mcp_client import MCPClient
+
+    mcp = MCPClient(workspace_path="/path/to/workspace")
+    await mcp.initialize()
+
+    # Parallel execution
+    results = await asyncio.gather(
+        mcp.call("perplexity", "search", {"query": "React patterns"}),
+        mcp.call("memory", "store", {"content": "..."}),
+        mcp.call("claude", "generate", {"prompt": "..."})
+    )
+
+Author: KI AutoAgent Team
+Python: 3.13+
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import subprocess
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+class MCPConnectionError(Exception):
+    """Raised when MCP server connection fails"""
+    pass
+
+
+class MCPToolError(Exception):
+    """Raised when MCP tool execution fails"""
+    pass
+
+
+class MCPClient:
+    """
+    MCP Client Manager - Single point of contact for all MCP operations.
+
+    Architecture:
+    - One MCPClient instance per workspace
+    - Maintains persistent connections to all MCP servers
+    - Handles reconnection and error recovery
+    - Routes tool calls to appropriate servers
+    - Supports parallel execution via asyncio.gather()
+    """
+
+    def __init__(
+        self,
+        workspace_path: str,
+        servers: list[str] | None = None,
+        auto_reconnect: bool = True,
+        timeout: float = 30.0
+    ):
+        """
+        Initialize MCP Client.
+
+        Args:
+            workspace_path: Absolute path to workspace
+            servers: List of MCP servers to connect to (default: all registered)
+            auto_reconnect: Auto-reconnect on connection failure
+            timeout: Default timeout for MCP calls (seconds)
+        """
+        self.workspace_path = workspace_path
+        self.servers = servers or [
+            "perplexity",
+            "memory",
+            "tree-sitter",
+            "asimov",
+            "workflow",
+            "claude"
+        ]
+        self.auto_reconnect = auto_reconnect
+        self.timeout = timeout
+
+        # Connection state
+        self._connections: dict[str, Any] = {}
+        self._initialized = False
+        self._request_id = 0
+
+        logger.info(f"📡 MCPClient created for workspace: {workspace_path}")
+
+    async def initialize(self) -> None:
+        """
+        Initialize connections to all MCP servers.
+
+        This MUST be called before any tool calls!
+
+        Raises:
+            MCPConnectionError: If any server fails to connect
+        """
+        logger.info("🚀 Initializing MCP connections...")
+
+        # Connect to all servers in parallel
+        tasks = [self._connect_server(server) for server in self.servers]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Check for failures
+        failures = []
+        for server, result in zip(self.servers, results):
+            if isinstance(result, Exception):
+                failures.append((server, str(result)))
+                logger.error(f"❌ Failed to connect to {server}: {result}")
+            else:
+                logger.info(f"✅ Connected to {server}")
+
+        if failures:
+            error_msg = "\n".join([f"  - {srv}: {err}" for srv, err in failures])
+            raise MCPConnectionError(f"Failed to connect to MCP servers:\n{error_msg}")
+
+        self._initialized = True
+        logger.info(f"✅ All {len(self.servers)} MCP servers connected")
+
+    async def _connect_server(self, server_name: str) -> None:
+        """
+        Connect to a single MCP server.
+
+        Uses `claude mcp call` command to verify server is accessible.
+
+        Args:
+            server_name: Name of MCP server (e.g., "perplexity")
+
+        Raises:
+            MCPConnectionError: If connection fails
+        """
+        try:
+            # Test connection by calling tools/list
+            result = await self._raw_call(
+                server=server_name,
+                method="tools/list",
+                params={}
+            )
+
+            if "error" in result:
+                raise MCPConnectionError(f"Server returned error: {result['error']}")
+
+            # Cache available tools
+            tools = result.get("result", {}).get("tools", [])
+            self._connections[server_name] = {
+                "status": "connected",
+                "tools": [t["name"] for t in tools],
+                "last_ping": datetime.now()
+            }
+
+            logger.debug(f"Server {server_name} has {len(tools)} tools")
+
+        except Exception as e:
+            raise MCPConnectionError(f"Failed to connect to {server_name}: {e}")
+
+    def _next_request_id(self) -> int:
+        """Generate next JSON-RPC request ID"""
+        self._request_id += 1
+        return self._request_id
+
+    async def _raw_call(
+        self,
+        server: str,
+        method: str,
+        params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Execute raw JSON-RPC call to MCP server.
+
+        Uses `claude mcp call` command under the hood.
+
+        Args:
+            server: MCP server name
+            method: JSON-RPC method
+            params: Method parameters
+
+        Returns:
+            JSON-RPC response
+
+        Raises:
+            MCPConnectionError: If call fails
+        """
+        request = {
+            "jsonrpc": "2.0",
+            "id": self._next_request_id(),
+            "method": method,
+            "params": params
+        }
+
+        try:
+            # Build command
+            cmd = [
+                "claude",
+                "mcp",
+                "call",
+                server,
+                json.dumps(request)
+            ]
+
+            # Execute with timeout
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=self.workspace_path
+            )
+
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    process.communicate(),
+                    timeout=self.timeout
+                )
+            except asyncio.TimeoutError:
+                process.kill()
+                await process.wait()
+                raise MCPConnectionError(f"MCP call to {server} timed out after {self.timeout}s")
+
+            if process.returncode != 0:
+                error = stderr.decode() if stderr else "Unknown error"
+                raise MCPConnectionError(f"MCP call failed: {error}")
+
+            # Parse response
+            response = json.loads(stdout.decode())
+            return response
+
+        except json.JSONDecodeError as e:
+            raise MCPConnectionError(f"Invalid JSON response from {server}: {e}")
+        except Exception as e:
+            raise MCPConnectionError(f"MCP call to {server} failed: {e}")
+
+    async def call(
+        self,
+        server: str,
+        tool: str,
+        arguments: dict[str, Any],
+        timeout: float | None = None
+    ) -> dict[str, Any]:
+        """
+        Call an MCP tool.
+
+        THIS IS THE MAIN ENTRY POINT FOR ALL MCP CALLS!
+
+        Args:
+            server: MCP server name (e.g., "perplexity")
+            tool: Tool name (e.g., "search")
+            arguments: Tool arguments
+            timeout: Call timeout (overrides default)
+
+        Returns:
+            Tool result
+
+        Raises:
+            MCPToolError: If tool execution fails
+
+        Example:
+            result = await mcp.call(
+                server="perplexity",
+                tool="search",
+                arguments={"query": "React patterns", "max_results": 5}
+            )
+        """
+        if not self._initialized:
+            raise MCPConnectionError("MCPClient not initialized! Call initialize() first.")
+
+        if server not in self._connections:
+            raise MCPConnectionError(f"Server '{server}' not connected")
+
+        logger.debug(f"🔧 Calling {server}.{tool}()")
+
+        # Auto-add workspace_path if tool expects it
+        if "workspace_path" not in arguments and server in ["memory", "workflow", "asimov"]:
+            arguments["workspace_path"] = self.workspace_path
+
+        # Build tool call request
+        params = {
+            "name": tool,
+            "arguments": arguments
+        }
+
+        # Save timeout
+        original_timeout = self.timeout
+        if timeout:
+            self.timeout = timeout
+
+        try:
+            # Execute tool call
+            response = await self._raw_call(
+                server=server,
+                method="tools/call",
+                params=params
+            )
+
+            # Check for errors
+            if "error" in response:
+                error = response["error"]
+                raise MCPToolError(
+                    f"Tool {server}.{tool} failed: {error.get('message', 'Unknown error')}"
+                )
+
+            # Extract result
+            result = response.get("result", {})
+
+            logger.debug(f"✅ {server}.{tool}() completed")
+            return result
+
+        except MCPConnectionError as e:
+            # Connection error - try to reconnect if enabled
+            if self.auto_reconnect:
+                logger.warning(f"⚠️  Connection lost to {server}, attempting reconnect...")
+                try:
+                    await self._connect_server(server)
+                    logger.info(f"✅ Reconnected to {server}, retrying call...")
+                    return await self.call(server, tool, arguments, timeout)
+                except Exception as reconnect_error:
+                    logger.error(f"❌ Reconnect failed: {reconnect_error}")
+            raise
+
+        finally:
+            # Restore timeout
+            self.timeout = original_timeout
+
+    async def call_multiple(
+        self,
+        calls: list[tuple[str, str, dict[str, Any]]]
+    ) -> list[dict[str, Any]]:
+        """
+        Execute multiple MCP calls in parallel.
+
+        This is the KEY to performance - parallel execution!
+
+        Args:
+            calls: List of (server, tool, arguments) tuples
+
+        Returns:
+            List of results (same order as calls)
+
+        Example:
+            results = await mcp.call_multiple([
+                ("perplexity", "search", {"query": "React"}),
+                ("memory", "store", {"content": "..."}),
+                ("claude", "generate", {"prompt": "..."})
+            ])
+            # All 3 calls run in parallel!
+        """
+        logger.info(f"🚀 Executing {len(calls)} MCP calls in parallel...")
+
+        tasks = [
+            self.call(server, tool, args)
+            for server, tool, args in calls
+        ]
+
+        # Execute ALL in parallel with asyncio.gather
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Log any errors but return partial results
+        errors = []
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                server, tool, _ = calls[i]
+                errors.append(f"{server}.{tool}: {result}")
+                logger.error(f"❌ {server}.{tool} failed: {result}")
+
+        if errors:
+            logger.warning(f"⚠️  {len(errors)}/{len(calls)} calls failed")
+        else:
+            logger.info(f"✅ All {len(calls)} calls completed successfully")
+
+        return results
+
+    async def close(self) -> None:
+        """
+        Close all MCP connections.
+
+        Call this when done with the client (e.g., workflow completion).
+        """
+        logger.info("🔌 Closing MCP connections...")
+        self._connections.clear()
+        self._initialized = False
+        logger.info("✅ MCP connections closed")
+
+    def get_server_status(self) -> dict[str, Any]:
+        """
+        Get status of all connected MCP servers.
+
+        Returns:
+            {
+                "server_name": {
+                    "status": "connected",
+                    "tools": ["tool1", "tool2"],
+                    "last_ping": "2025-10-13T10:30:00"
+                }
+            }
+        """
+        return {
+            server: {
+                **info,
+                "last_ping": info["last_ping"].isoformat()
+            }
+            for server, info in self._connections.items()
+        }

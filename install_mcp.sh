@@ -84,6 +84,8 @@ claude mcp remove perplexity 2>/dev/null || true
 claude mcp remove tree-sitter 2>/dev/null || true
 claude mcp remove memory 2>/dev/null || true
 claude mcp remove asimov 2>/dev/null || true
+claude mcp remove workflow 2>/dev/null || true
+claude mcp remove claude 2>/dev/null || true
 echo ""
 
 # 1. Perplexity
@@ -130,6 +132,28 @@ else
 fi
 echo ""
 
+# 5. Workflow
+echo -e "${BLUE}⚙️  Registering Workflow MCP Server...${NC}"
+claude mcp add workflow "${VENV_PYTHON}" "${SCRIPT_DIR}/mcp_servers/workflow_server.py"
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✅ Workflow registered${NC}"
+else
+    echo -e "${RED}❌ Workflow registration failed${NC}"
+    exit 1
+fi
+echo ""
+
+# 6. Claude CLI Wrapper (NEW!)
+echo -e "${BLUE}🤖 Registering Claude CLI MCP Server...${NC}"
+claude mcp add claude "${VENV_PYTHON}" "${SCRIPT_DIR}/mcp_servers/claude_cli_server.py"
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✅ Claude CLI registered${NC}"
+else
+    echo -e "${RED}❌ Claude CLI registration failed${NC}"
+    exit 1
+fi
+echo ""
+
 # Verify registration
 echo -e "${YELLOW}5️⃣  Verifying registration...${NC}"
 echo ""
@@ -146,6 +170,8 @@ echo -e "  1. ${GREEN}perplexity${NC} - Web search via Perplexity API"
 echo -e "  2. ${GREEN}tree-sitter${NC} - Code analysis (Python, JS, TS)"
 echo -e "  3. ${GREEN}memory${NC} - Agent memory access"
 echo -e "  4. ${GREEN}asimov${NC} - Code safety & compliance validation"
+echo -e "  5. ${GREEN}workflow${NC} - Workflow orchestration"
+echo -e "  6. ${GREEN}claude${NC} - Claude CLI wrapper for parallel execution"
 echo ""
 echo -e "${BLUE}Usage Examples:${NC}"
 echo -e "  ${YELLOW}# Web search${NC}"
