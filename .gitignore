@@ -17,3 +17,20 @@ agent_projects/
 *.db-wal
 *.sqlite
 *.sqlite3
+
+# Test outputs and logs
+backend/tests/*.log
+backend/tests/*.json
+backend/tests/test*_output.log
+backend/tests/test*_results_*.json
+backend/tests/**/*.log
+backend/tests/**/*.json
+
+# E2E Test workspaces (should be in ~/TestApps/)
+task-manager-app/
+test_output/
+*_e2e_test/
+tmp_*_workspace/
+
+# Backend temporary files
+backend/.ki_autoagent/file_operations.log
