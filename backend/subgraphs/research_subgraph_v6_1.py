@@ -27,10 +27,9 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
-# Use ClaudeCLISimple instead of langchain-anthropic (broken)
-from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
+# MCP client for all service calls (replaces direct service imports)
+from mcp.mcp_client import MCPClient
 from state_v6 import ResearchState
-from tools.perplexity_tool import perplexity_search
 
 logger = logging.getLogger(__name__)
 
@@ -42,41 +41,48 @@ logger = logging.getLogger(__name__)
 async def research_search_mode(
     state: ResearchState,
     workspace_path: str,
-    memory: Any | None,
+    mcp: MCPClient,
     hitl_callback: Any | None
 ) -> dict[str, Any]:
     """
-    Research Mode: Web search with Perplexity.
+    Research Mode: Web search with Perplexity via MCP.
 
     Use case: CREATE workflows - search for best practices, technologies, patterns
 
     Flow:
-    1. Search with Perplexity
-    2. Analyze findings with Claude
-    3. Store in Memory
+    1. Search with Perplexity (via MCP)
+    2. Analyze findings with Claude (via MCP)
+    3. Store in Memory (via MCP)
     4. Return structured results
     """
     logger.info(f"🌐 Research mode: web search for '{state['query']}'")
 
-    # Step 1: Search with Perplexity
-    logger.info("🌐 Searching with Perplexity...")
-    search_result = await perplexity_search.ainvoke({"query": state['query']})
-    search_findings = search_result.get("content", "No results found")
+    # Step 1: Search with Perplexity (via MCP!)
+    logger.info("🌐 Searching with Perplexity via MCP...")
+    search_result = await mcp.call(
+        server="perplexity",
+        tool="perplexity_search",
+        arguments={
+            "query": state['query'],
+            "max_results": 5
+        }
+    )
+
+    # Extract content from MCP response
+    search_findings = ""
+    if search_result.get("content"):
+        content_blocks = search_result.get("content", [])
+        for block in content_blocks:
+            if block.get("type") == "text":
+                search_findings += block.get("text", "")
+
+    if not search_findings:
+        search_findings = "No results found"
+
     logger.info(f"✅ Perplexity results: {len(search_findings)} chars")
 
-    # Step 2: Analyze with Claude
-    logger.info("🤖 Analyzing findings with Claude...")
-    llm = ChatAnthropic(
-        model="claude-sonnet-4-20250514",
-        temperature=0.3,
-        max_tokens=4096,
-        agent_name="research",
-        agent_description="Research analyst specializing in software development and technology",
-        agent_tools=["Read", "Bash"],
-        permission_mode="acceptEdits",
-        hitl_callback=hitl_callback,
-        workspace_path=workspace_path
-    )
+    # Step 2: Analyze with Claude (via MCP!)
+    logger.info("🤖 Analyzing findings with Claude via MCP...")
 
     system_prompt = """You are a research analyst specializing in software development.
 
@@ -101,12 +107,41 @@ Output format:
 
 Provide a structured summary of the key findings."""
 
-    response = await llm.ainvoke([
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt)
-    ])
+    # Call Claude via MCP
+    claude_result = await mcp.call(
+        server="claude",
+        tool="claude_generate",
+        arguments={
+            "prompt": user_prompt,
+            "system_prompt": system_prompt,
+            "workspace_path": workspace_path,
+            "agent_name": "research",
+            "temperature": 0.3,
+            "max_tokens": 4096,
+            "tools": ["Read", "Bash"]
+        }
+    )
 
-    analysis = response.content if hasattr(response, 'content') else str(response)
+    analysis = ""
+    if claude_result.get("content"):
+        content_blocks = claude_result.get("content", [])
+        for block in content_blocks:
+            if block.get("type") == "text":
+                text = block.get("text", "")
+                # Extract actual content from JSON response format
+                if "content" in text and "success" in text:
+                    import json
+                    try:
+                        data = json.loads(text.split("```json\n")[1].split("\n```")[0])
+                        analysis = data.get("content", "")
+                    except:
+                        analysis = text
+                else:
+                    analysis = text
+
+    if not analysis:
+        analysis = f"Analysis failed: {claude_result.get('error', 'Unknown error')}"
+
     logger.info(f"✅ Analysis complete: {len(analysis)} chars")
 
     # Step 3: Create research report
@@ -135,19 +170,26 @@ Provide a structured summary of the key findings."""
         "mode": "research"
     }
 
-    # Step 4: Store in Memory
-    if memory:
-        logger.info("💾 Storing findings in Memory...")
-        await memory.store(
-            content=analysis,
-            metadata={
-                "agent": "research",
-                "type": "findings",
-                "mode": "research",
-                "query": state['query'],
-                "timestamp": findings["timestamp"]
+    # Step 4: Store in Memory (via MCP!)
+    logger.info("💾 Storing findings in Memory via MCP...")
+    try:
+        await mcp.call(
+            server="memory",
+            tool="store_memory",
+            arguments={
+                "workspace_path": workspace_path,
+                "content": analysis,
+                "metadata": {
+                    "agent": "research",
+                    "type": "findings",
+                    "mode": "research",
+                    "query": state['query'],
+                    "timestamp": findings["timestamp"]
+                }
             }
         )
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to store in memory: {e}")
 
     return {"findings": findings, "report": report}
 
@@ -155,35 +197,21 @@ Provide a structured summary of the key findings."""
 async def research_explain_mode(
     state: ResearchState,
     workspace_path: str,
-    memory: Any | None,
+    mcp: MCPClient,
     hitl_callback: Any | None
 ) -> dict[str, Any]:
     """
-    Explain Mode: Analyze and explain existing codebase.
+    Explain Mode: Analyze and explain existing codebase via MCP.
 
     Use case: EXPLAIN workflows - user wants to understand existing code
 
     Flow:
-    1. Analyze workspace structure with Claude (Read tool)
+    1. Analyze workspace structure with Claude (Read tool) via MCP
     2. Explain architecture and key components
-    3. Store explanation in Memory
+    3. Store explanation in Memory via MCP
     4. Return structured explanation
     """
     logger.info(f"📖 Explain mode: analyzing codebase for '{state['query']}'")
-
-    # Step 1: Analyze codebase with Claude
-    logger.info("🤖 Analyzing codebase with Claude...")
-    llm = ChatAnthropic(
-        model="claude-sonnet-4-20250514",
-        temperature=0.2,  # Lower temp for accurate code analysis
-        max_tokens=8192,  # More tokens for detailed explanations
-        agent_name="research_explainer",
-        agent_description="Code analyst specializing in architecture explanation and documentation",
-        agent_tools=["Read", "Bash"],  # Read files, run analysis commands
-        permission_mode="acceptEdits",
-        hitl_callback=hitl_callback,
-        workspace_path=workspace_path
-    )
 
     system_prompt = """You are a code analyst specializing in explaining software architecture.
 
@@ -231,12 +259,42 @@ Please:
 
 Focus on providing clear, actionable explanations that help the user understand the codebase."""
 
-    response = await llm.ainvoke([
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt)
-    ])
+    # Step 1: Analyze codebase with Claude (via MCP!)
+    logger.info("🤖 Analyzing codebase with Claude via MCP...")
+    claude_result = await mcp.call(
+        server="claude",
+        tool="claude_generate",
+        arguments={
+            "prompt": user_prompt,
+            "system_prompt": system_prompt,
+            "workspace_path": workspace_path,
+            "agent_name": "research_explainer",
+            "temperature": 0.2,
+            "max_tokens": 8192,
+            "tools": ["Read", "Bash"]
+        }
+    )
 
-    explanation = response.content if hasattr(response, 'content') else str(response)
+    explanation = ""
+    if claude_result.get("content"):
+        content_blocks = claude_result.get("content", [])
+        for block in content_blocks:
+            if block.get("type") == "text":
+                text = block.get("text", "")
+                # Extract actual content from JSON response format
+                if "content" in text and "success" in text:
+                    import json
+                    try:
+                        data = json.loads(text.split("```json\n")[1].split("\n```")[0])
+                        explanation = data.get("content", "")
+                    except:
+                        explanation = text
+                else:
+                    explanation = text
+
+    if not explanation:
+        explanation = f"Explanation failed: {claude_result.get('error', 'Unknown error')}"
+
     logger.info(f"✅ Explanation complete: {len(explanation)} chars")
 
     # Step 2: Create explanation report
@@ -259,20 +317,27 @@ Focus on providing clear, actionable explanations that help the user understand 
         "mode": "explain"
     }
 
-    # Step 3: Store in Memory
-    if memory:
-        logger.info("💾 Storing explanation in Memory...")
-        await memory.store(
-            content=explanation,
-            metadata={
-                "agent": "research",
-                "type": "explanation",
-                "mode": "explain",
-                "query": state['query'],
-                "workspace": workspace_path,
-                "timestamp": findings["timestamp"]
+    # Step 3: Store in Memory (via MCP!)
+    logger.info("💾 Storing explanation in Memory via MCP...")
+    try:
+        await mcp.call(
+            server="memory",
+            tool="store_memory",
+            arguments={
+                "workspace_path": workspace_path,
+                "content": explanation,
+                "metadata": {
+                    "agent": "research",
+                    "type": "explanation",
+                    "mode": "explain",
+                    "query": state['query'],
+                    "workspace": workspace_path,
+                    "timestamp": findings["timestamp"]
+                }
             }
         )
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to store in memory: {e}")
 
     return {"findings": findings, "report": report}
 
@@ -280,35 +345,21 @@ Focus on providing clear, actionable explanations that help the user understand 
 async def research_analyze_mode(
     state: ResearchState,
     workspace_path: str,
-    memory: Any | None,
+    mcp: MCPClient,
     hitl_callback: Any | None
 ) -> dict[str, Any]:
     """
-    Analyze Mode: Deep code analysis and quality assessment.
+    Analyze Mode: Deep code analysis and quality assessment via MCP.
 
     Use case: ANALYZE workflows - code quality, security, patterns
 
     Flow:
-    1. Deep code analysis with Claude (Read tool + Bash for metrics)
+    1. Deep code analysis with Claude (Read tool + Bash for metrics) via MCP
     2. Quality assessment (security, performance, maintainability)
-    3. Store analysis in Memory
+    3. Store analysis in Memory via MCP
     4. Return structured analysis report
     """
     logger.info(f"🔬 Analyze mode: deep analysis for '{state['query']}'")
-
-    # Step 1: Deep analysis with Claude
-    logger.info("🤖 Performing deep code analysis with Claude...")
-    llm = ChatAnthropic(
-        model="claude-sonnet-4-20250514",
-        temperature=0.1,  # Lowest temp for objective analysis
-        max_tokens=8192,
-        agent_name="research_analyzer",
-        agent_description="Code auditor specializing in quality, security, and architecture analysis",
-        agent_tools=["Read", "Bash"],
-        permission_mode="acceptEdits",
-        hitl_callback=hitl_callback,
-        workspace_path=workspace_path
-    )
 
     system_prompt = """You are a code auditor specializing in comprehensive code analysis.
 
@@ -359,12 +410,42 @@ Please:
 
 Focus on actionable insights and concrete recommendations."""
 
-    response = await llm.ainvoke([
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt)
-    ])
+    # Step 1: Deep analysis with Claude (via MCP!)
+    logger.info("🤖 Performing deep code analysis with Claude via MCP...")
+    claude_result = await mcp.call(
+        server="claude",
+        tool="claude_generate",
+        arguments={
+            "prompt": user_prompt,
+            "system_prompt": system_prompt,
+            "workspace_path": workspace_path,
+            "agent_name": "research_analyzer",
+            "temperature": 0.1,
+            "max_tokens": 8192,
+            "tools": ["Read", "Bash"]
+        }
+    )
 
-    analysis = response.content if hasattr(response, 'content') else str(response)
+    analysis = ""
+    if claude_result.get("content"):
+        content_blocks = claude_result.get("content", [])
+        for block in content_blocks:
+            if block.get("type") == "text":
+                text = block.get("text", "")
+                # Extract actual content from JSON response format
+                if "content" in text and "success" in text:
+                    import json
+                    try:
+                        data = json.loads(text.split("```json\n")[1].split("\n```")[0])
+                        analysis = data.get("content", "")
+                    except:
+                        analysis = text
+                else:
+                    analysis = text
+
+    if not analysis:
+        analysis = f"Analysis failed: {claude_result.get('error', 'Unknown error')}"
+
     logger.info(f"✅ Deep analysis complete: {len(analysis)} chars")
 
     # Step 2: Create analysis report
@@ -387,20 +468,27 @@ Focus on actionable insights and concrete recommendations."""
         "mode": "analyze"
     }
 
-    # Step 3: Store in Memory
-    if memory:
-        logger.info("💾 Storing analysis in Memory...")
-        await memory.store(
-            content=analysis,
-            metadata={
-                "agent": "research",
-                "type": "analysis",
-                "mode": "analyze",
-                "query": state['query'],
-                "workspace": workspace_path,
-                "timestamp": findings["timestamp"]
+    # Step 3: Store in Memory (via MCP!)
+    logger.info("💾 Storing analysis in Memory via MCP...")
+    try:
+        await mcp.call(
+            server="memory",
+            tool="store_memory",
+            arguments={
+                "workspace_path": workspace_path,
+                "content": analysis,
+                "metadata": {
+                    "agent": "research",
+                    "type": "analysis",
+                    "mode": "analyze",
+                    "query": state['query'],
+                    "workspace": workspace_path,
+                    "timestamp": findings["timestamp"]
+                }
             }
         )
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to store in memory: {e}")
 
     return {"findings": findings, "report": report}
 
@@ -411,27 +499,28 @@ Focus on actionable insights and concrete recommendations."""
 
 def create_research_subgraph(
     workspace_path: str,
-    memory: Any | None = None,
+    mcp: MCPClient,
     hitl_callback: Any | None = None
 ) -> Any:
     """
-    Create Research subgraph with multi-modal implementation.
+    Create Research subgraph with multi-modal implementation via MCP.
 
     v6.2 Changes:
     - Mode dispatcher for different research behaviors
-    - "research" mode: Web search with Perplexity
-    - "explain" mode: Analyze and explain existing codebase
-    - "analyze" mode: Deep code analysis and quality assessment
+    - "research" mode: Web search with Perplexity via MCP
+    - "explain" mode: Analyze and explain existing codebase via MCP
+    - "analyze" mode: Deep code analysis via MCP
+    - ALL service calls go through MCP protocol (no direct calls)
 
     Args:
         workspace_path: Path to workspace
-        memory: Memory system instance (optional)
+        mcp: MCP client for all service calls
         hitl_callback: Optional HITL callback for debug info
 
     Returns:
         Compiled research subgraph
     """
-    logger.debug("Creating Research subgraph v6.2 (multi-modal)...")
+    logger.debug("Creating Research subgraph v6.2 (multi-modal with MCP)...")
 
     # Research node function with mode dispatcher
     async def research_node(state: ResearchState) -> ResearchState:
@@ -455,29 +544,29 @@ def create_research_subgraph(
         try:
             # Mode dispatcher
             if mode == "research":
-                # Web search mode (original v6.1 behavior)
+                # Web search mode (via MCP)
                 result = await research_search_mode(
                     state=state,
                     workspace_path=workspace_path,
-                    memory=memory,
+                    mcp=mcp,
                     hitl_callback=hitl_callback
                 )
 
             elif mode == "explain":
-                # Explain codebase mode
+                # Explain codebase mode (via MCP)
                 result = await research_explain_mode(
                     state=state,
                     workspace_path=workspace_path,
-                    memory=memory,
+                    mcp=mcp,
                     hitl_callback=hitl_callback
                 )
 
             elif mode == "analyze":
-                # Deep analysis mode
+                # Deep analysis mode (via MCP)
                 result = await research_analyze_mode(
                     state=state,
                     workspace_path=workspace_path,
-                    memory=memory,
+                    mcp=mcp,
                     hitl_callback=hitl_callback
                 )
 
@@ -487,7 +576,7 @@ def create_research_subgraph(
                 result = await research_search_mode(
                     state=state,
                     workspace_path=workspace_path,
-                    memory=memory,
+                    mcp=mcp,
                     hitl_callback=hitl_callback
                 )
 
@@ -523,5 +612,5 @@ def create_research_subgraph(
     graph.set_finish_point("research")
 
     # Compile and return
-    logger.debug("✅ Research subgraph v6.2 compiled (multi-modal)")
+    logger.debug("✅ Research subgraph v6.2 compiled (multi-modal with MCP)")
     return graph.compile()

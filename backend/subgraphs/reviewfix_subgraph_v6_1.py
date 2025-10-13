@@ -23,8 +23,8 @@ from typing import Any, Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-# Use ClaudeCLISimple instead of langchain-anthropic (broken)
-from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
+# MCP client for all service calls (replaces direct service imports)
+from mcp.mcp_client import MCPClient
 from langgraph.graph import END, StateGraph
 
 from state_v6 import ReviewFixState
@@ -35,24 +35,23 @@ logger = logging.getLogger(__name__)
 
 def create_reviewfix_subgraph(
     workspace_path: str,
-    memory: Any | None = None,
+    mcp: MCPClient,
     hitl_callback: Any | None = None
 ) -> Any:
     """
-    Create ReviewFix loop subgraph with custom Fixer implementation.
+    Create ReviewFix loop subgraph with MCP integration (v6.2).
 
-    This version uses direct LLM calls for the Fixer (no create_react_agent),
-    making it compatible with async-only LLMs like ClaudeCLISimple.
+    Uses MCP protocol for all service calls (Claude, Memory).
 
     Args:
         workspace_path: Path to workspace
-        memory: Memory system instance (optional)
+        mcp: MCP client for all service calls
         hitl_callback: Optional HITL callback for debug info
 
     Returns:
         Compiled reviewfix subgraph
     """
-    logger.debug("Creating ReviewFix subgraph v6.1 (custom Fixer node)...")
+    logger.debug("Creating ReviewFix subgraph v6.2 (MCP)...")
 
     # Reviewer node (unchanged - uses GPT-4o-mini)
     async def reviewer_node(state: ReviewFixState) -> ReviewFixState:
@@ -684,18 +683,25 @@ Provide quality score and detailed feedback."""
             else:
                 logger.info("✅ Build validation PASSED")
 
-            # Store review in Memory
-            if memory:
-                await memory.store(
-                    content=review_output,
-                    metadata={
-                        "agent": "reviewer",
-                        "type": "review",
-                        "iteration": state.get('iteration', 0) + 1,
-                        "quality_score": quality_score,
-                        "timestamp": datetime.now().isoformat()
+            # Store review in Memory (via MCP!)
+            try:
+                await mcp.call(
+                    server="memory",
+                    tool="store_memory",
+                    arguments={
+                        "workspace_path": workspace_path,
+                        "content": review_output,
+                        "metadata": {
+                            "agent": "reviewer",
+                            "type": "review",
+                            "iteration": state.get('iteration', 0) + 1,
+                            "quality_score": quality_score,
+                            "timestamp": datetime.now().isoformat()
+                        }
                     }
                 )
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to store review in memory: {e}")
 
             # Extract file paths for fixer
             file_paths_to_fix = [f.get('path') for f in generated_files if f.get('path')]
@@ -757,20 +763,8 @@ Provide quality score and detailed feedback."""
                 logger.warning("⚠️  No files could be read")
                 return state
 
-            # Apply fixes with Claude
-            logger.info("🤖 Generating fixes with Claude...")
-
-            llm = ChatAnthropic(
-                model="claude-sonnet-4-20250514",
-                temperature=0.2,
-                max_tokens=8192,
-                agent_name="fixer",
-                agent_description="Code fixer who implements corrections based on review feedback",
-                agent_tools=["Read", "Edit", "Bash"],
-                permission_mode="acceptEdits",
-                hitl_callback=hitl_callback,  # Pass HITL callback for debug info
-                workspace_path=workspace_path  # 🎯 FIX (2025-10-11): Set CWD for subprocess!
-            )
+            # Apply fixes with Claude (via MCP!)
+            logger.info("🤖 Generating fixes with Claude via MCP...")
 
             system_prompt = """You are an expert code fixer.
 
@@ -810,12 +804,42 @@ FILE: src/app.py
 
 Generate complete fixed versions of all files."""
 
-            response = await llm.ainvoke([
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ])
+            # Call Claude via MCP
+            claude_result = await mcp.call(
+                server="claude",
+                tool="claude_generate",
+                arguments={
+                    "prompt": user_prompt,
+                    "system_prompt": system_prompt,
+                    "workspace_path": workspace_path,
+                    "agent_name": "fixer",
+                    "temperature": 0.2,
+                    "max_tokens": 8192,
+                    "tools": ["Read", "Edit", "Bash"]
+                }
+            )
 
-            fixes_output = response.content if hasattr(response, 'content') else str(response)
+            # Extract fixes from MCP response
+            fixes_output = ""
+            if claude_result.get("content"):
+                content_blocks = claude_result.get("content", [])
+                for block in content_blocks:
+                    if block.get("type") == "text":
+                        text = block.get("text", "")
+                        # Extract actual content from JSON response format
+                        if "content" in text and "success" in text:
+                            import json
+                            try:
+                                data = json.loads(text.split("```json\n")[1].split("\n```")[0])
+                                fixes_output = data.get("content", "")
+                            except:
+                                fixes_output = text
+                        else:
+                            fixes_output = text
+
+            if not fixes_output:
+                raise Exception(f"Fixes generation failed: {claude_result.get('error', 'Unknown error')}")
+
             logger.info(f"✅ Fixes generated: {len(fixes_output)} chars")
 
             # Parse and write fixed files
@@ -883,18 +907,25 @@ Generate complete fixed versions of all files."""
 
             logger.info(f"✅ Fixed {len(fixed_files)} files")
 
-            # Store fixes in Memory
-            if memory:
-                await memory.store(
-                    content=fixes_output,
-                    metadata={
-                        "agent": "fixer",
-                        "type": "fixes",
-                        "iteration": state.get('iteration', 0),
-                        "files_count": len(fixed_files),
-                        "timestamp": datetime.now().isoformat()
+            # Store fixes in Memory (via MCP!)
+            try:
+                await mcp.call(
+                    server="memory",
+                    tool="store_memory",
+                    arguments={
+                        "workspace_path": workspace_path,
+                        "content": fixes_output,
+                        "metadata": {
+                            "agent": "fixer",
+                            "type": "fixes",
+                            "iteration": state.get('iteration', 0),
+                            "files_count": len(fixed_files),
+                            "timestamp": datetime.now().isoformat()
+                        }
                     }
                 )
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to store fixes in memory: {e}")
 
             return {
                 **state,
@@ -961,5 +992,5 @@ Generate complete fixed versions of all files."""
     graph.add_edge("fixer", "reviewer")
 
     # Compile and return
-    logger.debug("✅ ReviewFix subgraph v6.1 compiled")
+    logger.debug("✅ ReviewFix subgraph v6.2 compiled (MCP)")
     return graph.compile()

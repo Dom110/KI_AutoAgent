@@ -59,6 +59,9 @@ from langgraph.graph import END, StateGraph
 # Use ClaudeCLISimple instead of langchain-anthropic
 from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
 
+# MCP client for all service calls (replaces direct service imports)
+from mcp.mcp_client import MCPClient, MCPConnectionError
+
 from state_v6 import (
     ArchitectState,
     CodesmithState,
@@ -140,6 +143,7 @@ class WorkflowV6Integrated:
         # Base components
         self.checkpointer: AsyncSqliteSaver | None = None
         self.memory: MemorySystem | None = None
+        self.mcp: MCPClient | None = None  # NEW v6.2: MCP client for all service calls
         self.workflow: Any | None = None
 
         # v6 Intelligence Systems
@@ -188,6 +192,10 @@ class WorkflowV6Integrated:
         self.memory = await self._setup_memory()
         logger.debug(f"✅ Memory System initialized")
 
+        # 2.5. Setup MCP Client (NEW v6.2!)
+        self.mcp = await self._setup_mcp()
+        logger.debug(f"✅ MCP Client initialized")
+
         # 3. Initialize v6 Intelligence Systems
         await self._initialize_v6_systems()
         logger.debug(f"✅ All v6 systems initialized")
@@ -197,6 +205,45 @@ class WorkflowV6Integrated:
         logger.debug(f"✅ Workflow compiled with v6 enhancements")
 
         logger.info("🎉 WorkflowV6Integrated initialization COMPLETE!")
+
+    async def cleanup(self) -> None:
+        """
+        Clean up all resources (NEW v6.2!).
+
+        Closes MCP connections, database connections, etc.
+        Should be called when workflow is done or on shutdown.
+        """
+        logger.info("🧹 Cleaning up WorkflowV6Integrated resources...")
+
+        # Close MCP client connections
+        if self.mcp:
+            try:
+                await self.mcp.cleanup()
+                logger.debug("  ✅ MCP client connections closed")
+            except Exception as e:
+                logger.warning(f"  ⚠️ Error closing MCP connections: {e}")
+
+        # Close checkpointer database connection
+        if self.checkpointer:
+            try:
+                # AsyncSqliteSaver cleanup
+                if hasattr(self.checkpointer, 'conn'):
+                    await self.checkpointer.conn.close()
+                logger.debug("  ✅ Checkpointer database closed")
+            except Exception as e:
+                logger.warning(f"  ⚠️ Error closing checkpointer: {e}")
+
+        # Memory cleanup (if needed)
+        if self.memory:
+            try:
+                # MemorySystem cleanup (if it has any)
+                if hasattr(self.memory, 'cleanup'):
+                    await self.memory.cleanup()
+                logger.debug("  ✅ Memory system cleaned up")
+            except Exception as e:
+                logger.warning(f"  ⚠️ Error cleaning up memory: {e}")
+
+        logger.info("✅ Cleanup complete!")
 
     async def _setup_checkpointer(self) -> AsyncSqliteSaver:
         """Setup AsyncSqliteSaver for persistent state."""
@@ -217,6 +264,32 @@ class WorkflowV6Integrated:
         memory = MemorySystem(workspace_path=self.workspace_path)
         await memory.initialize()
         return memory
+
+    async def _setup_mcp(self) -> MCPClient:
+        """
+        Setup MCP Client for all service calls (NEW v6.2!).
+
+        Connects to MCP servers for Perplexity, Claude, Memory, etc.
+        Replaces direct service calls with unified MCP protocol.
+        """
+        logger.info("🔌 Initializing MCP Client...")
+
+        mcp = MCPClient()
+
+        try:
+            # Initialize MCP client (connects to all servers)
+            await mcp.initialize()
+            logger.info(f"  ✅ MCP Client connected to {len(mcp.servers)} servers")
+
+            # List connected servers
+            for server_name in mcp.servers.keys():
+                logger.debug(f"    - {server_name}: connected")
+
+            return mcp
+
+        except MCPConnectionError as e:
+            logger.error(f"  ❌ MCP initialization failed: {e}")
+            raise RuntimeError(f"Failed to initialize MCP client: {e}")
 
     async def _initialize_v6_systems(self) -> None:
         """Initialize ALL v6 intelligence systems."""
@@ -391,63 +464,63 @@ class WorkflowV6Integrated:
     # ========================================================================
 
     def _build_research_subgraph(self) -> Any:
-        """Build Research subgraph with Perplexity API (v6.1)."""
+        """Build Research subgraph with MCP (v6.2)."""
         from subgraphs.research_subgraph_v6_1 import create_research_subgraph
 
-        logger.debug("🔬 Building Research subgraph v6.1 (with Perplexity)...")
+        logger.debug("🔬 Building Research subgraph v6.2 (with MCP)...")
 
         subgraph = create_research_subgraph(
             workspace_path=self.workspace_path,
-            memory=self.memory,
-            hitl_callback=self.websocket_callback  # Pass HITL callback
+            mcp=self.mcp,  # Pass MCP client instead of memory
+            hitl_callback=self.websocket_callback
         )
 
-        logger.debug("  ✅ Research subgraph built (Perplexity enabled)")
+        logger.debug("  ✅ Research subgraph built (MCP enabled)")
         return subgraph
 
     def _build_architect_subgraph(self) -> Any:
-        """Build Architect subgraph v6.1 (with Claude Sonnet 4)."""
+        """Build Architect subgraph with MCP (v6.2)."""
         from subgraphs.architect_subgraph_v6_1 import create_architect_subgraph
 
-        logger.debug("📐 Building Architect subgraph v6.1 (with Claude)...")
+        logger.debug("📐 Building Architect subgraph v6.2 (with MCP)...")
 
         subgraph = create_architect_subgraph(
             workspace_path=self.workspace_path,
-            memory=self.memory,
-            hitl_callback=self.websocket_callback  # Pass HITL callback
+            mcp=self.mcp,  # Pass MCP client instead of memory
+            hitl_callback=self.websocket_callback
         )
 
-        logger.debug("  ✅ Architect subgraph v6.1 built")
+        logger.debug("  ✅ Architect subgraph v6.2 built (MCP enabled)")
         return subgraph
 
     def _build_codesmith_subgraph(self) -> Any:
-        """Build Codesmith subgraph with dynamic tools (v6.1)."""
+        """Build Codesmith subgraph with MCP (v6.2)."""
         from subgraphs.codesmith_subgraph_v6_1 import create_codesmith_subgraph
 
-        logger.debug("⚒️  Building Codesmith subgraph v6.1 (with dynamic tools)...")
+        logger.debug("⚒️  Building Codesmith subgraph v6.2 (with MCP)...")
 
         subgraph = create_codesmith_subgraph(
             workspace_path=self.workspace_path,
-            memory=self.memory,
-            hitl_callback=self.websocket_callback  # Pass HITL callback
+            mcp=self.mcp,  # Pass MCP client instead of memory
+            hitl_callback=self.websocket_callback
         )
 
-        logger.debug("  ✅ Codesmith subgraph built (tool registry ready)")
+        logger.debug("  ✅ Codesmith subgraph built (MCP enabled)")
         return subgraph
 
     def _build_reviewfix_subgraph(self) -> Any:
-        """Build ReviewFix subgraph with Asimov Rule 3 (v6.1)."""
+        """Build ReviewFix subgraph with MCP (v6.2)."""
         from subgraphs.reviewfix_subgraph_v6_1 import create_reviewfix_subgraph
 
-        logger.debug("🔬 Building ReviewFix subgraph v6.1 (with Asimov Rule 3)...")
+        logger.debug("🔬 Building ReviewFix subgraph v6.2 (with MCP)...")
 
         subgraph = create_reviewfix_subgraph(
             workspace_path=self.workspace_path,
-            memory=self.memory,
-            hitl_callback=self.websocket_callback  # Pass HITL callback
+            mcp=self.mcp,  # Pass MCP client instead of memory
+            hitl_callback=self.websocket_callback
         )
 
-        logger.debug("  ✅ ReviewFix subgraph built (global error search enabled)")
+        logger.debug("  ✅ ReviewFix subgraph built (MCP enabled)")
         return subgraph
 
     # ========================================================================
@@ -1249,6 +1322,9 @@ class WorkflowV6Integrated:
 
             # Self-diagnosis on workflow failure
             healing = await self.self_diagnosis.self_heal(e, auto_apply=False)
+
+            # NOTE: Don't cleanup here - let the caller handle cleanup
+            # This allows retry scenarios without re-initialization
 
             return {
                 "success": False,

@@ -77,7 +77,7 @@ class MCPClient:
             "memory",
             "tree-sitter",
             "asimov",
-            "workflow",
+            # "workflow",  # TODO: Fix workflow server initialization
             "claude"
         ]
         self.auto_reconnect = auto_reconnect
@@ -85,8 +85,23 @@ class MCPClient:
 
         # Connection state
         self._connections: dict[str, Any] = {}
+        self._processes: dict[str, Any] = {}  # Store subprocess handles
         self._initialized = False
         self._request_id = 0
+
+        # MCP server paths (relative to project root)
+        project_root = Path(__file__).parent.parent.parent
+        self._server_paths = {
+            "perplexity": project_root / "mcp_servers" / "perplexity_server.py",
+            "memory": project_root / "mcp_servers" / "memory_server.py",
+            "tree-sitter": project_root / "mcp_servers" / "tree_sitter_server.py",
+            "asimov": project_root / "mcp_servers" / "asimov_server.py",
+            "workflow": project_root / "mcp_servers" / "workflow_server.py",
+            "claude": project_root / "mcp_servers" / "claude_cli_server.py"
+        }
+
+        # Find Python interpreter (use venv from root)
+        self._python_exe = str(project_root / "venv" / "bin" / "python")
 
         logger.info(f"📡 MCPClient created for workspace: {workspace_path}")
 
@@ -123,9 +138,9 @@ class MCPClient:
 
     async def _connect_server(self, server_name: str) -> None:
         """
-        Connect to a single MCP server.
+        Connect to a single MCP server by starting it as a subprocess.
 
-        Uses `claude mcp call` command to verify server is accessible.
+        Starts the MCP server as a long-running subprocess and initializes it.
 
         Args:
             server_name: Name of MCP server (e.g., "perplexity")
@@ -134,18 +149,72 @@ class MCPClient:
             MCPConnectionError: If connection fails
         """
         try:
-            # Test connection by calling tools/list
-            result = await self._raw_call(
-                server=server_name,
-                method="tools/list",
-                params={}
+            # Get server script path
+            server_path = self._server_paths.get(server_name)
+            if not server_path or not server_path.exists():
+                raise MCPConnectionError(f"Server script not found: {server_path}")
+
+            # Start MCP server as subprocess
+            logger.debug(f"Starting {server_name} server: {server_path}")
+            process = await asyncio.create_subprocess_exec(
+                self._python_exe,
+                str(server_path),
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=self.workspace_path
             )
 
-            if "error" in result:
-                raise MCPConnectionError(f"Server returned error: {result['error']}")
+            self._processes[server_name] = process
 
-            # Cache available tools
-            tools = result.get("result", {}).get("tools", [])
+            # Initialize the server (send initialize request)
+            init_request = {
+                "jsonrpc": "2.0",
+                "id": self._next_request_id(),
+                "method": "initialize",
+                "params": {}
+            }
+
+            process.stdin.write((json.dumps(init_request) + "\n").encode())
+            await process.stdin.drain()
+
+            # Read init response (with timeout)
+            try:
+                line = await asyncio.wait_for(
+                    process.stdout.readline(),
+                    timeout=5.0
+                )
+            except asyncio.TimeoutError:
+                process.kill()
+                await process.wait()
+                raise MCPConnectionError(f"{server_name} failed to respond to initialization")
+
+            init_response = json.loads(line.decode().strip())
+            if "error" in init_response:
+                raise MCPConnectionError(f"Init failed: {init_response['error']}")
+
+            # List available tools
+            tools_request = {
+                "jsonrpc": "2.0",
+                "id": self._next_request_id(),
+                "method": "tools/list",
+                "params": {}
+            }
+
+            process.stdin.write((json.dumps(tools_request) + "\n").encode())
+            await process.stdin.drain()
+
+            line = await asyncio.wait_for(
+                process.stdout.readline(),
+                timeout=5.0
+            )
+
+            tools_response = json.loads(line.decode().strip())
+            if "error" in tools_response:
+                raise MCPConnectionError(f"tools/list failed: {tools_response['error']}")
+
+            # Cache connection info
+            tools = tools_response.get("result", {}).get("tools", [])
             self._connections[server_name] = {
                 "status": "connected",
                 "tools": [t["name"] for t in tools],
@@ -155,6 +224,12 @@ class MCPClient:
             logger.debug(f"Server {server_name} has {len(tools)} tools")
 
         except Exception as e:
+            # Cleanup on failure
+            if server_name in self._processes:
+                process = self._processes[server_name]
+                process.kill()
+                await process.wait()
+                del self._processes[server_name]
             raise MCPConnectionError(f"Failed to connect to {server_name}: {e}")
 
     def _next_request_id(self) -> int:
@@ -169,9 +244,9 @@ class MCPClient:
         params: dict[str, Any]
     ) -> dict[str, Any]:
         """
-        Execute raw JSON-RPC call to MCP server.
+        Execute raw JSON-RPC call to MCP server via stdin/stdout.
 
-        Uses `claude mcp call` command under the hood.
+        Sends request to server's stdin, reads response from stdout.
 
         Args:
             server: MCP server name
@@ -184,6 +259,15 @@ class MCPClient:
         Raises:
             MCPConnectionError: If call fails
         """
+        if server not in self._processes:
+            raise MCPConnectionError(f"Server {server} not started")
+
+        process = self._processes[server]
+
+        # Check if process is still alive
+        if process.returncode is not None:
+            raise MCPConnectionError(f"Server {server} process has died (exit code: {process.returncode})")
+
         request = {
             "jsonrpc": "2.0",
             "id": self._next_request_id(),
@@ -192,39 +276,25 @@ class MCPClient:
         }
 
         try:
-            # Build command
-            cmd = [
-                "claude",
-                "mcp",
-                "call",
-                server,
-                json.dumps(request)
-            ]
+            # Send request to stdin
+            request_line = json.dumps(request) + "\n"
+            process.stdin.write(request_line.encode())
+            await process.stdin.drain()
 
-            # Execute with timeout
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=self.workspace_path
-            )
-
+            # Read response from stdout (with timeout)
             try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
+                response_line = await asyncio.wait_for(
+                    process.stdout.readline(),
                     timeout=self.timeout
                 )
             except asyncio.TimeoutError:
-                process.kill()
-                await process.wait()
                 raise MCPConnectionError(f"MCP call to {server} timed out after {self.timeout}s")
 
-            if process.returncode != 0:
-                error = stderr.decode() if stderr else "Unknown error"
-                raise MCPConnectionError(f"MCP call failed: {error}")
+            if not response_line:
+                raise MCPConnectionError(f"Server {server} closed stdout (process died)")
 
             # Parse response
-            response = json.loads(stdout.decode())
+            response = json.loads(response_line.decode().strip())
             return response
 
         except json.JSONDecodeError as e:
@@ -373,14 +443,35 @@ class MCPClient:
 
     async def close(self) -> None:
         """
-        Close all MCP connections.
+        Close all MCP connections and terminate server subprocesses.
 
         Call this when done with the client (e.g., workflow completion).
         """
         logger.info("🔌 Closing MCP connections...")
+
+        # Terminate all server processes
+        for server_name, process in self._processes.items():
+            try:
+                if process.returncode is None:  # Still running
+                    process.terminate()
+                    try:
+                        await asyncio.wait_for(process.wait(), timeout=5.0)
+                        logger.debug(f"Terminated {server_name} process")
+                    except asyncio.TimeoutError:
+                        process.kill()
+                        await process.wait()
+                        logger.warning(f"Had to kill {server_name} process")
+            except Exception as e:
+                logger.warning(f"Error closing {server_name}: {e}")
+
+        self._processes.clear()
         self._connections.clear()
         self._initialized = False
         logger.info("✅ MCP connections closed")
+
+    async def cleanup(self) -> None:
+        """Alias for close() for convenience."""
+        await self.close()
 
     def get_server_status(self) -> dict[str, Any]:
         """

@@ -24,10 +24,9 @@ from datetime import datetime
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 
-# Use ClaudeCLISimple for v6.1 consistency
-from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
+# MCP client for all service calls (replaces direct service imports)
+from mcp.mcp_client import MCPClient
 from state_v6 import ArchitectState
-from memory.memory_system_v6 import MemorySystem
 from utils.architect_parser import parse_architect_response
 
 # NEW v6.2: Tree-Sitter Code Analysis
@@ -38,15 +37,15 @@ logger = logging.getLogger(__name__)
 
 def create_architect_subgraph(
     workspace_path: str,
-    memory: MemorySystem | None = None,
+    mcp: MCPClient,
     hitl_callback: Any = None
 ) -> Any:
     """
-    Create Architect Subgraph with custom implementation (v6.1).
+    Create Architect Subgraph with MCP integration (v6.2).
 
     Args:
         workspace_path: Path to user workspace
-        memory: Optional Memory System (for reading Research, storing Design)
+        mcp: MCP client for all service calls
         hitl_callback: Optional HITL callback for debug info
 
     Returns:
@@ -54,15 +53,15 @@ def create_architect_subgraph(
 
     Architecture:
         1. Entry: architect_node (custom logic)
-        2. Read research from Memory
+        2. Read research from Memory (via MCP)
         3. Analyze codebase (Tree-Sitter integration: v6.2)
-        4. Generate design with Claude Sonnet 4
+        4. Generate design with Claude Sonnet 4 (via MCP)
         5. Parse architecture (tech_stack, patterns, components)
         6. Generate Mermaid diagram
-        7. Store design in Memory
+        7. Store design in Memory (via MCP)
         8. Exit: return design + diagram
     """
-    logger.debug("Creating Architect subgraph v6.1 (custom node)...")
+    logger.debug("Creating Architect subgraph v6.2 (MCP)...")
 
     async def architect_node(state: ArchitectState) -> ArchitectState:
         """
@@ -82,25 +81,45 @@ def create_architect_subgraph(
         logger.info(f"🏗️  Architect node v6.1 executing: {state['user_requirements'][:50]}...")
 
         try:
-            # Step 1: Read research findings from Memory
-            print(f"  Step 1: Reading research from Memory...")
+            # Step 1: Read research findings from Memory (via MCP!)
+            print(f"  Step 1: Reading research from Memory via MCP...")
             research_context = {}
-            if memory:
-                logger.debug("Reading research findings from Memory...")
-                research_results = await memory.search(
-                    query=state["user_requirements"],
-                    k=5,
-                    filters={"agent": "research"}
+            try:
+                logger.debug("Reading research findings from Memory via MCP...")
+                memory_result = await mcp.call(
+                    server="memory",
+                    tool="search_memory",
+                    arguments={
+                        "workspace_path": workspace_path,
+                        "query": state["user_requirements"],
+                        "k": 5,
+                        "filters": {"agent": "research"}
+                    }
                 )
+
+                # Extract results from MCP response
+                research_results = []
+                if memory_result.get("content"):
+                    content_blocks = memory_result.get("content", [])
+                    for block in content_blocks:
+                        if block.get("type") == "text":
+                            text = block.get("text", "")
+                            # Parse results (MCP returns formatted text)
+                            if text:
+                                research_results.append({
+                                    "content": text,
+                                    "metadata": {}
+                                })
+
                 research_context = {
                     "findings": [r["content"] for r in research_results],
                     "sources": [r.get("metadata", {}) for r in research_results]
                 }
                 print(f"  Step 1: Found {len(research_results)} research items")
                 logger.debug(f"Found {len(research_results)} research items")
-            else:
-                print(f"  Step 1: No Memory System, skipping")
-                logger.debug("No Memory System provided, skipping research lookup")
+            except Exception as e:
+                print(f"  Step 1: Memory search failed: {e}")
+                logger.warning(f"Memory search failed: {e}")
 
             # Step 2: Analyze codebase structure (Tree-Sitter v6.2)
             print(f"  Step 2: Analyzing codebase structure...")
@@ -154,22 +173,9 @@ def create_architect_subgraph(
                 }
                 print(f"  Step 2: Tree-Sitter not available (install required)")
 
-            # Step 3: Generate architecture design with Claude
-            print(f"  Step 3: Creating Claude LLM...")
-            logger.info("🤖 Generating architecture design with Claude Sonnet 4...")
-
-            llm = ChatAnthropic(
-                model="claude-sonnet-4-20250514",
-                temperature=0.3,
-                max_tokens=4096,
-                agent_name="architect",
-                agent_description="Expert software architect specializing in modern system design",
-                agent_tools=["Read", "Bash"],  # Read for codebase analysis, Bash for utilities
-                permission_mode="acceptEdits",
-                hitl_callback=hitl_callback,  # Pass HITL callback for debug info
-                workspace_path=workspace_path  # 🎯 FIX (2025-10-11): Set CWD for subprocess!
-            )
-            print(f"  Step 3: LLM created, calling Claude CLI...")
+            # Step 3: Generate architecture design with Claude (via MCP!)
+            print(f"  Step 3: Calling Claude via MCP...")
+            logger.info("🤖 Generating architecture design with Claude Sonnet 4 via MCP...")
 
             system_prompt = """You are an expert software architect specializing in modern web development.
 
@@ -214,14 +220,41 @@ Provide a comprehensive architecture design."""
             print(f"  📝 System prompt: /tmp/architect_system_prompt.txt ({len(system_prompt)} chars)")
             print(f"  📝 User prompt: /tmp/architect_user_prompt.txt ({len(user_prompt)} chars)")
 
-            logger.info("🤖 Invoking Claude CLI for architecture design...")
-            response = await llm.ainvoke([
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ])
-            print(f"  Step 3: Claude returned {type(response)}")
+            logger.info("🤖 Invoking Claude CLI via MCP for architecture design...")
+            claude_result = await mcp.call(
+                server="claude",
+                tool="claude_generate",
+                arguments={
+                    "prompt": user_prompt,
+                    "system_prompt": system_prompt,
+                    "workspace_path": workspace_path,
+                    "agent_name": "architect",
+                    "temperature": 0.3,
+                    "max_tokens": 4096,
+                    "tools": ["Read", "Bash"]
+                }
+            )
 
-            design_text = response.content if hasattr(response, 'content') else str(response)
+            # Extract design from MCP response
+            design_text = ""
+            if claude_result.get("content"):
+                content_blocks = claude_result.get("content", [])
+                for block in content_blocks:
+                    if block.get("type") == "text":
+                        text = block.get("text", "")
+                        # Extract actual content from JSON response format
+                        if "content" in text and "success" in text:
+                            try:
+                                data = json.loads(text.split("```json\n")[1].split("\n```")[0])
+                                design_text = data.get("content", "")
+                            except:
+                                design_text = text
+                        else:
+                            design_text = text
+
+            if not design_text:
+                raise Exception(f"Architecture design failed: {claude_result.get('error', 'Unknown error')}")
+
             print(f"  Step 3: Design complete: {len(design_text)} chars")
             logger.info(f"✅ Architecture design generated: {len(design_text)} chars")
 
@@ -279,23 +312,29 @@ graph TD
 **Full design available in memory store.**
 """
 
-            # Step 7: Store design in Memory
-            print(f"  Step 6: Storing design in Memory...")
-            if memory:
-                logger.debug("Storing architecture design in Memory...")
-                await memory.store(
-                    content=design_text,
-                    metadata={
-                        "agent": "architect",
-                        "type": "design",
-                        "requirements": state["user_requirements"],
-                        "timestamp": datetime.now().isoformat()
+            # Step 7: Store design in Memory (via MCP!)
+            print(f"  Step 6: Storing design in Memory via MCP...")
+            try:
+                logger.debug("Storing architecture design in Memory via MCP...")
+                await mcp.call(
+                    server="memory",
+                    tool="store_memory",
+                    arguments={
+                        "workspace_path": workspace_path,
+                        "content": design_text,
+                        "metadata": {
+                            "agent": "architect",
+                            "type": "design",
+                            "requirements": state["user_requirements"],
+                            "timestamp": datetime.now().isoformat()
+                        }
                     }
                 )
                 print(f"  Step 6: Design stored")
                 logger.debug("✅ Design stored in Memory")
-            else:
-                print(f"  Step 6: No Memory, skipping")
+            except Exception as e:
+                print(f"  Step 6: Memory storage failed: {e}")
+                logger.warning(f"Memory storage failed: {e}")
 
             # Step 8: Return updated state
             print(f"  Step 7: Returning state")
@@ -338,7 +377,7 @@ graph TD
     graph.set_entry_point("architect")
     graph.add_edge("architect", END)
 
-    logger.debug("✅ Architect subgraph v6.1 compiled")
+    logger.debug("✅ Architect subgraph v6.2 compiled (MCP)")
     return graph.compile()
 
 

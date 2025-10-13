@@ -21,8 +21,8 @@ import os
 from datetime import datetime
 from typing import Any
 
-# Use ClaudeCLISimple instead of langchain-anthropic (broken)
-from adapters.claude_cli_simple import ClaudeCLISimple as ChatAnthropic
+# MCP client for all service calls (replaces direct service imports)
+from mcp.mcp_client import MCPClient
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
@@ -37,24 +37,23 @@ logger = logging.getLogger(__name__)
 
 def create_codesmith_subgraph(
     workspace_path: str,
-    memory: Any | None = None,
+    mcp: MCPClient,
     hitl_callback: Any | None = None
 ) -> Any:
     """
-    Create Codesmith subgraph with custom node implementation.
+    Create Codesmith subgraph with MCP integration (v6.2).
 
-    This version uses direct LLM calls instead of create_react_agent,
-    making it compatible with async-only LLMs like ClaudeCLISimple.
+    Uses MCP protocol for all service calls (Claude, Memory).
 
     Args:
         workspace_path: Path to workspace
-        memory: Memory system instance (optional)
+        mcp: MCP client for all service calls
         hitl_callback: Optional HITL callback for debug info
 
     Returns:
         Compiled codesmith subgraph
     """
-    logger.debug("Creating Codesmith subgraph v6.1 (custom node)...")
+    logger.debug("Creating Codesmith subgraph v6.2 (MCP)...")
 
     # Codesmith node function
     async def codesmith_node(state: CodesmithState) -> CodesmithState:
@@ -72,26 +71,52 @@ def create_codesmith_subgraph(
         logger.info(f"⚙️ Codesmith node v6.1 executing: {design_preview}...")
 
         try:
-            # Step 1: Read from Memory (design + research)
+            # Step 1: Read from Memory (via MCP!)
             design_content = str(state.get('design', ''))
             context_from_memory = ""
 
-            if memory:
-                logger.info("🔍 Reading context from Memory...")
+            try:
+                logger.info("🔍 Reading context from Memory via MCP...")
 
-                # Get research findings
-                research_results = await memory.search(
-                    query="research findings",
-                    filters={"agent": "research"},
-                    k=2
+                # Get research findings (via MCP)
+                research_result = await mcp.call(
+                    server="memory",
+                    tool="search_memory",
+                    arguments={
+                        "workspace_path": workspace_path,
+                        "query": "research findings",
+                        "filters": {"agent": "research"},
+                        "k": 2
+                    }
                 )
 
-                # Get architecture design
-                architect_results = await memory.search(
-                    query="architecture design",
-                    filters={"agent": "architect"},
-                    k=2
+                # Get architecture design (via MCP)
+                architect_result = await mcp.call(
+                    server="memory",
+                    tool="search_memory",
+                    arguments={
+                        "workspace_path": workspace_path,
+                        "query": "architecture design",
+                        "filters": {"agent": "architect"},
+                        "k": 2
+                    }
                 )
+
+                # Extract results from MCP responses
+                research_results = []
+                architect_results = []
+
+                # Parse research results
+                if research_result.get("content"):
+                    for block in research_result.get("content", []):
+                        if block.get("type") == "text":
+                            research_results.append({"content": block.get("text", "")})
+
+                # Parse architect results
+                if architect_result.get("content"):
+                    for block in architect_result.get("content", []):
+                        if block.get("type") == "text":
+                            architect_results.append({"content": block.get("text", "")})
 
                 # Build context
                 context_parts = []
@@ -109,20 +134,12 @@ def create_codesmith_subgraph(
                 context_from_memory = "\n".join(context_parts)
                 logger.info(f"✅ Loaded context: {len(context_from_memory)} chars")
 
-            # Step 2: Generate code with Claude
-            logger.info("🤖 Generating code with Claude...")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to load context from memory: {e}")
+                context_from_memory = ""
 
-            llm = ChatAnthropic(
-                model="claude-sonnet-4-20250514",
-                temperature=0.2,
-                max_tokens=8192,
-                agent_name="codesmith",
-                agent_description="Expert code generator specializing in clean, maintainable code following best practices",
-                agent_tools=["Read", "Edit", "Bash"],  # NOTE: Write does NOT exist! Use Edit.
-                permission_mode="acceptEdits",
-                hitl_callback=hitl_callback,  # Pass HITL callback for debug info
-                workspace_path=workspace_path  # 🎯 FIX (2025-10-11): Set CWD for subprocess!
-            )
+            # Step 2: Generate code with Claude (via MCP!)
+            logger.info("🤖 Generating code with Claude via MCP...")
 
             system_prompt = """You are an expert code generator specializing in clean, maintainable code.
 
@@ -171,12 +188,46 @@ START YOUR RESPONSE WITH "FILE:" - Nothing else!"""
 
 Generate complete, production-ready code files."""
 
-            response = await llm.ainvoke([
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ])
+            # Call Claude via MCP
+            claude_result = await mcp.call(
+                server="claude",
+                tool="claude_generate",
+                arguments={
+                    "prompt": user_prompt,
+                    "system_prompt": system_prompt,
+                    "workspace_path": workspace_path,
+                    "agent_name": "codesmith",
+                    "temperature": 0.2,
+                    "max_tokens": 16384,  # More tokens for code generation
+                    "tools": ["Read", "Edit", "Bash"]
+                },
+                timeout=900  # 15 min timeout for code generation
+            )
 
-            code_output = response.content if hasattr(response, 'content') else str(response)
+            # Extract code from MCP response
+            code_output = ""
+            files_from_mcp = []
+
+            if claude_result.get("content"):
+                content_blocks = claude_result.get("content", [])
+                for block in content_blocks:
+                    if block.get("type") == "text":
+                        text = block.get("text", "")
+                        # Extract actual content from JSON response format
+                        if "content" in text and "success" in text:
+                            import json
+                            try:
+                                data = json.loads(text.split("```json\n")[1].split("\n```")[0])
+                                code_output = data.get("content", "")
+                                files_from_mcp = data.get("files_created", [])
+                            except:
+                                code_output = text
+                        else:
+                            code_output = text
+
+            if not code_output:
+                raise Exception(f"Code generation failed: {claude_result.get('error', 'Unknown error')}")
+
             logger.info(f"✅ Code generated: {len(code_output)} chars")
             logger.debug(f"📄 First 500 chars of generated code:\n{code_output[:500]}")
             logger.debug(f"📄 Last 500 chars of generated code:\n{code_output[-500:]}")
@@ -370,22 +421,11 @@ Generate complete, production-ready code files."""
 
             logger.info(f"✅ Generated {len(generated_files)} files from parsing")
 
-            # Step 3.5: FALLBACK - Extract files from Claude CLI events
-            # (Claude CLI uses Edit tool, not FILE: format in text output)
-            if len(generated_files) == 0:
-                logger.info("🔍 No files from parsing - extracting from Claude CLI Edit tool events...")
-
-                # The LLM wrapper (claude_cli_simple) stores events in last_events
-                if hasattr(llm, 'last_events') and llm.last_events:
-                    extracted_files = llm.extract_file_paths_from_events(llm.last_events)
-
-                    if extracted_files:
-                        logger.info(f"✅ Extracted {len(extracted_files)} files from Claude CLI events")
-                        generated_files = extracted_files
-                    else:
-                        logger.warning("⚠️  No files found in Claude CLI events")
-                else:
-                    logger.warning("⚠️  No Claude CLI events available for file extraction")
+            # Step 3.5: FALLBACK - Use files from MCP response
+            # (MCP Claude server returns files_created in response)
+            if len(generated_files) == 0 and files_from_mcp:
+                logger.info(f"🔍 No files from parsing - using {len(files_from_mcp)} files from MCP response...")
+                generated_files = files_from_mcp
 
             # Step 3.6: Validate generated files (NEW!)
             logger.info("🔍 Validating file completeness...")
@@ -407,12 +447,37 @@ Generate complete, production-ready code files."""
 
                 if completion_prompt:
                     try:
-                        completion_response = await llm.ainvoke([
-                            SystemMessage(content=system_prompt),
-                            HumanMessage(content=completion_prompt)
-                        ])
+                        # Retry with MCP
+                        completion_result = await mcp.call(
+                            server="claude",
+                            tool="claude_generate",
+                            arguments={
+                                "prompt": completion_prompt,
+                                "system_prompt": system_prompt,
+                                "workspace_path": workspace_path,
+                                "agent_name": "codesmith",
+                                "temperature": 0.2,
+                                "max_tokens": 8192,
+                                "tools": ["Read", "Edit", "Bash"]
+                            }
+                        )
 
-                        completion_output = completion_response.content if hasattr(completion_response, 'content') else str(completion_response)
+                        # Extract completion output
+                        completion_output = ""
+                        if completion_result.get("content"):
+                            for block in completion_result.get("content", []):
+                                if block.get("type") == "text":
+                                    text = block.get("text", "")
+                                    if "content" in text and "success" in text:
+                                        import json
+                                        try:
+                                            data = json.loads(text.split("```json\n")[1].split("\n```")[0])
+                                            completion_output = data.get("content", "")
+                                        except:
+                                            completion_output = text
+                                    else:
+                                        completion_output = text
+
                         logger.info(f"✅ Completion response: {len(completion_output)} chars")
 
                         # Parse and write completion files (reuse same parser logic)
@@ -474,19 +539,26 @@ Generate complete, production-ready code files."""
 *Generated by Codesmith Agent v6.1 with File Validation*
 """
 
-            # Step 5: Store in Memory (if available)
-            if memory:
-                logger.info("💾 Storing implementation in Memory...")
-                await memory.store(
-                    content=implementation_summary,
-                    metadata={
-                        "agent": "codesmith",
-                        "type": "implementation",
-                        "files_count": len(generated_files),
-                        "timestamp": datetime.now().isoformat()
+            # Step 5: Store in Memory (via MCP!)
+            try:
+                logger.info("💾 Storing implementation in Memory via MCP...")
+                await mcp.call(
+                    server="memory",
+                    tool="store_memory",
+                    arguments={
+                        "workspace_path": workspace_path,
+                        "content": implementation_summary,
+                        "metadata": {
+                            "agent": "codesmith",
+                            "type": "implementation",
+                            "files_count": len(generated_files),
+                            "timestamp": datetime.now().isoformat()
+                        }
                     }
                 )
                 logger.debug("✅ Implementation stored in Memory")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to store in memory: {e}")
 
             # Return updated state
             return {
@@ -519,5 +591,5 @@ Generate complete, production-ready code files."""
     graph.set_finish_point("codesmith")
 
     # Compile and return
-    logger.debug("✅ Codesmith subgraph v6.1 compiled")
+    logger.debug("✅ Codesmith subgraph v6.2 compiled (MCP)")
     return graph.compile()

@@ -1,4 +1,26 @@
 """
+⚠️ OBSOLETE - DO NOT USE - Replaced by MCP Protocol (v6.2+)
+
+This file is OBSOLETE as of v6.2.0-alpha.
+All Perplexity API calls now go through the MCP protocol.
+
+Replacement:
+- OLD: from tools.perplexity_tool import perplexity_search
+- NEW: await mcp.call(server="perplexity", tool="perplexity_search", ...)
+
+Integration:
+- Research Subgraph: Now uses MCP client (research_subgraph_v6_1.py)
+- All subgraphs: Use mcp.call() instead of direct tool imports
+
+This file is kept for reference only and may be deleted in future versions.
+
+Deprecated: 2025-10-13
+Replacement: MCP Perplexity Server (mcp/servers/perplexity_server.py)
+
+---
+
+OLD DOCUMENTATION (for reference):
+
 Perplexity API Tool for Research Agent
 
 Provides web search capabilities using Perplexity Sonar API.
