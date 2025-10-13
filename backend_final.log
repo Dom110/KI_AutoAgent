@@ -1,9 +1,0 @@
-INFO:__main__:🔍 DEBUG: Starting LangGraph server v5.6.0 on port 8001
-INFO:__main__:🔍 DEBUG: This is the ACTIVE server for v5.6.0-ai-routing-dashboard
-INFO:__main__:🔍 DEBUG: WebSocket endpoint: ws://localhost:8001/ws/chat
-INFO:__main__:✅ Models API endpoint registered at /api/models
-INFO:__main__:✅ Settings API endpoint registered at /api/settings
-INFO:__main__:🔐 Generated shutdown token: 2600BKmKw10l...
-ERROR:__main__:❌ KI Agent already running on port 8001
-ERROR:__main__:❌ Another instance is already running. Please stop it first.
-ERROR:__main__:❌ Use: $HOME/.ki_autoagent/stop.sh
