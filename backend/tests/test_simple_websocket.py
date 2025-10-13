@@ -29,29 +29,36 @@ async def test_simple_connection():
         await ws.send(json.dumps(init_msg))
         print(f"📤 Sent init: {init_msg}")
 
-        # Wait for init response
-        response = await asyncio.wait_for(ws.recv(), timeout=10)
-        data = json.loads(response)
-        print(f"📥 Init response: {data}")
+        # 2. Wait for TWO responses: "connected" first, then "initialized"
+        # First message: "connected" (welcome message)
+        response1 = await asyncio.wait_for(ws.recv(), timeout=10)
+        data1 = json.loads(response1)
+        print(f"📥 Welcome message: {data1.get('type')}")
 
-        if data.get("type") != "init_complete":
-            print(f"❌ Expected init_complete, got: {data}")
+        # Second message: "initialized" (after workflow initialization)
+        response2 = await asyncio.wait_for(ws.recv(), timeout=30)  # Longer timeout for initialization
+        data2 = json.loads(response2)
+        print(f"📥 Init response: {data2}")
+
+        if data2.get("type") != "initialized":
+            print(f"❌ Expected 'initialized', got: {data2.get('type')}")
             return False
 
-        session_id = data.get("session_id")
+        session_id = data2.get("session_id")
         print(f"✅ Session initialized: {session_id}")
 
-        # 2. Send simple query
+        # 3. Send simple query (use "chat" type)
         query_msg = {
-            "type": "query",
+            "type": "chat",  # Server expects "chat" or "message", not "query"
             "content": "Create a simple Hello World Python script"
         }
         await ws.send(json.dumps(query_msg))
         print(f"📤 Sent query: {query_msg['content']}")
 
-        # 3. Wait for responses
-        print("⏳ Waiting for responses (max 60 seconds)...")
-        timeout = 60
+        # 4. Wait for responses
+        # NOTE: Workflow can take 10-15 minutes for complete execution
+        print("⏳ Waiting for responses (max 15 minutes)...")
+        timeout = 900  # 15 minutes
         start = asyncio.get_event_loop().time()
         response_count = 0
 
@@ -66,7 +73,7 @@ async def test_simple_connection():
 
                 # Print relevant content
                 if msg_type == "status":
-                    print(f"   Status: {data.get('content', '')}")
+                    print(f"   Status: {data.get('message', data.get('content', ''))}")
                 elif msg_type == "response":
                     content = data.get("content", "")
                     print(f"   Response: {content[:100]}...")
@@ -82,7 +89,8 @@ async def test_simple_connection():
                 elif msg_type == "result":
                     print(f"   ✅ RESULT received!")
                     print(f"   Success: {data.get('success')}")
-                    print(f"   Final answer: {data.get('final_answer', '')[:200]}")
+                    print(f"   Quality Score: {data.get('quality_score', 'N/A')}")
+                    print(f"   Message: {data.get('message', '')}")
                     return True
                 elif msg_type == "error":
                     print(f"   ❌ ERROR: {data.get('message')}")
