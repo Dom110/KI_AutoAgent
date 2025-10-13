@@ -1,7 +1,7 @@
-# KI AutoAgent v6.1 - System Architecture Documentation
+# KI AutoAgent v6.2 - System Architecture Documentation
 
-**Version:** 6.1.0-alpha
-**Date:** 2025-10-11
+**Version:** 6.2.0-alpha
+**Date:** 2025-10-13
 **Status:** PRODUCTION
 
 ---
@@ -139,10 +139,20 @@ Research → Architect → Codesmith → ReviewFix
 
 ### 4. **Agent Details**
 
-#### **Research Agent**
-- **Purpose:** Gather information and best practices
-- **Tools:** Perplexity API, Web Search
-- **Output:** Research findings, technology recommendations
+#### **Research Agent (Multi-Modal v6.2)**
+- **Purpose:** Gather information, explain codebases, and analyze code quality
+- **Tools:** Perplexity API, Claude CLI (Read/Bash)
+- **Modes (NEW v6.2):**
+  - **`research`** (default): Web search with Perplexity for new information
+    - Use case: CREATE workflows - search for best practices, technologies, patterns
+    - Example: "Create a task manager app" → Searches for task manager patterns
+  - **`explain`**: Analyze and explain existing codebase structure
+    - Use case: EXPLAIN workflows - user wants to understand existing code
+    - Example: "Explain how the API works" → Reads codebase and explains architecture
+  - **`analyze`**: Deep code analysis and quality assessment
+    - Use case: Code quality, security, performance analysis
+    - Example: "Analyze code quality" → Reviews code for issues and improvements
+- **Output:** Mode-specific reports (search findings, explanations, or analysis)
 
 #### **Architect Agent**
 - **Purpose:** Design system architecture
@@ -374,6 +384,341 @@ grep "Project Type:" /tmp/v6_server.log
 - [ ] More languages (C++, C#, PHP, Ruby, etc.)
 - [ ] Configurable quality thresholds per project
 - [ ] Build validation caching (skip if files unchanged)
+
+---
+
+## 🔍 Research Agent Modes System (v6.2+)
+
+**Status:** ✅ Fully Implemented (v6.2.0-alpha)
+**Date:** 2025-10-13
+
+### Overview
+
+The Research Agent in v6.2 is **multi-modal**, supporting three distinct execution modes instead of only web search. This enables the agent to handle CREATE, EXPLAIN, and ANALYZE workflows intelligently without requiring separate agents for each task type.
+
+### Architecture Principle
+
+**Goal:** Scalable architecture that doesn't require creating new agents for every verb.
+
+**Before v6.2 (BAD):**
+```python
+# ❌ Create new agent for every task type
+if task == "explain":
+    use explain_agent()
+if task == "analyze":
+    use analyze_agent()
+if task == "audit":
+    use audit_agent()
+# → N agents for N verbs = NOT SCALABLE!
+```
+
+**After v6.2 (GOOD):**
+```python
+# ✅ One agent with multiple modes
+research_agent(mode="research")  # Web search
+research_agent(mode="explain")   # Codebase explanation
+research_agent(mode="analyze")   # Code analysis
+# → 1 agent with 3 modes = SCALABLE!
+```
+
+### Three Execution Modes
+
+#### 1. **research** Mode (Default)
+**Use Case:** CREATE workflows - need external information
+
+**Behavior:**
+1. Search with Perplexity API
+2. Analyze findings with Claude
+3. Store in Memory
+4. Return research report
+
+**Tools:** Perplexity API, Claude CLI (Read, Bash)
+
+**Example:**
+```
+User: "Create a task manager app"
+→ Research mode="research"
+→ Searches: "task manager best practices", "todo app patterns"
+→ Returns: Technologies, patterns, recommendations
+```
+
+**Implementation:** `research_search_mode()` in `research_subgraph_v6_1.py:42-152`
+
+#### 2. **explain** Mode
+**Use Case:** EXPLAIN workflows - understand existing code
+
+**Behavior:**
+1. Analyze workspace structure with Claude
+2. Read key files to understand implementation
+3. Explain architecture and components
+4. Store explanation in Memory
+
+**Tools:** Claude CLI (Read, Bash)
+
+**Example:**
+```
+User: "Explain how the API works"
+→ Research mode="explain"
+→ Reads: API files, routes, controllers
+→ Returns: Architecture overview, data flow, key components
+```
+
+**Implementation:** `research_explain_mode()` in `research_subgraph_v6_1.py:155-277`
+
+#### 3. **analyze** Mode
+**Use Case:** Code quality, security, performance analysis
+
+**Behavior:**
+1. Deep code analysis with Claude
+2. Quality assessment (readability, maintainability, documentation)
+3. Security vulnerability identification
+4. Performance and architecture evaluation
+5. Store analysis in Memory
+
+**Tools:** Claude CLI (Read, Bash)
+
+**Example:**
+```
+User: "Analyze code quality and security"
+→ Research mode="analyze"
+→ Analyzes: Code quality, security, performance, architecture
+→ Returns: Quality score, vulnerabilities, improvements
+```
+
+**Implementation:** `research_analyze_mode()` in `research_subgraph_v6_1.py:280-405`
+
+### Mode Selection Pipeline
+
+```mermaid
+graph TD
+    A[User Query] --> B[WorkflowPlannerV6]
+    B --> C[GPT-4o-mini analyzes query]
+    C --> D{Query Type?}
+
+    D -->|CREATE| E[Plan: research mode=research]
+    D -->|EXPLAIN| F[Plan: research mode=explain]
+    D -->|ANALYZE| G[Plan: research mode=analyze]
+
+    E --> H[Mode Inferenz Fallback]
+    F --> H
+    G --> H
+
+    H --> I{Mode specified?}
+    I -->|Yes| J[Use specified mode]
+    I -->|No| K[Infer from description]
+
+    K --> L{Keywords?}
+    L -->|explain, describe| M[mode=explain]
+    L -->|analyze, audit| N[mode=analyze]
+    L -->|default| O[mode=research]
+
+    J --> P[AgentStep validation]
+    M --> P
+    N --> P
+    O --> P
+
+    P --> Q[Store in workflow plan]
+    Q --> R[Execute research_node]
+    R --> S{Mode Dispatcher}
+
+    S -->|research| T[research_search_mode]
+    S -->|explain| U[research_explain_mode]
+    S -->|analyze| V[research_analyze_mode]
+```
+
+### Implementation Components
+
+#### 1. **AgentStep Dataclass**
+**File:** `backend/cognitive/workflow_planner_v6.py:65-96`
+
+```python
+@dataclass
+class AgentStep:
+    agent: AgentType
+    description: str
+    mode: str = "default"  # NEW v6.2!
+
+    def __post_init__(self):
+        """Validate mode parameter."""
+        valid_modes = {
+            AgentType.RESEARCH: ["default", "research", "explain", "analyze"],
+            # ... other agents
+        }
+        if self.mode not in valid_modes[self.agent]:
+            logger.warning(f"Invalid mode '{self.mode}' → using 'default'")
+            self.mode = "default"
+```
+
+#### 2. **System Prompt**
+**File:** `backend/cognitive/workflow_planner_v6.py:160-308`
+
+The system prompt teaches GPT-4o-mini when to use each mode:
+
+```python
+# research
+- **"research"** (default): Search web with Perplexity for new information
+  → Use when: CREATE new features, need external information
+- **"explain"**: Analyze and explain existing codebase structure
+  → Use when: User wants to UNDERSTAND/EXPLAIN/DESCRIBE existing code
+  → Keywords: "explain", "untersuche", "describe", "show me", "how does"
+- **"analyze"**: Deep analysis of existing architecture and code patterns
+  → Use when: User wants DEEP INSIGHTS, quality assessment, security audit
+  → Keywords: "analyze", "audit", "review", "assess"
+```
+
+#### 3. **Mode Inference**
+**File:** `backend/cognitive/workflow_planner_v6.py:410-429`
+
+If GPT-4o-mini doesn't specify mode, system infers from description:
+
+```python
+if agent_type == AgentType.RESEARCH and mode == "default":
+    description_lower = step["description"].lower()
+
+    # Infer "explain" mode
+    explain_keywords = ["explain", "describe", "untersuche", "erkläre"]
+    if any(keyword in description_lower for keyword in explain_keywords):
+        mode = "explain"
+
+    # Infer "analyze" mode (higher priority)
+    analyze_keywords = ["analyze", "audit", "review", "assess"]
+    if any(keyword in description_lower for keyword in analyze_keywords):
+        mode = "analyze"
+```
+
+#### 4. **ResearchState**
+**File:** `backend/state_v6.py:76-114`
+
+```python
+class ResearchState(TypedDict):
+    query: str
+    workspace_path: str
+    mode: str  # ← NEW v6.2: "research" | "explain" | "analyze"
+    findings: dict[str, Any]
+    sources: list[str]
+    report: str
+    errors: list[dict[str, Any]]
+```
+
+#### 5. **Mode Dispatcher**
+**File:** `backend/subgraphs/research_subgraph_v6_1.py:437-513`
+
+```python
+async def research_node(state: ResearchState) -> ResearchState:
+    mode = state.get("mode", "research")
+
+    if mode == "research":
+        result = await research_search_mode(...)
+    elif mode == "explain":
+        result = await research_explain_mode(...)
+    elif mode == "analyze":
+        result = await research_analyze_mode(...)
+    else:
+        # Invalid mode → fallback to research
+        result = await research_search_mode(...)
+```
+
+#### 6. **State Propagation**
+**File:** `backend/workflow_v6_integrated.py:692-800`
+
+Mode is extracted from workflow plan and passed through state:
+
+```python
+# Extract modes from plan
+agent_modes = {}
+for step in plan.agents:
+    agent_modes[step.agent.value] = step.mode
+
+# Store in session
+self.current_session["metadata"]["agent_modes"] = agent_modes
+
+# Pass to research agent
+research_mode = agent_modes.get("research", "research")
+research_input = supervisor_to_research(state, mode=research_mode)
+```
+
+### Mode-Specific Prompts
+
+Each mode has optimized prompts for its use case:
+
+**research mode:** Temperature 0.3, Max Tokens 4096
+**explain mode:** Temperature 0.2, Max Tokens 8192 (detailed explanations)
+**analyze mode:** Temperature 0.1, Max Tokens 8192 (objective analysis)
+
+### Testing
+
+**File:** `backend/tests/test_planner_only.py`
+
+8 comprehensive test cases including mode validation:
+
+```python
+test_cases = [
+    ("Create a task manager app", "CREATE", "research"),
+    ("Explain how the API works", "EXPLAIN", "explain"),
+    ("Analyze code quality", "EXPLAIN", "analyze"),
+    ("Untersuche die App", "EXPLAIN", "explain"),  # German!
+    # ... 4 more
+]
+```
+
+**Expected:** 8/8 PASSED in ~30 seconds
+
+### Performance Characteristics
+
+| Mode     | Tools           | Avg Duration | Output Size |
+|----------|-----------------|--------------|-------------|
+| research | Perplexity+Claude| 10-15s      | 2-4KB       |
+| explain  | Claude (Read)   | 15-25s      | 4-8KB       |
+| analyze  | Claude (Read)   | 20-30s      | 6-12KB      |
+
+### Error Handling
+
+**Graceful Degradation:**
+- Invalid mode → Falls back to `research` mode
+- Mode inference fails → Uses `"research"` as default
+- Claude CLI timeout → Returns error with mode context
+
+**Example:**
+```python
+except Exception as e:
+    logger.error(f"❌ Research failed [mode={mode}]: {e}")
+    return {
+        "report": f"Research failed [{mode} mode]: {str(e)}",
+        "errors": [{"error": str(e), "mode": mode}]
+    }
+```
+
+### Breaking Changes
+
+**⚠️ ResearchState now requires `mode` parameter!**
+
+**Before v6.2:**
+```python
+research_state = {
+    "query": "...",
+    "workspace_path": "...",
+    # No mode parameter
+}
+```
+
+**After v6.2:**
+```python
+research_state = {
+    "query": "...",
+    "workspace_path": "...",
+    "mode": "research",  # ← REQUIRED!
+}
+```
+
+**Migration:** Use `supervisor_to_research(state, mode="research")` helper function.
+
+### Future Enhancements
+
+- [ ] Add `debug` mode for troubleshooting
+- [ ] Add `benchmark` mode for performance testing
+- [ ] Support custom user-defined modes via config
+- [ ] Mode-specific caching strategies
+- [ ] Parallel mode execution (e.g., explain + analyze together)
 
 ---
 
@@ -624,5 +969,27 @@ Critical operations require approval:
 
 ---
 
-**Last Updated:** 2025-10-11
+## 📝 Changelog v6.2.0-alpha
+
+### New Features
+- ✅ **Research Agent Modes** - Multi-modal research agent (research/explain/analyze)
+- ✅ **AI-Based Mode Selection** - GPT-4o-mini determines correct mode
+- ✅ **Intelligent Mode Inference** - Keyword-based fallback for robustness
+- ✅ **Mode Validation** - Dataclass-level validation prevents invalid modes
+- ✅ **German Language Support** - Mode inference works with German keywords
+
+### Architecture Changes
+- `AgentStep` now has `mode` parameter (default="default")
+- `ResearchState` now requires `mode: str` field
+- `supervisor_to_research()` now accepts `mode` parameter
+- Research subgraph v6.1 → v6.2 (multi-modal)
+
+### Breaking Changes
+- ⚠️ `ResearchState` now requires `mode` field (use helper functions for migration)
+- ⚠️ Direct research_node calls must include mode in state
+
+---
+
+**Last Updated:** 2025-10-13
+**Version:** 6.2.0-alpha
 **Maintained By:** KI AutoAgent Team

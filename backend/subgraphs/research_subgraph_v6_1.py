@@ -1,14 +1,17 @@
 """
-Research Subgraph v6.1 - Custom Node Implementation
+Research Subgraph v6.2 - Multi-Modal Research Agent
 
-This is a refactored version that doesn't use create_react_agent,
-allowing it to work with Claude CLI adapter.
+Changes from v6.1:
+- Added mode parameter: "research" | "explain" | "analyze"
+- Mode dispatcher for different research behaviors
+- research_search_mode(): Perplexity web search (original v6.1 behavior)
+- research_explain_mode(): Analyze and explain existing codebase
+- research_analyze_mode(): Deep code analysis and quality assessment
 
-Changes from v6.0:
-- Removed create_react_agent (incompatible with async-only LLMs)
-- Direct LLM.ainvoke() calls (like Architect pattern)
-- Manual tool calling for Perplexity (simplified)
-- Works with ClaudeCLISimple adapter
+Mode Selection:
+- "research" (default): Web search with Perplexity for new information
+- "explain": Analyze existing code structure and explain architecture
+- "analyze": Deep analysis of code quality, security, patterns
 
 Author: KI AutoAgent Team
 Python: 3.13+
@@ -18,6 +21,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -31,76 +35,50 @@ from tools.perplexity_tool import perplexity_search
 logger = logging.getLogger(__name__)
 
 
-def create_research_subgraph(
+# ============================================================================
+# MODE FUNCTIONS - Research Agent Behaviors (v6.2+)
+# ============================================================================
+
+async def research_search_mode(
+    state: ResearchState,
     workspace_path: str,
-    memory: Any | None = None,
-    hitl_callback: Any | None = None
-) -> Any:
+    memory: Any | None,
+    hitl_callback: Any | None
+) -> dict[str, Any]:
     """
-    Create Research subgraph with custom node implementation.
+    Research Mode: Web search with Perplexity.
 
-    This version uses direct LLM calls instead of create_react_agent,
-    making it compatible with async-only LLMs like ClaudeCLISimple.
+    Use case: CREATE workflows - search for best practices, technologies, patterns
 
-    Args:
-        workspace_path: Path to workspace
-        memory: Memory system instance (optional)
-        hitl_callback: Optional HITL callback for debug info
-
-    Returns:
-        Compiled research subgraph
+    Flow:
+    1. Search with Perplexity
+    2. Analyze findings with Claude
+    3. Store in Memory
+    4. Return structured results
     """
-    logger.debug("Creating Research subgraph v6.1 (custom node)...")
+    logger.info(f"🌐 Research mode: web search for '{state['query']}'")
 
-    # Research node function
-    async def research_node(state: ResearchState) -> ResearchState:
-        """
-        Execute research with custom implementation.
+    # Step 1: Search with Perplexity
+    logger.info("🌐 Searching with Perplexity...")
+    search_result = await perplexity_search.ainvoke({"query": state['query']})
+    search_findings = search_result.get("content", "No results found")
+    logger.info(f"✅ Perplexity results: {len(search_findings)} chars")
 
-        Flow:
-        1. Use Perplexity to search for information
-        2. Use Claude to analyze and summarize findings
-        3. Store in Memory
-        4. Return results
-        """
-        print(f"🔍 === RESEARCH SUBGRAPH START ===")
-        logger.info(f"🔍 Research node v6.1 executing: {state['query']}")
+    # Step 2: Analyze with Claude
+    logger.info("🤖 Analyzing findings with Claude...")
+    llm = ChatAnthropic(
+        model="claude-sonnet-4-20250514",
+        temperature=0.3,
+        max_tokens=4096,
+        agent_name="research",
+        agent_description="Research analyst specializing in software development and technology",
+        agent_tools=["Read", "Bash"],
+        permission_mode="acceptEdits",
+        hitl_callback=hitl_callback,
+        workspace_path=workspace_path
+    )
 
-        try:
-            # Step 1: Search with Perplexity
-            print(f"  Step 1: Calling Perplexity...")
-            logger.info("🌐 Searching with Perplexity...")
-            search_result = await perplexity_search.ainvoke({"query": state['query']})
-            print(f"  Step 1: Perplexity returned {type(search_result)}")
-
-            # LOG COMPLETE PERPLEXITY OUTPUT
-            import json
-            with open("/tmp/perplexity_output.json", "w") as f:
-                json.dump(search_result, f, indent=2)
-            print(f"  📝 Perplexity complete output: /tmp/perplexity_output.json")
-
-            search_findings = search_result.get("content", "No results found")
-            print(f"  Step 1: Got {len(search_findings)} chars")
-            logger.info(f"✅ Perplexity results: {len(search_findings)} chars")
-
-            # Step 2: Analyze with Claude
-            print(f"  Step 2: Creating Claude LLM...")
-            logger.info("🤖 Analyzing findings with Claude...")
-
-            llm = ChatAnthropic(
-                model="claude-sonnet-4-20250514",
-                temperature=0.3,
-                max_tokens=4096,
-                agent_name="research",
-                agent_description="Research analyst specializing in software development and technology",
-                agent_tools=["Read", "Bash"],  # Read for context, Bash for utilities (NOT Edit - no file creation needed)
-                permission_mode="acceptEdits",  # Not strictly needed but harmless
-                hitl_callback=hitl_callback,  # Pass HITL callback for debug info
-                workspace_path=workspace_path  # 🎯 FIX (2025-10-11): Set CWD for subprocess!
-            )
-            print(f"  Step 2: LLM created, calling Claude CLI...")
-
-            system_prompt = """You are a research analyst specializing in software development.
+    system_prompt = """You are a research analyst specializing in software development.
 
 Your responsibilities:
 1. Analyze search results and extract key insights
@@ -114,7 +92,7 @@ Output format:
 - Best Practices: Recommended approaches
 - Sources: Where the information came from"""
 
-            user_prompt = f"""Analyze the following research results:
+    user_prompt = f"""Analyze the following research results:
 
 **Query:** {state['query']}
 
@@ -123,29 +101,20 @@ Output format:
 
 Provide a structured summary of the key findings."""
 
-            # LOG PROMPTS FOR DEBUGGING
-            with open("/tmp/claude_system_prompt.txt", "w") as f:
-                f.write(system_prompt)
-            with open("/tmp/claude_user_prompt.txt", "w") as f:
-                f.write(user_prompt)
-            print(f"  📝 System prompt: /tmp/claude_system_prompt.txt ({len(system_prompt)} chars)")
-            print(f"  📝 User prompt: /tmp/claude_user_prompt.txt ({len(user_prompt)} chars)")
+    response = await llm.ainvoke([
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt)
+    ])
 
-            response = await llm.ainvoke([
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ])
-            print(f"  Step 2: Claude returned {type(response)}")
+    analysis = response.content if hasattr(response, 'content') else str(response)
+    logger.info(f"✅ Analysis complete: {len(analysis)} chars")
 
-            analysis = response.content if hasattr(response, 'content') else str(response)
-            print(f"  Step 2: Analysis complete: {len(analysis)} chars")
-            logger.info(f"✅ Analysis complete: {len(analysis)} chars")
-
-            # Step 3: Create research report
-            report = f"""# Research Report
+    # Step 3: Create research report
+    report = f"""# Research Report
 
 **Query:** {state['query']}
 **Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Mode:** research (web search)
 
 ## Analysis
 
@@ -156,53 +125,391 @@ Provide a structured summary of the key findings."""
 {search_findings[:500]}...
 
 ---
-*Generated by Research Agent v6.1*
+*Generated by Research Agent v6.2 (research mode)*
 """
 
-            findings = {
-                "analysis": analysis,
-                "raw_results": search_findings,
-                "timestamp": datetime.now().isoformat()
-            }
+    findings = {
+        "analysis": analysis,
+        "raw_results": search_findings,
+        "timestamp": datetime.now().isoformat(),
+        "mode": "research"
+    }
 
-            # Step 4: Store in Memory (if available)
-            print(f"  Step 3: Memory store...")
-            if memory:
-                print(f"  Step 3: Storing in memory...")
-                logger.info("💾 Storing findings in Memory...")
-                await memory.store(
-                    content=analysis,
-                    metadata={
-                        "agent": "research",
-                        "type": "findings",
-                        "query": state['query'],
-                        "timestamp": findings["timestamp"]
-                    }
+    # Step 4: Store in Memory
+    if memory:
+        logger.info("💾 Storing findings in Memory...")
+        await memory.store(
+            content=analysis,
+            metadata={
+                "agent": "research",
+                "type": "findings",
+                "mode": "research",
+                "query": state['query'],
+                "timestamp": findings["timestamp"]
+            }
+        )
+
+    return {"findings": findings, "report": report}
+
+
+async def research_explain_mode(
+    state: ResearchState,
+    workspace_path: str,
+    memory: Any | None,
+    hitl_callback: Any | None
+) -> dict[str, Any]:
+    """
+    Explain Mode: Analyze and explain existing codebase.
+
+    Use case: EXPLAIN workflows - user wants to understand existing code
+
+    Flow:
+    1. Analyze workspace structure with Claude (Read tool)
+    2. Explain architecture and key components
+    3. Store explanation in Memory
+    4. Return structured explanation
+    """
+    logger.info(f"📖 Explain mode: analyzing codebase for '{state['query']}'")
+
+    # Step 1: Analyze codebase with Claude
+    logger.info("🤖 Analyzing codebase with Claude...")
+    llm = ChatAnthropic(
+        model="claude-sonnet-4-20250514",
+        temperature=0.2,  # Lower temp for accurate code analysis
+        max_tokens=8192,  # More tokens for detailed explanations
+        agent_name="research_explainer",
+        agent_description="Code analyst specializing in architecture explanation and documentation",
+        agent_tools=["Read", "Bash"],  # Read files, run analysis commands
+        permission_mode="acceptEdits",
+        hitl_callback=hitl_callback,
+        workspace_path=workspace_path
+    )
+
+    system_prompt = """You are a code analyst specializing in explaining software architecture.
+
+Your responsibilities:
+1. Analyze the codebase structure (files, directories, key components)
+2. Explain the overall architecture and design patterns used
+3. Identify main features and how they're implemented
+4. Describe data flow and component interactions
+5. Highlight interesting or notable implementation details
+
+Tools available:
+- Read: Read any file in the workspace
+- Bash: Run commands like 'ls', 'find', 'wc', 'grep' for analysis
+
+Output format:
+# Architecture Overview
+- High-level architecture description
+- Main components and their responsibilities
+
+# Key Features
+- Feature 1: Description and implementation
+- Feature 2: Description and implementation
+
+# Technology Stack
+- Languages, frameworks, libraries used
+
+# Code Organization
+- Directory structure
+- Important files and their purposes
+
+# Implementation Highlights
+- Notable patterns or techniques
+- Interesting code snippets"""
+
+    user_prompt = f"""Analyze the codebase in the current workspace and explain:
+
+**User Question:** {state['query']}
+
+**Workspace Path:** {workspace_path}
+
+Please:
+1. First, explore the workspace structure (use Bash: ls, find, etc.)
+2. Then, read key files to understand the implementation
+3. Finally, provide a comprehensive explanation answering the user's question
+
+Focus on providing clear, actionable explanations that help the user understand the codebase."""
+
+    response = await llm.ainvoke([
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt)
+    ])
+
+    explanation = response.content if hasattr(response, 'content') else str(response)
+    logger.info(f"✅ Explanation complete: {len(explanation)} chars")
+
+    # Step 2: Create explanation report
+    report = f"""# Codebase Explanation
+
+**Query:** {state['query']}
+**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Mode:** explain (codebase analysis)
+
+{explanation}
+
+---
+*Generated by Research Agent v6.2 (explain mode)*
+"""
+
+    findings = {
+        "explanation": explanation,
+        "workspace_analyzed": workspace_path,
+        "timestamp": datetime.now().isoformat(),
+        "mode": "explain"
+    }
+
+    # Step 3: Store in Memory
+    if memory:
+        logger.info("💾 Storing explanation in Memory...")
+        await memory.store(
+            content=explanation,
+            metadata={
+                "agent": "research",
+                "type": "explanation",
+                "mode": "explain",
+                "query": state['query'],
+                "workspace": workspace_path,
+                "timestamp": findings["timestamp"]
+            }
+        )
+
+    return {"findings": findings, "report": report}
+
+
+async def research_analyze_mode(
+    state: ResearchState,
+    workspace_path: str,
+    memory: Any | None,
+    hitl_callback: Any | None
+) -> dict[str, Any]:
+    """
+    Analyze Mode: Deep code analysis and quality assessment.
+
+    Use case: ANALYZE workflows - code quality, security, patterns
+
+    Flow:
+    1. Deep code analysis with Claude (Read tool + Bash for metrics)
+    2. Quality assessment (security, performance, maintainability)
+    3. Store analysis in Memory
+    4. Return structured analysis report
+    """
+    logger.info(f"🔬 Analyze mode: deep analysis for '{state['query']}'")
+
+    # Step 1: Deep analysis with Claude
+    logger.info("🤖 Performing deep code analysis with Claude...")
+    llm = ChatAnthropic(
+        model="claude-sonnet-4-20250514",
+        temperature=0.1,  # Lowest temp for objective analysis
+        max_tokens=8192,
+        agent_name="research_analyzer",
+        agent_description="Code auditor specializing in quality, security, and architecture analysis",
+        agent_tools=["Read", "Bash"],
+        permission_mode="acceptEdits",
+        hitl_callback=hitl_callback,
+        workspace_path=workspace_path
+    )
+
+    system_prompt = """You are a code auditor specializing in comprehensive code analysis.
+
+Your responsibilities:
+1. Assess code quality (readability, maintainability, documentation)
+2. Identify security vulnerabilities and potential issues
+3. Analyze performance characteristics
+4. Evaluate architecture and design patterns
+5. Suggest improvements and best practices
+
+Tools available:
+- Read: Read any file in the workspace
+- Bash: Run analysis commands (grep, find, wc, etc.)
+
+Output format:
+# Quality Assessment
+- Code Quality Score: X/10
+- Strengths: What's done well
+- Weaknesses: Areas for improvement
+
+# Security Analysis
+- Potential Vulnerabilities: List of security concerns
+- Recommendations: How to fix them
+
+# Performance Analysis
+- Performance Characteristics: Observations
+- Optimization Opportunities: Suggestions
+
+# Architecture Evaluation
+- Design Patterns Used: List patterns
+- Architecture Quality: Assessment
+- Suggested Refactorings: Improvements
+
+# Action Items
+Priority-ordered list of improvements"""
+
+    user_prompt = f"""Perform a deep analysis of the codebase:
+
+**Analysis Request:** {state['query']}
+
+**Workspace Path:** {workspace_path}
+
+Please:
+1. Explore the codebase structure
+2. Read and analyze key files
+3. Identify patterns, issues, and opportunities
+4. Provide a comprehensive analysis report
+
+Focus on actionable insights and concrete recommendations."""
+
+    response = await llm.ainvoke([
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_prompt)
+    ])
+
+    analysis = response.content if hasattr(response, 'content') else str(response)
+    logger.info(f"✅ Deep analysis complete: {len(analysis)} chars")
+
+    # Step 2: Create analysis report
+    report = f"""# Code Analysis Report
+
+**Query:** {state['query']}
+**Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Mode:** analyze (deep code analysis)
+
+{analysis}
+
+---
+*Generated by Research Agent v6.2 (analyze mode)*
+"""
+
+    findings = {
+        "analysis": analysis,
+        "workspace_analyzed": workspace_path,
+        "timestamp": datetime.now().isoformat(),
+        "mode": "analyze"
+    }
+
+    # Step 3: Store in Memory
+    if memory:
+        logger.info("💾 Storing analysis in Memory...")
+        await memory.store(
+            content=analysis,
+            metadata={
+                "agent": "research",
+                "type": "analysis",
+                "mode": "analyze",
+                "query": state['query'],
+                "workspace": workspace_path,
+                "timestamp": findings["timestamp"]
+            }
+        )
+
+    return {"findings": findings, "report": report}
+
+
+# ============================================================================
+# RESEARCH SUBGRAPH - Mode Dispatcher (v6.2+)
+# ============================================================================
+
+def create_research_subgraph(
+    workspace_path: str,
+    memory: Any | None = None,
+    hitl_callback: Any | None = None
+) -> Any:
+    """
+    Create Research subgraph with multi-modal implementation.
+
+    v6.2 Changes:
+    - Mode dispatcher for different research behaviors
+    - "research" mode: Web search with Perplexity
+    - "explain" mode: Analyze and explain existing codebase
+    - "analyze" mode: Deep code analysis and quality assessment
+
+    Args:
+        workspace_path: Path to workspace
+        memory: Memory system instance (optional)
+        hitl_callback: Optional HITL callback for debug info
+
+    Returns:
+        Compiled research subgraph
+    """
+    logger.debug("Creating Research subgraph v6.2 (multi-modal)...")
+
+    # Research node function with mode dispatcher
+    async def research_node(state: ResearchState) -> ResearchState:
+        """
+        Execute research with mode-specific behavior.
+
+        Mode Dispatcher:
+        - "research": Web search with Perplexity
+        - "explain": Analyze and explain codebase
+        - "analyze": Deep code analysis
+
+        Flow:
+        1. Read mode from state
+        2. Dispatch to appropriate mode function
+        3. Handle errors
+        4. Return results
+        """
+        mode = state.get("mode", "research")  # Default to "research" if not specified
+        logger.info(f"🔍 Research node v6.2 executing [mode={mode}]: {state['query']}")
+
+        try:
+            # Mode dispatcher
+            if mode == "research":
+                # Web search mode (original v6.1 behavior)
+                result = await research_search_mode(
+                    state=state,
+                    workspace_path=workspace_path,
+                    memory=memory,
+                    hitl_callback=hitl_callback
                 )
-                print(f"  Step 3: Memory stored")
-                logger.debug("✅ Findings stored in Memory")
+
+            elif mode == "explain":
+                # Explain codebase mode
+                result = await research_explain_mode(
+                    state=state,
+                    workspace_path=workspace_path,
+                    memory=memory,
+                    hitl_callback=hitl_callback
+                )
+
+            elif mode == "analyze":
+                # Deep analysis mode
+                result = await research_analyze_mode(
+                    state=state,
+                    workspace_path=workspace_path,
+                    memory=memory,
+                    hitl_callback=hitl_callback
+                )
+
             else:
-                print(f"  Step 3: No memory, skipping")
+                # Invalid mode - log warning and fall back to research mode
+                logger.warning(f"⚠️ Invalid research mode '{mode}', falling back to 'research'")
+                result = await research_search_mode(
+                    state=state,
+                    workspace_path=workspace_path,
+                    memory=memory,
+                    hitl_callback=hitl_callback
+                )
 
             # Return updated state
-            print(f"  Step 4: Returning state")
+            logger.info(f"✅ Research completed [mode={mode}]")
             return {
                 **state,
-                "findings": findings,
-                "report": report,
-                "completed": True,
+                "findings": result["findings"],
+                "report": result["report"],
+                "sources": result.get("sources", []),
                 "errors": []
             }
 
         except Exception as e:
-            logger.error(f"❌ Research node failed: {e}", exc_info=True)
+            logger.error(f"❌ Research node failed [mode={mode}]: {e}", exc_info=True)
 
             return {
                 **state,
-                "findings": None,
-                "report": f"Research failed: {str(e)}",
-                "completed": False,
-                "errors": [{"error": str(e), "node": "research"}]
+                "findings": {},
+                "report": f"Research failed [{mode} mode]: {str(e)}",
+                "sources": [],
+                "errors": [{"error": str(e), "node": "research", "mode": mode}]
             }
 
     # Build subgraph
@@ -216,5 +523,5 @@ Provide a structured summary of the key findings."""
     graph.set_finish_point("research")
 
     # Compile and return
-    logger.debug("✅ Research subgraph v6.1 compiled")
+    logger.debug("✅ Research subgraph v6.2 compiled (multi-modal)")
     return graph.compile()

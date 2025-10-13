@@ -22,7 +22,9 @@ import json
 import logging
 import os
 import shutil
+import signal
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -39,6 +41,48 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+
+# 🎯 SIGNAL HANDLERS TO DEBUG WHY PROCESS DIES
+def signal_handler(signum, frame):
+    """Log all signals that the process receives."""
+    signal_name = signal.Signals(signum).name
+    logger.critical(f"\n{'='*80}")
+    logger.critical(f"🚨 SIGNAL RECEIVED: {signal_name} ({signum})")
+    logger.critical(f"{'='*80}")
+    logger.critical(f"Process ID: {os.getpid()}")
+    logger.critical(f"Timestamp: {datetime.now().isoformat()}")
+    logger.critical(f"\n📍 Stack Trace:")
+    for line in traceback.format_stack(frame):
+        logger.critical(line.strip())
+    logger.critical(f"{'='*80}\n")
+
+    # Don't exit immediately - let logging flush
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    # Re-raise to let Python handle it
+    if signum in [signal.SIGTERM, signal.SIGINT]:
+        logger.critical(f"⚠️  Process will now terminate due to {signal_name}")
+        sys.exit(128 + signum)
+
+
+# Install signal handlers for ALL catchable signals
+SIGNALS_TO_CATCH = [
+    signal.SIGTERM,  # Kill -15 (graceful)
+    signal.SIGINT,   # Ctrl+C
+    signal.SIGHUP,   # Terminal closed
+    signal.SIGQUIT,  # Quit signal
+    signal.SIGUSR1,  # User-defined
+    signal.SIGUSR2,  # User-defined
+]
+
+for sig in SIGNALS_TO_CATCH:
+    try:
+        signal.signal(sig, signal_handler)
+        logger.debug(f"✅ Installed signal handler for {signal.Signals(sig).name}")
+    except (OSError, ValueError) as e:
+        logger.warning(f"⚠️  Could not install handler for signal {sig}: {e}")
 
 # Test workspace (isolated from development repo!)
 TEST_WORKSPACE = Path.home() / "TestApps" / f"workflow_planner_test_{datetime.now():%Y%m%d_%H%M%S}"

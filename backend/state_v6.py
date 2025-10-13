@@ -82,9 +82,14 @@ class ResearchState(TypedDict):
     Implementation: create_react_agent()
 
     Responsibilities:
-    - Web search for best practices
-    - Documentation gathering
-    - Technology research
+    - Web search for best practices (mode="research")
+    - Analyze and explain existing codebase (mode="explain")
+    - Deep code analysis and quality assessment (mode="analyze")
+
+    Modes (v6.2+):
+    - "research" (default): Perplexity web search for new information
+    - "explain": Analyze existing code structure and explain
+    - "analyze": Deep analysis of architecture and code quality
 
     Memory Integration:
     - Stores findings with tags: ["research", "documentation", "technology"]
@@ -96,6 +101,7 @@ class ResearchState(TypedDict):
     # Input
     query: str
     workspace_path: str
+    mode: str  # ← NEW v6.2: "research" | "explain" | "analyze"
 
     # Research results
     findings: dict[str, Any]
@@ -317,15 +323,21 @@ class ReviewFixState(TypedDict):
 # STATE TRANSFORMATIONS (Supervisor ↔ Subgraphs)
 # ============================================================================
 
-def supervisor_to_research(state: SupervisorState) -> ResearchState:
+def supervisor_to_research(state: SupervisorState, mode: str = "research") -> ResearchState:
     """
     Transform SupervisorState to ResearchState.
 
     Called when Supervisor invokes Research subgraph.
+
+    Args:
+        state: SupervisorState
+        mode: Research agent mode ("research" | "explain" | "analyze")
+              Default: "research"
     """
     return {
         "query": state["user_query"],
         "workspace_path": state["workspace_path"],
+        "mode": mode,  # ← NEW v6.2: Pass mode to research agent
         "findings": {},
         "sources": [],
         "report": "",
@@ -344,7 +356,8 @@ def research_to_supervisor(research_state: ResearchState) -> dict[str, Any]:
         "research_results": {
             "findings": research_state["findings"],
             "sources": research_state["sources"],
-            "report": research_state["report"]
+            "report": research_state["report"],
+            "mode": research_state["mode"]  # ← NEW v6.2: Include mode for debugging
         }
     }
 

@@ -689,6 +689,11 @@ class WorkflowV6Integrated:
                 logger.debug(f"  ⏱️  Estimated: {plan.estimated_duration}")
                 logger.debug(f"  🎯 Success criteria: {', '.join(plan.success_criteria)}")
 
+                # Extract agent modes from plan for later use
+                agent_modes = {}
+                for step in plan.agents:
+                    agent_modes[step.agent.value] = step.mode
+
                 # Store plan in current session
                 self.current_session = {
                     "task_description": user_query,
@@ -708,6 +713,7 @@ class WorkflowV6Integrated:
                             "estimated_duration": plan.estimated_duration,
                             "success_criteria": plan.success_criteria
                         },
+                        "agent_modes": agent_modes,  # ← NEW v6.2: Store modes per agent
                         "workspace_has_code": workspace_has_code
                     }
                 }
@@ -785,8 +791,13 @@ class WorkflowV6Integrated:
                 self.current_session["current_phase"] = "research"
                 print(f"  Input query: {state.get('user_query', 'N/A')[:80]}")
 
-                research_input = supervisor_to_research(state)
-                print(f"  Calling research subgraph...")
+                # NEW v6.2: Extract mode from workflow plan
+                agent_modes = self.current_session.get("metadata", {}).get("agent_modes", {})
+                research_mode = agent_modes.get("research", "research")  # Default to "research" if not specified
+                logger.info(f"  Research mode: {research_mode}")
+
+                research_input = supervisor_to_research(state, mode=research_mode)
+                print(f"  Calling research subgraph with mode={research_mode}...")
                 research_output = await research_subgraph.ainvoke(research_input)
                 print(f"  Research subgraph returned: {type(research_output)}")
 

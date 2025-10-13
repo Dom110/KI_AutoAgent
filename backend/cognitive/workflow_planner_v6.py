@@ -67,12 +67,33 @@ class AgentStep:
     """Represents a single agent execution step in the workflow."""
     agent: AgentType
     description: str
+    mode: str = "default"  # Agent execution mode (e.g., research: research/explain/analyze)
     inputs: List[str] = field(default_factory=list)      # What this agent needs
     outputs: List[str] = field(default_factory=list)      # What this agent produces
     condition: ConditionType = ConditionType.ALWAYS
     condition_params: Dict[str, Any] = field(default_factory=dict)
     max_iterations: int = 1                               # For agents that can loop
     parallel_with: Optional[str] = None                   # Run parallel with this agent
+
+    def __post_init__(self):
+        """Validate mode parameter for each agent type."""
+        # Define valid modes per agent
+        valid_modes = {
+            AgentType.RESEARCH: ["default", "research", "explain", "analyze"],
+            AgentType.ARCHITECT: ["default"],
+            AgentType.CODESMITH: ["default"],
+            AgentType.REVIEWFIX: ["default"],
+            AgentType.EXPLAIN: ["default"],
+            AgentType.DEBUGGER: ["default"]
+        }
+
+        allowed = valid_modes.get(self.agent, ["default"])
+        if self.mode not in allowed:
+            logger.warning(
+                f"Invalid mode '{self.mode}' for agent {self.agent.value}. "
+                f"Allowed: {allowed}. Using 'default'."
+            )
+            self.mode = "default"
 
 
 @dataclass
@@ -138,24 +159,56 @@ class WorkflowPlannerV6:
 
     def _build_system_prompt(self) -> str:
         """Build the system prompt for the workflow planner."""
-        agents_desc = "\n".join([
-            f"- {agent.value}: {caps['description']}"
-            for agent, caps in self.agent_capabilities.items()
-        ])
-
         return f"""You are an AI Workflow Planner for the KI AutoAgent system.
 Your task is to analyze user requests and create optimal execution plans.
 
-# Available Agents:
-{agents_desc}
+# Available Agents and Their Modes:
 
-# Workflow Design Principles:
+## research
+- **Description:** Gathers information, analyzes requirements, searches web, analyzes existing code
+- **MODES (IMPORTANT!):**
+  - **"research"** (default): Search web with Perplexity for new information
+    → Use when: CREATE new features, need external information
+  - **"explain"**: Analyze and explain existing codebase structure
+    → Use when: User wants to UNDERSTAND/EXPLAIN/DESCRIBE existing code
+    → Keywords: "explain", "untersuche", "describe", "show me", "how does"
+  - **"analyze"**: Deep analysis of existing architecture and code patterns
+    → Use when: User wants DEEP INSIGHTS, quality assessment, security audit
+    → Keywords: "analyze", "audit", "review", "assess"
 
-1. **Efficiency**: Use minimum agents needed, avoid redundancy
-2. **Parallelism**: Run independent agents in parallel when possible
-3. **Conditional Execution**: Add conditions to handle edge cases
-4. **Quality Gates**: Include review/validation for code generation
-5. **Iterative Refinement**: Allow loops for quality improvement
+## architect
+- **Description:** Designs system architecture, creates file structure, plans implementation
+- **MODES:** "default" only
+
+## codesmith
+- **Description:** Generates code based on architecture and requirements
+- **MODES:** "default" only
+
+## reviewfix
+- **Description:** Reviews code quality, runs validation, fixes issues
+- **MODES:** "default" only
+
+## explain (DEPRECATED - Use research with mode="explain" instead!)
+- **Description:** Legacy agent for explaining code
+- **MODES:** "default" only
+
+## debugger
+- **Description:** Analyzes errors, finds bugs, suggests fixes
+- **MODES:** "default" only
+
+# CRITICAL RULES FOR RESEARCH AGENT MODES:
+
+1. **CREATE workflows** → research mode="research"
+   Example: "Create a task manager" → {{"agent": "research", "mode": "research"}}
+
+2. **EXPLAIN workflows** → research mode="explain"
+   Example: "Explain the API" → {{"agent": "research", "mode": "explain"}}
+   Example (German): "Untersuche die App" → {{"agent": "research", "mode": "explain"}}
+
+3. **ANALYZE workflows** → research mode="analyze"
+   Example: "Analyze code quality" → {{"agent": "research", "mode": "analyze"}}
+
+4. **DO NOT use "explain" agent!** → Use research with mode="explain" instead
 
 # Output Format:
 
@@ -168,7 +221,8 @@ Return a JSON object with this structure:
     "estimated_duration": "e.g., 2-5 minutes",
     "agents": [
         {{
-            "agent": "research|architect|codesmith|reviewfix|explain|debugger",
+            "agent": "research|architect|codesmith|reviewfix|debugger",
+            "mode": "default|research|explain|analyze",  ← REQUIRED for research agent!
             "description": "What this agent will do",
             "condition": "always|if_success|if_failure|if_quality_low|parallel",
             "condition_params": {{}},
@@ -183,34 +237,75 @@ Return a JSON object with this structure:
     "requires_human_approval": false
 }}
 
-# Conditional Execution Rules:
+# Workflow Design Principles:
 
-- "always": Execute unconditionally
-- "if_success": Only if previous agent succeeded
-- "if_failure": Only if previous agent failed (error recovery)
-- "if_quality_low": Only if quality score < threshold
-- "parallel": Run simultaneously with previous agent
+1. **Efficiency**: Use minimum agents needed, avoid redundancy
+2. **Mode Selection**: Choose correct research mode based on task intent
+3. **Parallelism**: Run independent agents in parallel when possible
+4. **Conditional Execution**: Add conditions to handle edge cases
+5. **Quality Gates**: Include review/validation for code generation
 
 # Common Patterns:
 
-1. **CREATE Pattern**: Research → Architect → Codesmith → ReviewFix
-2. **FIX Pattern**: Research → ReviewFix (with loop)
-3. **EXPLAIN Pattern**: Research → Explain
-4. **REFACTOR Pattern**: Research → Architect → Codesmith → ReviewFix
-5. **DEBUG Pattern**: Debugger → Codesmith → ReviewFix
+1. **CREATE Pattern**: Research (mode="research") → Architect → Codesmith → ReviewFix
+2. **EXPLAIN Pattern**: Research (mode="explain") → DONE
+3. **ANALYZE Pattern**: Research (mode="analyze") → DONE
+4. **FIX Pattern**: Research (mode="analyze") → Debugger → ReviewFix
+5. **REFACTOR Pattern**: Research (mode="research") → Architect → Codesmith → ReviewFix
 
-# Examples:
+# Correct Examples:
 
+**Example 1: CREATE**
 Task: "Create a task manager app"
-Workflow: Research → Architect → Codesmith → ReviewFix (loop if quality < 0.90)
+{{
+  "workflow_type": "CREATE",
+  "agents": [
+    {{"agent": "research", "mode": "research", "description": "Search for task manager patterns"}},
+    {{"agent": "architect", "description": "Design architecture"}},
+    {{"agent": "codesmith", "description": "Generate code"}},
+    {{"agent": "reviewfix", "description": "Review and fix"}}
+  ]
+}}
 
+**Example 2: EXPLAIN**
+Task: "Explain how the API works"
+{{
+  "workflow_type": "EXPLAIN",
+  "agents": [
+    {{"agent": "research", "mode": "explain", "description": "Analyze API codebase and explain"}}
+  ]
+}}
+
+**Example 3: EXPLAIN (German)**
+Task: "Untersuche die App und erkläre mir die Architektur"
+{{
+  "workflow_type": "EXPLAIN",
+  "agents": [
+    {{"agent": "research", "mode": "explain", "description": "Analyze app architecture and explain"}}
+  ]
+}}
+
+**Example 4: ANALYZE**
+Task: "Analyze the security of this codebase"
+{{
+  "workflow_type": "EXPLAIN",
+  "agents": [
+    {{"agent": "research", "mode": "analyze", "description": "Deep security analysis of codebase"}}
+  ]
+}}
+
+**Example 5: FIX**
 Task: "Fix the authentication bug"
-Workflow: Research → Debugger → Codesmith → ReviewFix
+{{
+  "workflow_type": "FIX",
+  "agents": [
+    {{"agent": "research", "mode": "analyze", "description": "Analyze authentication code"}},
+    {{"agent": "debugger", "description": "Find and fix bug"}},
+    {{"agent": "reviewfix", "description": "Validate fix"}}
+  ]
+}}
 
-Task: "Explain how the payment system works"
-Workflow: Research → Explain
-
-Remember: Be intelligent about agent selection. Not every task needs all agents."""
+Remember: ALWAYS specify mode for research agent! Default is "research"."""
 
     async def plan_workflow(
         self,
@@ -257,15 +352,86 @@ Create an optimal workflow plan for this task."""
                 HumanMessage(content=user_prompt)
             ])
 
+            # 🔍 Robust response handling
+            response_content = response.content.strip()
+
+            if not response_content:
+                error_msg = "LLM returned empty response"
+                logger.error(f"❌ {error_msg}")
+                logger.error(f"   Task: {user_task[:200]}")
+                logger.error(f"   This indicates an API issue or prompt problem")
+                raise RuntimeError(f"{error_msg}. Task: {user_task[:100]}...")
+
+            # Log raw response for debugging
+            logger.debug(f"📄 Raw LLM response ({len(response_content)} chars): {response_content[:500]}...")
+
+            # Try to extract JSON if response contains markdown code blocks
+            if "```json" in response_content:
+                # Extract JSON from markdown code block
+                json_start = response_content.find("```json") + 7
+                json_end = response_content.find("```", json_start)
+                if json_end != -1:
+                    response_content = response_content[json_start:json_end].strip()
+                    logger.debug("📝 Extracted JSON from markdown code block")
+            elif "```" in response_content:
+                # Try generic code block
+                json_start = response_content.find("```") + 3
+                json_end = response_content.find("```", json_start)
+                if json_end != -1:
+                    response_content = response_content[json_start:json_end].strip()
+                    logger.debug("📝 Extracted content from code block")
+
             # Parse JSON response
-            plan_data = json.loads(response.content)
+            try:
+                plan_data = json.loads(response_content)
+            except json.JSONDecodeError as json_err:
+                error_msg = f"Invalid JSON from LLM: {json_err}"
+                logger.error(f"❌ {error_msg}")
+                logger.error(f"   Response preview: {response_content[:500]}")
+                raise RuntimeError(f"{error_msg}. Response: {response_content[:200]}...")
+
+            # Validate required fields
+            required_fields = ["workflow_type", "agents", "success_criteria", "estimated_duration", "complexity"]
+            missing_fields = [f for f in required_fields if f not in plan_data]
+            if missing_fields:
+                error_msg = f"LLM response missing required fields: {missing_fields}"
+                logger.error(f"❌ {error_msg}")
+                logger.error(f"   Got fields: {list(plan_data.keys())}")
+                raise RuntimeError(error_msg)
 
             # Convert to WorkflowPlan
             agents = []
             for step in plan_data["agents"]:
+                agent_type = AgentType(step["agent"])
+
+                # Extract mode with validation and smart inference
+                mode = step.get("mode", "default")
+
+                # Special handling for research agent - infer mode from description if not specified
+                if agent_type == AgentType.RESEARCH and mode == "default":
+                    description_lower = step["description"].lower()
+
+                    # Infer "explain" mode
+                    explain_keywords = ["explain", "describe", "untersuche", "erkläre", "show me", "how does"]
+                    if any(keyword in description_lower for keyword in explain_keywords):
+                        mode = "explain"
+                        logger.info(f"📝 Inferred research mode 'explain' from description: {step['description'][:50]}")
+
+                    # Infer "analyze" mode (higher priority than explain)
+                    analyze_keywords = ["analyze", "audit", "review", "assess", "evaluate", "examine"]
+                    if any(keyword in description_lower for keyword in analyze_keywords):
+                        mode = "analyze"
+                        logger.info(f"📝 Inferred research mode 'analyze' from description: {step['description'][:50]}")
+
+                    # If still default, use "research" as explicit default for research agent
+                    if mode == "default":
+                        mode = "research"
+                        logger.debug(f"📝 Using default research mode 'research' for: {step['description'][:50]}")
+
                 agents.append(AgentStep(
-                    agent=AgentType(step["agent"]),
+                    agent=agent_type,
                     description=step["description"],
+                    mode=mode,  # ← ADD mode parameter
                     inputs=step.get("inputs_from", []),
                     outputs=step.get("outputs_to", []),
                     condition=ConditionType(step.get("condition", "always")),
@@ -274,7 +440,7 @@ Create an optimal workflow plan for this task."""
                 ))
 
             plan = WorkflowPlan(
-                task_description=plan_data["task_summary"],
+                task_description=plan_data.get("task_summary", user_task),
                 workflow_type=plan_data["workflow_type"],
                 agents=agents,
                 success_criteria=plan_data["success_criteria"],
@@ -289,14 +455,15 @@ Create an optimal workflow plan for this task."""
 
             return plan
 
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse LLM response: {e}")
-            # Fallback to default CREATE workflow
-            return self._get_fallback_plan(user_task)
+        except RuntimeError:
+            # Re-raise RuntimeError (already logged above)
+            raise
 
         except Exception as e:
-            logger.error(f"Workflow planning failed: {e}")
-            return self._get_fallback_plan(user_task)
+            error_msg = f"Workflow planning failed: {type(e).__name__}: {e}"
+            logger.error(f"❌ {error_msg}")
+            logger.error(f"   Task: {user_task[:200]}")
+            raise RuntimeError(error_msg)
 
     def _log_plan(self, plan: WorkflowPlan):
         """Log the workflow plan for debugging."""
@@ -306,45 +473,9 @@ Create an optimal workflow plan for this task."""
         logger.info("   Agents:")
         for i, step in enumerate(plan.agents, 1):
             condition_str = f" ({step.condition.value})" if step.condition != ConditionType.ALWAYS else ""
-            logger.info(f"   {i}. {step.agent.value}: {step.description}{condition_str}")
+            mode_str = f" [mode={step.mode}]" if step.mode != "default" else ""
+            logger.info(f"   {i}. {step.agent.value}{mode_str}: {step.description}{condition_str}")
         logger.info(f"   Success Criteria: {', '.join(plan.success_criteria)}")
-
-    def _get_fallback_plan(self, user_task: str) -> WorkflowPlan:
-        """Get a fallback plan if planning fails."""
-        # Default CREATE workflow
-        return WorkflowPlan(
-            task_description=user_task,
-            workflow_type="CREATE",
-            agents=[
-                AgentStep(
-                    agent=AgentType.RESEARCH,
-                    description="Analyze requirements and gather information",
-                    outputs=["requirements", "context"]
-                ),
-                AgentStep(
-                    agent=AgentType.ARCHITECT,
-                    description="Design system architecture",
-                    inputs=["requirements"],
-                    outputs=["architecture"]
-                ),
-                AgentStep(
-                    agent=AgentType.CODESMITH,
-                    description="Generate code",
-                    inputs=["architecture"],
-                    outputs=["generated_files"]
-                ),
-                AgentStep(
-                    agent=AgentType.REVIEWFIX,
-                    description="Review and fix code",
-                    inputs=["generated_files"],
-                    condition=ConditionType.IF_SUCCESS,
-                    max_iterations=3
-                )
-            ],
-            success_criteria=["All files generated", "No syntax errors", "Quality score > 0.80"],
-            estimated_duration="3-5 minutes",
-            complexity="moderate"
-        )
 
     async def validate_plan(self, plan: WorkflowPlan) -> tuple[bool, List[str]]:
         """
