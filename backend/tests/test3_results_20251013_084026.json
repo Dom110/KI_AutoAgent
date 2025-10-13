@@ -1,0 +1,14 @@
+{
+  "asimov_rule3": {
+    "used": false,
+    "evidence": []
+  },
+  "approval_manager": {
+    "used": false,
+    "evidence": []
+  },
+  "self_diagnosis": {
+    "used": false,
+    "evidence": []
+  }
+}
