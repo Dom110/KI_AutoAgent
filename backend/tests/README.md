@@ -56,7 +56,9 @@ backend/tests/
 
 **Run:**
 ```bash
-python3.10 e2e_comprehensive_v6_2.py
+cd /Users/dominikfoert/git/KI_AutoAgent/backend
+source venv/bin/activate  # Python 3.13+
+python tests/e2e_comprehensive_v6_2.py
 ```
 
 #### `e2e_test3_error_handling.py`
@@ -72,7 +74,9 @@ python3.10 e2e_comprehensive_v6_2.py
 
 **Run:**
 ```bash
-python3.10 e2e_test3_error_handling.py
+cd /Users/dominikfoert/git/KI_AutoAgent/backend
+source venv/bin/activate  # Python 3.13+
+python tests/e2e_test3_error_handling.py
 ```
 
 ---
@@ -87,7 +91,9 @@ python3.10 e2e_test3_error_handling.py
 
 **Run:**
 ```bash
-python3.10 test_planner_only.py
+cd /Users/dominikfoert/git/KI_AutoAgent/backend
+source venv/bin/activate  # Python 3.13+
+python tests/test_planner_only.py
 ```
 
 #### `test_workflow_planner_e2e.py`
@@ -146,16 +152,24 @@ TEST_WORKSPACE = Path.home() / "TestApps" / "v6_2_test"  # ✅ CORRECT
 
 ### All Tests:
 ```bash
-cd /Users/dominikfoert/git/KI_AutoAgent/backend/tests
+# Navigate to backend directory
+cd /Users/dominikfoert/git/KI_AutoAgent/backend
+
+# Activate Python 3.13+ venv
+source venv/bin/activate
 
 # Quick unit tests (~1 minute)
-python3.10 test_planner_only.py
-python3.10 test_workflow_planner_smoke.py
+python tests/test_planner_only.py
+python tests/test_workflow_planner_smoke.py
 
 # Full E2E tests (~20 minutes)
-python3.10 e2e_comprehensive_v6_2.py
-python3.10 e2e_test3_error_handling.py
+python tests/e2e_comprehensive_v6_2.py
+python tests/e2e_test3_error_handling.py
 ```
+
+**⚠️ Platform:** macOS (commands assume macOS environment with `tree` not available)
+
+**Python Version:** Minimum Python 3.13.8 required (check with `python --version`)
 
 ### Monitoring:
 ```bash
