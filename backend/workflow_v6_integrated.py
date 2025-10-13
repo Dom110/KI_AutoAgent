@@ -1084,7 +1084,7 @@ class WorkflowV6Integrated:
 
         # Add nodes
         graph.add_node("workflow_planning", workflow_planning_node)  # NEW v6.2!
-        graph.add_node("supervisor", supervisor_node)
+        # NOTE: supervisor_node removed in v6.2 - replaced by workflow_planning
         graph.add_node("research", research_node_wrapper)
         graph.add_node("architect", architect_node_wrapper)
         graph.add_node("codesmith", codesmith_node_wrapper)

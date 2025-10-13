@@ -19,12 +19,26 @@ from typing import List, Dict, Any, Optional, Literal
 from enum import Enum
 from pathlib import Path
 
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
+# Import ChatOpenAI and messages first
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
+
 logger = logging.getLogger(__name__)
+
+# Fix Pydantic v2 / LangChain compatibility issue
+# CRITICAL: Import dependencies and rebuild model AFTER ChatOpenAI import
+try:
+    from langchain_core.caches import BaseCache
+    from langchain_core.callbacks.manager import Callbacks
+    # Rebuild the model now that all dependencies are available
+    ChatOpenAI.model_rebuild()
+    logger.info("✅ Successfully rebuilt ChatOpenAI Pydantic model")
+except Exception as e:
+    # Log error but continue - might still work
+    logger.warning(f"⚠️  ChatOpenAI model_rebuild failed: {e}. Will attempt to continue...")
 
 # Load environment variables from global config
 global_config = Path.home() / ".ki_autoagent" / "config" / ".env"
@@ -117,10 +131,12 @@ class WorkflowPlannerV6:
 
     def __init__(self, model: str = "gpt-4o-mini", temperature: float = 0.2):
         """Initialize the workflow planner."""
+        # Fix Pydantic v2 compatibility issue - explicitly set cache to None
         self.llm = ChatOpenAI(
             model=model,
             temperature=temperature,
-            max_tokens=2000
+            max_tokens=2000,
+            cache=None  # Explicitly disable caching to avoid Pydantic validation error
         )
 
         # Agent capabilities (for prompt)
