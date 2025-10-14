@@ -977,18 +977,23 @@ class WorkflowV6Integrated:
                         "confidence": reasoning_result.confidence
                     }
 
-                # Track completion
+                # Track completion FIRST (critical for mode selection on next call)
                 self.current_session["completed_agents"].append("architect")
                 if "architect" in self.current_session["pending_agents"]:
                     self.current_session["pending_agents"].remove("architect")
                 self.current_session["results"]["architect"] = result
 
-                # Adaptation check
+                # Adaptation check (preserve completed_agents if overwritten)
+                completed_backup = self.current_session["completed_agents"].copy()
                 context = WorkflowContext(**self.current_session)
                 adaptations = await self.workflow_adapter.analyze_and_adapt(context)
                 for adaptation in adaptations:
                     context = await self.workflow_adapter.apply_adaptation(adaptation, context)
                     self.current_session = {**context.__dict__}
+
+                # Restore completed_agents if WorkflowContext reset it
+                if "completed_agents" not in self.current_session or len(self.current_session["completed_agents"]) < len(completed_backup):
+                    self.current_session["completed_agents"] = completed_backup
 
                 print("📐 === ARCHITECT NODE END ===")
                 return result
