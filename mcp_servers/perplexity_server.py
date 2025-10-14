@@ -33,41 +33,102 @@ env_path = Path.home() / ".ki_autoagent" / "config" / ".env"
 load_dotenv(env_path)
 
 
-async def perplexity_search(query: str, max_results: int = 5) -> dict:
+# ============================================================================
+# DEBUG MODE
+# ============================================================================
+DEBUG_MODE = Path.home() / ".ki_autoagent" / "DEBUG_MODE"
+DEBUG_ENABLED = DEBUG_MODE.exists() or os.getenv("DEBUG_MODE", "false").lower() == "true"
+
+def debug_log(message: str):
+    """Log debug message to stderr if DEBUG_MODE enabled."""
+    if DEBUG_ENABLED:
+        print(f"[DEBUG {datetime.now()}] {message}", file=sys.stderr)
+
+
+async def perplexity_search(query: str, max_results: int = 5, stream: bool = False):
     """
-    Execute Perplexity search.
+    Execute Perplexity search with optional streaming.
 
     Reuses existing PerplexityService implementation.
 
     Args:
         query: Search query
         max_results: Maximum number of results to return
+        stream: Whether to stream the response
 
     Returns:
-        dict with search results
+        dict with search results (if not streaming)
+        AsyncGenerator (if streaming)
     """
     try:
         from utils.perplexity_service import PerplexityService
 
         service = PerplexityService()
 
-        # Execute search
-        result = await service.search_web(
-            query=query,
-            max_results=max_results,
-            recency="month"  # Recent results (last month)
-        )
+        debug_log(f"Perplexity search: query='{query}', max_results={max_results}, stream={stream}")
 
-        return {
-            "success": True,
-            "query": query,
-            "content": result.get("answer", ""),
-            "sources": result.get("citations", []),
-            "timestamp": result.get("timestamp", datetime.now().isoformat()),
-            "result_count": len(result.get("citations", []))
-        }
+        if stream:
+            # STREAMING MODE (NEW!)
+            async def stream_search():
+                """Stream search results in real-time."""
+                yield {
+                    "type": "start",
+                    "query": query,
+                    "timestamp": datetime.now().isoformat()
+                }
+
+                # Stream content chunks
+                content_chunks = []
+                async for chunk in service.stream_message(
+                    prompt=f"""Search the web for: {query}
+
+Please provide:
+1. A comprehensive answer based on current web information
+2. Key findings organized by relevance
+3. Source citations for all information
+4. Latest trends or updates if applicable
+
+Focus on returning the {max_results} most relevant and recent results.""",
+                    search_domain_filter=None,
+                    return_citations=True
+                ):
+                    content_chunks.append(chunk)
+                    yield {
+                        "type": "chunk",
+                        "content": chunk
+                    }
+
+                # Final result with citations
+                # Note: Citations come after streaming completes
+                full_content = ''.join(content_chunks)
+                yield {
+                    "type": "complete",
+                    "query": query,
+                    "content": full_content,
+                    "timestamp": datetime.now().isoformat()
+                }
+
+            return stream_search()
+
+        else:
+            # BATCH MODE (original)
+            result = await service.search_web(
+                query=query,
+                max_results=max_results,
+                recency="month"  # Recent results (last month)
+            )
+
+            return {
+                "success": True,
+                "query": query,
+                "content": result.get("answer", ""),
+                "sources": result.get("citations", []),
+                "timestamp": result.get("timestamp", datetime.now().isoformat()),
+                "result_count": len(result.get("citations", []))
+            }
 
     except Exception as e:
+        debug_log(f"Perplexity search error: {e}")
         return {
             "success": False,
             "error": str(e),
@@ -129,6 +190,11 @@ async def handle_request(request: dict) -> dict:
                                     "type": "integer",
                                     "description": "Maximum number of results to return (default: 5)",
                                     "default": 5
+                                },
+                                "stream": {
+                                    "type": "boolean",
+                                    "description": "Stream results in real-time (default: true)",
+                                    "default": true
                                 }
                             },
                             "required": ["query"]
@@ -146,6 +212,7 @@ async def handle_request(request: dict) -> dict:
         if tool_name == "perplexity_search":
             query = tool_args.get("query")
             max_results = tool_args.get("max_results", 5)
+            stream = tool_args.get("stream", True)
 
             if not query:
                 return {
@@ -158,9 +225,47 @@ async def handle_request(request: dict) -> dict:
                 }
 
             # Execute search
-            result = await perplexity_search(query, max_results)
+            result = await perplexity_search(query, max_results, stream)
 
-            if result.get("success"):
+            # Handle streaming
+            if stream and hasattr(result, '__aiter__'):
+                # Collect all chunks
+                chunks = []
+                async for chunk in result:
+                    chunks.append(chunk)
+
+                # Combine into final text
+                content_text = f"# Perplexity Search Results (Streaming)\n\n"
+                content_text += f"**Query:** {query}\n\n"
+
+                # Combine all content chunks
+                full_content = ""
+                for chunk in chunks:
+                    if chunk.get("type") == "chunk":
+                        full_content += chunk.get("content", "")
+
+                content_text += f"**Content:**\n{full_content}\n\n"
+
+                # Add timestamp from final chunk
+                final_chunk = [c for c in chunks if c.get("type") == "complete"]
+                if final_chunk:
+                    content_text += f"\n**Retrieved:** {final_chunk[0].get('timestamp', 'N/A')}"
+
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": content_text
+                            }
+                        ]
+                    }
+                }
+
+            # Handle non-streaming
+            elif result.get("success"):
                 # Format result for Claude
                 content_text = (
                     f"# Perplexity Search Results\n\n"
