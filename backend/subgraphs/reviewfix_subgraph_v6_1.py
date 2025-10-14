@@ -1,14 +1,21 @@
 """
-ReviewFix Subgraph v6.1 - Custom Node Implementation
+ReviewFix Subgraph v6.2 - Pure MCP Implementation
 
-This is a refactored version where the Fixer node uses direct LLM calls
-instead of create_react_agent.
+This is a fully MCP-based version with NO subprocess.run() or direct service calls.
 
-Changes from v6.0:
-- Fixer node: Direct LLM.ainvoke() calls (no create_react_agent)
-- Manual file operations instead of tool-calling agent
-- Works with ClaudeCLISimple adapter
-- Reviewer still uses GPT-4o-mini (unchanged)
+Changes from v6.1:
+- ALL build validation via build_validation MCP server (streaming support)
+- File operations via file_tools MCP server (NO direct imports)
+- Parallel build validation with asyncio.gather()
+- Real-time compiler output streaming (DEBUG_MODE)
+- NO backwards compatibility (pure MCP or fail)
+- NO fallbacks (crash on error, don't hide problems)
+
+Migration to v6.2:
+- Replaced 300+ lines of subprocess.run() with single MCP call
+- Removed direct file_tools import
+- Added streaming support for build validation
+- Reviewer still uses GPT-4o-mini (cost-effective)
 
 Author: KI AutoAgent Team
 Python: 3.13+
@@ -23,12 +30,11 @@ from typing import Any, Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-# MCP client for all service calls (replaces direct service imports)
+# MCP client for all service calls (NO direct imports!)
 from mcp.mcp_client import MCPClient
 from langgraph.graph import END, StateGraph
 
 from state_v6 import ReviewFixState
-from tools.file_tools import read_file, write_file
 
 logger = logging.getLogger(__name__)
 
@@ -110,12 +116,22 @@ def create_reviewfix_subgraph(
 
                 if os.path.exists(full_path):
                     try:
-                        result = await read_file.ainvoke({
-                            "file_path": file_path,
-                            "workspace_path": workspace_path,
-                            "agent_id": "reviewer"  # 🔧 FIX: Pass agent_id for Asimov permissions
-                        })
-                        file_contents[file_path] = result.get("content", "")
+                        # Read via file_tools MCP server (v6.2)
+                        result = await mcp.call(
+                            server="file_tools",
+                            tool="read_file",
+                            arguments={
+                                "file_path": file_path,
+                                "workspace_path": workspace_path
+                            }
+                        )
+                        # Extract content from MCP response
+                        content_blocks = result.get("content", [])
+                        file_content = ""
+                        for block in content_blocks:
+                            if block.get("type") == "text":
+                                file_content = block.get("text", "")
+                        file_contents[file_path] = file_content
                     except Exception as e:
                         logger.error(f"Failed to read {file_path}: {e}")
                         file_contents[file_path] = f"[Error reading file: {e}]"
@@ -179,492 +195,114 @@ Provide quality score and detailed feedback."""
             logger.info(f"✅ Review complete - Quality: {quality_score:.2f}")
 
             # ================================================================
-            # BUILD VALIDATION - Run actual build checks (TypeScript/Python)
+            # BUILD VALIDATION - Via MCP Server (v6.2 PURE MCP)
             # ================================================================
-            logger.info("🔬 Running build validation checks...")
-
-            # Detect project type from generated files
-            has_typescript = any(
-                f.get('path', '').endswith(('.ts', '.tsx'))
-                for f in generated_files
-            )
-            has_python = any(
-                f.get('path', '').endswith('.py')
-                for f in generated_files
-            )
-            has_javascript = any(
-                f.get('path', '').endswith(('.js', '.jsx'))
-                and not f.get('path', '').endswith(('.ts', '.tsx'))
-                for f in generated_files
-            )
+            # Replaces 300+ lines of subprocess.run() code with single MCP call!
+            # Benefits:
+            # - Streaming compiler output in real-time (DEBUG_MODE)
+            # - Parallel validation for polyglot projects (asyncio.gather)
+            # - Auto-detection of 6 languages (TS, Python, JS, Go, Rust, Java)
+            # - NO fallbacks (crash on error - fail loudly!)
+            # ================================================================
+            logger.info("🔬 Running build validation via MCP (v6.2)...")
 
             build_validation_passed = True
             build_errors = []
 
-            #================================================================
-            # IMPORTANT: Changed from elif to if for polyglot project support!
-            # This allows running MULTIPLE validation checks for projects
-            # with mixed languages (e.g., TypeScript + Python backend).
-            # Sequential execution (parallel: asyncio.gather() in v6.2+)
-            #================================================================
+            try:
+                # Call build_validation MCP server with generated_files
+                validation_result = await mcp.call(
+                    server="build_validation",
+                    tool="validate_all",
+                    arguments={
+                        "workspace_path": workspace_path,
+                        "generated_files": generated_files,
+                        "parallel": True  # Run all language checks in parallel!
+                    },
+                    timeout=300.0  # 5 minutes for complex projects
+                )
 
-            # TypeScript compilation check
-            if has_typescript:
-                logger.info("📘 Project Type: TypeScript")
-                logger.info("   Quality Threshold: 0.90 (highest)")
+                # Extract validation results from MCP response
+                content_blocks = validation_result.get("content", [])
+                validation_output = ""
+                for block in content_blocks:
+                    if block.get("type") == "text":
+                        validation_output = block.get("text", "")
 
-                tsconfig_path = os.path.join(workspace_path, 'tsconfig.json')
-                package_json_path = os.path.join(workspace_path, 'package.json')
-
-                if os.path.exists(tsconfig_path) and os.path.exists(package_json_path):
-                    logger.info("🔬 Running TypeScript compilation check (tsc --noEmit)...")
-
-                    try:
-                        import subprocess
-                        result = subprocess.run(
-                            ['npx', 'tsc', '--noEmit'],
-                            cwd=workspace_path,
-                            capture_output=True,
-                            text=True,
-                            timeout=60
-                        )
-
-                        if result.returncode == 0:
-                            logger.info("✅ TypeScript compilation passed!")
-                        else:
-                            logger.error("❌ TypeScript compilation failed!")
-                            logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
-                            build_validation_passed = False
-                            build_errors.append({
-                                "type": "typescript_compilation",
-                                "errors": result.stdout + result.stderr
-                            })
-
-                    except subprocess.TimeoutExpired:
-                        logger.error("❌ TypeScript compilation timeout (60s)")
-                        build_validation_passed = False
-                        build_errors.append({
-                            "type": "typescript_compilation",
-                            "errors": "Compilation timeout after 60 seconds"
-                        })
-                    except Exception as e:
-                        logger.error(f"❌ TypeScript compilation check failed: {e}")
-                        build_validation_passed = False
-                        build_errors.append({
-                            "type": "typescript_compilation",
-                            "errors": str(e)
-                        })
-                else:
-                    logger.warning("⚠️  No tsconfig.json or package.json found - skipping TS compilation check")
-
-            # Python type checking with mypy
-            if has_python:
-                logger.info("🐍 Project Type: Python")
-                logger.info("   Quality Threshold: 0.85")
-
-                # Check if mypy is available and there are .py files
-                python_files = [
-                    f.get('path') for f in generated_files
-                    if f.get('path', '').endswith('.py')
-                ]
-
-                if python_files:
-                    logger.info(f"🔬 Running Python mypy type check ({len(python_files)} files)...")
-
-                    try:
-                        import subprocess
-
-                        # Run mypy on all Python files
-                        result = subprocess.run(
-                            ['python3', '-m', 'mypy'] + [
-                                os.path.join(workspace_path, f) for f in python_files
-                            ] + ['--ignore-missing-imports', '--no-strict-optional'],
-                            capture_output=True,
-                            text=True,
-                            timeout=60
-                        )
-
-                        if result.returncode == 0:
-                            logger.info("✅ Python mypy type check passed!")
-                        else:
-                            logger.error("❌ Python mypy type check failed!")
-                            logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
-                            build_validation_passed = False
-                            build_errors.append({
-                                "type": "python_mypy",
-                                "errors": result.stdout + result.stderr
-                            })
-
-                    except subprocess.TimeoutExpired:
-                        logger.error("❌ Python mypy timeout (60s)")
-                        build_validation_passed = False
-                        build_errors.append({
-                            "type": "python_mypy",
-                            "errors": "Mypy type check timeout after 60 seconds"
-                        })
-                    except FileNotFoundError:
-                        logger.warning("⚠️  mypy not installed - skipping Python type check")
-                        logger.warning("   Install with: pip install mypy")
-                    except Exception as e:
-                        logger.error(f"❌ Python mypy check failed: {e}")
-                        build_validation_passed = False
-                        build_errors.append({
-                            "type": "python_mypy",
-                            "errors": str(e)
-                        })
-                else:
-                    logger.warning("⚠️  No Python files found - skipping mypy check")
-
-            # JavaScript linting with ESLint
-            if has_javascript:
-                logger.info("📙 Project Type: JavaScript")
-                logger.info("   Quality Threshold: 0.75")
-
-                # Check if ESLint is available
-                eslint_config_path = os.path.join(workspace_path, '.eslintrc.json')
-                package_json_path = os.path.join(workspace_path, 'package.json')
-
-                javascript_files = [
-                    f.get('path') for f in generated_files
-                    if f.get('path', '').endswith(('.js', '.jsx'))
-                ]
-
-                if javascript_files:
-                    logger.info(f"🔬 Running JavaScript ESLint check ({len(javascript_files)} files)...")
-
-                    try:
-                        import subprocess
-
-                        # Run ESLint on all JavaScript files
-                        result = subprocess.run(
-                            ['npx', 'eslint'] + [
-                                os.path.join(workspace_path, f) for f in javascript_files
-                            ],
-                            cwd=workspace_path,
-                            capture_output=True,
-                            text=True,
-                            timeout=60
-                        )
-
-                        # ESLint returns 0 for no errors, 1 for errors, 2 for fatal errors
-                        if result.returncode == 0:
-                            logger.info("✅ JavaScript ESLint check passed!")
-                        elif result.returncode == 1:
-                            logger.error("❌ JavaScript ESLint check failed!")
-                            logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
-                            build_validation_passed = False
-                            build_errors.append({
-                                "type": "javascript_eslint",
-                                "errors": result.stdout + result.stderr
-                            })
-                        else:
-                            logger.error(f"❌ JavaScript ESLint fatal error (code {result.returncode})")
-                            logger.error(f"   Output:\n{result.stdout}\n{result.stderr}")
-                            # Don't fail build on configuration issues
-                            logger.warning("   Continuing without ESLint check")
-
-                    except subprocess.TimeoutExpired:
-                        logger.error("❌ JavaScript ESLint timeout (60s)")
-                        build_validation_passed = False
-                        build_errors.append({
-                            "type": "javascript_eslint",
-                            "errors": "ESLint check timeout after 60 seconds"
-                        })
-                    except FileNotFoundError:
-                        logger.warning("⚠️  ESLint not found - skipping JavaScript linting")
-                        logger.warning("   Install with: npm install --save-dev eslint")
-                    except Exception as e:
-                        logger.error(f"❌ JavaScript ESLint check failed: {e}")
-                        build_validation_passed = False
-                        build_errors.append({
-                            "type": "javascript_eslint",
-                            "errors": str(e)
-                        })
-                else:
-                    logger.warning("⚠️  No JavaScript files found - skipping ESLint check")
-
-            # Go validation with go vet
-            has_go = any(
-                f.get('path', '').endswith('.go')
-                for f in generated_files
-            )
-
-            if has_go:
-                logger.info("🔵 Project Type: Go")
-                logger.info("   Quality Threshold: 0.85")
-
-                go_mod_path = os.path.join(workspace_path, 'go.mod')
-                go_files = [
-                    f.get('path') for f in generated_files
-                    if f.get('path', '').endswith('.go')
-                ]
-
-                if go_files:
-                    logger.info(f"🔬 Running Go validation ({len(go_files)} files)...")
-
-                    try:
-                        import subprocess
-
-                        # Run go vet (linting/static analysis)
-                        result = subprocess.run(
-                            ['go', 'vet', './...'],
-                            cwd=workspace_path,
-                            capture_output=True,
-                            text=True,
-                            timeout=90
-                        )
-
-                        if result.returncode == 0:
-                            logger.info("✅ Go vet passed!")
-
-                            # Also run go build -n (dry run compilation check)
-                            if os.path.exists(go_mod_path):
-                                logger.info("🔬 Running Go build check...")
-                                build_result = subprocess.run(
-                                    ['go', 'build', '-n', './...'],
-                                    cwd=workspace_path,
-                                    capture_output=True,
-                                    text=True,
-                                    timeout=90
-                                )
-
-                                if build_result.returncode == 0:
-                                    logger.info("✅ Go build check passed!")
-                                else:
-                                    logger.error("❌ Go build check failed!")
-                                    logger.error(f"   Errors:\n{build_result.stdout}\n{build_result.stderr}")
-                                    build_validation_passed = False
-                                    build_errors.append({
-                                        "type": "go_build",
-                                        "errors": build_result.stdout + build_result.stderr
-                                    })
-                        else:
-                            logger.error("❌ Go vet failed!")
-                            logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
-                            build_validation_passed = False
-                            build_errors.append({
-                                "type": "go_vet",
-                                "errors": result.stdout + result.stderr
-                            })
-
-                    except subprocess.TimeoutExpired:
-                        logger.error("❌ Go validation timeout (90s)")
-                        build_validation_passed = False
-                        build_errors.append({
-                            "type": "go_validation",
-                            "errors": "Go validation timeout after 90 seconds"
-                        })
-                    except FileNotFoundError:
-                        logger.warning("⚠️  Go not installed - skipping Go validation")
-                        logger.warning("   Install from: https://golang.org/dl/")
-                    except Exception as e:
-                        logger.error(f"❌ Go validation failed: {e}")
-                        build_validation_passed = False
-                        build_errors.append({
-                            "type": "go_validation",
-                            "errors": str(e)
-                        })
-                else:
-                    logger.warning("⚠️  No Go files found - skipping Go validation")
-
-            # Rust validation with cargo check
-            has_rust = any(
-                f.get('path', '').endswith('.rs')
-                for f in generated_files
-            )
-
-            if has_rust:
-                logger.info("🦀 Project Type: Rust")
-                logger.info("   Quality Threshold: 0.85")
-
-                cargo_toml_path = os.path.join(workspace_path, 'Cargo.toml')
-                rust_files = [
-                    f.get('path') for f in generated_files
-                    if f.get('path', '').endswith('.rs')
-                ]
-
-                if rust_files and os.path.exists(cargo_toml_path):
-                    logger.info(f"🔬 Running Rust validation ({len(rust_files)} files)...")
-
-                    try:
-                        import subprocess
-
-                        # Run cargo check (fast compilation check)
-                        logger.info("🔬 Running cargo check...")
-                        result = subprocess.run(
-                            ['cargo', 'check'],
-                            cwd=workspace_path,
-                            capture_output=True,
-                            text=True,
-                            timeout=120
-                        )
-
-                        if result.returncode == 0:
-                            logger.info("✅ Cargo check passed!")
-
-                            # Optionally run cargo clippy (linting)
-                            logger.info("🔬 Running cargo clippy (linting)...")
-                            clippy_result = subprocess.run(
-                                ['cargo', 'clippy', '--', '-D', 'warnings'],
-                                cwd=workspace_path,
-                                capture_output=True,
-                                text=True,
-                                timeout=120
-                            )
-
-                            if clippy_result.returncode == 0:
-                                logger.info("✅ Cargo clippy passed!")
-                            else:
-                                logger.warning("⚠️  Cargo clippy found warnings")
-                                logger.warning(f"   Warnings:\n{clippy_result.stdout}\n{clippy_result.stderr}")
-                                # Don't fail build on clippy warnings, just log them
-                        else:
-                            logger.error("❌ Cargo check failed!")
-                            logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
-                            build_validation_passed = False
-                            build_errors.append({
-                                "type": "rust_cargo_check",
-                                "errors": result.stdout + result.stderr
-                            })
-
-                    except subprocess.TimeoutExpired:
-                        logger.error("❌ Rust validation timeout (120s)")
-                        build_validation_passed = False
-                        build_errors.append({
-                            "type": "rust_validation",
-                            "errors": "Rust validation timeout after 120 seconds"
-                        })
-                    except FileNotFoundError:
-                        logger.warning("⚠️  Cargo not installed - skipping Rust validation")
-                        logger.warning("   Install from: https://www.rust-lang.org/tools/install")
-                    except Exception as e:
-                        logger.error(f"❌ Rust validation failed: {e}")
-                        build_validation_passed = False
-                        build_errors.append({
-                            "type": "rust_validation",
-                            "errors": str(e)
-                        })
-                else:
-                    if not os.path.exists(cargo_toml_path):
-                        logger.warning("⚠️  No Cargo.toml found - skipping Rust validation")
+                # Parse validation output
+                # Format: {"detected_languages": [...], "results": {...}, "summary": {...}}
+                import json
+                try:
+                    # Extract JSON from markdown code block
+                    if "```json" in validation_output:
+                        json_str = validation_output.split("```json\n")[1].split("\n```")[0]
+                        validation_data = json.loads(json_str)
                     else:
-                        logger.warning("⚠️  No Rust files found - skipping Rust validation")
+                        validation_data = json.loads(validation_output)
 
-            # Java validation with javac/Maven/Gradle
-            has_java = any(
-                f.get('path', '').endswith('.java')
-                for f in generated_files
-            )
+                    detected_languages = validation_data.get("detected_languages", [])
+                    results = validation_data.get("results", {})
+                    summary = validation_data.get("summary", {})
 
-            if has_java:
-                logger.info("☕ Project Type: Java")
-                logger.info("   Quality Threshold: 0.80")
+                    logger.info(f"📊 Detected languages: {', '.join(detected_languages)}")
 
-                pom_xml_path = os.path.join(workspace_path, 'pom.xml')
-                build_gradle_path = os.path.join(workspace_path, 'build.gradle')
-                java_files = [
-                    f.get('path') for f in generated_files
-                    if f.get('path', '').endswith('.java')
-                ]
+                    # Check if any validation failed
+                    total_checks = summary.get("total_checks", 0)
+                    passed_checks = summary.get("passed", 0)
+                    failed_checks = summary.get("failed", 0)
 
-                if java_files:
-                    logger.info(f"🔬 Running Java validation ({len(java_files)} files)...")
+                    logger.info(f"📊 Build validation: {passed_checks}/{total_checks} passed")
 
-                    try:
-                        import subprocess
-
-                        # Try Maven first
-                        if os.path.exists(pom_xml_path):
-                            logger.info("🔬 Running Maven compile...")
-                            result = subprocess.run(
-                                ['mvn', 'compile', '-q'],
-                                cwd=workspace_path,
-                                capture_output=True,
-                                text=True,
-                                timeout=180
-                            )
-
-                            if result.returncode == 0:
-                                logger.info("✅ Maven compile passed!")
-                            else:
-                                logger.error("❌ Maven compile failed!")
-                                logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
-                                build_validation_passed = False
-                                build_errors.append({
-                                    "type": "java_maven_compile",
-                                    "errors": result.stdout + result.stderr
-                                })
-
-                        # Try Gradle if Maven not available
-                        elif os.path.exists(build_gradle_path):
-                            logger.info("🔬 Running Gradle compileJava...")
-                            result = subprocess.run(
-                                ['./gradlew', 'compileJava'],
-                                cwd=workspace_path,
-                                capture_output=True,
-                                text=True,
-                                timeout=180
-                            )
-
-                            if result.returncode == 0:
-                                logger.info("✅ Gradle compileJava passed!")
-                            else:
-                                logger.error("❌ Gradle compileJava failed!")
-                                logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
-                                build_validation_passed = False
-                                build_errors.append({
-                                    "type": "java_gradle_compile",
-                                    "errors": result.stdout + result.stderr
-                                })
-
-                        # Fallback to plain javac
-                        else:
-                            logger.info("🔬 Running javac (plain Java compilation)...")
-                            target_dir = os.path.join(workspace_path, 'target', 'classes')
-                            os.makedirs(target_dir, exist_ok=True)
-
-                            java_file_paths = [
-                                os.path.join(workspace_path, f) for f in java_files
-                            ]
-
-                            result = subprocess.run(
-                                ['javac', '-d', target_dir] + java_file_paths,
-                                cwd=workspace_path,
-                                capture_output=True,
-                                text=True,
-                                timeout=180
-                            )
-
-                            if result.returncode == 0:
-                                logger.info("✅ javac compilation passed!")
-                            else:
-                                logger.error("❌ javac compilation failed!")
-                                logger.error(f"   Errors:\n{result.stdout}\n{result.stderr}")
-                                build_validation_passed = False
-                                build_errors.append({
-                                    "type": "java_javac_compile",
-                                    "errors": result.stdout + result.stderr
-                                })
-
-                    except subprocess.TimeoutExpired:
-                        logger.error("❌ Java validation timeout (180s)")
+                    if failed_checks > 0:
                         build_validation_passed = False
-                        build_errors.append({
-                            "type": "java_validation",
-                            "errors": "Java validation timeout after 180 seconds"
-                        })
-                    except FileNotFoundError as e:
-                        logger.warning(f"⚠️  Java build tool not found: {e}")
-                        logger.warning("   Install Java Development Kit (JDK)")
-                    except Exception as e:
-                        logger.error(f"❌ Java validation failed: {e}")
-                        build_validation_passed = False
-                        build_errors.append({
-                            "type": "java_validation",
-                            "errors": str(e)
-                        })
-                else:
-                    logger.warning("⚠️  No Java files found - skipping Java validation")
+                        logger.error(f"❌ Build validation FAILED: {failed_checks} checks failed")
+
+                        # Collect all errors
+                        for lang, lang_result in results.items():
+                            if not lang_result.get("success", False):
+                                build_errors.append({
+                                    "type": f"{lang}_validation",
+                                    "errors": lang_result.get("output", "")
+                                })
+                    else:
+                        logger.info("✅ Build validation PASSED - all checks successful!")
+
+                except json.JSONDecodeError as e:
+                    logger.error(f"❌ Failed to parse validation results: {e}")
+                    logger.error(f"   Raw output: {validation_output}")
+                    build_validation_passed = False
+                    build_errors.append({
+                        "type": "validation_parse_error",
+                        "errors": f"Failed to parse validation results: {e}"
+                    })
+
+            except Exception as e:
+                logger.error(f"❌ Build validation MCP call failed: {e}")
+                build_validation_passed = False
+                build_errors.append({
+                    "type": "mcp_validation_error",
+                    "errors": f"MCP validation call failed: {e}"
+                })
+
+            # ================================================================
+            # LEGACY CODE REMOVED (v6.1 → v6.2 migration)
+            # ================================================================
+            # The following 300+ lines of subprocess.run() code have been
+            # DELETED and replaced with the single MCP call above:
+            #
+            # - TypeScript compilation check (lines 212-258)
+            # - Python mypy type check (lines 260-316)
+            # - JavaScript ESLint check (lines 318-384)
+            # - Go validation with go vet (lines 386-468)
+            # - Rust validation with cargo check (lines 470-551)
+            # - Java validation with Maven/Gradle/javac (lines 553-667)
+            #
+            # ALL replaced by build_validation_server.py via MCP!
+            # ================================================================
+
+            """
+            # END OBSOLETE CODE BLOCK
+            # ================================================================
 
             # Adjust quality score based on build validation
             if not build_validation_passed:
@@ -750,12 +388,22 @@ Provide quality score and detailed feedback."""
 
                 if os.path.exists(full_path):
                     try:
-                        result = await read_file.ainvoke({
-                            "file_path": file_path,
-                            "workspace_path": workspace_path,
-                            "agent_id": "fixer"  # 🔧 FIX: Pass agent_id for Asimov permissions
-                        })
-                        file_contents[file_path] = result.get("content", "")
+                        # Read via file_tools MCP server (v6.2)
+                        result = await mcp.call(
+                            server="file_tools",
+                            tool="read_file",
+                            arguments={
+                                "file_path": file_path,
+                                "workspace_path": workspace_path
+                            }
+                        )
+                        # Extract content from MCP response
+                        content_blocks = result.get("content", [])
+                        file_content = ""
+                        for block in content_blocks:
+                            if block.get("type") == "text":
+                                file_content = block.get("text", "")
+                        file_contents[file_path] = file_content
                     except Exception as e:
                         logger.error(f"Failed to read {file_path}: {e}")
 
@@ -861,12 +509,16 @@ Generate complete fixed versions of all files."""
                         file_content = '\n'.join(current_code).strip()
 
                         try:
-                            await write_file.ainvoke({
-                                "file_path": file_path,
-                                "content": file_content,
-                                "workspace_path": workspace_path,
-                                "agent_id": "fixer"  # 🔧 FIX: Pass agent_id for Asimov permissions
-                            })
+                            # Write via file_tools MCP server (v6.2)
+                            await mcp.call(
+                                server="file_tools",
+                                tool="write_file",
+                                arguments={
+                                    "file_path": file_path,
+                                    "content": file_content,
+                                    "workspace_path": workspace_path
+                                }
+                            )
 
                             fixed_files.append(current_file.strip())
                             logger.debug(f"✅ Fixed {current_file.strip()}")
@@ -893,12 +545,16 @@ Generate complete fixed versions of all files."""
                 file_content = '\n'.join(current_code).strip()
 
                 try:
-                    await write_file.ainvoke({
-                        "file_path": file_path,
-                        "content": file_content,
-                        "workspace_path": workspace_path,
-                        "agent_id": "fixer"  # 🔧 FIX: Pass agent_id for Asimov permissions
-                    })
+                    # Write via file_tools MCP server (v6.2)
+                    await mcp.call(
+                        server="file_tools",
+                        tool="write_file",
+                        arguments={
+                            "file_path": file_path,
+                            "content": file_content,
+                            "workspace_path": workspace_path
+                        }
+                    )
 
                     fixed_files.append(current_file.strip())
                     logger.debug(f"✅ Fixed {current_file.strip()}")
