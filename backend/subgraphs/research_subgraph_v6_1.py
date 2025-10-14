@@ -107,7 +107,7 @@ Output format:
 
 Provide a structured summary of the key findings."""
 
-    # Call Claude via MCP
+    # Call Claude via MCP (with extended timeout for tool use)
     claude_result = await mcp.call(
         server="claude",
         tool="claude_generate",
@@ -119,7 +119,8 @@ Provide a structured summary of the key findings."""
             "temperature": 0.3,
             "max_tokens": 4096,
             "tools": ["Read", "Bash"]
-        }
+        },
+        timeout=300.0  # 5 min timeout for tool-enabled Claude calls
     )
 
     analysis = ""
@@ -272,7 +273,8 @@ Focus on providing clear, actionable explanations that help the user understand 
             "temperature": 0.2,
             "max_tokens": 8192,
             "tools": ["Read", "Bash"]
-        }
+        },
+        timeout=300.0  # 5 min timeout for tool-enabled Claude calls
     )
 
     explanation = ""
@@ -423,7 +425,8 @@ Focus on actionable insights and concrete recommendations."""
             "temperature": 0.1,
             "max_tokens": 8192,
             "tools": ["Read", "Bash"]
-        }
+        },
+        timeout=300.0  # 5 min timeout for tool-enabled Claude calls
     )
 
     analysis = ""
