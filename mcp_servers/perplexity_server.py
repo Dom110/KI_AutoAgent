@@ -195,7 +195,7 @@ async def handle_request(request: dict) -> dict:
                                 "stream": {
                                     "type": "boolean",
                                     "description": "Stream results in real-time (default: true)",
-                                    "default": true
+                                    "default": True
                                 }
                             },
                             "required": ["query"]
