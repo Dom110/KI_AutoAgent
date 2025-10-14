@@ -43,6 +43,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
 from adapters.claude_cli_simple import ClaudeCLISimple
 from langchain_core.messages import SystemMessage, HumanMessage
+import os
+
+# ============================================================================
+# DEBUG MODE
+# ============================================================================
+DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
+
+def debug_log(message: str):
+    """Log debug message to stderr if DEBUG_MODE enabled."""
+    if DEBUG_MODE:
+        from datetime import datetime
+        print(f"[DEBUG {datetime.now()}] {message}", file=sys.stderr)
 
 
 async def claude_generate(
@@ -52,7 +64,8 @@ async def claude_generate(
     agent_name: str = "assistant",
     temperature: float = 0.3,
     max_tokens: int = 4096,
-    tools: list[str] | None = None
+    tools: list[str] | None = None,
+    stream_events: bool = False
 ) -> dict[str, Any]:
     """
     Generate code or text with Claude CLI.
@@ -65,6 +78,7 @@ async def claude_generate(
         temperature: Sampling temperature
         max_tokens: Maximum tokens to generate
         tools: Available tools (default: ["Read", "Edit", "Bash"])
+        stream_events: Stream HITL events in real-time (default: False)
 
     Returns:
         {
@@ -72,10 +86,23 @@ async def claude_generate(
             "content": str,
             "agent": str,
             "duration_ms": float,
-            "files_created": list[dict]
+            "files_created": list[dict],
+            "events": list[dict] (if stream_events=True)
         }
     """
     try:
+        debug_log(f"claude_generate: agent={agent_name}, stream_events={stream_events}")
+
+        # Collect events if streaming
+        collected_events = []
+
+        # HITL callback for event streaming
+        async def hitl_callback(event: dict):
+            """Capture HITL events for streaming."""
+            if stream_events:
+                collected_events.append(event)
+                debug_log(f"HITL event: {event.get('type')}")
+
         # Create Claude CLI instance
         llm = ClaudeCLISimple(
             model="claude-sonnet-4-20250514",
@@ -83,7 +110,8 @@ async def claude_generate(
             max_tokens=max_tokens,
             agent_name=agent_name,
             agent_tools=tools or ["Read", "Edit", "Bash"],
-            workspace_path=workspace_path
+            workspace_path=workspace_path,
+            hitl_callback=hitl_callback if stream_events else None
         )
 
         # Build messages
@@ -102,7 +130,7 @@ async def claude_generate(
         if hasattr(llm, 'last_events') and llm.last_events:
             files_created = llm.extract_file_paths_from_events(llm.last_events)
 
-        return {
+        result = {
             "success": True,
             "content": response.content if hasattr(response, 'content') else str(response),
             "agent": agent_name,
@@ -110,6 +138,14 @@ async def claude_generate(
             "files_created": files_created,
             "timestamp": datetime.now().isoformat()
         }
+
+        # Add events if streaming was enabled
+        if stream_events and collected_events:
+            result["events"] = collected_events
+            result["event_count"] = len(collected_events)
+            debug_log(f"Collected {len(collected_events)} HITL events")
+
+        return result
 
     except Exception as e:
         return {
