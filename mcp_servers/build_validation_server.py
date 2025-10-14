@@ -867,16 +867,13 @@ async def validate_all(
         # PARALLEL execution with asyncio.gather()
         # Stream all outputs concurrently
         async def run_validation(lang_name, validator):
-            lang_result = None
             async for chunk in validator:
                 # Forward stream chunks
                 yield chunk
 
                 # Collect final result
                 if chunk["type"] == "result":
-                    lang_result = chunk
-
-            return lang_result
+                    results.append(chunk)
 
         # Run all validators concurrently
         async_generators = [run_validation(lang, validator) for lang, validator in tasks]
@@ -885,9 +882,6 @@ async def validate_all(
         for generator in async_generators:
             async for chunk in generator:
                 yield chunk
-
-                if chunk["type"] == "result":
-                    results.append(chunk)
 
     else:
         # SEQUENTIAL execution (for debugging)
