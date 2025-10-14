@@ -35,11 +35,36 @@ logger = logging.getLogger(__name__)
 
 # Tree-sitter will be imported conditionally
 TREE_SITTER_AVAILABLE = False
+LANGUAGE_LOADERS = {}
+
 try:
     import tree_sitter
     from tree_sitter import Language, Parser
     TREE_SITTER_AVAILABLE = True
     logger.debug("✅ tree-sitter available")
+
+    # Import modern tree-sitter language packages (v0.23+)
+    try:
+        from tree_sitter_python import language as python_language
+        LANGUAGE_LOADERS["python"] = python_language
+        logger.debug("✅ tree-sitter-python loaded")
+    except ImportError:
+        logger.debug("⚠️  tree-sitter-python not available")
+
+    try:
+        from tree_sitter_javascript import language as javascript_language
+        LANGUAGE_LOADERS["javascript"] = javascript_language
+        logger.debug("✅ tree-sitter-javascript loaded")
+    except ImportError:
+        logger.debug("⚠️  tree-sitter-javascript not available")
+
+    try:
+        from tree_sitter_typescript import language_typescript as typescript_language
+        LANGUAGE_LOADERS["typescript"] = typescript_language
+        logger.debug("✅ tree-sitter-typescript loaded")
+    except ImportError:
+        logger.debug("⚠️  tree-sitter-typescript not available")
+
 except ImportError:
     logger.warning("⚠️  tree-sitter not installed - install with: pip install tree-sitter")
     # Define stubs for type hints
@@ -120,33 +145,9 @@ class TreeSitterAnalyzer:
 
         logger.info(f"🌳 Tree-Sitter Analyzer initialized for: {workspace_path}")
 
-    def _get_language_library_path(self, language: str) -> Path | None:
-        """
-        Get path to compiled language library.
-
-        Args:
-            language: Language name (python, javascript, etc.)
-
-        Returns:
-            Path to .so file or None if not found
-        """
-        # Try common locations
-        library_paths = [
-            Path.home() / ".tree-sitter" / "lib" / f"{language}.so",
-            Path("/usr/local/lib") / f"tree-sitter-{language}.so",
-            Path("/usr/lib") / f"tree-sitter-{language}.so"
-        ]
-
-        for lib_path in library_paths:
-            if lib_path.exists():
-                return lib_path
-
-        logger.warning(f"⚠️  Language library not found: {language}")
-        return None
-
     def _load_language(self, language: str) -> Language | None:
         """
-        Load Tree-Sitter language parser.
+        Load Tree-Sitter language parser (modern v0.23+ method).
 
         Args:
             language: Language name
@@ -160,20 +161,20 @@ class TreeSitterAnalyzer:
         if language in self.languages:
             return self.languages[language]
 
-        # Get library path
-        lib_path = self._get_language_library_path(language)
-        if not lib_path:
+        # Check if language loader is available
+        if language not in LANGUAGE_LOADERS:
             logger.warning(f"⚠️  Cannot load language: {language}")
             return None
 
         try:
-            # Load language from compiled library
-            lang = Language(str(lib_path), language)
+            # Load language using modern package method
+            lang_loader = LANGUAGE_LOADERS[language]
+            lang = lang_loader()
             self.languages[language] = lang
 
             # Create parser
             parser = Parser()
-            parser.set_language(lang)
+            parser.language = lang  # v0.23+ uses property instead of set_language()
             self.parsers[language] = parser
 
             logger.debug(f"✅ Loaded language: {language}")
