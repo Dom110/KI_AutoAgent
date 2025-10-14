@@ -337,8 +337,8 @@ async def websocket_chat(websocket: WebSocket):
                 continue
 
             # CHAT MESSAGE (execute workflow)
-            # Accept both "chat" and "message" for compatibility
-            if message_type in ["chat", "message"]:
+            # Accept "chat", "message", and "task" for compatibility
+            if message_type in ["chat", "message", "task"]:
                 user_query = data.get("content") or data.get("message", "")
                 if not user_query:
                     await manager.send_json(client_id, {
