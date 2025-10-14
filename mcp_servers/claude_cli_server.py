@@ -57,6 +57,43 @@ def debug_log(message: str):
         print(f"[DEBUG {datetime.now()}] {message}", file=sys.stderr)
 
 
+async def send_progress_notification(message: str):
+    """
+    Send a progress notification to stdout (JSON-RPC 2.0).
+
+    This keeps the MCP client alive during long-running Claude operations.
+    Notifications have no "id" field, so no response is expected.
+    """
+    notification = {
+        "jsonrpc": "2.0",
+        "method": "$/progress",
+        "params": {
+            "message": message,
+            "timestamp": datetime.now().isoformat()
+        }
+    }
+    sys.stdout.write(json.dumps(notification) + "\n")
+    sys.stdout.flush()
+    debug_log(f"Progress notification: {message}")
+
+
+async def heartbeat_task(interval: float = 10.0, stop_event: asyncio.Event = None):
+    """
+    Background task that sends periodic heartbeat notifications.
+
+    Args:
+        interval: Seconds between heartbeats (default: 10s)
+        stop_event: Event to signal when to stop
+    """
+    try:
+        while not stop_event.is_set():
+            await send_progress_notification("Claude CLI execution in progress...")
+            await asyncio.sleep(interval)
+    except asyncio.CancelledError:
+        debug_log("Heartbeat task cancelled")
+        raise
+
+
 async def claude_generate(
     prompt: str,
     workspace_path: str,
@@ -120,15 +157,32 @@ async def claude_generate(
             messages.append(SystemMessage(content=system_prompt))
         messages.append(HumanMessage(content=prompt))
 
-        # Execute
-        start = datetime.now()
-        response = await llm.ainvoke(messages)
-        duration_ms = (datetime.now() - start).total_seconds() * 1000
+        # Start heartbeat task to keep MCP client alive
+        stop_event = asyncio.Event()
+        heartbeat = asyncio.create_task(heartbeat_task(interval=10.0, stop_event=stop_event))
 
-        # Extract files created
-        files_created = []
-        if hasattr(llm, 'last_events') and llm.last_events:
-            files_created = llm.extract_file_paths_from_events(llm.last_events)
+        try:
+            # Send initial progress
+            await send_progress_notification(f"Starting Claude CLI: {agent_name}")
+
+            # Execute Claude CLI (may take minutes with tools!)
+            start = datetime.now()
+            response = await llm.ainvoke(messages)
+            duration_ms = (datetime.now() - start).total_seconds() * 1000
+
+            # Stop heartbeat
+            stop_event.set()
+            await heartbeat
+
+            # Extract files created
+            files_created = []
+            if hasattr(llm, 'last_events') and llm.last_events:
+                files_created = llm.extract_file_paths_from_events(llm.last_events)
+        except Exception as e:
+            # Stop heartbeat on error
+            stop_event.set()
+            heartbeat.cancel()
+            raise
 
         result = {
             "success": True,

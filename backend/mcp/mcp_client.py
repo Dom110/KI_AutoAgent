@@ -285,21 +285,51 @@ class MCPClient:
             process.stdin.write(request_line.encode())
             await process.stdin.drain()
 
-            # Read response from stdout (with timeout)
-            try:
-                response_line = await asyncio.wait_for(
-                    process.stdout.readline(),
-                    timeout=self.timeout
-                )
-            except asyncio.TimeoutError:
-                raise MCPConnectionError(f"MCP call to {server} timed out after {self.timeout}s")
+            # Read response from stdout (loop to handle progress notifications)
+            # MCP servers send progress notifications during long-running operations
+            request_id = request["id"]
+            start_time = asyncio.get_event_loop().time()
 
-            if not response_line:
-                raise MCPConnectionError(f"Server {server} closed stdout (process died)")
+            while True:
+                try:
+                    # Read one line with short timeout (15s per line)
+                    # Servers send heartbeat every 10s, so 15s is safe
+                    response_line = await asyncio.wait_for(
+                        process.stdout.readline(),
+                        timeout=15.0
+                    )
+                except asyncio.TimeoutError:
+                    elapsed = asyncio.get_event_loop().time() - start_time
+                    raise MCPConnectionError(
+                        f"MCP call to {server} timed out after {elapsed:.1f}s "
+                        f"(no output for 15s - server may be stuck)"
+                    )
 
-            # Parse response
-            response = json.loads(response_line.decode().strip())
-            return response
+                if not response_line:
+                    raise MCPConnectionError(f"Server {server} closed stdout (process died)")
+
+                # Parse message
+                message = json.loads(response_line.decode().strip())
+
+                # Check if this is the response to our request
+                if "id" in message and message["id"] == request_id:
+                    # This is our response!
+                    return message
+
+                # This is a notification (no "id" field) - log and continue
+                if "method" in message:
+                    method = message["method"]
+                    if method == "$/progress":
+                        # Progress notification - just log at debug level
+                        params = message.get("params", {})
+                        logger.debug(f"📊 {server}: {params.get('message', 'progress...')}")
+                    else:
+                        logger.debug(f"📨 {server} notification: {method}")
+                    continue  # Keep reading
+
+                # Unknown message format - log warning and continue
+                logger.warning(f"⚠️  {server} sent unexpected message: {message}")
+                continue
 
         except json.JSONDecodeError as e:
             raise MCPConnectionError(f"Invalid JSON response from {server}: {e}")

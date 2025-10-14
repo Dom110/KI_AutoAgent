@@ -46,6 +46,43 @@ def debug_log(message: str):
         print(f"[DEBUG {datetime.now()}] {message}", file=sys.stderr)
 
 
+async def send_progress_notification(message: str):
+    """
+    Send a progress notification to stdout (JSON-RPC 2.0).
+
+    This keeps the MCP client alive during long-running operations.
+    Notifications have no "id" field, so no response is expected.
+    """
+    notification = {
+        "jsonrpc": "2.0",
+        "method": "$/progress",
+        "params": {
+            "message": message,
+            "timestamp": datetime.now().isoformat()
+        }
+    }
+    sys.stdout.write(json.dumps(notification) + "\n")
+    sys.stdout.flush()
+    debug_log(f"Progress notification: {message}")
+
+
+async def heartbeat_task(interval: float = 10.0, stop_event: asyncio.Event = None):
+    """
+    Background task that sends periodic heartbeat notifications.
+
+    Args:
+        interval: Seconds between heartbeats (default: 10s)
+        stop_event: Event to signal when to stop
+    """
+    try:
+        while not stop_event.is_set():
+            await send_progress_notification("API call in progress...")
+            await asyncio.sleep(interval)
+    except asyncio.CancelledError:
+        debug_log("Heartbeat task cancelled")
+        raise
+
+
 async def perplexity_search(query: str, max_results: int = 5, stream: bool = False):
     """
     Execute Perplexity search with optional streaming.
@@ -112,21 +149,39 @@ Focus on returning the {max_results} most relevant and recent results.""",
             return stream_search()
 
         else:
-            # BATCH MODE (original)
-            result = await service.search_web(
-                query=query,
-                max_results=max_results,
-                recency="month"  # Recent results (last month)
-            )
+            # BATCH MODE with heartbeat support
+            # Start heartbeat task to keep MCP client alive
+            stop_event = asyncio.Event()
+            heartbeat = asyncio.create_task(heartbeat_task(interval=10.0, stop_event=stop_event))
 
-            return {
-                "success": True,
-                "query": query,
-                "content": result.get("answer", ""),
-                "sources": result.get("citations", []),
-                "timestamp": result.get("timestamp", datetime.now().isoformat()),
-                "result_count": len(result.get("citations", []))
-            }
+            try:
+                # Send initial progress
+                await send_progress_notification(f"Starting Perplexity search: {query[:50]}...")
+
+                # Execute the API call
+                result = await service.search_web(
+                    query=query,
+                    max_results=max_results,
+                    recency="month"  # Recent results (last month)
+                )
+
+                # Stop heartbeat
+                stop_event.set()
+                await heartbeat
+
+                return {
+                    "success": True,
+                    "query": query,
+                    "content": result.get("answer", ""),
+                    "sources": result.get("citations", []),
+                    "timestamp": result.get("timestamp", datetime.now().isoformat()),
+                    "result_count": len(result.get("citations", []))
+                }
+            except Exception as e:
+                # Stop heartbeat on error
+                stop_event.set()
+                heartbeat.cancel()
+                raise
 
     except Exception as e:
         debug_log(f"Perplexity search error: {e}")
