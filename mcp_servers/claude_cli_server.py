@@ -157,32 +157,18 @@ async def claude_generate(
             messages.append(SystemMessage(content=system_prompt))
         messages.append(HumanMessage(content=prompt))
 
-        # Start heartbeat task to keep MCP client alive
-        stop_event = asyncio.Event()
-        heartbeat = asyncio.create_task(heartbeat_task(interval=10.0, stop_event=stop_event))
+        # Execute Claude CLI
+        # NOTE: No heartbeat - causes subprocess crashes with async event loop conflicts
+        # Solution: Research mode doesn't use Claude (Perplexity only)
+        #           Architect/Codesmith use Claude WITHOUT tools = fast, no timeout
+        start = datetime.now()
+        response = await llm.ainvoke(messages)
+        duration_ms = (datetime.now() - start).total_seconds() * 1000
 
-        try:
-            # Send initial progress
-            await send_progress_notification(f"Starting Claude CLI: {agent_name}")
-
-            # Execute Claude CLI (may take minutes with tools!)
-            start = datetime.now()
-            response = await llm.ainvoke(messages)
-            duration_ms = (datetime.now() - start).total_seconds() * 1000
-
-            # Stop heartbeat
-            stop_event.set()
-            await heartbeat
-
-            # Extract files created
-            files_created = []
-            if hasattr(llm, 'last_events') and llm.last_events:
-                files_created = llm.extract_file_paths_from_events(llm.last_events)
-        except Exception as e:
-            # Stop heartbeat on error
-            stop_event.set()
-            heartbeat.cancel()
-            raise
+        # Extract files created
+        files_created = []
+        if hasattr(llm, 'last_events') and llm.last_events:
+            files_created = llm.extract_file_paths_from_events(llm.last_events)
 
         result = {
             "success": True,
