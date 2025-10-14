@@ -73,6 +73,8 @@ class MCPClient:
         """
         self.workspace_path = workspace_path
         self.servers = servers or [
+            "build_validation",  # NEW: v6.2 MCP
+            "file_tools",        # NEW: v6.2 MCP
             "perplexity",
             "memory",
             "tree-sitter",
@@ -92,6 +94,8 @@ class MCPClient:
         # MCP server paths (relative to project root)
         project_root = Path(__file__).parent.parent.parent
         self._server_paths = {
+            "build_validation": project_root / "mcp_servers" / "build_validation_server.py",
+            "file_tools": project_root / "mcp_servers" / "file_tools_server.py",
             "perplexity": project_root / "mcp_servers" / "perplexity_server.py",
             "memory": project_root / "mcp_servers" / "memory_server.py",
             "tree-sitter": project_root / "mcp_servers" / "tree_sitter_server.py",
