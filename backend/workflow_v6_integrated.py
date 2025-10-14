@@ -283,7 +283,7 @@ class WorkflowV6Integrated:
             logger.info(f"  ✅ MCP Client connected to {len(mcp.servers)} servers")
 
             # List connected servers
-            for server_name in mcp.servers.keys():
+            for server_name in mcp.servers:
                 logger.debug(f"    - {server_name}: connected")
 
             return mcp
