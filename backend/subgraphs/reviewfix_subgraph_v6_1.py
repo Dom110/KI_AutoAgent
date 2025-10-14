@@ -300,10 +300,6 @@ Provide quality score and detailed feedback."""
             # ALL replaced by build_validation_server.py via MCP!
             # ================================================================
 
-            """
-            # END OBSOLETE CODE BLOCK
-            # ================================================================
-
             # Adjust quality score based on build validation
             if not build_validation_passed:
                 logger.warning("⚠️  Build validation FAILED - reducing quality score to 0.50")
