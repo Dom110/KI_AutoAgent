@@ -274,7 +274,8 @@ class WorkflowV6Integrated:
         """
         logger.info("🔌 Initializing MCP Client...")
 
-        mcp = MCPClient()
+        # MCP Client requires workspace_path parameter (v6.2)
+        mcp = MCPClient(workspace_path=self.workspace_path)
 
         try:
             # Initialize MCP client (connects to all servers)

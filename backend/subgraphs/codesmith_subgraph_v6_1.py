@@ -1,14 +1,19 @@
 """
-Codesmith Subgraph v6.1 - Custom Node Implementation
+Codesmith Subgraph v6.2 - Pure MCP Implementation
 
-This is a refactored version that doesn't use create_react_agent,
-allowing it to work with Claude CLI adapter.
+This is a fully MCP-based version with NO direct service imports.
 
-Changes from v6.0:
-- Removed create_react_agent (incompatible with async-only LLMs)
-- Direct LLM.ainvoke() calls (like Architect pattern)
-- Manual tool calling for file operations
-- Works with ClaudeCLISimple adapter
+Changes from v6.1:
+- ALL file operations via file_tools MCP server (NO direct imports)
+- Claude generation via MCP (already implemented)
+- Memory storage via MCP (already implemented)
+- NO backwards compatibility (pure MCP or fail)
+- Tree-sitter and Asimov checks integrated
+
+Migration to v6.2:
+- Removed direct file_tools import
+- Replaced all write_file.ainvoke() with MCP calls
+- Streaming support for file operations
 
 Author: KI AutoAgent Team
 Python: 3.13+
@@ -21,13 +26,12 @@ import os
 from datetime import datetime
 from typing import Any
 
-# MCP client for all service calls (replaces direct service imports)
+# MCP client for all service calls (NO direct imports!)
 from mcp.mcp_client import MCPClient
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
 from state_v6 import CodesmithState
-from tools.file_tools import write_file, read_file
 from tools.tree_sitter_tools import TreeSitterAnalyzer
 from security.asimov_rules import validate_asimov_rules, format_violations_report
 from subgraphs.file_validation import validate_generated_files, generate_completion_prompt
@@ -302,13 +306,17 @@ Generate complete, production-ready code files."""
                             else:
                                 logger.info(f"✅ Asimov rules passed for {file_path}")
 
-                        # Write file (tool expects relative path + workspace_path)
+                        # Write file via file_tools MCP server (v6.2)
                         try:
-                            await write_file.ainvoke({
-                                "file_path": file_path,
-                                "content": file_content,
-                                "workspace_path": workspace_path
-                            })
+                            await mcp.call(
+                                server="file_tools",
+                                tool="write_file",
+                                arguments={
+                                    "file_path": file_path,
+                                    "content": file_content,
+                                    "workspace_path": workspace_path
+                                }
+                            )
 
                             generated_files.append({
                                 "path": file_path,
@@ -378,14 +386,18 @@ Generate complete, production-ready code files."""
                         else:
                             logger.info(f"✅ Asimov rules passed for {file_path}")
 
-                        # Write file only if valid
+                        # Write file only if valid (via MCP v6.2)
                         if asimov_passed:
                             try:
-                                await write_file.ainvoke({
-                                    "file_path": file_path,
-                                    "content": file_content,
-                                    "workspace_path": workspace_path
-                                })
+                                await mcp.call(
+                                    server="file_tools",
+                                    tool="write_file",
+                                    arguments={
+                                        "file_path": file_path,
+                                        "content": file_content,
+                                        "workspace_path": workspace_path
+                                    }
+                                )
 
                                 generated_files.append({
                                     "path": file_path,
@@ -400,13 +412,17 @@ Generate complete, production-ready code files."""
                 else:
                     logger.debug(f"⚠️ No parser for {file_path}, writing without validation")
 
-                    # Write file without validation (e.g., .txt, .md)
+                    # Write file without validation (e.g., .txt, .md) via MCP (v6.2)
                     try:
-                        await write_file.ainvoke({
-                            "file_path": file_path,
-                            "content": file_content,
-                            "workspace_path": workspace_path
-                        })
+                        await mcp.call(
+                            server="file_tools",
+                            tool="write_file",
+                            arguments={
+                                "file_path": file_path,
+                                "content": file_content,
+                                "workspace_path": workspace_path
+                            }
+                        )
 
                         generated_files.append({
                             "path": file_path,
