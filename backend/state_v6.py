@@ -131,6 +131,13 @@ class ArchitectState(TypedDict):
     - Technology stack selection
     - Design pattern recommendations
     - Diagram generation (Mermaid, GraphViz)
+    - Architecture documentation management (v6.3+)
+
+    Modes (v6.3+):
+    - "scan": Load and analyze existing architecture (UPDATE workflows)
+    - "design": Design new architecture or propose updates
+    - "post_build_scan": Document system after build (CREATE workflows)
+    - "re_scan": Update architecture after modifications (UPDATE workflows)
 
     Memory Integration:
     - Reads: Research results
@@ -139,6 +146,11 @@ class ArchitectState(TypedDict):
     Tree-Sitter:
     - Analyzes existing codebase structure
 
+    Architecture Manager (v6.3+):
+    - Saves/loads architecture documentation
+    - Verifies consistency with code
+    - Generates diagrams
+
     Asimov:
     - Permission: can_analyze_codebase
     """
@@ -146,6 +158,7 @@ class ArchitectState(TypedDict):
     # Input
     workspace_path: str
     user_requirements: str
+    mode: str  # ← NEW v6.3: "scan" | "design" | "post_build_scan" | "re_scan"
 
     # Context from previous agents (via Memory)
     research_context: dict[str, Any]
@@ -154,6 +167,7 @@ class ArchitectState(TypedDict):
     design: dict[str, Any]
     tech_stack: list[str]
     patterns: list[dict[str, Any]]
+    architecture: dict[str, Any]  # ← NEW v6.3: Full architecture from architecture_manager
 
     # Generated artifacts
     diagram: str  # Mermaid diagram
@@ -362,20 +376,27 @@ def research_to_supervisor(research_state: ResearchState) -> dict[str, Any]:
     }
 
 
-def supervisor_to_architect(state: SupervisorState) -> ArchitectState:
+def supervisor_to_architect(state: SupervisorState, mode: str = "design") -> ArchitectState:
     """
     Transform SupervisorState to ArchitectState.
 
     Called when Supervisor invokes Architect subgraph.
     Note: research_context will be populated from Memory, not state.
+
+    Args:
+        state: SupervisorState
+        mode: Architect mode ("scan" | "design" | "post_build_scan" | "re_scan")
+              Default: "design"
     """
     return {
         "workspace_path": state["workspace_path"],
         "user_requirements": state["user_query"],
+        "mode": mode,  # ← NEW v6.3: Pass mode to architect
         "research_context": {},  # Populated from Memory in agent
         "design": {},
         "tech_stack": [],
         "patterns": [],
+        "architecture": {},  # ← NEW v6.3: Architecture documentation
         "diagram": "",
         "adr": "",
         "errors": []

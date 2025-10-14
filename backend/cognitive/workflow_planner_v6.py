@@ -114,7 +114,7 @@ class AgentStep:
 class WorkflowPlan:
     """Complete workflow execution plan."""
     task_description: str
-    workflow_type: str                                    # CREATE, FIX, EXPLAIN, CUSTOM
+    workflow_type: str                                    # CREATE, UPDATE, FIX, EXPLAIN, REFACTOR, CUSTOM
     agents: List[AgentStep]
     success_criteria: List[str]
     estimated_duration: str
@@ -232,7 +232,7 @@ Return a JSON object with this structure:
 
 {{
     "task_summary": "Brief description of the task",
-    "workflow_type": "CREATE|FIX|EXPLAIN|REFACTOR|CUSTOM",
+    "workflow_type": "CREATE|UPDATE|FIX|EXPLAIN|REFACTOR|CUSTOM",
     "complexity": "simple|moderate|complex",
     "estimated_duration": "e.g., 2-5 minutes",
     "agents": [
@@ -263,11 +263,12 @@ Return a JSON object with this structure:
 
 # Common Patterns:
 
-1. **CREATE Pattern**: Research (mode="research") → Architect → Codesmith → ReviewFix
-2. **EXPLAIN Pattern**: Research (mode="explain") → DONE
-3. **ANALYZE Pattern**: Research (mode="analyze") → DONE
-4. **FIX Pattern**: Research (mode="analyze") → Debugger → ReviewFix
-5. **REFACTOR Pattern**: Research (mode="research") → Architect → Codesmith → ReviewFix
+1. **CREATE Pattern**: Research (mode="research") → Architect → Codesmith → ReviewFix → Architect (post-scan)
+2. **UPDATE Pattern**: Architect (scan) → Research (optional) → Architect (update proposal) → Codesmith → ReviewFix → Architect (re-scan)
+3. **EXPLAIN Pattern**: Research (mode="explain") → DONE
+4. **ANALYZE Pattern**: Research (mode="analyze") → DONE
+5. **FIX Pattern**: Research (mode="analyze") → Debugger → ReviewFix
+6. **REFACTOR Pattern**: Research (mode="research") → Architect → Codesmith → ReviewFix
 
 # Correct Examples:
 
@@ -279,11 +280,26 @@ Task: "Create a task manager app"
     {{"agent": "research", "mode": "research", "description": "Search for task manager patterns"}},
     {{"agent": "architect", "description": "Design architecture"}},
     {{"agent": "codesmith", "description": "Generate code"}},
-    {{"agent": "reviewfix", "description": "Review and fix"}}
+    {{"agent": "reviewfix", "description": "Review and fix"}},
+    {{"agent": "architect", "description": "Post-build scan: Create system documentation"}}
   ]
 }}
 
-**Example 2: EXPLAIN**
+**Example 2: UPDATE**
+Task: "Add authentication to existing app"
+{{
+  "workflow_type": "UPDATE",
+  "agents": [
+    {{"agent": "architect", "description": "Scan existing system and load architecture"}},
+    {{"agent": "research", "mode": "research", "description": "Research authentication best practices", "condition": "if_llm_decides"}},
+    {{"agent": "architect", "description": "Design authentication integration with existing system"}},
+    {{"agent": "codesmith", "description": "Implement authentication"}},
+    {{"agent": "reviewfix", "description": "Review and fix"}},
+    {{"agent": "architect", "description": "Re-scan and update architecture documentation"}}
+  ]
+}}
+
+**Example 3: EXPLAIN**
 Task: "Explain how the API works"
 {{
   "workflow_type": "EXPLAIN",
@@ -292,7 +308,7 @@ Task: "Explain how the API works"
   ]
 }}
 
-**Example 3: EXPLAIN (German)**
+**Example 4: EXPLAIN (German)**
 Task: "Untersuche die App und erkläre mir die Architektur"
 {{
   "workflow_type": "EXPLAIN",
@@ -301,7 +317,7 @@ Task: "Untersuche die App und erkläre mir die Architektur"
   ]
 }}
 
-**Example 4: ANALYZE**
+**Example 5: ANALYZE**
 Task: "Analyze the security of this codebase"
 {{
   "workflow_type": "EXPLAIN",
@@ -310,7 +326,7 @@ Task: "Analyze the security of this codebase"
   ]
 }}
 
-**Example 5: FIX**
+**Example 6: FIX**
 Task: "Fix the authentication bug"
 {{
   "workflow_type": "FIX",
@@ -518,6 +534,15 @@ Create an optimal workflow plan for this task."""
         # Check for missing required agents
         if plan.workflow_type == "CREATE" and AgentType.CODESMITH not in [s.agent for s in plan.agents]:
             issues.append("CREATE workflow missing CODESMITH agent")
+
+        if plan.workflow_type == "UPDATE":
+            agent_list = [s.agent for s in plan.agents]
+            # UPDATE must have architect scan FIRST
+            if not agent_list or agent_list[0] != AgentType.ARCHITECT:
+                issues.append("UPDATE workflow must start with ARCHITECT scan")
+            # UPDATE must have architect re-scan at END
+            if not agent_list or agent_list[-1] != AgentType.ARCHITECT:
+                issues.append("UPDATE workflow must end with ARCHITECT re-scan")
 
         # Check iteration limits
         for step in plan.agents:

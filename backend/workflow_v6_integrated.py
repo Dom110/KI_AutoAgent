@@ -39,7 +39,7 @@ Usage:
     )
 
 Author: KI AutoAgent Team
-Version: 6.2.0-alpha
+Version: 6.3.0-alpha
 Python: 3.13+
 """
 
@@ -480,10 +480,10 @@ class WorkflowV6Integrated:
         return subgraph
 
     def _build_architect_subgraph(self) -> Any:
-        """Build Architect subgraph with MCP (v6.2)."""
-        from subgraphs.architect_subgraph_v6_1 import create_architect_subgraph
+        """Build Architect subgraph with MCP (v6.3)."""
+        from subgraphs.architect_subgraph_v6_3 import create_architect_subgraph
 
-        logger.debug("📐 Building Architect subgraph v6.2 (with MCP)...")
+        logger.debug("📐 Building Architect subgraph v6.3 (with MCP + modes)...")
 
         subgraph = create_architect_subgraph(
             workspace_path=self.workspace_path,
@@ -491,7 +491,7 @@ class WorkflowV6Integrated:
             hitl_callback=self.websocket_callback
         )
 
-        logger.debug("  ✅ Architect subgraph v6.2 built (MCP enabled)")
+        logger.debug("  ✅ Architect subgraph v6.3 built (MCP + multi-mode enabled)")
         return subgraph
 
     def _build_codesmith_subgraph(self) -> Any:
@@ -912,7 +912,7 @@ class WorkflowV6Integrated:
                 return {"errors": [str(e)]}
 
         async def architect_node_wrapper(state: SupervisorState) -> dict[str, Any]:
-            """Architect with neurosymbolic validation."""
+            """Architect with neurosymbolic validation (v6.3: mode-aware)."""
             print("📐 === ARCHITECT NODE START ===")
             logger.info("📐 Architect Agent executing...")
 
@@ -920,8 +920,40 @@ class WorkflowV6Integrated:
                 self.current_session["current_phase"] = "architect"
                 print(f"  Research results available: {bool(state.get('research_results'))}")
 
-                architect_input = supervisor_to_architect(state)
-                print(f"  Calling architect subgraph...")
+                # NEW v6.3: Extract architect mode from workflow plan
+                agent_modes = self.current_session.get("metadata", {}).get("agent_modes", {})
+                completed_agents = self.current_session.get("completed_agents", [])
+
+                # Determine mode based on workflow position and type
+                architect_mode = "design"  # Default
+
+                # If architect already ran before, this is a re-scan or post-build scan
+                architect_count = completed_agents.count("architect")
+                if architect_count == 0:
+                    # First architect call - check workflow type
+                    workflow_type = self.current_session.get("metadata", {}).get("workflow_plan", {}).get("type", "CREATE")
+                    if workflow_type == "UPDATE":
+                        architect_mode = "scan"  # UPDATE workflows scan first
+                    else:
+                        architect_mode = "design"  # CREATE workflows design first
+                elif architect_count == 1:
+                    # Second architect call
+                    workflow_type = self.current_session.get("metadata", {}).get("workflow_plan", {}).get("type", "CREATE")
+                    if workflow_type == "CREATE":
+                        architect_mode = "post_build_scan"  # CREATE: document after build
+                    elif workflow_type == "UPDATE":
+                        architect_mode = "design"  # UPDATE: design changes
+                    else:
+                        architect_mode = "design"
+                elif architect_count >= 2:
+                    # Third+ architect call - must be re-scan (UPDATE workflow end)
+                    architect_mode = "re_scan"
+
+                logger.info(f"  Architect mode: {architect_mode} (call #{architect_count + 1})")
+                print(f"  Architect mode: {architect_mode}")
+
+                architect_input = supervisor_to_architect(state, mode=architect_mode)
+                print(f"  Calling architect subgraph with mode={architect_mode}...")
                 architect_output = await architect_subgraph.ainvoke(architect_input)
                 print(f"  Architect subgraph returned: {type(architect_output)}")
 
