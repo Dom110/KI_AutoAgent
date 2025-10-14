@@ -157,18 +157,32 @@ async def claude_generate(
             messages.append(SystemMessage(content=system_prompt))
         messages.append(HumanMessage(content=prompt))
 
-        # Execute Claude CLI
-        # NOTE: No heartbeat - causes subprocess crashes with async event loop conflicts
-        # Solution: Research mode doesn't use Claude (Perplexity only)
-        #           Architect/Codesmith use Claude WITHOUT tools = fast, no timeout
-        start = datetime.now()
-        response = await llm.ainvoke(messages)
-        duration_ms = (datetime.now() - start).total_seconds() * 1000
+        # Start heartbeat task (now safe with async stdin/stdout!)
+        stop_event = asyncio.Event()
+        heartbeat = asyncio.create_task(heartbeat_task(interval=10.0, stop_event=stop_event))
 
-        # Extract files created
-        files_created = []
-        if hasattr(llm, 'last_events') and llm.last_events:
-            files_created = llm.extract_file_paths_from_events(llm.last_events)
+        try:
+            # Send initial progress
+            await send_progress_notification(f"Starting Claude CLI: {agent_name}")
+
+            # Execute Claude CLI (may take minutes with tools!)
+            start = datetime.now()
+            response = await llm.ainvoke(messages)
+            duration_ms = (datetime.now() - start).total_seconds() * 1000
+
+            # Stop heartbeat
+            stop_event.set()
+            await heartbeat
+
+            # Extract files created
+            files_created = []
+            if hasattr(llm, 'last_events') and llm.last_events:
+                files_created = llm.extract_file_paths_from_events(llm.last_events)
+        except Exception as e:
+            # Stop heartbeat on error
+            stop_event.set()
+            heartbeat.cancel()
+            raise
 
         result = {
             "success": True,
@@ -414,25 +428,63 @@ async def handle_request(request: dict) -> dict:
 # ============================================================================
 
 async def main():
-    """Main MCP server loop (stdin/stdout protocol)"""
+    """Main MCP server loop with async stdin/stdout (supports heartbeat)"""
 
-    print(f"[{datetime.now()}] Claude CLI MCP Server started", file=sys.stderr)
+    print(f"[{datetime.now()}] Claude CLI MCP Server started (async mode)", file=sys.stderr)
+
+    # Setup async stdin reader
+    loop = asyncio.get_event_loop()
+    reader = asyncio.StreamReader(loop=loop)
+    protocol = asyncio.StreamReaderProtocol(reader)
+
+    await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+
+    # Setup async stdout writer
+    write_transport, write_protocol = await loop.connect_write_pipe(
+        lambda: asyncio.streams.FlowControlMixin(),
+        sys.stdout
+    )
+    writer = asyncio.StreamWriter(write_transport, write_protocol, reader, loop)
+
+    # Shared lock for stdout writing (prevents heartbeat/response conflicts)
+    stdout_lock = asyncio.Lock()
+
+    async def write_message(message: dict):
+        """Thread-safe message writing with lock"""
+        async with stdout_lock:
+            writer.write((json.dumps(message) + "\n").encode())
+            await writer.drain()
+
+    # Override send_progress_notification to use async writer
+    global send_progress_notification
+    async def send_progress_notification_async(message: str):
+        notification = {
+            "jsonrpc": "2.0",
+            "method": "$/progress",
+            "params": {
+                "message": message,
+                "timestamp": datetime.now().isoformat()
+            }
+        }
+        await write_message(notification)
+        debug_log(f"Progress notification: {message}")
+
+    send_progress_notification = send_progress_notification_async
 
     while True:
         try:
-            line = sys.stdin.readline()
+            line = await reader.readline()
             if not line:
                 break
 
-            line = line.strip()
+            line = line.decode().strip()
             if not line:
                 continue
 
             request = json.loads(line)
             response = await handle_request(request)
 
-            sys.stdout.write(json.dumps(response) + "\n")
-            sys.stdout.flush()
+            await write_message(response)
 
         except json.JSONDecodeError as e:
             error_response = {
@@ -440,16 +492,14 @@ async def main():
                 "id": None,
                 "error": {"code": -32700, "message": f"Parse error: {e}"}
             }
-            sys.stdout.write(json.dumps(error_response) + "\n")
-            sys.stdout.flush()
+            await write_message(error_response)
         except Exception as e:
             error_response = {
                 "jsonrpc": "2.0",
                 "id": None,
                 "error": {"code": -32603, "message": f"Internal error: {e}"}
             }
-            sys.stdout.write(json.dumps(error_response) + "\n")
-            sys.stdout.flush()
+            await write_message(error_response)
 
 
 if __name__ == "__main__":

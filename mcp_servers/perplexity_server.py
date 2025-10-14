@@ -385,29 +385,64 @@ async def handle_request(request: dict) -> dict:
 
 
 async def main():
-    """
-    Main MCP server loop.
-
-    Reads JSON-RPC requests from stdin, processes them, writes responses to stdout.
-    """
+    """Main MCP server loop with async stdin/stdout (supports heartbeat)"""
 
     # Log to stderr (stdout is reserved for MCP protocol)
-    print(f"[{datetime.now()}] Perplexity MCP Server started", file=sys.stderr)
+    print(f"[{datetime.now()}] Perplexity MCP Server started (async mode)", file=sys.stderr)
     print(f"[{datetime.now()}] Using Perplexity API for web search", file=sys.stderr)
     print(f"[{datetime.now()}] Waiting for requests on stdin...", file=sys.stderr)
+
+    # Setup async stdin reader
+    loop = asyncio.get_event_loop()
+    reader = asyncio.StreamReader(loop=loop)
+    protocol = asyncio.StreamReaderProtocol(reader)
+
+    await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+
+    # Setup async stdout writer
+    write_transport, write_protocol = await loop.connect_write_pipe(
+        lambda: asyncio.streams.FlowControlMixin(),
+        sys.stdout
+    )
+    writer = asyncio.StreamWriter(write_transport, write_protocol, reader, loop)
+
+    # Shared lock for stdout writing (prevents heartbeat/response conflicts)
+    stdout_lock = asyncio.Lock()
+
+    async def write_message(message: dict):
+        """Thread-safe message writing with lock"""
+        async with stdout_lock:
+            writer.write((json.dumps(message) + "\n").encode())
+            await writer.drain()
+
+    # Override send_progress_notification to use async writer
+    global send_progress_notification
+    async def send_progress_notification_async(message: str):
+        notification = {
+            "jsonrpc": "2.0",
+            "method": "$/progress",
+            "params": {
+                "message": message,
+                "timestamp": datetime.now().isoformat()
+            }
+        }
+        await write_message(notification)
+        debug_log(f"Progress notification: {message}")
+
+    send_progress_notification = send_progress_notification_async
 
     # Main loop: read requests, send responses
     while True:
         try:
             # Read one line from stdin
-            line = sys.stdin.readline()
+            line = await reader.readline()
 
             # End of input
             if not line:
                 print(f"[{datetime.now()}] EOF reached, shutting down", file=sys.stderr)
                 break
 
-            line = line.strip()
+            line = line.decode().strip()
             if not line:
                 continue
 
@@ -420,8 +455,7 @@ async def main():
             response = await handle_request(request)
 
             # Write JSON-RPC response to stdout
-            sys.stdout.write(json.dumps(response) + "\n")
-            sys.stdout.flush()
+            await write_message(response)
 
             print(f"[{datetime.now()}] Response sent", file=sys.stderr)
 
@@ -435,8 +469,7 @@ async def main():
                     "message": f"Parse error: {str(e)}"
                 }
             }
-            sys.stdout.write(json.dumps(error_response) + "\n")
-            sys.stdout.flush()
+            await write_message(error_response)
             print(f"[{datetime.now()}] JSON parse error: {e}", file=sys.stderr)
 
         except Exception as e:
@@ -449,8 +482,7 @@ async def main():
                     "message": f"Internal error: {str(e)}"
                 }
             }
-            sys.stdout.write(json.dumps(error_response) + "\n")
-            sys.stdout.flush()
+            await write_message(error_response)
             print(f"[{datetime.now()}] Error: {e}", file=sys.stderr)
             import traceback
             traceback.print_exc(file=sys.stderr)
