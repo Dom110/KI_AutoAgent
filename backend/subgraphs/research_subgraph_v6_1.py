@@ -107,7 +107,9 @@ Output format:
 
 Provide a structured summary of the key findings."""
 
-    # Call Claude via MCP (with extended timeout for tool use)
+    # Call Claude via MCP (no tools - just text analysis)
+    # Note: Tools disabled to avoid MCP stdin/stdout blocking issues
+    # Research agent only needs to analyze Perplexity results (no file access needed)
     claude_result = await mcp.call(
         server="claude",
         tool="claude_generate",
@@ -118,9 +120,9 @@ Provide a structured summary of the key findings."""
             "agent_name": "research",
             "temperature": 0.3,
             "max_tokens": 4096,
-            "tools": ["Read", "Bash"]
+            "tools": []  # No tools - pure text analysis
         },
-        timeout=300.0  # 5 min timeout for tool-enabled Claude calls
+        timeout=60.0  # 1 min timeout sufficient for text-only analysis
     )
 
     analysis = ""
