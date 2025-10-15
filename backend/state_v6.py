@@ -23,7 +23,7 @@ Reference:
 from __future__ import annotations
 
 import operator
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, Any, TypedDict, Optional, Dict, List
 
 
 # ============================================================================
@@ -53,20 +53,20 @@ class SupervisorState(TypedDict):
     workspace_path: str
 
     # NEW v6.2: Intent Detection
-    intent: str | None  # "create", "fix", "refactor", "explain"
-    workflow_path: list[str] | None  # ["research", "architect", ...] or ["reviewfix"]
+    intent: Optional[str]  # "create", "fix", "refactor", "explain"
+    workflow_path: Optional[List[str]]  # ["research", "architect", ...] or ["reviewfix"]
 
     # Results from each subgraph
-    research_results: dict[str, Any] | None
-    architecture_design: dict[str, Any] | None
-    generated_files: list[dict[str, Any]]
-    review_feedback: dict[str, Any] | None
+    research_results: Optional[Dict[str, Any]]
+    architecture_design: Optional[Dict[str, Any]]
+    generated_files: List[Dict[str, Any]]
+    review_feedback: Optional[Dict[str, Any]]
 
     # Final output
-    final_result: Any | None
+    final_result: Optional[Any]
 
     # Accumulated errors (using reducer)
-    errors: Annotated[list[dict[str, Any]], operator.add]
+    errors: Annotated[List[Dict[str, Any]], operator.add]
 
 
 # ============================================================================
@@ -104,14 +104,14 @@ class ResearchState(TypedDict):
     mode: str  # ← NEW v6.2: "research" | "explain" | "analyze"
 
     # Research results
-    findings: dict[str, Any]
-    sources: list[str]
+    findings: Dict[str, Any]
+    sources: List[str]
 
     # Generated report (Markdown)
     report: str
 
     # Errors
-    errors: Annotated[list[dict[str, Any]], operator.add]
+    errors: Annotated[List[Dict[str, Any]], operator.add]
 
 
 # ============================================================================
@@ -161,20 +161,20 @@ class ArchitectState(TypedDict):
     mode: str  # ← NEW v6.3: "scan" | "design" | "post_build_scan" | "re_scan"
 
     # Context from previous agents (via Memory)
-    research_context: dict[str, Any]
+    research_context: Dict[str, Any]
 
     # Architecture outputs
-    design: dict[str, Any]
-    tech_stack: list[str]
-    patterns: list[dict[str, Any]]
-    architecture: dict[str, Any]  # ← NEW v6.3: Full architecture from architecture_manager
+    design: Dict[str, Any]
+    tech_stack: List[str]
+    patterns: List[Dict[str, Any]]
+    architecture: Dict[str, Any]  # ← NEW v6.3: Full architecture from architecture_manager
 
     # Generated artifacts
     diagram: str  # Mermaid diagram
     adr: str  # Architecture Decision Record (Markdown)
 
     # Errors
-    errors: Annotated[list[dict[str, Any]], operator.add]
+    errors: Annotated[List[Dict[str, Any]], operator.add]
 
 
 # ============================================================================
@@ -213,12 +213,12 @@ class CodesmithState(TypedDict):
     requirements: str
 
     # Context from previous agents (via Memory)
-    design: dict[str, Any]
-    research: dict[str, Any]
-    past_successes: list[dict[str, Any]]  # From Learning System
+    design: Dict[str, Any]
+    research: Dict[str, Any]
+    past_successes: List[Dict[str, Any]]  # From Learning System
 
     # Implementation outputs
-    generated_files: list[dict[str, Any]]
+    generated_files: List[Dict[str, Any]]
     """
     Format:
     {
@@ -229,7 +229,7 @@ class CodesmithState(TypedDict):
     }
     """
 
-    tests: list[dict[str, Any]]
+    tests: List[Dict[str, Any]]
     """
     Format:
     {
@@ -243,7 +243,7 @@ class CodesmithState(TypedDict):
     api_docs: str
 
     # Errors
-    errors: Annotated[list[dict[str, Any]], operator.add]
+    errors: Annotated[List[Dict[str, Any]], operator.add]
 
 
 # ============================================================================
@@ -295,25 +295,25 @@ class ReviewFixState(TypedDict):
 
     # Input
     workspace_path: str
-    generated_files: list[dict[str, Any]]
-    files_to_review: list[str]  # ← NEW! File paths extracted for review
-    design: dict[str, Any]  # From Memory
+    generated_files: List[Dict[str, Any]]
+    files_to_review: List[str]  # ← NEW! File paths extracted for review
+    design: Dict[str, Any]  # From Memory
 
     # Review results
     quality_score: float  # 0.0 - 1.0
-    review_feedback: dict[str, Any]
+    review_feedback: Dict[str, Any]
     """
     Format:
     {
-        "issues": list[dict],  # Security, quality, style issues
+        "issues": List[dict],  # Security, quality, style issues
         "asimov_validation": dict,  # Asimov compliance check
-        "suggestions": list[str],
-        "critical_errors": list[str]
+        "suggestions": List[str],
+        "critical_errors": List[str]
     }
     """
 
     # Fix results
-    fixes_applied: list[dict[str, Any]]
+    fixes_applied: List[Dict[str, Any]]
     """
     Format:
     {
@@ -330,7 +330,7 @@ class ReviewFixState(TypedDict):
     should_continue: bool  # Continue loop or finish
 
     # Errors
-    errors: Annotated[list[dict[str, Any]], operator.add]
+    errors: Annotated[List[Dict[str, Any]], operator.add]
 
 
 # ============================================================================
@@ -359,7 +359,7 @@ def supervisor_to_research(state: SupervisorState, mode: str = "research") -> Re
     }
 
 
-def research_to_supervisor(research_state: ResearchState) -> dict[str, Any]:
+def research_to_supervisor(research_state: ResearchState) -> Dict[str, Any]:
     """
     Transform ResearchState back to SupervisorState fields.
 
@@ -403,7 +403,7 @@ def supervisor_to_architect(state: SupervisorState, mode: str = "design") -> Arc
     }
 
 
-def architect_to_supervisor(architect_state: ArchitectState) -> dict[str, Any]:
+def architect_to_supervisor(architect_state: ArchitectState) -> Dict[str, Any]:
     """
     Transform ArchitectState back to SupervisorState fields.
 
@@ -440,7 +440,7 @@ def supervisor_to_codesmith(state: SupervisorState) -> CodesmithState:
     }
 
 
-def codesmith_to_supervisor(codesmith_state: CodesmithState) -> dict[str, Any]:
+def codesmith_to_supervisor(codesmith_state: CodesmithState) -> Dict[str, Any]:
     """
     Transform CodesmithState back to SupervisorState fields.
 
@@ -486,7 +486,7 @@ def supervisor_to_reviewfix(state: SupervisorState) -> ReviewFixState:
     }
 
 
-def reviewfix_to_supervisor(reviewfix_state: ReviewFixState) -> dict[str, Any]:
+def reviewfix_to_supervisor(reviewfix_state: ReviewFixState) -> Dict[str, Any]:
     """
     Transform ReviewFixState back to SupervisorState fields.
 
@@ -510,8 +510,8 @@ def create_error(
     agent: str,
     error_type: str,
     message: str,
-    context: dict[str, Any] | None = None
-) -> dict[str, Any]:
+    context: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
     """
     Create standardized error dict for state.errors list.
 
@@ -535,9 +535,9 @@ def create_error(
 
 
 def merge_errors(
-    state_errors: list[dict[str, Any]],
-    new_errors: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+    state_errors: List[Dict[str, Any]],
+    new_errors: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     """
     Merge errors using operator.add reducer.
 
