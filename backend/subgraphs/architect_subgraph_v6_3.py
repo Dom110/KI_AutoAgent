@@ -42,7 +42,8 @@ logger = logging.getLogger(__name__)
 def create_architect_subgraph(
     workspace_path: str,
     mcp: MCPClient,
-    hitl_callback: Any = None
+    hitl_callback: Any = None,
+    orchestrator: Any = None
 ) -> Any:
     """
     Create Architect Subgraph with multi-mode support (v6.3).
@@ -51,6 +52,7 @@ def create_architect_subgraph(
         workspace_path: Path to user workspace
         mcp: MCP client for all service calls
         hitl_callback: Optional HITL callback for debug info
+        orchestrator: AgentOrchestrator for agent autonomy (v6.3)
 
     Returns:
         Compiled StateGraph (ArchitectSubgraph)
@@ -97,7 +99,7 @@ def create_architect_subgraph(
             elif mode == "re_scan":
                 return await _re_scan_mode(state, mcp, arch_manager, workspace_path)
             else:  # "design" (default)
-                return await _design_mode(state, mcp, arch_manager, workspace_path)
+                return await _design_mode(state, mcp, arch_manager, workspace_path, orchestrator)
 
         except Exception as e:
             logger.error(f"❌ Architect node failed: {e}", exc_info=True)
@@ -220,7 +222,8 @@ async def _design_mode(
     state: ArchitectState,
     mcp: MCPClient,
     arch_manager: ArchitectureManager,
-    workspace_path: str
+    workspace_path: str,
+    orchestrator: Any = None
 ) -> ArchitectState:
     """
     DESIGN MODE: Create new architecture or propose updates.
@@ -243,8 +246,7 @@ async def _design_mode(
     research_context = await _read_research_from_memory(mcp, workspace_path, state["user_requirements"])
     print(f"  ✅ Found {len(research_context.get('findings', []))} research items")
 
-    # Step 1.5: NEW v6.2 - Invoke Research agent if no research found (agent autonomy!)
-    orchestrator = state.get("orchestrator")
+    # Step 1.5: NEW v6.3 - Invoke Research agent if no research found (agent autonomy!)
     if orchestrator and len(research_context.get('findings', [])) == 0:
         print(f"  🔬 No research in memory - invoking Research agent...")
         try:

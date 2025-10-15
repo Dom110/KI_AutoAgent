@@ -42,7 +42,8 @@ logger = logging.getLogger(__name__)
 def create_codesmith_subgraph(
     workspace_path: str,
     mcp: MCPClient,
-    hitl_callback: Any | None = None
+    hitl_callback: Any | None = None,
+    orchestrator: Any = None
 ) -> Any:
     """
     Create Codesmith subgraph with MCP integration (v6.2).
@@ -53,6 +54,7 @@ def create_codesmith_subgraph(
         workspace_path: Path to workspace
         mcp: MCP client for all service calls
         hitl_callback: Optional HITL callback for debug info
+        orchestrator: AgentOrchestrator for agent autonomy (v6.3)
 
     Returns:
         Compiled codesmith subgraph
@@ -178,14 +180,14 @@ def create_codesmith_subgraph(
                 except Exception as e:
                     logger.warning(f"⚠️ Architect agent invocation failed: {e}")
 
-            # Step 1.5: NEW v6.2 - Model Selection based on complexity
+            # Step 1.5: NEW v6.3 - Model Selection based on complexity
             logger.info("🎯 Assessing task complexity and selecting model...")
 
             # Import ModelSelector
             from agents.specialized.model_selector import ModelSelector
 
-            # Get orchestrator from state for context
-            orchestrator = state.get("orchestrator")
+            # orchestrator is available from closure (passed to create_codesmith_subgraph)
+            # No need to get from state - it's not serializable!
 
             # Extract design and research context
             design_dict = state.get("design", {})

@@ -167,8 +167,8 @@ class ArchitectState(TypedDict):
     # Context from previous agents (via Memory)
     research_context: dict[str, Any]
 
-    # Agent Orchestration (v6.2+)
-    orchestrator: Any | None  # ← NEW v6.2: AgentOrchestrator instance
+    # NOTE: orchestrator NOT in state (not msgpack-serializable)
+    # Access via workflow.orchestrator instead
 
     # Architecture outputs
     design: dict[str, Any]
@@ -230,8 +230,8 @@ class CodesmithState(TypedDict):
     research: dict[str, Any]
     past_successes: list[dict[str, Any]]  # From Learning System
 
-    # Agent Orchestration (v6.2+)
-    orchestrator: Any | None  # ← NEW v6.2: AgentOrchestrator instance
+    # NOTE: orchestrator NOT in state (not msgpack-serializable)
+    # Access via workflow.orchestrator instead
 
     # Implementation outputs
     generated_files: list[dict[str, Any]]
@@ -318,8 +318,8 @@ class ReviewFixState(TypedDict):
     files_to_review: list[str]  # ← NEW! File paths extracted for review
     design: dict[str, Any]  # From Memory
 
-    # Agent Orchestration (v6.2+)
-    orchestrator: Any | None  # ← NEW v6.2: AgentOrchestrator instance
+    # NOTE: orchestrator NOT in state (not msgpack-serializable)
+    # Access via workflow.orchestrator instead
 
     # Review results
     quality_score: float  # 0.0 - 1.0
@@ -398,25 +398,24 @@ def research_to_supervisor(research_state: ResearchState) -> dict[str, Any]:
     }
 
 
-def supervisor_to_architect(state: SupervisorState, mode: str = "design", orchestrator=None) -> ArchitectState:
+def supervisor_to_architect(state: SupervisorState, mode: str = "design") -> ArchitectState:
     """
     Transform SupervisorState to ArchitectState.
 
     Called when Supervisor invokes Architect subgraph.
     Note: research_context will be populated from Memory, not state.
+    Note: orchestrator accessed via workflow.orchestrator (not in state)
 
     Args:
         state: SupervisorState
         mode: Architect mode ("scan" | "design" | "post_build_scan" | "re_scan")
               Default: "design"
-        orchestrator: AgentOrchestrator instance (v6.2+)
     """
     return {
         "workspace_path": state["workspace_path"],
         "user_requirements": state["user_query"],
         "mode": mode,  # ← NEW v6.3: Pass mode to architect
         "research_context": {},  # Populated from Memory in agent
-        "orchestrator": orchestrator,  # ← NEW v6.2: Agent orchestration
         "design": {},
         "tech_stack": [],
         "patterns": [],
@@ -444,16 +443,16 @@ def architect_to_supervisor(architect_state: ArchitectState) -> dict[str, Any]:
     }
 
 
-def supervisor_to_codesmith(state: SupervisorState, orchestrator=None) -> CodesmithState:
+def supervisor_to_codesmith(state: SupervisorState) -> CodesmithState:
     """
     Transform SupervisorState to CodesmithState.
 
     Called when Supervisor invokes Codesmith subgraph.
     Note: design, research, past_successes populated from Memory.
+    Note: orchestrator accessed via workflow.orchestrator (not in state)
 
     Args:
         state: SupervisorState
-        orchestrator: AgentOrchestrator instance (v6.2+)
     """
     return {
         "workspace_path": state["workspace_path"],
@@ -461,7 +460,6 @@ def supervisor_to_codesmith(state: SupervisorState, orchestrator=None) -> Codesm
         "design": {},  # Populated from Memory in agent
         "research": {},  # Populated from Memory in agent
         "past_successes": [],  # Populated from Learning System in agent
-        "orchestrator": orchestrator,  # ← NEW v6.2: Agent orchestration
         "generated_files": [],
         "tests": [],
         "api_docs": "",
@@ -480,16 +478,16 @@ def codesmith_to_supervisor(codesmith_state: CodesmithState) -> dict[str, Any]:
     }
 
 
-def supervisor_to_reviewfix(state: SupervisorState, orchestrator=None) -> ReviewFixState:
+def supervisor_to_reviewfix(state: SupervisorState) -> ReviewFixState:
     """
     Transform SupervisorState to ReviewFixState.
 
     Called when Supervisor invokes ReviewFix subgraph.
     Note: design populated from Memory.
+    Note: orchestrator accessed via workflow.orchestrator (not in state)
 
     Args:
         state: SupervisorState
-        orchestrator: AgentOrchestrator instance (v6.2+)
     """
     # Extract file paths from generated_files for ReviewFix
     generated_files = state["generated_files"]
@@ -510,7 +508,6 @@ def supervisor_to_reviewfix(state: SupervisorState, orchestrator=None) -> Review
         "generated_files": state["generated_files"],
         "files_to_review": files_to_review,  # ← NEW! Extract file paths for ReviewFix
         "design": {},  # Populated from Memory in agent
-        "orchestrator": orchestrator,  # ← NEW v6.2: Agent orchestration
         "quality_score": 0.0,
         "review_feedback": {},
         "fixes_applied": [],

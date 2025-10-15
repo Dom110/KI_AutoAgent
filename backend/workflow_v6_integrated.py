@@ -502,7 +502,8 @@ class WorkflowV6Integrated:
         subgraph = create_architect_subgraph(
             workspace_path=self.workspace_path,
             mcp=self.mcp,  # Pass MCP client instead of memory
-            hitl_callback=self.websocket_callback
+            hitl_callback=self.websocket_callback,
+            orchestrator=self.orchestrator  # v6.3: Agent autonomy
         )
 
         logger.debug("  ✅ Architect subgraph v6.3 built (MCP + multi-mode enabled)")
@@ -517,7 +518,8 @@ class WorkflowV6Integrated:
         subgraph = create_codesmith_subgraph(
             workspace_path=self.workspace_path,
             mcp=self.mcp,  # Pass MCP client instead of memory
-            hitl_callback=self.websocket_callback
+            hitl_callback=self.websocket_callback,
+            orchestrator=self.orchestrator  # v6.3: Agent autonomy
         )
 
         logger.debug("  ✅ Codesmith subgraph built (MCP enabled)")
@@ -966,7 +968,7 @@ class WorkflowV6Integrated:
                 logger.info(f"  Architect mode: {architect_mode} (call #{architect_count + 1})")
                 print(f"  Architect mode: {architect_mode}")
 
-                architect_input = supervisor_to_architect(state, mode=architect_mode, orchestrator=self.orchestrator)
+                architect_input = supervisor_to_architect(state, mode=architect_mode)
                 print(f"  Calling architect subgraph with mode={architect_mode}...")
                 architect_output = await architect_subgraph.ainvoke(architect_input)
                 print(f"  Architect subgraph returned: {type(architect_output)}")
@@ -1043,7 +1045,7 @@ class WorkflowV6Integrated:
                         logger.warning("  ⚠️  File write approval denied")
                         return {"errors": ["User denied file write approval"]}
 
-                codesmith_input = supervisor_to_codesmith(state, orchestrator=self.orchestrator)
+                codesmith_input = supervisor_to_codesmith(state)
                 print(f"  Calling codesmith subgraph...")
                 codesmith_output = await codesmith_subgraph.ainvoke(codesmith_input)
                 print(f"  Codesmith subgraph returned: {type(codesmith_output)}")
@@ -1085,7 +1087,7 @@ class WorkflowV6Integrated:
                 self.current_session["current_phase"] = "reviewfix"
                 print(f"  Generated files in state: {state.get('generated_files', [])}")
 
-                reviewfix_input = supervisor_to_reviewfix(state, orchestrator=self.orchestrator)
+                reviewfix_input = supervisor_to_reviewfix(state)
                 print(f"  Calling reviewfix subgraph...")
                 reviewfix_output = await reviewfix_subgraph.ainvoke(reviewfix_input)
                 print(f"  ReviewFix subgraph returned: {type(reviewfix_output)}")
