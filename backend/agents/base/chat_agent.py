@@ -17,7 +17,7 @@ from .base_agent import AgentConfig, BaseAgent, TaskRequest
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class StreamMessage:
     """Message for streaming responses"""
 

@@ -72,7 +72,7 @@ except ImportError as e:
     DiagramService = None
 
 
-@dataclass
+@dataclass(slots=True)
 class CodeImplementation:
     """Code implementation details"""
 

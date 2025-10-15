@@ -49,7 +49,7 @@ class ReasoningMode(str, Enum):
     SYMBOLIC_THEN_NEURAL = "symbolic_then_neural"  # Symbolic first, refine with neural
 
 
-@dataclass
+@dataclass(slots=True)
 class SymbolicRule:
     """A symbolic reasoning rule."""
 
@@ -61,7 +61,7 @@ class SymbolicRule:
     description: str
 
 
-@dataclass
+@dataclass(slots=True)
 class ReasoningResult:
     """Result of neurosymbolic reasoning."""
 

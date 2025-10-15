@@ -51,7 +51,7 @@ class AdaptationReason(str, Enum):
     RESOURCE_CONSTRAINT = "resource_constraint"
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkflowContext:
     """Context for workflow execution."""
 
@@ -69,7 +69,7 @@ class WorkflowContext:
     start_time: Any  # datetime object
 
 
-@dataclass
+@dataclass(slots=True)
 class AdaptationDecision:
     """Decision to adapt workflow."""
 

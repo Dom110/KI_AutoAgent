@@ -49,7 +49,7 @@ class RecoveryStrategy(str, Enum):
     ABORT = "abort"
 
 
-@dataclass
+@dataclass(slots=True)
 class Diagnostic:
     """Diagnostic finding."""
 
@@ -62,7 +62,7 @@ class Diagnostic:
     root_cause: str | None = None
 
 
-@dataclass
+@dataclass(slots=True)
 class RecoveryAction:
     """Recovery action to fix an issue."""
 
@@ -75,7 +75,7 @@ class RecoveryAction:
     requires_approval: bool
 
 
-@dataclass
+@dataclass(slots=True)
 class RecoveryResult:
     """Result of recovery attempt."""
 

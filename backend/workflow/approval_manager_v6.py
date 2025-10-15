@@ -54,7 +54,7 @@ class ApprovalStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-@dataclass
+@dataclass(slots=True)
 class ApprovalRule:
     """Configuration for approval requirements."""
 
@@ -66,7 +66,7 @@ class ApprovalRule:
     description: str = ""
 
 
-@dataclass
+@dataclass(slots=True)
 class ApprovalRequest:
     """Request for human approval."""
 

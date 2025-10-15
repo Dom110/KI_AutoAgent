@@ -20,7 +20,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(slots=True)
 class AnthropicConfig:
     """Anthropic configuration"""
 
