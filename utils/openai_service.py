@@ -203,7 +203,8 @@ class OpenAIService:
         try:
             import json
             return json.loads(response)
-        except:
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.debug(f"Could not parse complexity analysis response: {e}")
             # Fallback to simple heuristic
             return {
                 "complexity": "moderate",

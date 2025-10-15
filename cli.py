@@ -379,7 +379,8 @@ class KIAutoAgentCLI:
             try:
                 with open(history_file, 'r') as f:
                     self.history = json.load(f)
-            except:
+            except (json.JSONDecodeError, OSError, PermissionError) as e:
+                logger.debug(f"Could not load history file: {e}")
                 self.history = []
     
     def _save_history(self):
@@ -388,7 +389,8 @@ class KIAutoAgentCLI:
         try:
             with open(history_file, 'w') as f:
                 json.dump(self.history[-100:], f, indent=2)  # Keep last 100 entries
-        except:
+        except (OSError, PermissionError) as e:
+            logger.debug(f"Could not save history file: {e}")
             pass
 
 def main():

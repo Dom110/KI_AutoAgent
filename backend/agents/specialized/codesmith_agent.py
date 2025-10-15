@@ -1519,7 +1519,8 @@ Answer (YES/NO):"""
                             project_files.append(rel_path)
                     if len(project_files) > 100:
                         break
-            except:
+            except (OSError, PermissionError) as e:
+                logger.debug(f"Error reading project files: {e}")
                 project_files = []
 
             project_structure = (

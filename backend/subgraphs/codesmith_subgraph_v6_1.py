@@ -224,7 +224,8 @@ Generate complete, production-ready code files."""
                                 data = json.loads(text.split("```json\n")[1].split("\n```")[0])
                                 code_output = data.get("content", "")
                                 files_from_mcp = data.get("files_created", [])
-                            except:
+                            except (json.JSONDecodeError, IndexError, KeyError) as e:
+                                logger.debug(f"Could not parse JSON from response: {e}")
                                 code_output = text
                         else:
                             code_output = text
@@ -489,7 +490,8 @@ Generate complete, production-ready code files."""
                                         try:
                                             data = json.loads(text.split("```json\n")[1].split("\n```")[0])
                                             completion_output = data.get("content", "")
-                                        except:
+                                        except (json.JSONDecodeError, IndexError, KeyError) as e:
+                                            logger.debug(f"Could not parse JSON from response: {e}")
                                             completion_output = text
                                     else:
                                         completion_output = text

@@ -476,7 +476,8 @@ Generate complete fixed versions of all files."""
                             try:
                                 data = json.loads(text.split("```json\n")[1].split("\n```")[0])
                                 fixes_output = data.get("content", "")
-                            except:
+                            except (json.JSONDecodeError, IndexError, KeyError) as e:
+                                logger.debug(f"Could not parse JSON from response: {e}")
                                 fixes_output = text
                         else:
                             fixes_output = text

@@ -813,7 +813,8 @@ def main():
                 logger.info(f"✅ Gracefully shut down server on port {port}")
                 time.sleep(1)  # Give it time to shut down
                 return True
-        except:
+        except (requests.RequestException, OSError) as e:
+            logger.debug(f"Could not shut down server on port {port}: {e}")
             pass
         return False
 

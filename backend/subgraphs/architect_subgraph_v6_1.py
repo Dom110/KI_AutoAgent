@@ -247,7 +247,8 @@ Provide a comprehensive architecture design."""
                             try:
                                 data = json.loads(text.split("```json\n")[1].split("\n```")[0])
                                 design_text = data.get("content", "")
-                            except:
+                            except (json.JSONDecodeError, IndexError, KeyError) as e:
+                                logger.debug(f"Could not parse JSON from response: {e}")
                                 design_text = text
                         else:
                             design_text = text

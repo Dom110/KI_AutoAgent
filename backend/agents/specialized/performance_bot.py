@@ -482,7 +482,8 @@ class PerformanceBot(ChatAgent):
                                     if line.strip().startswith("class ")
                                 ][:10]
                             )
-                    except:
+                    except (OSError, UnicodeDecodeError, PermissionError) as e:
+                        logger.debug(f"Could not read file {file_path}: {e}")
                         pass
 
         # Convert set to list for JSON serialization

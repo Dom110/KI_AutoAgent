@@ -372,7 +372,8 @@ class MemoryManager:
                 timestamp = datetime.fromisoformat(timestamp_str)
                 age_hours = (datetime.now() - timestamp).total_seconds() / 3600
                 recency = max(0.0, 1.0 - (age_hours / (24 * 7)))  # Decay over 1 week
-            except Exception:
+            except (ValueError, TypeError) as e:
+                logger.debug(f"Could not parse timestamp {timestamp_str}: {e}")
                 recency = 0.5
         else:
             recency = 0.5

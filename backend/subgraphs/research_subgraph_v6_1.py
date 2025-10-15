@@ -137,7 +137,8 @@ Provide a structured summary of the key findings."""
                     try:
                         data = json.loads(text.split("```json\n")[1].split("\n```")[0])
                         analysis = data.get("content", "")
-                    except:
+                    except (json.JSONDecodeError, IndexError, KeyError) as e:
+                        logger.debug(f"Could not parse JSON from response: {e}")
                         analysis = text
                 else:
                     analysis = text
@@ -291,7 +292,8 @@ Focus on providing clear, actionable explanations that help the user understand 
                     try:
                         data = json.loads(text.split("```json\n")[1].split("\n```")[0])
                         explanation = data.get("content", "")
-                    except:
+                    except (json.JSONDecodeError, IndexError, KeyError) as e:
+                        logger.debug(f"Could not parse JSON from response: {e}")
                         explanation = text
                 else:
                     explanation = text
@@ -443,7 +445,8 @@ Focus on actionable insights and concrete recommendations."""
                     try:
                         data = json.loads(text.split("```json\n")[1].split("\n```")[0])
                         analysis = data.get("content", "")
-                    except:
+                    except (json.JSONDecodeError, IndexError, KeyError) as e:
+                        logger.debug(f"Could not parse JSON from response: {e}")
                         analysis = text
                 else:
                     analysis = text

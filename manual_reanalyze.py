@@ -53,7 +53,8 @@ async def reanalyze():
     import os
     analysis_file = os.path.join(workspace, ".ki_autoagent_ws", "system_analysis.json")
     if os.path.exists(analysis_file):
-        data = json.load(open(analysis_file))
+        with open(analysis_file) as f:
+            data = json.load(f)
         stats = data['code_index']['statistics']
         print(f"\n📊 RESULTS:")
         print(f"   Timestamp: {data['timestamp']}")

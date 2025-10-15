@@ -137,6 +137,7 @@ class CodeIndexer:
             try:
                 with open(file_path, encoding="utf-8") as f:
                     total += len(f.readlines())
-            except Exception:
+            except (OSError, UnicodeDecodeError, PermissionError) as e:
+                logger.debug(f"Could not read file {file_path}: {e}")
                 pass
         return total
