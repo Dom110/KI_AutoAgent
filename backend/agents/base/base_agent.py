@@ -90,7 +90,7 @@ class AgentCapability(Enum):
     RESEARCH = "research"
 
 
-@dataclass(slots=True)
+@dataclass
 class AgentConfig:
     """Agent configuration"""
 
@@ -107,7 +107,7 @@ class AgentConfig:
     old_capabilities: list[AgentCapability] | None = None  # v5.9.0: For capabilities_loader compatibility with slots
 
 
-@dataclass(slots=True)
+@dataclass
 class TaskRequest:
     """Task request structure"""
 
@@ -122,7 +122,7 @@ class TaskRequest:
     agent: str | None = None
 
 
-@dataclass(slots=True)
+@dataclass
 class TaskResult:
     """Task execution result"""
 
@@ -136,7 +136,7 @@ class TaskResult:
     tokens_used: int = 0
 
 
-@dataclass(slots=True)
+@dataclass
 class AgentMessage:
     """Inter-agent communication message"""
 

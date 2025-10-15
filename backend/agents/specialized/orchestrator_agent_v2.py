@@ -24,7 +24,7 @@ from ..base.chat_agent import ChatAgent
 logger = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
+@dataclass
 class SubTask:
     """Subtask for decomposition"""
 
@@ -39,7 +39,7 @@ class SubTask:
     result: str | None = None
 
 
-@dataclass(slots=True)
+@dataclass
 class TaskDecomposition:
     """Complete task decomposition"""
 

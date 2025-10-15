@@ -32,7 +32,7 @@ from typing import Any, Callable
 logger = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
+@dataclass
 class ToolMetadata:
     """Metadata for a registered tool."""
 
