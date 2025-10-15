@@ -287,8 +287,30 @@ async def websocket_chat(websocket: WebSocket):
 
                 # Create approval callback for this WebSocket
                 async def approval_callback(request: dict) -> dict:
-                    """Send approval request and wait for response."""
-                    # Send approval request
+                    """
+                    Send approval request or notification and wait for response.
+
+                    Handles:
+                    - approval_request: File write approvals (requires response)
+                    - model_selection: Model selection notifications (no response needed)
+                    """
+                    request_type = request.get("type", "approval_request")
+
+                    # Handle model selection notification (NEW v6.2)
+                    if request_type == "model_selection":
+                        logger.info(f"  📡 Sending model selection notification: {request.get('model')}")
+                        await manager.send_json(client_id, {
+                            "type": "model_selection",
+                            "model": request.get("model"),
+                            "model_id": request.get("model_id"),
+                            "think_mode": request.get("think_mode"),
+                            "notification": request.get("notification"),
+                            "timestamp": datetime.now().isoformat()
+                        })
+                        # No response needed for notifications
+                        return {"sent": True}
+
+                    # Handle approval request (original behavior)
                     await manager.send_json(client_id, {
                         "type": "approval_request",
                         **request
