@@ -243,6 +243,26 @@ async def _design_mode(
     research_context = await _read_research_from_memory(mcp, workspace_path, state["user_requirements"])
     print(f"  ✅ Found {len(research_context.get('findings', []))} research items")
 
+    # Step 1.5: NEW v6.2 - Invoke Research agent if no research found (agent autonomy!)
+    orchestrator = state.get("orchestrator")
+    if orchestrator and len(research_context.get('findings', [])) == 0:
+        print(f"  🔬 No research in memory - invoking Research agent...")
+        try:
+            research_result = await orchestrator.invoke_research(
+                query=f"Best practices and technologies for: {state['user_requirements'][:200]}",
+                mode="research",
+                caller="architect"
+            )
+            if research_result["success"]:
+                print(f"  ✅ Research agent returned {len(research_result['result'])} chars")
+                research_context = {
+                    "findings": [research_result["result"]],
+                    "sources": research_result.get("sources", [])
+                }
+        except Exception as e:
+            logger.warning(f"  ⚠️  Research agent invocation failed: {e}")
+            print(f"  ⚠️  Research agent failed: {e}")
+
     # Step 2: Tree-Sitter analysis
     print(f"  Step 2: Analyzing codebase structure...")
     codebase_structure = await _run_tree_sitter_analysis(state["workspace_path"])

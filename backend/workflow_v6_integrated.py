@@ -161,6 +161,9 @@ class WorkflowV6Integrated:
         self.workflow_planner: WorkflowPlannerV6 | None = None
         self.response_manager: HumanResponseManager | None = None
 
+        # NEW v6.2: Agent Orchestrator (for agent-to-agent communication)
+        self.orchestrator: Any | None = None
+
         # Execution tracking
         self.current_session: dict[str, Any] = {}
 
@@ -337,6 +340,17 @@ class WorkflowV6Integrated:
 
         self.response_manager = HumanResponseManager()
         logger.debug("  ✅ Human Response Manager")
+
+        # NEW v6.2: Agent Orchestrator (for agent-to-agent communication)
+        from core.agent_orchestrator import AgentOrchestrator
+
+        self.orchestrator = AgentOrchestrator(
+            mcp_client=self.mcp,
+            workspace_path=self.workspace_path,
+            approval_manager=self.approval_manager,
+            hitl_manager=None  # Will be set if HITLManager is added later
+        )
+        logger.debug("  ✅ Agent Orchestrator")
 
         logger.info("🎉 All v6 systems initialized successfully!")
 
@@ -952,7 +966,7 @@ class WorkflowV6Integrated:
                 logger.info(f"  Architect mode: {architect_mode} (call #{architect_count + 1})")
                 print(f"  Architect mode: {architect_mode}")
 
-                architect_input = supervisor_to_architect(state, mode=architect_mode)
+                architect_input = supervisor_to_architect(state, mode=architect_mode, orchestrator=self.orchestrator)
                 print(f"  Calling architect subgraph with mode={architect_mode}...")
                 architect_output = await architect_subgraph.ainvoke(architect_input)
                 print(f"  Architect subgraph returned: {type(architect_output)}")
@@ -1029,7 +1043,7 @@ class WorkflowV6Integrated:
                         logger.warning("  ⚠️  File write approval denied")
                         return {"errors": ["User denied file write approval"]}
 
-                codesmith_input = supervisor_to_codesmith(state)
+                codesmith_input = supervisor_to_codesmith(state, orchestrator=self.orchestrator)
                 print(f"  Calling codesmith subgraph...")
                 codesmith_output = await codesmith_subgraph.ainvoke(codesmith_input)
                 print(f"  Codesmith subgraph returned: {type(codesmith_output)}")
@@ -1071,7 +1085,7 @@ class WorkflowV6Integrated:
                 self.current_session["current_phase"] = "reviewfix"
                 print(f"  Generated files in state: {state.get('generated_files', [])}")
 
-                reviewfix_input = supervisor_to_reviewfix(state)
+                reviewfix_input = supervisor_to_reviewfix(state, orchestrator=self.orchestrator)
                 print(f"  Calling reviewfix subgraph...")
                 reviewfix_output = await reviewfix_subgraph.ainvoke(reviewfix_input)
                 print(f"  ReviewFix subgraph returned: {type(reviewfix_output)}")
