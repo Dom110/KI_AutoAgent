@@ -91,8 +91,22 @@ class MCPClient:
         self._initialized = False
         self._request_id = 0
 
-        # MCP server paths (relative to project root)
-        project_root = Path(__file__).parent.parent.parent
+        # MCP server paths (find project root by looking for .git directory)
+        # This is more robust than relative paths when imported from tests
+        current_path = Path(__file__).resolve()
+        project_root = current_path.parent.parent.parent  # Start with relative calculation
+
+        # Walk up to find .git directory (handles test imports correctly)
+        max_depth = 10
+        for _ in range(max_depth):
+            if (project_root / ".git").exists():
+                break
+            if project_root.parent == project_root:  # Reached filesystem root
+                # Fallback: use relative path from __file__
+                project_root = Path(__file__).resolve().parent.parent.parent
+                break
+            project_root = project_root.parent
+
         self._server_paths = {
             "build_validation": project_root / "mcp_servers" / "build_validation_server.py",
             "file_tools": project_root / "mcp_servers" / "file_tools_server.py",
