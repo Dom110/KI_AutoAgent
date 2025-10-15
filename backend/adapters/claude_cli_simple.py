@@ -20,7 +20,7 @@ import asyncio
 import json
 import logging
 import subprocess
-from typing import Any, List
+from typing import Any
 
 from langchain_core.messages import (
     AIMessage,
@@ -102,7 +102,7 @@ class ClaudeCLISimple:
 
     def _extract_system_and_user_prompts(
         self,
-        messages: List[BaseMessage]
+        messages: list[BaseMessage]
     ) -> tuple[str, str]:
         """
         Extract system prompt (agent instructions) and user prompt (task) separately.
@@ -261,7 +261,7 @@ class ClaudeCLISimple:
         logger.info(f"✅ Extracted {len(files)} files from {len(events)} Claude CLI events")
         return files
 
-    async def _call_cli(self, messages: List[BaseMessage]) -> dict[str, Any]:
+    async def _call_cli(self, messages: list[BaseMessage]) -> dict[str, Any]:
         """
         Call Claude CLI with stream-json format to avoid truncation.
 
@@ -571,7 +571,7 @@ NO explanations!"""
 
     async def ainvoke(
         self,
-        messages: List[BaseMessage],
+        messages: list[BaseMessage],
         **kwargs: Any,
     ) -> AIMessage:
         """
@@ -597,7 +597,7 @@ NO explanations!"""
         # Return AI message
         return AIMessage(content=content)
 
-    def _call_cli_sync(self, messages: List[BaseMessage]) -> dict[str, Any]:
+    def _call_cli_sync(self, messages: list[BaseMessage]) -> dict[str, Any]:
         """
         Call Claude CLI synchronously with stream-json format.
 
@@ -701,7 +701,7 @@ NO explanations!"""
             logger.error(f"Claude CLI error: {e}", exc_info=True)
             raise
 
-    def invoke(self, messages: List[BaseMessage], **kwargs: Any) -> AIMessage:
+    def invoke(self, messages: list[BaseMessage], **kwargs: Any) -> AIMessage:
         """
         Sync invoke (for LangGraph compatibility).
 

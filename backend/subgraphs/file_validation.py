@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # REQUIRED FILES DEFINITIONS
 # ============================================================================
 
-REQUIRED_FILES_BY_TYPE: Dict[str, List[str]] = {
+REQUIRED_FILES_BY_TYPE: dict[str, list[str]] = {
     "react_vite_ts": [
         # Entry files (CRITICAL)
         "src/main.tsx",
@@ -79,7 +79,7 @@ REQUIRED_FILES_BY_TYPE: Dict[str, List[str]] = {
 
 
 # Critical files that MUST exist (app won't run without them)
-CRITICAL_FILES_BY_TYPE: Dict[str, List[str]] = {
+CRITICAL_FILES_BY_TYPE: dict[str, list[str]] = {
     "react_vite_ts": [
         "src/main.tsx",
         "src/App.tsx",
@@ -117,7 +117,7 @@ CRITICAL_FILES_BY_TYPE: Dict[str, List[str]] = {
 # APP TYPE DETECTION
 # ============================================================================
 
-def detect_app_type(design: str, generated_files: List[Dict]) -> str:
+def detect_app_type(design: str, generated_files: list[dict[str, Any]]) -> str:
     """
     Detect app type from design document and generated files.
 
@@ -163,10 +163,10 @@ def detect_app_type(design: str, generated_files: List[Dict]) -> str:
 
 def validate_generated_files(
     workspace_path: str,
-    generated_files: List[Dict],
+    generated_files: list[dict[str, Any]],
     app_type: str | None = None,
     design: str = ""
-) -> Dict[str, any]:
+) -> dict[str, Any]:
     """
     Validate that all required files were generated.
 
@@ -180,8 +180,8 @@ def validate_generated_files(
         {
             "valid": bool,
             "app_type": str,
-            "missing_files": List[str],
-            "missing_critical": List[str],
+            "missing_files": list[str],
+            "missing_critical": list[str],
             "generated_count": int,
             "required_count": int,
             "completeness": float  # 0.0 to 1.0
@@ -262,7 +262,7 @@ def validate_generated_files(
 # MISSING FILES PROMPT GENERATOR
 # ============================================================================
 
-def generate_completion_prompt(validation_result: Dict, design: str) -> str:
+def generate_completion_prompt(validation_result: dict[str, Any], design: str) -> str:
     """
     Generate prompt to complete missing files.
 
@@ -323,13 +323,13 @@ START YOUR RESPONSE WITH "FILE:" - Nothing else!"""
 # ============================================================================
 
 async def retry_incomplete_generation(
-    llm: any,
-    validation_result: Dict,
+    llm: Any,
+    validation_result: dict[str, Any],
     design: str,
     workspace_path: str,
-    write_file_func: any,
+    write_file_func: Any,
     max_retries: int = 2
-) -> Dict:
+) -> dict[str, Any]:
     """
     Retry generation for missing files.
 

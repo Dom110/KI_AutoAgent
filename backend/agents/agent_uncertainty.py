@@ -16,7 +16,7 @@ Date: 2025-10-14
 from __future__ import annotations
 
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any
 from datetime import datetime
 import json
 
@@ -48,9 +48,9 @@ class AgentUncertaintyDetector:
         self,
         agent_name: str,
         agent_response: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
         mcp_client: Any = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Analyze agent response for uncertainty.
 
@@ -140,9 +140,9 @@ class AgentUncertaintyDetector:
 
     async def check_architect_design(
         self,
-        design: Dict[str, Any],
+        design: dict[str, Any],
         mcp_client: Any = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Check if architect design is complete and confident.
 
@@ -169,7 +169,7 @@ class AgentUncertaintyDetector:
         self,
         plan: str,
         mcp_client: Any = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Check if codesmith implementation plan is clear.
 
@@ -226,7 +226,7 @@ Be objective. Some consideration of alternatives is healthy. Only flag HIGH unce
         self,
         agent_name: str,
         response: str,
-        context: Optional[Dict[str, Any]]
+        context: dict[str, Any] | None
     ) -> str:
         """Build prompt for uncertainty analysis."""
         prompt = f"""Analyze this {agent_name} agent response for uncertainty:
@@ -245,7 +245,7 @@ Provide uncertainty analysis in JSON format."""
 
         return prompt
 
-    def _parse_analysis_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_analysis_result(self, result: dict[str, Any]) -> dict[str, Any]:
         """Parse GPT-4o-mini analysis result."""
         try:
             # Extract response text
@@ -291,7 +291,7 @@ Provide uncertainty analysis in JSON format."""
                 "error": str(e)
             }
 
-    async def _heuristic_detection(self, response: str) -> Dict[str, Any]:
+    async def _heuristic_detection(self, response: str) -> dict[str, Any]:
         """
         Fallback heuristic uncertainty detection (no AI).
 
@@ -347,9 +347,9 @@ Provide uncertainty analysis in JSON format."""
     def _generate_hitl_request(
         self,
         agent_name: str,
-        analysis: Dict[str, Any],
-        context: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        analysis: dict[str, Any],
+        context: dict[str, Any] | None
+    ) -> dict[str, Any]:
         """
         Generate HITL request from uncertainty analysis.
 
@@ -387,13 +387,13 @@ Provide uncertainty analysis in JSON format."""
             "timestamp": datetime.now().isoformat()
         }
 
-    def _format_reasons(self, reasons: List[str]) -> str:
+    def _format_reasons(self, reasons: list[str]) -> str:
         """Format reasons as bullet list."""
         if not reasons:
             return "- (No specific reasons provided)"
         return "\n".join(f"- {reason}" for reason in reasons)
 
-    def _generate_options(self, issue: Dict[str, Any], agent_name: str) -> List[Dict[str, Any]]:
+    def _generate_options(self, issue: dict[str, Any], agent_name: str) -> list[dict[str, Any]]:
         """Generate appropriate options based on issue type."""
         issue_type = issue.get("type", "other")
 

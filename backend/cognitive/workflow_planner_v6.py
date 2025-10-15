@@ -15,7 +15,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Literal
+from typing import Any, Literal
 from enum import Enum
 from pathlib import Path
 
@@ -76,18 +76,18 @@ class ConditionType(str, Enum):
     PARALLEL = "parallel"                 # Execute in parallel with previous
 
 
-@dataclass
+@dataclass(slots=True)
 class AgentStep:
     """Represents a single agent execution step in the workflow."""
     agent: AgentType
     description: str
     mode: str = "default"  # Agent execution mode (e.g., research: research/explain/analyze)
-    inputs: List[str] = field(default_factory=list)      # What this agent needs
-    outputs: List[str] = field(default_factory=list)      # What this agent produces
+    inputs: list[str] = field(default_factory=list)      # What this agent needs
+    outputs: list[str] = field(default_factory=list)      # What this agent produces
     condition: ConditionType = ConditionType.ALWAYS
-    condition_params: Dict[str, Any] = field(default_factory=dict)
+    condition_params: dict[str, Any] = field(default_factory=dict)
     max_iterations: int = 1                               # For agents that can loop
-    parallel_with: Optional[str] = None                   # Run parallel with this agent
+    parallel_with: str | None = None                   # Run parallel with this agent
 
     def __post_init__(self):
         """Validate mode parameter for each agent type."""
@@ -110,17 +110,17 @@ class AgentStep:
             self.mode = "default"
 
 
-@dataclass
+@dataclass(slots=True)
 class WorkflowPlan:
     """Complete workflow execution plan."""
     task_description: str
     workflow_type: str                                    # CREATE, UPDATE, FIX, EXPLAIN, REFACTOR, CUSTOM
-    agents: List[AgentStep]
-    success_criteria: List[str]
+    agents: list[AgentStep]
+    success_criteria: list[str]
     estimated_duration: str
     complexity: Literal["simple", "moderate", "complex"]
     requires_human_approval: bool = False
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class WorkflowPlannerV6:
@@ -343,7 +343,7 @@ Remember: ALWAYS specify mode for research agent! Default is "research"."""
         self,
         user_task: str,
         workspace_path: str,
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> WorkflowPlan:
         """
         Create a dynamic workflow plan based on the user's task.
@@ -509,7 +509,7 @@ Create an optimal workflow plan for this task."""
             logger.info(f"   {i}. {step.agent.value}{mode_str}: {step.description}{condition_str}")
         logger.info(f"   Success Criteria: {', '.join(plan.success_criteria)}")
 
-    async def validate_plan(self, plan: WorkflowPlan) -> tuple[bool, List[str]]:
+    async def validate_plan(self, plan: WorkflowPlan) -> tuple[bool, list[str]]:
         """
         Validate a workflow plan for correctness.
 

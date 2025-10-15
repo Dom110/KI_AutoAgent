@@ -14,7 +14,6 @@ import sys
 import websockets
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
 
 # Setup logging
 logging.basicConfig(

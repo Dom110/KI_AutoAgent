@@ -17,7 +17,7 @@ Date: 2025-10-14
 from __future__ import annotations
 
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any
 from datetime import datetime
 import json
 
@@ -54,10 +54,10 @@ class ResearchCapability:
         self,
         task: str,
         agent: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
         forced: bool = False,
         mcp_client: Any = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Determine if research is needed for a task.
 
@@ -135,9 +135,9 @@ class ResearchCapability:
     async def perform_research(
         self,
         query: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
         mcp_client: Any = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Perform research using research subgraph.
 
@@ -226,10 +226,10 @@ class ResearchCapability:
 
     async def batch_research(
         self,
-        queries: List[str],
-        context: Optional[Dict[str, Any]] = None,
+        queries: list[str],
+        context: dict[str, Any] | None = None,
         mcp_client: Any = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Perform multiple research queries in parallel.
 
@@ -313,7 +313,7 @@ Be conservative. Only suggest research if it would materially improve the outcom
         self,
         task: str,
         agent: str,
-        context: Optional[Dict[str, Any]]
+        context: dict[str, Any] | None
     ) -> str:
         """Build prompt for research need analysis."""
         prompt = f"""Should we perform web research for this task?
@@ -337,7 +337,7 @@ TASK:
 
         return prompt
 
-    def _parse_research_decision(self, result: Dict[str, Any]) -> Dict[str, Any]:
+    def _parse_research_decision(self, result: dict[str, Any]) -> dict[str, Any]:
         """Parse GPT-4o-mini research decision."""
         try:
             # Extract response text
@@ -386,7 +386,7 @@ TASK:
         self,
         task: str,
         agent: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Fallback heuristic research check (no AI).
 
@@ -434,7 +434,7 @@ TASK:
 
     def _generate_summary(
         self,
-        perplexity_result: Dict[str, Any],
+        perplexity_result: dict[str, Any],
         claude_analysis: str
     ) -> str:
         """Generate concise summary of research results."""

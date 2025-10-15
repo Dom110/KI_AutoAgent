@@ -21,7 +21,7 @@ import asyncio
 import json
 import logging
 import subprocess
-from typing import Any, AsyncIterator, Iterator, List, Optional
+from typing import Any, AsyncIterator, Iterator
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import (
@@ -64,7 +64,7 @@ class ClaudeCLI(BaseChatModel):
         """Return type of language model."""
         return "claude-cli"
 
-    def _format_messages(self, messages: List[BaseMessage]) -> str:
+    def _format_messages(self, messages: list[BaseMessage]) -> str:
         """
         Format LangChain messages into a single prompt string.
 
@@ -143,9 +143,9 @@ class ClaudeCLI(BaseChatModel):
 
     def _generate(
         self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[Any] = None,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any | None = None,
         **kwargs: Any,
     ) -> ChatResult:
         """
@@ -160,9 +160,9 @@ class ClaudeCLI(BaseChatModel):
 
     async def _agenerate(
         self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[Any] = None,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: Any | None = None,
         **kwargs: Any,
     ) -> ChatResult:
         """
@@ -201,7 +201,7 @@ class ClaudeCLI(BaseChatModel):
 
     async def ainvoke(
         self,
-        messages: List[BaseMessage],
+        messages: list[BaseMessage],
         **kwargs: Any,
     ) -> AIMessage:
         """

@@ -72,7 +72,7 @@ except ImportError:
     Parser = Any
 
 
-@dataclass
+@dataclass(slots=True)
 class CodeStructure:
     """Parsed code structure from Tree-Sitter analysis."""
 
@@ -88,7 +88,7 @@ class CodeStructure:
     errors: list[str] = field(default_factory=list)
 
 
-@dataclass
+@dataclass(slots=True)
 class AnalysisResult:
     """Complete codebase analysis result."""
 

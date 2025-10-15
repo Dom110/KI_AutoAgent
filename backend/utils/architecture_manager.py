@@ -28,7 +28,7 @@ from pathlib import Path
 import json
 import yaml
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -198,8 +198,8 @@ class ArchitectureManager:
 
     async def verify_consistency(
         self,
-        tree_sitter_analysis: dict
-    ) -> dict:
+        tree_sitter_analysis: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Compare actual code structure with documented architecture.
 
@@ -274,8 +274,8 @@ class ArchitectureManager:
 
     async def generate_architecture_from_code(
         self,
-        tree_sitter_analysis: dict
-    ) -> dict:
+        tree_sitter_analysis: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Reverse-engineer architecture from existing code.
 
@@ -297,7 +297,7 @@ class ArchitectureManager:
         logger.info(f"✅ Generated architecture: {len(architecture['components'])} components")
         return architecture
 
-    async def export_diagrams(self) -> dict:
+    async def export_diagrams(self) -> dict[str, Any]:
         """
         Generate Mermaid diagrams from architecture.
 
@@ -385,7 +385,7 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         metadata_file.write_text(json.dumps(metadata, indent=2))
         logger.debug(f"   ✓ Saved metadata")
 
-    def _parse_patterns_md(self, content: str) -> list:
+    def _parse_patterns_md(self, content: str) -> list[dict[str, Any]]:
         """Parse patterns from markdown."""
         # Simple parser - split by ## headers
         patterns = []
@@ -399,7 +399,7 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
         return patterns
 
-    def _merge_architecture(self, existing: dict, changes: dict) -> dict:
+    def _merge_architecture(self, existing: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
         """Intelligently merge architecture changes."""
         merged = existing.copy()
 
@@ -418,7 +418,7 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
         return merged
 
-    def _verify_components(self, documented: list, analysis: dict) -> dict:
+    def _verify_components(self, documented: list[dict[str, Any]], analysis: dict[str, Any]) -> dict[str, Any]:
         """Verify documented components exist in code."""
         discrepancies = []
         suggestions = []
@@ -431,7 +431,7 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
         return {"discrepancies": discrepancies, "suggestions": suggestions}
 
-    def _verify_tech_stack(self, documented: dict, analysis: dict) -> dict:
+    def _verify_tech_stack(self, documented: dict[str, Any], analysis: dict[str, Any]) -> dict[str, Any]:
         """Verify documented tech stack matches code."""
         discrepancies = []
         suggestions = []
@@ -455,7 +455,7 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
         return {"discrepancies": discrepancies, "suggestions": suggestions}
 
-    def _generate_overview(self, analysis: dict) -> str:
+    def _generate_overview(self, analysis: dict[str, Any]) -> str:
         """Generate overview from code analysis."""
         file_count = len(analysis.get("files", []))
         languages = list(analysis.get("languages", {}).keys())
@@ -472,7 +472,7 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 This overview was automatically generated from code analysis.
 """
 
-    def _infer_components(self, analysis: dict) -> list:
+    def _infer_components(self, analysis: dict[str, Any]) -> list[dict[str, Any]]:
         """Infer components from directory structure."""
         components = []
 
@@ -496,7 +496,7 @@ This overview was automatically generated from code analysis.
 
         return components
 
-    def _infer_tech_stack(self, analysis: dict) -> dict:
+    def _infer_tech_stack(self, analysis: dict[str, Any]) -> dict[str, Any]:
         """Infer tech stack from imports and file types."""
         return {
             "languages": list(analysis.get("languages", {}).keys()),
@@ -505,7 +505,7 @@ This overview was automatically generated from code analysis.
             "tools": []
         }
 
-    def _infer_patterns(self, analysis: dict) -> list:
+    def _infer_patterns(self, analysis: dict[str, Any]) -> list[dict[str, Any]]:
         """Infer design patterns from code structure."""
         patterns = []
 
@@ -518,7 +518,7 @@ This overview was automatically generated from code analysis.
 
         return patterns
 
-    def _generate_component_diagram(self, components: list) -> str:
+    def _generate_component_diagram(self, components: list[dict[str, Any]]) -> str:
         """Generate Mermaid component diagram."""
         diagram = "graph TD\n"
 
@@ -528,7 +528,7 @@ This overview was automatically generated from code analysis.
 
         return diagram
 
-    def _dict_to_sql(self, database: dict) -> str:
+    def _dict_to_sql(self, database: dict[str, Any]) -> str:
         """Convert database dict to SQL schema."""
         sql = "-- Database Schema\n-- Generated by Architecture Manager\n\n"
 

@@ -13,7 +13,7 @@ Python: 3.13+
 from __future__ import annotations
 
 import os
-from typing import Any, AsyncIterator, Iterator, List, Optional
+from typing import Any, AsyncIterator, Iterator
 
 from anthropic import AsyncAnthropic, Anthropic
 from langchain_core.messages import (
@@ -46,7 +46,7 @@ class ChatAnthropicDirect:
         model: str = "claude-sonnet-4-20250514",
         temperature: float = 0.7,
         max_tokens: int = 4096,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         **kwargs: Any
     ):
         """Initialize with model parameters."""
@@ -55,8 +55,8 @@ class ChatAnthropicDirect:
         self.max_tokens = max_tokens
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
 
-        self._client: Optional[Anthropic] = None
-        self._async_client: Optional[AsyncAnthropic] = None
+        self._client: Anthropic | None = None
+        self._async_client: AsyncAnthropic | None = None
 
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY not found in environment or parameters")
@@ -73,7 +73,7 @@ class ChatAnthropicDirect:
             self._async_client = AsyncAnthropic(api_key=self.api_key)
         return self._async_client
 
-    def _format_messages(self, messages: List[BaseMessage]) -> tuple[str | None, List[dict[str, Any]]]:
+    def _format_messages(self, messages: list[BaseMessage]) -> tuple[str | None, list[dict[str, Any]]]:
         """
         Format LangChain messages into Anthropic API format.
 
@@ -81,7 +81,7 @@ class ChatAnthropicDirect:
             (system_prompt, anthropic_messages)
         """
         system_prompt: str | None = None
-        anthropic_messages: List[dict[str, Any]] = []
+        anthropic_messages: list[dict[str, Any]] = []
 
         for msg in messages:
             if isinstance(msg, SystemMessage):
@@ -108,8 +108,8 @@ class ChatAnthropicDirect:
 
     def invoke(
         self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
         **kwargs: Any,
     ) -> AIMessage:
         """Synchronous generation (for LangGraph compatibility)."""
@@ -144,8 +144,8 @@ class ChatAnthropicDirect:
 
     async def ainvoke(
         self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
         **kwargs: Any,
     ) -> AIMessage:
         """Asynchronous generation."""
