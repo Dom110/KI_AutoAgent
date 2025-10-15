@@ -1,14 +1,14 @@
 """
 KI AutoAgent Backend Version Information
 
-Version 5.6.0 - AI-Only Routing & Dashboard Generation
+Version 6.3.0-alpha - Agent Orchestration & Full Autonomy
 """
 
 # Version numbers - Single source of truth
-__version__ = "5.6.0"
-__version_info__ = (5, 6, 0)
-__release_tag__ = "v5.6.0-ai-routing-dashboard"
-__release_date__ = "2025-10-03"
+__version__ = "6.3.0-alpha"
+__version_info__ = (6, 3, 0)
+__release_tag__ = "v6.3.0-alpha-orchestration"
+__release_date__ = "2025-10-15"
 __author__ = "KI AutoAgent Team"
 __description__ = "Cognitive AI Development Platform with Self-Understanding Capabilities"
 
