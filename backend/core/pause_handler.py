@@ -21,10 +21,19 @@ import logging
 import os
 import time
 from datetime import datetime, timedelta
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+class PauseAction(Enum):
+    """Actions available during pause"""
+    RESUME = "resume"
+    RESUME_WITH_INSTRUCTIONS = "resume_with_instructions"
+    STOP_AND_ROLLBACK = "stop_and_rollback"
+    REQUEST_CLARIFICATION = "request_clarification"
 
 
 class PauseReason:
