@@ -42,6 +42,23 @@ fi
 cp -r "$SCRIPT_DIR/backend" "$INSTALL_DIR/"
 echo "   ✓ Backend installed"
 
+# 2.5. Copy MCP servers (CRITICAL!)
+echo ""
+echo "📦 Installing MCP servers..."
+if [ -d "$INSTALL_DIR/mcp_servers" ]; then
+    echo "   ⚠️  MCP servers already exist, creating backup..."
+    mv "$INSTALL_DIR/mcp_servers" "$INSTALL_DIR/mcp_servers.backup.$(date +%Y%m%d_%H%M%S)"
+fi
+
+if [ -d "$SCRIPT_DIR/mcp_servers" ]; then
+    cp -r "$SCRIPT_DIR/mcp_servers" "$INSTALL_DIR/"
+    echo "   ✓ MCP servers installed ($(ls -1 $INSTALL_DIR/mcp_servers/*.py 2>/dev/null | wc -l | tr -d ' ') servers)"
+else
+    echo "   ❌ ERROR: MCP servers not found in $SCRIPT_DIR/mcp_servers"
+    echo "   This is a CRITICAL error - backend will not function!"
+    exit 1
+fi
+
 # 3. Install base instructions
 echo ""
 echo "📝 Installing base instructions..."
