@@ -143,7 +143,7 @@ async def test_agent_autonomy():
         from mcp.mcp_client import MCPClient
 
         # Create minimal orchestrator
-        mcp = MCPClient()
+        mcp = MCPClient(workspace_path=str(TEST_WORKSPACE))
         await mcp.initialize()
 
         orchestrator = AgentOrchestrator(
