@@ -293,7 +293,9 @@ START YOUR RESPONSE WITH "FILE:" - Nothing else!"""
 
 Generate complete, production-ready code files."""
 
-            # Call Claude via MCP with selected model
+            # Call Claude via MCP
+            # NOTE: model and think_mode are NOT supported by claude_generate()
+            # Claude CLI always uses claude-sonnet-4-20250514 (hardcoded in server)
             claude_result = await mcp.call(
                 server="claude",
                 tool="claude_generate",
@@ -302,10 +304,8 @@ Generate complete, production-ready code files."""
                     "system_prompt": system_prompt,
                     "workspace_path": workspace_path,
                     "agent_name": "codesmith",
-                    "model": model_config.model_id,  # Use selected model
                     "temperature": model_config.temperature,
                     "max_tokens": model_config.max_tokens,
-                    "think_mode": model_config.think_mode,  # Enable Think mode if needed
                     "tools": ["Read", "Edit", "Bash"]
                 },
                 timeout=900  # 15 min timeout for code generation
