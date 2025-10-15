@@ -91,10 +91,10 @@ class AgentStep:
 
     def __post_init__(self):
         """Validate mode parameter for each agent type."""
-        # Define valid modes per agent
+        # Define valid modes per agent (v6.3+ updated)
         valid_modes = {
-            AgentType.RESEARCH: ["default", "research", "explain", "analyze"],
-            AgentType.ARCHITECT: ["default"],
+            AgentType.RESEARCH: ["default", "research", "explain", "analyze", "index"],
+            AgentType.ARCHITECT: ["default", "scan", "design", "post_build_scan", "re_scan"],
             AgentType.CODESMITH: ["default"],
             AgentType.REVIEWFIX: ["default"],
             AgentType.EXPLAIN: ["default"],
@@ -194,7 +194,15 @@ Your task is to analyze user requests and create optimal execution plans.
 
 ## architect
 - **Description:** Designs system architecture, creates file structure, plans implementation
-- **MODES:** "default" only
+- **MODES (v6.3+):**
+  - **"scan"**: Load existing architecture (UPDATE workflows)
+    → Use when: Modifying existing project, need current state
+  - **"design"** (default): Create new architecture or propose updates
+    → Use when: New projects OR updating existing ones
+  - **"post_build_scan"**: Document system after code generation (CREATE workflows)
+    → Use when: After Codesmith completed, create system snapshot
+  - **"re_scan"**: Update architecture after modifications (UPDATE workflows)
+    → Use when: After modifications, update system snapshot
 
 ## codesmith
 - **Description:** Generates code based on architecture and requirements
@@ -261,41 +269,72 @@ Return a JSON object with this structure:
 4. **Conditional Execution**: Add conditions to handle edge cases
 5. **Quality Gates**: Include review/validation for code generation
 
-# Common Patterns:
+# Common Patterns (v6.3+ with Architect modes):
 
-1. **CREATE Pattern**: Research (mode="research") → Architect → Codesmith → ReviewFix → Architect (post-scan)
-2. **UPDATE Pattern**: Architect (scan) → Research (optional) → Architect (update proposal) → Codesmith → ReviewFix → Architect (re-scan)
-3. **EXPLAIN Pattern**: Research (mode="explain") → DONE
-4. **ANALYZE Pattern**: Research (mode="analyze") → DONE
-5. **FIX Pattern**: Research (mode="analyze") → Debugger → ReviewFix
-6. **REFACTOR Pattern**: Research (mode="research") → Architect → Codesmith → ReviewFix
+1. **CREATE Pattern**:
+   Research (mode="research") → Architect (mode="design") → Codesmith → ReviewFix → Architect (mode="post_build_scan")
+
+2. **UPDATE Pattern**:
+   Architect (mode="scan") → Research (mode="research", optional) → Architect (mode="design") → Codesmith → ReviewFix → Architect (mode="re_scan")
+
+3. **EXPLAIN Pattern**:
+   Research (mode="explain") → DONE
+
+4. **ANALYZE Pattern**:
+   Research (mode="analyze") → DONE
+
+5. **FIX Pattern**:
+   Research (mode="analyze") → Debugger → ReviewFix
+
+6. **REFACTOR Pattern**:
+   Research (mode="research") → Architect (mode="design") → Codesmith → ReviewFix
+
+# Agent Autonomy (v6.3+):
+
+Agents can invoke other agents AUTOMATICALLY when context is missing:
+- Architect can invoke Research if no research data in Memory
+- Codesmith can invoke Research if no research data in Memory
+- Codesmith can invoke Architect if no design in Memory
+
+This means workflows can be SHORTER - missing agents will be invoked automatically!
+Example: User says "Generate code" → Workflow: [Codesmith only] → Codesmith auto-invokes Architect AND Research
+
+# Model Selection (v6.3+):
+
+Codesmith automatically selects the best model based on complexity:
+- Simple tasks → Claude Sonnet 4 (fast)
+- Moderate tasks → Claude Sonnet 4.5
+- Complex tasks → Claude Sonnet 4.5 + Think mode
+- Very complex (20+ files, microservices, etc.) → Claude Opus 3.5 + Think mode
+
+User is notified via WebSocket which model was selected and why.
 
 # Correct Examples:
 
-**Example 1: CREATE**
+**Example 1: CREATE (v6.3)**
 Task: "Create a task manager app"
 {{
   "workflow_type": "CREATE",
   "agents": [
     {{"agent": "research", "mode": "research", "description": "Search for task manager patterns"}},
-    {{"agent": "architect", "description": "Design architecture"}},
-    {{"agent": "codesmith", "description": "Generate code"}},
-    {{"agent": "reviewfix", "description": "Review and fix"}},
-    {{"agent": "architect", "description": "Post-build scan: Create system documentation"}}
+    {{"agent": "architect", "mode": "design", "description": "Design architecture"}},
+    {{"agent": "codesmith", "mode": "default", "description": "Generate code (model auto-selected based on complexity)"}},
+    {{"agent": "reviewfix", "mode": "default", "description": "Review and fix"}},
+    {{"agent": "architect", "mode": "post_build_scan", "description": "Create system snapshot and documentation"}}
   ]
 }}
 
-**Example 2: UPDATE**
+**Example 2: UPDATE (v6.3)**
 Task: "Add authentication to existing app"
 {{
   "workflow_type": "UPDATE",
   "agents": [
-    {{"agent": "architect", "description": "Scan existing system and load architecture"}},
+    {{"agent": "architect", "mode": "scan", "description": "Load existing architecture"}},
     {{"agent": "research", "mode": "research", "description": "Research authentication best practices", "condition": "if_llm_decides"}},
-    {{"agent": "architect", "description": "Design authentication integration with existing system"}},
-    {{"agent": "codesmith", "description": "Implement authentication"}},
-    {{"agent": "reviewfix", "description": "Review and fix"}},
-    {{"agent": "architect", "description": "Re-scan and update architecture documentation"}}
+    {{"agent": "architect", "mode": "design", "description": "Design authentication integration"}},
+    {{"agent": "codesmith", "mode": "default", "description": "Implement authentication"}},
+    {{"agent": "reviewfix", "mode": "default", "description": "Review and fix"}},
+    {{"agent": "architect", "mode": "re_scan", "description": "Update system snapshot"}}
   ]
 }}
 
