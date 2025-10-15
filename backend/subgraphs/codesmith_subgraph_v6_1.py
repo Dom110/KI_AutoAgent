@@ -142,6 +142,42 @@ def create_codesmith_subgraph(
                 logger.warning(f"⚠️ Failed to load context from memory: {e}")
                 context_from_memory = ""
 
+            # Step 1.4: NEW v6.2 - Agent Autonomy: Invoke Research if context missing
+            if orchestrator and not research_results:
+                logger.info("🔬 No research in memory - invoking Research agent...")
+                try:
+                    research_invocation = await orchestrator.invoke_research(
+                        query=f"Best practices and library documentation for: {state.get('requirements', '')[:200]}",
+                        mode="research",
+                        caller="codesmith"
+                    )
+                    if research_invocation["success"]:
+                        logger.info(f"✅ Research agent returned {len(research_invocation['result'])} chars")
+                        # Add to context
+                        context_from_memory += f"\n\n## Additional Research\n{research_invocation['result']}"
+                        research_results = [{"content": research_invocation["result"]}]
+                except Exception as e:
+                    logger.warning(f"⚠️ Research agent invocation failed: {e}")
+
+            # Step 1.5: NEW v6.2 - Agent Autonomy: Invoke Architect if design missing
+            if orchestrator and not architect_results:
+                logger.info("🏗️  No architecture in memory - invoking Architect agent...")
+                try:
+                    architect_invocation = await orchestrator.invoke_architect(
+                        task=f"Design architecture for: {state.get('requirements', '')[:200]}",
+                        mode="design",
+                        caller="codesmith",
+                        design_input={}
+                    )
+                    if architect_invocation["success"]:
+                        logger.info(f"✅ Architect agent returned {len(architect_invocation['design'])} chars")
+                        # Add to context
+                        design_content = architect_invocation["design"]
+                        context_from_memory += f"\n\n## Generated Architecture\n{design_content}"
+                        architect_results = [{"content": design_content}]
+                except Exception as e:
+                    logger.warning(f"⚠️ Architect agent invocation failed: {e}")
+
             # Step 1.5: NEW v6.2 - Model Selection based on complexity
             logger.info("🎯 Assessing task complexity and selecting model...")
 
