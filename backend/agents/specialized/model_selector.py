@@ -104,6 +104,107 @@ class ComplexityLevel:
     VERY_COMPLEX = "very_complex"  # 20+ files or >5000 LOC
 
 
+def _extract_keywords_from_context(
+    design_context: dict[str, Any] | None,
+    research_context: dict[str, Any] | None,
+    codebase_context: dict[str, Any] | None
+) -> tuple[int, list[str]]:
+    """
+    Extract complexity indicators from design, research, and codebase context.
+
+    Args:
+        design_context: Architect design output (components, patterns, tech_stack)
+        research_context: Research findings (technologies, best practices)
+        codebase_context: Existing codebase analysis (files, structure)
+
+    Returns:
+        Tuple of (additional_complexity_score, reasons_list)
+    """
+    score = 0
+    reasons = []
+    combined_text = ""
+
+    # Extract text from design context
+    if design_context:
+        if "description" in design_context:
+            combined_text += " " + str(design_context["description"])
+        if "components" in design_context:
+            components = design_context["components"]
+            score += min(len(components) // 5, 2)  # +1 per 5 components, max +2
+            if len(components) >= 10:
+                reasons.append(f"{len(components)} components (high)")
+        if "patterns" in design_context:
+            patterns = design_context["patterns"]
+            if len(patterns) >= 3:
+                score += 1
+                reasons.append(f"{len(patterns)} design patterns")
+
+    # Extract text from research context
+    if research_context:
+        if "findings" in research_context:
+            findings = research_context["findings"]
+            if isinstance(findings, list):
+                combined_text += " " + " ".join(str(f) for f in findings)
+            else:
+                combined_text += " " + str(findings)
+        if "sources" in research_context and len(research_context["sources"]) >= 5:
+            score += 1
+            reasons.append(f"{len(research_context['sources'])} research sources")
+
+    # Extract from codebase context
+    if codebase_context:
+        if "files" in codebase_context:
+            file_count = codebase_context["files"]
+            if isinstance(file_count, int) and file_count >= 20:
+                score += 1
+                reasons.append(f"{file_count} existing files")
+        if "complexity" in codebase_context:
+            if codebase_context["complexity"] == "high":
+                score += 2
+                reasons.append("High existing codebase complexity")
+
+    # Keyword detection in combined context
+    text_lower = combined_text.lower()
+
+    complexity_keywords = {
+        "microservice": ("Microservices architecture", 2),
+        "distributed": ("Distributed system", 2),
+        "real-time": ("Real-time processing", 1),
+        "websocket": ("WebSocket communication", 1),
+        "event-driven": ("Event-driven architecture", 1),
+        "message queue": ("Message queue system", 1),
+        "kafka": ("Apache Kafka", 1),
+        "rabbitmq": ("RabbitMQ", 1),
+        "redis": ("Redis caching", 1),
+        "graphql": ("GraphQL API", 1),
+        "grpc": ("gRPC communication", 1),
+        "kubernetes": ("Kubernetes orchestration", 2),
+        "docker": ("Docker containerization", 1),
+        "ci/cd": ("CI/CD pipeline", 1),
+        "terraform": ("Infrastructure as Code", 1),
+        "monitoring": ("Monitoring/observability", 1),
+        "logging": ("Logging infrastructure", 1),
+        "authentication": ("Authentication system", 2),
+        "authorization": ("Authorization system", 1),
+        "oauth": ("OAuth integration", 2),
+        "jwt": ("JWT authentication", 1),
+        "encryption": ("Encryption/security", 1),
+        "blockchain": ("Blockchain integration", 2),
+        "machine learning": ("ML/AI integration", 2),
+        "tensorflow": ("TensorFlow", 2),
+        "pytorch": ("PyTorch", 2),
+    }
+
+    detected_keywords = set()
+    for keyword, (reason, points) in complexity_keywords.items():
+        if keyword in text_lower and keyword not in detected_keywords:
+            score += points
+            reasons.append(reason)
+            detected_keywords.add(keyword)
+
+    return score, reasons
+
+
 def assess_complexity(
     requirements: str,
     file_count: int = 0,
@@ -112,7 +213,10 @@ def assess_complexity(
     has_api: bool = False,
     has_database: bool = False,
     has_auth: bool = False,
-    multi_language: bool = False
+    multi_language: bool = False,
+    design_context: dict[str, Any] | None = None,
+    research_context: dict[str, Any] | None = None,
+    codebase_context: dict[str, Any] | None = None
 ) -> tuple[str, dict[str, Any]]:
     """
     Assess task complexity based on multiple factors.
@@ -126,6 +230,9 @@ def assess_complexity(
         has_database: Whether task involves database
         has_auth: Whether task involves authentication
         multi_language: Whether task involves multiple programming languages
+        design_context: Architect design output (NEW v6.2)
+        research_context: Research findings (NEW v6.2)
+        codebase_context: Existing codebase analysis (NEW v6.2)
 
     Returns:
         Tuple of (complexity_level, metrics_dict)
@@ -136,6 +243,9 @@ def assess_complexity(
     - Tech stack: +1 complexity per additional technology beyond 2
     - Features: +1 complexity for API, database, auth
     - Multi-language: +1 complexity
+    - Design context: Extracted from architect proposal (components, patterns, tech stack)
+    - Research context: Extracted from research findings (technologies, patterns detected)
+    - Codebase context: Extracted from existing code analysis
     """
     complexity_score = 0
     reasons = []
@@ -222,6 +332,13 @@ def assess_complexity(
         complexity_score += 1
         reasons.append("Testing requirements")
 
+    # NEW v6.2: Extract complexity from design, research, and codebase context
+    context_score, context_reasons = _extract_keywords_from_context(
+        design_context, research_context, codebase_context
+    )
+    complexity_score += context_score
+    reasons.extend(context_reasons)
+
     # Determine complexity level
     if complexity_score == 0:
         level = ComplexityLevel.TRIVIAL
@@ -282,6 +399,9 @@ class ModelSelector:
         has_database: bool = False,
         has_auth: bool = False,
         multi_language: bool = False,
+        design_context: dict[str, Any] | None = None,
+        research_context: dict[str, Any] | None = None,
+        codebase_context: dict[str, Any] | None = None,
         force_model: str | None = None
     ) -> tuple[ModelConfig, str]:
         """
@@ -296,6 +416,9 @@ class ModelSelector:
             has_database: Database integration needed
             has_auth: Authentication needed
             multi_language: Multiple languages
+            design_context: Architect design output (NEW v6.2)
+            research_context: Research findings (NEW v6.2)
+            codebase_context: Existing codebase analysis (NEW v6.2)
             force_model: Force specific model ("sonnet_4", "sonnet_4_5", "opus_3", etc.)
 
         Returns:
@@ -316,7 +439,10 @@ class ModelSelector:
             has_api=has_api,
             has_database=has_database,
             has_auth=has_auth,
-            multi_language=multi_language
+            multi_language=multi_language,
+            design_context=design_context,
+            research_context=research_context,
+            codebase_context=codebase_context
         )
 
         # Force model if specified

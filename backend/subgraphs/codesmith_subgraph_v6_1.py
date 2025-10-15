@@ -142,8 +142,71 @@ def create_codesmith_subgraph(
                 logger.warning(f"⚠️ Failed to load context from memory: {e}")
                 context_from_memory = ""
 
+            # Step 1.5: NEW v6.2 - Model Selection based on complexity
+            logger.info("🎯 Assessing task complexity and selecting model...")
+
+            # Import ModelSelector
+            from agents.specialized.model_selector import ModelSelector
+
+            # Get orchestrator from state for context
+            orchestrator = state.get("orchestrator")
+
+            # Extract design and research context
+            design_dict = state.get("design", {})
+            research_dict = state.get("research", {})
+
+            # Parse architect_results for design context
+            design_context = None
+            if architect_results:
+                try:
+                    import json
+                    # Try to parse as JSON first
+                    design_context = json.loads(architect_results[0].get("content", "{}"))
+                except (json.JSONDecodeError, ValueError, IndexError, KeyError):
+                    # Fall back to dict from state
+                    design_context = design_dict if isinstance(design_dict, dict) else None
+
+            # Parse research_results for research context
+            research_context = None
+            if research_results:
+                research_context = {
+                    "findings": [r.get("content", "") for r in research_results],
+                    "sources": []
+                }
+
+            # Estimate complexity from design
+            file_count_estimate = 0
+            if design_context and isinstance(design_context, dict):
+                components = design_context.get("components", [])
+                file_count_estimate = len(components) * 2  # Rough estimate: 2 files per component
+
+            # Select model
+            selector = ModelSelector()
+            model_config, notification = selector.select_model(
+                requirements=state.get("requirements", ""),
+                file_count=file_count_estimate,
+                design_context=design_context,
+                research_context=research_context
+            )
+
+            logger.info(f"✅ Selected model: {model_config.name} (think={model_config.think_mode})")
+            print(notification)  # Print to console for user visibility
+
+            # Send notification via HITL callback if available
+            if hitl_callback:
+                try:
+                    await hitl_callback({
+                        "type": "model_selection",
+                        "model": model_config.name,
+                        "model_id": model_config.model_id,
+                        "think_mode": model_config.think_mode,
+                        "notification": notification
+                    })
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to send model selection notification: {e}")
+
             # Step 2: Generate code with Claude (via MCP!)
-            logger.info("🤖 Generating code with Claude via MCP...")
+            logger.info(f"🤖 Generating code with {model_config.name} via MCP...")
 
             system_prompt = """You are an expert code generator specializing in clean, maintainable code.
 
@@ -192,7 +255,7 @@ START YOUR RESPONSE WITH "FILE:" - Nothing else!"""
 
 Generate complete, production-ready code files."""
 
-            # Call Claude via MCP
+            # Call Claude via MCP with selected model
             claude_result = await mcp.call(
                 server="claude",
                 tool="claude_generate",
@@ -201,8 +264,10 @@ Generate complete, production-ready code files."""
                     "system_prompt": system_prompt,
                     "workspace_path": workspace_path,
                     "agent_name": "codesmith",
-                    "temperature": 0.2,
-                    "max_tokens": 16384,  # More tokens for code generation
+                    "model": model_config.model_id,  # Use selected model
+                    "temperature": model_config.temperature,
+                    "max_tokens": model_config.max_tokens,
+                    "think_mode": model_config.think_mode,  # Enable Think mode if needed
                     "tools": ["Read", "Edit", "Bash"]
                 },
                 timeout=900  # 15 min timeout for code generation
