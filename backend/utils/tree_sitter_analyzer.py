@@ -169,12 +169,13 @@ class TreeSitterAnalyzer:
         try:
             # Load language using modern package method
             lang_loader = LANGUAGE_LOADERS[language]
-            lang = lang_loader()
+            lang_capsule = lang_loader()  # Returns PyCapsule
+            lang = Language(lang_capsule)  # Wrap in Language object for v0.23+ API
             self.languages[language] = lang
 
             # Create parser
             parser = Parser()
-            parser.language = lang  # v0.23+ uses property instead of set_language()
+            parser.language = lang  # v0.23+ property-based API
             self.parsers[language] = parser
 
             logger.debug(f"✅ Loaded language: {language}")
