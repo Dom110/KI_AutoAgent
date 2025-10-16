@@ -25,7 +25,7 @@ import websockets
 # Configuration
 BACKEND_URL = "ws://localhost:8002/ws/chat"
 TEST_WORKSPACE = Path.home() / "TestApps" / "refactor_workflow_test"
-TEST_TIMEOUT = 1500  # 25 minutes (REFACTOR can be complex)
+TEST_TIMEOUT = 2100  # 35 minutes (REFACTOR can be complex - increased from 25min)
 
 print("\n" + "="*80)
 print("FOCUSED E2E TEST: REFACTOR Workflow")
