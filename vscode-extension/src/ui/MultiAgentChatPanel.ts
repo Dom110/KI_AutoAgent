@@ -263,6 +263,99 @@ export class MultiAgentChatPanel {
             });
         });
 
+        // Handle approval_request from v6.3 Approval Manager
+        this.backendClient.on('approval_request', async (message: any) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`🔐 Approval Request: ${message.action_type} - ${message.description}`);
+
+            // Show approval request in UI
+            this.sendMessage({
+                type: 'progress',
+                agent: message.agent || 'orchestrator',
+                content: `🔐 Approval needed: ${message.description}`,
+                metadata: {
+                    approval_request: true,
+                    request_id: message.request_id,
+                    action_type: message.action_type
+                }
+            });
+
+            // AUTO-APPROVE for development (später: User-Prompt)
+            setTimeout(async () => {
+                try {
+                    MultiAgentChatPanel.debugChannel.appendLine(`✅ Auto-approving: ${message.request_id}`);
+
+                    // Send approval response back to backend
+                    await this.backendClient.sendMessage({
+                        type: 'approval_response',
+                        request_id: message.request_id,
+                        approved: true,
+                        response: 'Auto-approved by VS Code Extension'
+                    });
+
+                    // Show approval in UI
+                    this.sendMessage({
+                        type: 'progress',
+                        agent: 'orchestrator',
+                        content: `✅ Approved: ${message.action_type}`
+                    });
+                } catch (err) {
+                    MultiAgentChatPanel.debugChannel.appendLine(`❌ Failed to send approval: ${err}`);
+                }
+            }, 100); // 100ms delay
+        });
+
+        // Handle workflow_complete / result from v6.3 backend
+        this.backendClient.on('workflow_complete', (message: any) => {
+            MultiAgentChatPanel.debugChannel.appendLine(`🎉 Workflow Complete - Success: ${message.success}, Quality: ${message.quality_score}`);
+
+            // Build user-friendly result message
+            let resultContent = `✅ **Workflow Complete!**\n\n`;
+            resultContent += `**Quality Score:** ${message.quality_score || 'N/A'}\n`;
+            resultContent += `**Execution Time:** ${message.execution_time ? (message.execution_time / 1000).toFixed(2) + 's' : 'N/A'}\n`;
+
+            // Add v6 insights if available
+            if (message.analysis) {
+                resultContent += `\n**Analysis:**\n`;
+                resultContent += `- Complexity: ${message.analysis.complexity || 'N/A'}\n`;
+                resultContent += `- Risk Level: ${message.analysis.risk_level || 'N/A'}\n`;
+            }
+
+            if (message.adaptations) {
+                resultContent += `\n**Adaptations:** ${message.adaptations.total_adaptations || 0}\n`;
+            }
+
+            if (message.health) {
+                resultContent += `\n**System Health:** ${message.health.overall_health || 'N/A'}\n`;
+            }
+
+            // Add errors/warnings if any
+            if (message.errors && message.errors.length > 0) {
+                resultContent += `\n⚠️ **Errors:** ${message.errors.length}\n`;
+            }
+            if (message.warnings && message.warnings.length > 0) {
+                resultContent += `\n⚠️ **Warnings:** ${message.warnings.length}\n`;
+            }
+
+            // Send as response to display in chat
+            this.sendMessage({
+                type: 'response',
+                agent: 'orchestrator',
+                content: resultContent,
+                timestamp: new Date().toISOString()
+            });
+
+            // Add to conversation history
+            this._conversationHistory.push({
+                role: 'assistant',
+                content: resultContent,
+                agent: 'orchestrator',
+                timestamp: new Date().toISOString()
+            });
+
+            // Reset processing flag
+            this._isProcessing = false;
+        });
+
         // Handle errors
         this.backendClient.on('error', (error: any) => {
             MultiAgentChatPanel.debugChannel.appendLine(`❌ Backend error: ${error.message || error.error || JSON.stringify(error)}`);
@@ -609,7 +702,7 @@ export class MultiAgentChatPanel {
         }
 
         // Create unique message ID for deduplication (skip for certain message types that should always go through)
-        const skipDedup = ['userMessage', 'clearChat', 'agentResponse', 'error', 'complete', 'historyMessage', 'agentThinking', 'agent_thinking'];
+        const skipDedup = ['userMessage', 'clearChat', 'agentResponse', 'response', 'error', 'complete', 'historyMessage', 'agentThinking', 'agent_thinking'];
         if (!skipDedup.includes(message.type)) {
             const messageId = `${message.type}-${message.agent || ''}-${message.content || ''}-${message.timestamp || ''}`;
 

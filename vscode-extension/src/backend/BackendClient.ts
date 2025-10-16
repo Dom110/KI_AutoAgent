@@ -8,7 +8,7 @@ import WebSocket from 'ws';
 import { EventEmitter } from 'events';
 
 export interface BackendMessage {
-    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'agent_complete' | 'agent_tool_start' | 'agent_tool_complete' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed' | 'architecture_proposal' | 'architecture_proposal_revised' | 'architectureApprovalProcessed' | 'status' | 'approval_request' | 'approval_response' | 'workflow_complete' | 'result' | 'claude_cli_start' | 'claude_cli_complete' | 'claude_cli_error';
+    type: 'chat' | 'command' | 'workflow' | 'agent_response' | 'agent_thinking' | 'agent_progress' | 'agent_complete' | 'agent_tool_start' | 'agent_tool_complete' | 'error' | 'connection' | 'complete' | 'progress' | 'stream_chunk' | 'pause' | 'resume' | 'stopAndRollback' | 'pauseActivated' | 'resumed' | 'stoppedAndRolledBack' | 'clarificationNeeded' | 'clarificationResponse' | 'session_restore' | 'connected' | 'initialized' | 'init' | 'response' | 'step_completed' | 'architecture_proposal' | 'architecture_proposal_revised' | 'architectureApprovalProcessed' | 'status' | 'approval_request' | 'approval_response' | 'workflow_complete' | 'result' | 'claude_cli_start' | 'claude_cli_complete' | 'claude_cli_error' | 'model_selection';
     content?: string;
     agent?: string;
     model?: string;  // v6.1-alpha: Claude model name
@@ -514,6 +514,19 @@ export class BackendClient extends EventEmitter {
                     agent: message.agent,
                     message: `Claude CLI error: ${errMsg.error}`,
                     details: { error_type: errMsg.error_type, duration_ms: errMsg.duration_ms }
+                });
+                break;
+
+            case 'model_selection':
+                // v6.3: Model selection for agent execution
+                const modelInfo = message.model || {};
+                this.log(`🤖 Model Selection: ${(modelInfo as any).name || 'unknown'} (think=${(modelInfo as any).think_mode || false})`);
+                // Emit as progress so UI shows model selection
+                this.emit('progress', {
+                    type: 'progress',
+                    agent: message.agent || 'orchestrator',
+                    message: `Selected model: ${(modelInfo as any).name || 'claude-sonnet-4'}`,
+                    metadata: { model: modelInfo }
                 });
                 break;
 

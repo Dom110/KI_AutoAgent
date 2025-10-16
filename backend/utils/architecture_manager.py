@@ -50,7 +50,7 @@ class ArchitectureManager:
             workspace_path: Absolute path to workspace root
         """
         self.workspace_path = Path(workspace_path)
-        self.arch_dir = self.workspace_path / ".ki_autoagent" / "architecture"
+        self.arch_dir = self.workspace_path / ".ki_autoagent_ws" / "architecture"
 
         # Create architecture directory if it doesn't exist
         self.arch_dir.mkdir(parents=True, exist_ok=True)
