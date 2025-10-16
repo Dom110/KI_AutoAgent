@@ -39,7 +39,7 @@ Usage:
     )
 
 Author: KI AutoAgent Team
-Version: 6.3.0-alpha
+Version: 6.4.0-beta
 Python: 3.13+
 """
 
@@ -109,6 +109,9 @@ from cognitive.self_diagnosis_v6 import SelfDiagnosisV6
 from cognitive.workflow_planner_v6 import WorkflowPlannerV6, WorkflowPlan, AgentType, ConditionType
 from utils.timeout_handler import HumanResponseManager, TimeoutPolicy
 
+# NEW v6.4: Workflow-Aware Router for dynamic execution
+from cognitive.workflow_aware_router import WorkflowAwareRouter
+
 # Setup logging
 logger = logging.getLogger(__name__)
 
@@ -163,6 +166,9 @@ class WorkflowV6Integrated:
 
         # NEW v6.2: Agent Orchestrator (for agent-to-agent communication)
         self.orchestrator: Any | None = None
+
+        # NEW v6.4: Workflow-Aware Router for dynamic execution
+        self.workflow_router: WorkflowAwareRouter | None = None
 
         # Execution tracking
         self.current_session: dict[str, Any] = {}
@@ -340,6 +346,10 @@ class WorkflowV6Integrated:
 
         self.response_manager = HumanResponseManager()
         logger.debug("  ✅ Human Response Manager")
+
+        # NEW v6.4: Workflow-Aware Router
+        self.workflow_router = WorkflowAwareRouter()
+        logger.debug("  ✅ Workflow-Aware Router")
 
         # NEW v6.2: Agent Orchestrator (for agent-to-agent communication)
         from core.agent_orchestrator import AgentOrchestrator
@@ -548,16 +558,42 @@ class WorkflowV6Integrated:
         """
         Research decides next step based on results.
 
+        NEW v6.4: Workflow-aware routing that respects AI plan.
+
         Returns:
-            - "architect": Research found info, proceed to design
-            - "hitl": Can't find necessary information
+            - Next agent from plan
+            - "architect": Research found info, proceed to design (fallback)
+            - "hitl": Can't find necessary information (fallback)
+            - END: If workflow complete
         """
         print("🔀 === RESEARCH DECISION ===")
         result = state.get("research_results", {})
         print(f"  research_results type: {type(result)}")
         print(f"  research_results: {str(result)[:200]}")
 
-        # Check if research was successful
+        # NEW v6.4: Mark research as completed
+        self.workflow_router.mark_completed("research")
+
+        # NEW v6.4: Check if this is an EXPLAIN/ANALYZE workflow that ends here
+        agent_modes = self.current_session.get("metadata", {}).get("agent_modes", {})
+        research_mode = agent_modes.get("research", "research")
+
+        if research_mode in ["explain", "analyze"]:
+            # Check if we're done (no more agents in plan)
+            next_agent = self.workflow_router.get_next_in_plan("research")
+            if next_agent == END:
+                print("  ✅ Decision: END (workflow complete)")
+                logger.info("✅ Research → END (EXPLAIN/ANALYZE workflow complete)")
+                return END
+
+        # NEW v6.4: Use workflow plan if available
+        next_in_plan = self.workflow_router.get_next_in_plan("research")
+        if next_in_plan and next_in_plan != END:
+            print(f"  📋 Decision from plan: {next_in_plan}")
+            logger.info(f"✅ Research → {next_in_plan} (from workflow plan)")
+            return next_in_plan
+
+        # Fallback to original logic
         if isinstance(result, dict) and result.get("findings"):
             print("  ✅ Decision: architect")
             logger.info("✅ Research → Architect (findings available)")
@@ -572,16 +608,31 @@ class WorkflowV6Integrated:
         """
         Architect decides next step based on design quality.
 
+        NEW v6.4: Workflow-aware routing that respects AI plan.
+
         Returns:
-            - "codesmith": Architecture ready, proceed to implementation
-            - "research": Need more technical details
-            - "hitl": Can't design (unclear requirements)
+            - Next agent from plan
+            - "codesmith": Architecture ready, proceed to implementation (fallback)
+            - "research": Need more technical details (fallback)
+            - "hitl": Can't design (unclear requirements) (fallback)
+            - END: If workflow complete
         """
         print("🔀 === ARCHITECT DECISION ===")
         result = state.get("architecture_design")
         print(f"  architecture_design type: {type(result)}")
         print(f"  architecture_design: {str(result)[:200]}")
 
+        # NEW v6.4: Mark architect as completed
+        self.workflow_router.mark_completed("architect")
+
+        # NEW v6.4: Use workflow plan if available
+        next_in_plan = self.workflow_router.get_next_in_plan("architect")
+        if next_in_plan:
+            print(f"  📋 Decision from plan: {next_in_plan}")
+            logger.info(f"✅ Architect → {next_in_plan} (from workflow plan)")
+            return next_in_plan
+
+        # Fallback to original logic
         # Check if design is complete
         if result:
             # Check confidence if available
@@ -607,11 +658,13 @@ class WorkflowV6Integrated:
         """
         Codesmith decides next step based on code generation results.
 
+        NEW v6.4: Workflow-aware routing that respects AI plan.
+
         Returns:
-            - "research": Need more information
-            - "reviewfix": Code needs review
-            - "hitl": Stuck, need human help (ASIMOV RULE 4)
-            - END: All done
+            - Next agent from plan
+            - "reviewfix": Code needs review (fallback)
+            - "hitl": Stuck, need human help (ASIMOV RULE 4) (fallback)
+            - END: If workflow complete
         """
         print("🔀 === CODESMITH DECISION ===")
         generated_files = state.get("generated_files", [])
@@ -619,7 +672,10 @@ class WorkflowV6Integrated:
         print(f"  generated_files: {generated_files}")
         print(f"  errors: {errors}")
 
-        # Check for errors first
+        # NEW v6.4: Mark codesmith as completed
+        self.workflow_router.mark_completed("codesmith")
+
+        # Check for errors first (override plan if too many errors)
         if errors:
             error_count = len(errors)
             print(f"  error_count: {error_count}")
@@ -628,6 +684,15 @@ class WorkflowV6Integrated:
                 logger.warning("🛑 Codesmith → HITL (3+ errors, ASIMOV RULE 4)")
                 return "hitl"
 
+        # NEW v6.4: Use workflow plan if available
+        next_in_plan = self.workflow_router.get_next_in_plan("codesmith")
+        if next_in_plan:
+            print(f"  📋 Decision from plan: {next_in_plan}")
+            logger.info(f"✅ Codesmith → {next_in_plan} (from workflow plan)")
+            return next_in_plan
+
+        # Fallback to original logic
+        if errors:
             print("  🔬 Decision: reviewfix (has errors)")
             logger.info("🔬 Codesmith → ReviewFix (has errors)")
             return "reviewfix"
@@ -647,10 +712,13 @@ class WorkflowV6Integrated:
         """
         ReviewFix decides next step after review.
 
+        NEW v6.4: Workflow-aware routing that respects AI plan.
+
         Returns:
-            - "codesmith": Need to regenerate code
-            - "hitl": Can't fix, need human (ASIMOV RULE 4)
-            - END: All fixed
+            - Next agent from plan
+            - "codesmith": Need to regenerate code (fallback)
+            - "hitl": Can't fix, need human (ASIMOV RULE 4) (fallback)
+            - END: All fixed (fallback)
         """
         print("🔀 === REVIEWFIX DECISION ===")
         review_feedback = state.get("review_feedback")
@@ -659,7 +727,10 @@ class WorkflowV6Integrated:
         print(f"  review_feedback: {str(review_feedback)[:200]}")
         print(f"  errors: {errors}")
 
-        # Check if there are unfixable errors
+        # NEW v6.4: Mark reviewfix as completed
+        self.workflow_router.mark_completed("reviewfix")
+
+        # Check if there are unfixable errors (override plan if too many errors)
         if errors:
             error_count = len(errors)
             print(f"  error_count: {error_count}")
@@ -668,6 +739,26 @@ class WorkflowV6Integrated:
                 logger.warning("🛑 ReviewFix → HITL (can't fix after 3 attempts)")
                 return "hitl"
 
+        # NEW v6.4: Check quality score for early termination
+        if isinstance(review_feedback, dict):
+            quality_score = review_feedback.get("quality_score", 0)
+            if quality_score >= 0.75:
+                print(f"  ✅ Quality good ({quality_score:.2f}), checking plan...")
+                # Even with good quality, respect the plan
+                next_in_plan = self.workflow_router.get_next_in_plan("reviewfix")
+                if next_in_plan == END or not next_in_plan:
+                    print("  ✅ Decision: END (workflow complete)")
+                    logger.info(f"✅ ReviewFix → END (quality {quality_score:.2f}, workflow complete)")
+                    return END
+
+        # NEW v6.4: Use workflow plan if available
+        next_in_plan = self.workflow_router.get_next_in_plan("reviewfix")
+        if next_in_plan:
+            print(f"  📋 Decision from plan: {next_in_plan}")
+            logger.info(f"✅ ReviewFix → {next_in_plan} (from workflow plan)")
+            return next_in_plan
+
+        # Fallback to original logic
         # Check if review found issues
         if isinstance(review_feedback, dict):
             issues = review_feedback.get("issues", [])
@@ -783,6 +874,9 @@ class WorkflowV6Integrated:
                 agent_modes = {}
                 for step in plan.agents:
                     agent_modes[step.agent.value] = step.mode
+
+                # NEW v6.4: Configure workflow router with the plan
+                self.workflow_router.set_workflow_plan(workflow_path, agent_modes)
 
                 # Store plan in current session
                 self.current_session = {
@@ -1233,13 +1327,14 @@ class WorkflowV6Integrated:
             }
         )
 
-        # Research → Architect OR HITL (conditional)
+        # Research → Architect OR HITL OR END (conditional)
         graph.add_conditional_edges(
             "research",
             self._research_decide_next,
             {
                 "architect": "architect",
-                "hitl": "hitl"
+                "hitl": "hitl",
+                END: END  # NEW v6.4: Allow research to end workflow (EXPLAIN/ANALYZE)
             }
         )
 
