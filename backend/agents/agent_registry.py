@@ -41,7 +41,7 @@ class AgentType(Enum):
     PERFORMANCE = "performance_bot"
 
 
-@dataclass(slots=True)
+@dataclass()
 class RegisteredAgent:
     """Registered agent information"""
 

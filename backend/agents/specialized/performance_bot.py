@@ -29,7 +29,7 @@ from ..base.chat_agent import ChatAgent
 logger = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
+@dataclass()
 class PerformanceProfile:
     """Performance analysis results"""
 

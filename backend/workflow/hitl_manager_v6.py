@@ -62,7 +62,7 @@ class EscalationLevel(str, Enum):
     BLOCK = "block"                    # Stop and ask for help
 
 
-@dataclass(slots=True)
+@dataclass()
 class Task:
     """Individual task in workflow."""
 
@@ -80,7 +80,7 @@ class Task:
     recommendation: str | None = None
 
 
-@dataclass(slots=True)
+@dataclass()
 class SessionReport:
     """Report of HITL session."""
 

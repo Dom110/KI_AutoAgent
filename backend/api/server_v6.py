@@ -45,7 +45,7 @@ logger_setup.info(f"✅ Loaded environment from: {env_path}")
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from workflow_v6 import WorkflowV6
+from workflow_v6_integrated import WorkflowV6Integrated as WorkflowV6
 
 # Setup logging
 logging.basicConfig(
@@ -123,7 +123,7 @@ async def lifespan(app: FastAPI):
     logger.info("="*80)
     logger.info("🚀 KI AutoAgent v6.0 Server Starting...")
     logger.info("="*80)
-    logger.info("WebSocket endpoint: ws://localhost:8001/ws/chat")
+    logger.info("WebSocket endpoint: ws://localhost:8002/ws/chat")
     logger.info("Sessions will be created on-demand per client")
     logger.info("="*80)
 
@@ -310,7 +310,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "server_v6:app",
         host="0.0.0.0",
-        port=8001,
+        port=8002,
         log_level="info",
         reload=False,
     )

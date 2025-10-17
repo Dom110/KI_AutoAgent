@@ -14,7 +14,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-@dataclass(slots=True)
+@dataclass()
 class Directive:
     id: int
     rule: str

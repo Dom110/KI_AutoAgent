@@ -55,7 +55,7 @@ class ComplexityLevel(str, Enum):
     VERY_COMPLEX = "very_complex"  # > 60 min, multi-phase
 
 
-@dataclass(slots=True)
+@dataclass()
 class QueryClassification:
     """Classification result for a query."""
 

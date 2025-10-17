@@ -305,6 +305,14 @@ class MCPClient:
             start_time = asyncio.get_event_loop().time()
 
             while True:
+                # Check global timeout
+                elapsed = asyncio.get_event_loop().time() - start_time
+                if elapsed > self.timeout:
+                    raise MCPConnectionError(
+                        f"MCP call to {server} timed out after {elapsed:.1f}s "
+                        f"(exceeded global timeout of {self.timeout}s)"
+                    )
+
                 try:
                     # Read one line with short timeout (15s per line)
                     # Servers send heartbeat every 10s, so 15s is safe
@@ -313,7 +321,14 @@ class MCPClient:
                         timeout=15.0
                     )
                 except asyncio.TimeoutError:
+                    # No output for 15s - check if we're still within global timeout
                     elapsed = asyncio.get_event_loop().time() - start_time
+                    if elapsed > self.timeout:
+                        raise MCPConnectionError(
+                            f"MCP call to {server} timed out after {elapsed:.1f}s "
+                            f"(exceeded global timeout of {self.timeout}s)"
+                        )
+                    # Within timeout but no heartbeat - server may be stuck
                     raise MCPConnectionError(
                         f"MCP call to {server} timed out after {elapsed:.1f}s "
                         f"(no output for 15s - server may be stuck)"

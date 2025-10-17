@@ -52,7 +52,7 @@ class ExecutionStatus(str, Enum):
     ABORTED = "aborted"
 
 
-@dataclass(slots=True)
+@dataclass()
 class AgentExecution:
     """Record of a single agent execution."""
 
@@ -75,7 +75,7 @@ class AgentExecution:
         return 0.0
 
 
-@dataclass(slots=True)
+@dataclass()
 class WorkflowExecution:
     """Complete workflow execution state."""
 

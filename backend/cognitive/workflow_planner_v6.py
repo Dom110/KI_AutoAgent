@@ -61,7 +61,7 @@ class AgentType(str, Enum):
     CODESMITH = "codesmith"
     REVIEWFIX = "reviewfix"
     EXPLAIN = "explain"
-    DEBUGGER = "debugger"
+    # DEBUGGER removed - use CODESMITH for bug fixes
 
 
 # Conditional Rule Types
@@ -97,8 +97,8 @@ class AgentStep:
             AgentType.ARCHITECT: ["default", "scan", "design", "post_build_scan", "re_scan"],
             AgentType.CODESMITH: ["default"],
             AgentType.REVIEWFIX: ["default"],
-            AgentType.EXPLAIN: ["default"],
-            AgentType.DEBUGGER: ["default"]
+            AgentType.EXPLAIN: ["default"]
+            # DEBUGGER removed - use CODESMITH for bug fixes
         }
 
         allowed = valid_modes.get(self.agent, ["default"])
@@ -165,12 +165,8 @@ class WorkflowPlannerV6:
                 "description": "Documents and explains existing code",
                 "inputs": ["workspace_path", "target_files"],
                 "outputs": ["documentation", "explanations"]
-            },
-            AgentType.DEBUGGER: {
-                "description": "Analyzes errors, finds bugs, suggests fixes",
-                "inputs": ["error_logs", "code_files"],
-                "outputs": ["bug_analysis", "fix_suggestions"]
             }
+            # DEBUGGER removed - use CODESMITH for bug fixes
         }
 
     def _build_system_prompt(self) -> str:
@@ -216,9 +212,9 @@ Your task is to analyze user requests and create optimal execution plans.
 - **Description:** Legacy agent for explaining code
 - **MODES:** "default" only
 
-## debugger
-- **Description:** Analyzes errors, finds bugs, suggests fixes
-- **MODES:** "default" only
+## Note: debugger agent removed
+# Use codesmith for bug fixes and code modifications
+# Use research mode="analyze" for analyzing bugs before fixing
 
 # CRITICAL RULES FOR RESEARCH AGENT MODES:
 
@@ -245,7 +241,7 @@ Return a JSON object with this structure:
     "estimated_duration": "e.g., 2-5 minutes",
     "agents": [
         {{
-            "agent": "research|architect|codesmith|reviewfix|debugger",
+            "agent": "research|architect|codesmith|reviewfix",
             "mode": "default|research|explain|analyze",  ← REQUIRED for research agent!
             "description": "What this agent will do",
             "condition": "always|if_success|if_failure|if_quality_low|parallel",
@@ -284,7 +280,7 @@ Return a JSON object with this structure:
    Research (mode="analyze") → DONE
 
 5. **FIX Pattern**:
-   Research (mode="analyze") → Debugger → ReviewFix
+   Research (mode="analyze") → Codesmith → ReviewFix
 
 6. **REFACTOR Pattern**:
    Research (mode="research") → Architect (mode="design") → Codesmith → ReviewFix
@@ -370,9 +366,9 @@ Task: "Fix the authentication bug"
 {{
   "workflow_type": "FIX",
   "agents": [
-    {{"agent": "research", "mode": "analyze", "description": "Analyze authentication code"}},
-    {{"agent": "debugger", "description": "Find and fix bug"}},
-    {{"agent": "reviewfix", "description": "Validate fix"}}
+    {{"agent": "research", "mode": "analyze", "description": "Analyze authentication code for bugs"}},
+    {{"agent": "codesmith", "mode": "default", "description": "Fix identified bugs"}},
+    {{"agent": "reviewfix", "mode": "default", "description": "Validate fix"}}
   ]
 }}
 

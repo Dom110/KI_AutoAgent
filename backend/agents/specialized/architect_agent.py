@@ -102,7 +102,7 @@ except ImportError as e:
     DiagramService = None
 
 
-@dataclass(slots=True)
+@dataclass()
 class ArchitectureDesign:
     """Architecture design specification"""
 
