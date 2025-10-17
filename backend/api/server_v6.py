@@ -19,7 +19,7 @@ WebSocket Protocol:
 5. Server runs workflow and streams results
 
 Author: KI AutoAgent Team
-Version: 6.0.0
+Version: 6.4.0-beta
 Python: 3.13+
 """
 
@@ -157,7 +157,7 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "version": "6.0.0",
+        "version": "6.4.0-beta",
         "active_sessions": len(session_manager.sessions),
         "sessions": session_manager.list_sessions(),
     }

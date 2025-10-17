@@ -1,7 +1,7 @@
 {
-  "version": "6.1.0-alpha",
-  "release_date": "2025-10-12",
+  "version": "6.4.0-beta",
+  "release_date": "2025-10-17",
   "python_version": "3.13",
-  "architecture": "LangGraph Subgraphs",
-  "status": "alpha"
+  "architecture": "LangGraph with Intelligent Dynamic Workflow Routing",
+  "status": "beta"
 }
