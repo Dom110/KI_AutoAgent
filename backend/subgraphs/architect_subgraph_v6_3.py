@@ -186,7 +186,25 @@ async def _scan_mode(
     if not consistency["consistent"]:
         print(f"  ⚠️  {len(consistency['discrepancies'])} discrepancies found")
 
-    # Step 4: Return state with loaded architecture
+    # Step 4: Routing decision (v6.4-beta-asimov)
+    # After scan, decide if we need research or can proceed to codesmith
+    needs_research = any("unknown" in comp.lower() or "research needed" in comp.lower()
+                         for comp in str(architecture.get("components", [])))
+
+    if needs_research:
+        next_agent = "research"
+        routing_reason = "Knowledge gaps detected during architecture scan, need research"
+        confidence = 0.80
+    else:
+        next_agent = "codesmith"
+        routing_reason = "Architecture scan complete, ready for implementation"
+        confidence = 0.90
+
+    # Track executed mode
+    executed_modes = state.get("architect_modes_executed", [])
+    executed_modes.append("scan")
+
+    # Step 5: Return state with loaded architecture
     print(f"🏗️  === ARCHITECT SUBGRAPH END (scan) ===")
     return {
         **state,
@@ -195,6 +213,11 @@ async def _scan_mode(
         "tech_stack": architecture.get("tech_stack", {}).get("languages", []),
         "patterns": architecture.get("patterns", []),
         "diagram": "",  # Could generate from architecture
+        "next_agent": next_agent,
+        "routing_confidence": confidence,
+        "routing_reason": routing_reason,
+        "can_end_workflow": False,
+        "architect_modes_executed": executed_modes,
         "adr": f"""# Architecture Scan Report
 
 **Date:** {datetime.now().strftime('%Y-%m-%d')}
@@ -302,7 +325,17 @@ async def _design_mode(
     print(f"  Step 5: Storing design in Memory...")
     await _store_design_in_memory(mcp, workspace_path, design_text, state["user_requirements"])
 
-    # Step 8: Return state
+    # Step 8: Routing decision (v6.4-beta-asimov)
+    # Design complete → proceed to codesmith for implementation
+    next_agent = "codesmith"
+    routing_reason = "Architecture design complete, ready for code generation"
+    confidence = 0.95
+
+    # Track executed mode
+    executed_modes = state.get("architect_modes_executed", [])
+    executed_modes.append("design")
+
+    # Step 9: Return state
     print(f"🏗️  === ARCHITECT SUBGRAPH END (design) ===")
     return {
         **state,
@@ -313,6 +346,11 @@ async def _design_mode(
         "architecture": design,  # Full architecture for later stages
         "diagram": diagram,
         "adr": adr,
+        "next_agent": next_agent,
+        "routing_confidence": confidence,
+        "routing_reason": routing_reason,
+        "can_end_workflow": False,
+        "architect_modes_executed": executed_modes,
         "errors": state.get("errors", [])
     }
 
@@ -357,7 +395,17 @@ async def _post_build_scan_mode(
     diagrams = await arch_manager.export_diagrams()
     diagram = diagrams.get("component_diagram", "")
 
-    # Step 5: Return state
+    # Step 5: Routing decision (v6.4-beta-asimov)
+    # Post-build scan complete → workflow can END (Asimov Rule 2 satisfied!)
+    next_agent = "END"
+    routing_reason = "Post-build scan complete, architecture documented, workflow finished"
+    confidence = 1.0
+
+    # Track executed mode
+    executed_modes = state.get("architect_modes_executed", [])
+    executed_modes.append("post_build_scan")
+
+    # Step 6: Return state
     print(f"🏗️  === ARCHITECT SUBGRAPH END (post_build_scan) ===")
     return {
         **state,
@@ -366,6 +414,11 @@ async def _post_build_scan_mode(
         "tech_stack": architecture.get("tech_stack", {}).get("languages", []),
         "patterns": architecture.get("patterns", []),
         "diagram": diagram,
+        "next_agent": next_agent,
+        "routing_confidence": confidence,
+        "routing_reason": routing_reason,
+        "can_end_workflow": True,  # Asimov Rule 2 satisfied
+        "architect_modes_executed": executed_modes,
         "adr": f"""# Post-Build Architecture Documentation
 
 **Date:** {datetime.now().strftime('%Y-%m-%d')}
@@ -443,7 +496,17 @@ async def _re_scan_mode(
     if not changes_text:
         changes_text = "No significant changes detected"
 
-    # Step 8: Return state
+    # Step 8: Routing decision (v6.4-beta-asimov)
+    # Re-scan complete → workflow can END (Asimov Rule 2 satisfied!)
+    next_agent = "END"
+    routing_reason = "Re-scan complete, architecture updated and documented"
+    confidence = 1.0
+
+    # Track executed mode
+    executed_modes = state.get("architect_modes_executed", [])
+    executed_modes.append("re_scan")
+
+    # Step 9: Return state
     print(f"🏗️  === ARCHITECT SUBGRAPH END (re_scan) ===")
     return {
         **state,
@@ -452,6 +515,11 @@ async def _re_scan_mode(
         "tech_stack": new_architecture.get("tech_stack", {}).get("languages", []),
         "patterns": new_architecture.get("patterns", []),
         "diagram": diagram,
+        "next_agent": next_agent,
+        "routing_confidence": confidence,
+        "routing_reason": routing_reason,
+        "can_end_workflow": True,  # Asimov Rule 2 satisfied
+        "architect_modes_executed": executed_modes,
         "adr": f"""# Architecture Update Report
 
 **Date:** {datetime.now().strftime('%Y-%m-%d')}

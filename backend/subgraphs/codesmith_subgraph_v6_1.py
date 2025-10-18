@@ -682,12 +682,30 @@ Generate complete, production-ready code files."""
             except Exception as e:
                 logger.warning(f"⚠️ Failed to store in memory: {e}")
 
+            # Routing decision (v6.4-beta-asimov)
+            # Code generated → Asimov Rule 1: ReviewFix REQUIRED!
+            if generated_files:
+                next_agent = "reviewfix"
+                routing_reason = f"Code generated ({len(generated_files)} files), review required by Asimov Rule 1"
+                confidence = 1.0  # Mandatory by Asimov Rule 1
+                logger.info(f"🚨 ASIMOV RULE 1: {len(generated_files)} files generated → ReviewFix REQUIRED")
+            else:
+                # No code generated → skip to architect post_build_scan
+                next_agent = "architect"
+                routing_reason = "No code changes, moving to documentation"
+                confidence = 0.90
+
             # Return updated state
             return {
                 **state,
                 "generated_files": generated_files,
                 "implementation_summary": implementation_summary,
                 "completed": True,
+                "next_agent": next_agent,
+                "routing_confidence": confidence,
+                "routing_reason": routing_reason,
+                "can_end_workflow": False,
+                "files_modified": [f["path"] for f in generated_files],  # Track for Asimov Rule 1
                 "errors": []
             }
 
