@@ -800,13 +800,18 @@ def create_research_subgraph(
                     hitl_callback=hitl_callback
                 )
 
-            # Return updated state
+            # Return updated state (v6.4-asimov: include routing decisions!)
             logger.info(f"✅ Research completed [mode={mode}]")
             return {
                 **state,
                 "findings": result["findings"],
                 "report": result["report"],
                 "sources": result.get("sources", []),
+                # v6.4-asimov: Include routing decisions from mode function
+                "next_agent": result.get("next_agent"),
+                "routing_confidence": result.get("routing_confidence", 0.0),
+                "routing_reason": result.get("routing_reason", ""),
+                "can_end_workflow": result.get("can_end_workflow", False),
                 "errors": []
             }
 

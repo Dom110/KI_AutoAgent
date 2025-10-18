@@ -559,222 +559,147 @@ class WorkflowV6Integrated:
 
     def _research_decide_next(self, state: SupervisorState) -> str:
         """
-        Research decides next step based on results.
+        Research routing based on agent's autonomous decision (v6.4-asimov).
 
-        NEW v6.4: Workflow-aware routing that respects AI plan.
+        The research subgraph already decided where to go next based on its mode.
+        We just read next_agent from state and apply Asimov Rules.
 
         Returns:
-            - Next agent from plan
-            - "architect": Research found info, proceed to design (fallback)
-            - "hitl": Can't find necessary information (fallback)
-            - END: If workflow complete
+            - state["next_agent"]: Agent's decision
+            - "hitl": Fallback if no decision (Asimov Rule 3)
         """
-        print("🔀 === RESEARCH DECISION ===")
-        result = state.get("research_results", {})
-        print(f"  research_results type: {type(result)}")
-        print(f"  research_results: {str(result)[:200]}")
+        print("🔀 === RESEARCH DECISION (v6.4-asimov) ===")
 
-        # NEW v6.4: Mark research as completed
-        self.workflow_router.mark_completed("research")
+        # Get agent's routing decision from state
+        next_agent = state.get("next_agent")
+        confidence = state.get("routing_confidence", 0.0)
+        reason = state.get("routing_reason", "No reason provided")
 
-        # NEW v6.4: Check if this is an EXPLAIN/ANALYZE workflow that ends here
-        agent_modes = self.current_session.get("metadata", {}).get("agent_modes", {})
-        research_mode = agent_modes.get("research", "research")
+        print(f"  Agent decision: {next_agent}")
+        print(f"  Confidence: {confidence:.2f}")
+        print(f"  Reason: {reason}")
 
-        if research_mode in ["explain", "analyze"]:
-            # Check if we're done (no more agents in plan)
-            next_agent = self.workflow_router.get_next_in_plan("research")
-            if next_agent == END:
-                print("  ✅ Decision: END (workflow complete)")
-                logger.info("✅ Research → END (EXPLAIN/ANALYZE workflow complete)")
-                return END
+        # Asimov Rules are enforced in subgraph, so we trust the decision
+        if next_agent and next_agent != "END":
+            logger.info(f"✅ Research → {next_agent} (confidence: {confidence:.2f})")
+            logger.info(f"   Reason: {reason}")
+            return next_agent
 
-        # NEW v6.4: Use workflow plan if available
-        next_in_plan = self.workflow_router.get_next_in_plan("research")
-        if next_in_plan and next_in_plan != END:
-            print(f"  📋 Decision from plan: {next_in_plan}")
-            logger.info(f"✅ Research → {next_in_plan} (from workflow plan)")
-            return next_in_plan
+        if next_agent == "END" or state.get("can_end_workflow"):
+            logger.info("✅ Research → END (workflow complete)")
+            return END
 
-        # Fallback to original logic
-        if isinstance(result, dict) and result.get("findings"):
-            print("  ✅ Decision: architect")
-            logger.info("✅ Research → Architect (findings available)")
-            return "architect"
-
-        # No findings after research
-        print("  ⚠️  Decision: hitl")
-        logger.warning("⚠️ Research → HITL (no findings)")
+        # No decision? Asimov Rule 3: low confidence → HITL
+        logger.warning("⚠️  Research provided no routing decision → HITL")
         return "hitl"
 
     def _architect_decide_next(self, state: SupervisorState) -> str:
         """
-        Architect decides next step based on design quality.
+        Architect routing based on agent's autonomous decision (v6.4-asimov).
 
-        NEW v6.4: Workflow-aware routing that respects AI plan.
+        The architect subgraph already decided where to go next.
+        We just read next_agent from state and apply Asimov Rules.
 
         Returns:
-            - Next agent from plan
-            - "codesmith": Architecture ready, proceed to implementation (fallback)
-            - "research": Need more technical details (fallback)
-            - "hitl": Can't design (unclear requirements) (fallback)
-            - END: If workflow complete
+            - state["next_agent"]: Agent's decision
+            - "hitl": Fallback if no decision (Asimov Rule 3)
         """
-        print("🔀 === ARCHITECT DECISION ===")
-        result = state.get("architecture_design")
-        print(f"  architecture_design type: {type(result)}")
-        print(f"  architecture_design: {str(result)[:200]}")
+        print("🔀 === ARCHITECT DECISION (v6.4-asimov) ===")
 
-        # NEW v6.4: Mark architect as completed
-        self.workflow_router.mark_completed("architect")
+        # Get agent's routing decision from state
+        next_agent = state.get("next_agent")
+        confidence = state.get("routing_confidence", 0.0)
+        reason = state.get("routing_reason", "No reason provided")
 
-        # NEW v6.4: Use workflow plan if available
-        next_in_plan = self.workflow_router.get_next_in_plan("architect")
-        if next_in_plan:
-            print(f"  📋 Decision from plan: {next_in_plan}")
-            logger.info(f"✅ Architect → {next_in_plan} (from workflow plan)")
-            return next_in_plan
+        print(f"  Agent decision: {next_agent}")
+        print(f"  Confidence: {confidence:.2f}")
+        print(f"  Reason: {reason}")
 
-        # Fallback to original logic
-        # Check if design is complete
-        if result:
-            # Check confidence if available
-            if isinstance(result, dict):
-                confidence = result.get("confidence", 0.8)
-                print(f"  confidence: {confidence}")
+        # Asimov Rules are enforced in subgraph, so we trust the decision
+        if next_agent and next_agent != "END":
+            logger.info(f"✅ Architect → {next_agent} (confidence: {confidence:.2f})")
+            logger.info(f"   Reason: {reason}")
+            return next_agent
 
-                if confidence < 0.5:
-                    print("  ⚠️  Decision: research")
-                    logger.warning("⚠️ Architect → Research (low confidence, need more info)")
-                    return "research"
+        if next_agent == "END" or state.get("can_end_workflow"):
+            logger.info("✅ Architect → END (workflow complete)")
+            return END
 
-            print("  ✅ Decision: codesmith")
-            logger.info("✅ Architect → Codesmith (design complete)")
-            return "codesmith"
-
-        # Can't create design
-        print("  ⚠️  Decision: hitl")
-        logger.warning("⚠️ Architect → HITL (no design created)")
+        # No decision? Asimov Rule 3: low confidence → HITL
+        logger.warning("⚠️  Architect provided no routing decision → HITL")
         return "hitl"
 
     def _codesmith_decide_next(self, state: SupervisorState) -> str:
         """
-        Codesmith decides next step based on code generation results.
+        Codesmith routing based on agent's autonomous decision (v6.4-asimov).
 
-        NEW v6.4: Workflow-aware routing that respects AI plan.
+        The codesmith subgraph already decided where to go next.
+        We just read next_agent from state and apply Asimov Rules.
 
         Returns:
-            - Next agent from plan
-            - "reviewfix": Code needs review (fallback)
-            - "hitl": Stuck, need human help (ASIMOV RULE 4) (fallback)
-            - END: If workflow complete
+            - state["next_agent"]: Agent's decision
+            - "hitl": Fallback if no decision (Asimov Rule 3)
         """
-        print("🔀 === CODESMITH DECISION ===")
-        generated_files = state.get("generated_files", [])
-        errors = state.get("errors", [])
-        print(f"  generated_files: {generated_files}")
-        print(f"  errors: {errors}")
+        print("🔀 === CODESMITH DECISION (v6.4-asimov) ===")
 
-        # NEW v6.4: Mark codesmith as completed
-        self.workflow_router.mark_completed("codesmith")
+        # Get agent's routing decision from state
+        next_agent = state.get("next_agent")
+        confidence = state.get("routing_confidence", 0.0)
+        reason = state.get("routing_reason", "No reason provided")
 
-        # Check for errors first (override plan if too many errors)
-        if errors:
-            error_count = len(errors)
-            print(f"  error_count: {error_count}")
-            if error_count >= 3:
-                print("  🛑 Decision: hitl (ASIMOV RULE 4)")
-                logger.warning("🛑 Codesmith → HITL (3+ errors, ASIMOV RULE 4)")
-                return "hitl"
+        print(f"  Agent decision: {next_agent}")
+        print(f"  Confidence: {confidence:.2f}")
+        print(f"  Reason: {reason}")
 
-        # NEW v6.4: Use workflow plan if available
-        next_in_plan = self.workflow_router.get_next_in_plan("codesmith")
-        if next_in_plan:
-            print(f"  📋 Decision from plan: {next_in_plan}")
-            logger.info(f"✅ Codesmith → {next_in_plan} (from workflow plan)")
-            return next_in_plan
+        # Asimov Rules are enforced in subgraph, so we trust the decision
+        if next_agent and next_agent != "END":
+            logger.info(f"✅ Codesmith → {next_agent} (confidence: {confidence:.2f})")
+            logger.info(f"   Reason: {reason}")
+            return next_agent
 
-        # Fallback to original logic
-        if errors:
-            print("  🔬 Decision: reviewfix (has errors)")
-            logger.info("🔬 Codesmith → ReviewFix (has errors)")
-            return "reviewfix"
+        if next_agent == "END" or state.get("can_end_workflow"):
+            logger.info("✅ Codesmith → END (workflow complete)")
+            return END
 
-        # Check if files were generated
-        if not generated_files:
-            print("  ⚠️  Decision: reviewfix (no files)")
-            logger.warning("⚠️ Codesmith → ReviewFix (no files generated)")
-            return "reviewfix"
-
-        # All good - proceed to review
-        print("  ✅ Decision: reviewfix (files ok)")
-        logger.info("✅ Codesmith → ReviewFix (files generated)")
-        return "reviewfix"
+        # No decision? Asimov Rule 3: low confidence → HITL
+        logger.warning("⚠️  Codesmith provided no routing decision → HITL")
+        return "hitl"
 
     def _reviewfix_decide_next(self, state: SupervisorState) -> str:
         """
-        ReviewFix decides next step after review.
+        ReviewFix routing based on agent's autonomous decision (v6.4-asimov).
 
-        NEW v6.4: Workflow-aware routing that respects AI plan.
+        The reviewfix subgraph already decided where to go next.
+        We just read next_agent from state and apply Asimov Rules.
 
         Returns:
-            - Next agent from plan
-            - "codesmith": Need to regenerate code (fallback)
-            - "hitl": Can't fix, need human (ASIMOV RULE 4) (fallback)
-            - END: All fixed (fallback)
+            - state["next_agent"]: Agent's decision
+            - "hitl": Fallback if no decision (Asimov Rule 3)
         """
-        print("🔀 === REVIEWFIX DECISION ===")
-        review_feedback = state.get("review_feedback")
-        errors = state.get("errors", [])
-        print(f"  review_feedback type: {type(review_feedback)}")
-        print(f"  review_feedback: {str(review_feedback)[:200]}")
-        print(f"  errors: {errors}")
+        print("🔀 === REVIEWFIX DECISION (v6.4-asimov) ===")
 
-        # NEW v6.4: Mark reviewfix as completed
-        self.workflow_router.mark_completed("reviewfix")
+        # Get agent's routing decision from state
+        next_agent = state.get("next_agent")
+        confidence = state.get("routing_confidence", 0.0)
+        reason = state.get("routing_reason", "No reason provided")
 
-        # Check if there are unfixable errors (override plan if too many errors)
-        if errors:
-            error_count = len(errors)
-            print(f"  error_count: {error_count}")
-            if error_count >= 3:
-                print("  🛑 Decision: hitl (ASIMOV RULE 4)")
-                logger.warning("🛑 ReviewFix → HITL (can't fix after 3 attempts)")
-                return "hitl"
+        print(f"  Agent decision: {next_agent}")
+        print(f"  Confidence: {confidence:.2f}")
+        print(f"  Reason: {reason}")
 
-        # NEW v6.4: Check quality score for early termination
-        if isinstance(review_feedback, dict):
-            quality_score = review_feedback.get("quality_score", 0)
-            if quality_score >= 0.75:
-                print(f"  ✅ Quality good ({quality_score:.2f}), checking plan...")
-                # Even with good quality, respect the plan
-                next_in_plan = self.workflow_router.get_next_in_plan("reviewfix")
-                if next_in_plan == END or not next_in_plan:
-                    print("  ✅ Decision: END (workflow complete)")
-                    logger.info(f"✅ ReviewFix → END (quality {quality_score:.2f}, workflow complete)")
-                    return END
+        # Asimov Rules are enforced in subgraph, so we trust the decision
+        if next_agent and next_agent != "END":
+            logger.info(f"✅ ReviewFix → {next_agent} (confidence: {confidence:.2f})")
+            logger.info(f"   Reason: {reason}")
+            return next_agent
 
-        # NEW v6.4: Use workflow plan if available
-        next_in_plan = self.workflow_router.get_next_in_plan("reviewfix")
-        if next_in_plan:
-            print(f"  📋 Decision from plan: {next_in_plan}")
-            logger.info(f"✅ ReviewFix → {next_in_plan} (from workflow plan)")
-            return next_in_plan
+        if next_agent == "END" or state.get("can_end_workflow"):
+            logger.info("✅ ReviewFix → END (workflow complete)")
+            return END
 
-        # Fallback to original logic
-        # Check if review found issues
-        if isinstance(review_feedback, dict):
-            issues = review_feedback.get("issues", [])
-            print(f"  issues: {issues}")
-            if issues:
-                print("  ⚒️  Decision: codesmith (found issues)")
-                logger.info("⚒️ ReviewFix → Codesmith (found issues to fix)")
-                return "codesmith"
-
-        # All good!
-        print("  ✅ Decision: END (all fixed)")
-        logger.info("✅ ReviewFix → END (all fixed)")
-        return END
+        # No decision? Asimov Rule 3: low confidence → HITL
+        logger.warning("⚠️  ReviewFix provided no routing decision → HITL")
+        return "hitl"
 
     def _hitl_decide_next(self, state: SupervisorState) -> str:
         """
@@ -878,8 +803,9 @@ class WorkflowV6Integrated:
                 for step in plan.agents:
                     agent_modes[step.agent.value] = step.mode
 
-                # NEW v6.4: Configure workflow router with the plan
-                self.workflow_router.set_workflow_plan(workflow_path, agent_modes)
+                # NOTE v6.4-asimov: Workflow router removed!
+                # Routing is now done by agents autonomously with Asimov Rules.
+                # Agent modes are stored in session metadata for agent initialization.
 
                 # Store plan in current session
                 self.current_session = {
@@ -913,9 +839,9 @@ class WorkflowV6Integrated:
 
             except Exception as e:
                 logger.error(f"  ❌ Workflow planning failed: {e}")
-                # Fallback to simple CREATE workflow
+                # Fallback to simple CREATE workflow (v6.4-asimov: starts with architect!)
                 logger.warning("  ⚠️  Using fallback CREATE workflow")
-                fallback_path = ["research", "architect", "codesmith", "reviewfix"]
+                fallback_path = ["architect", "codesmith", "reviewfix"]  # v6.4: Architect FIRST!
 
                 self.current_session = {
                     "task_description": user_query,
@@ -1318,15 +1244,16 @@ class WorkflowV6Integrated:
         # NEW v6.2: Workflow Planning is Entry Point
         graph.set_entry_point("workflow_planning")
 
-        # Workflow Planning → Dynamic routing based on AI plan
+        # Workflow Planning → Dynamic routing based on AI plan (v6.4-asimov)
+        # NEW v6.4: Workflow starts with ARCHITECT for CREATE/UPDATE/FIX/REFACTOR
+        #           Only EXPLAIN/ANALYZE start with research!
         graph.add_conditional_edges(
             "workflow_planning",
             _intent_decide_next,
             {
-                "research": "research",      # Most workflows start here
-                "architect": "architect",    # REFACTOR (skip research)
-                "reviewfix": "reviewfix",    # FIX (direct to review)
-                "explain": "research"        # EXPLAIN (research only) - maps to research for now
+                "architect": "architect",    # CREATE/UPDATE/REFACTOR/FIX (most workflows)
+                "research": "research",      # EXPLAIN/ANALYZE only
+                "reviewfix": "reviewfix"     # Direct to review (rare edge case)
             }
         )
 

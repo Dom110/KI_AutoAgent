@@ -438,7 +438,12 @@ def research_to_supervisor(research_state: ResearchState) -> dict[str, Any]:
             "sources": research_state["sources"],
             "report": research_state["report"],
             "mode": research_state["mode"]  # ← NEW v6.2: Include mode for debugging
-        }
+        },
+        # v6.4-asimov: Include routing decisions
+        "next_agent": research_state.get("next_agent"),
+        "routing_confidence": research_state.get("routing_confidence", 0.0),
+        "routing_reason": research_state.get("routing_reason", ""),
+        "can_end_workflow": research_state.get("can_end_workflow", False)
     }
 
 
@@ -483,7 +488,13 @@ def architect_to_supervisor(architect_state: ArchitectState) -> dict[str, Any]:
             "patterns": architect_state["patterns"],
             "diagram": architect_state["diagram"],
             "adr": architect_state["adr"]
-        }
+        },
+        # v6.4-asimov: Include routing decisions
+        "next_agent": architect_state.get("next_agent"),
+        "routing_confidence": architect_state.get("routing_confidence", 0.0),
+        "routing_reason": architect_state.get("routing_reason", ""),
+        "can_end_workflow": architect_state.get("can_end_workflow", False),
+        "architect_modes_executed": architect_state.get("architect_modes_executed", [])
     }
 
 
@@ -518,7 +529,13 @@ def codesmith_to_supervisor(codesmith_state: CodesmithState) -> dict[str, Any]:
     Called after Codesmith subgraph completes.
     """
     return {
-        "generated_files": codesmith_state["generated_files"]
+        "generated_files": codesmith_state["generated_files"],
+        # v6.4-asimov: Include routing decisions
+        "next_agent": codesmith_state.get("next_agent"),
+        "routing_confidence": codesmith_state.get("routing_confidence", 0.0),
+        "routing_reason": codesmith_state.get("routing_reason", ""),
+        "can_end_workflow": codesmith_state.get("can_end_workflow", False),
+        "files_modified": codesmith_state.get("files_modified", [])
     }
 
 
@@ -573,7 +590,12 @@ def reviewfix_to_supervisor(reviewfix_state: ReviewFixState) -> dict[str, Any]:
             "feedback": reviewfix_state["review_feedback"],
             "fixes_applied": reviewfix_state["fixes_applied"],
             "iterations": reviewfix_state["iteration"]
-        }
+        },
+        # v6.4-asimov: Include routing decisions
+        "next_agent": reviewfix_state.get("next_agent"),
+        "routing_confidence": reviewfix_state.get("routing_confidence", 0.0),
+        "routing_reason": reviewfix_state.get("routing_reason", ""),
+        "can_end_workflow": reviewfix_state.get("can_end_workflow", False)
     }
 
 
