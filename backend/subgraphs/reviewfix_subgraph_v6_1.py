@@ -340,12 +340,41 @@ Provide quality score and detailed feedback."""
             # Extract file paths for fixer
             file_paths_to_fix = [f.get('path') for f in generated_files if f.get('path')]
 
+            # Routing decision (v6.4-beta-asimov)
+            iteration = state.get('iteration', 0) + 1
+
+            if quality_score >= 0.85:
+                # Quality good → Architect post_build_scan (Asimov Rule 2)
+                next_agent = "architect"
+                routing_reason = f"Review complete, quality acceptable ({quality_score:.2f})"
+                confidence = 0.95
+                logger.info(f"✅ Quality target reached: {quality_score:.2f} → architect post_build_scan")
+
+            elif iteration >= 3:
+                # Max iterations → HITL (Asimov Rule 3: low confidence)
+                next_agent = "hitl"
+                routing_reason = f"Max iterations reached ({iteration}), human input needed"
+                confidence = 0.50  # Low confidence triggers Asimov Rule 3
+                logger.warning(f"⚠️  Max iterations ({iteration}) → HITL required")
+
+            else:
+                # Need more fixes → Codesmith
+                next_agent = "codesmith"
+                routing_reason = f"Quality still low ({quality_score:.2f}), iteration {iteration}"
+                confidence = 0.80
+                logger.info(f"🔄 Continue fixing (quality: {quality_score:.2f}, iteration: {iteration})")
+
             return {
                 **state,
                 "quality_score": quality_score,
                 "feedback": review_output,
                 "files_to_review": file_paths_to_fix,  # NEW v6.2: For FIX intent workflow
-                "iteration": state.get('iteration', 0) + 1
+                "iteration": iteration,
+                "next_agent": next_agent,
+                "routing_confidence": confidence,
+                "routing_reason": routing_reason,
+                "can_end_workflow": (quality_score >= 0.85),
+                "reviewfix_iteration": iteration  # Track for Asimov Rule tracking
             }
 
         except Exception as e:

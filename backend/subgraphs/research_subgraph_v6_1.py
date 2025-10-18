@@ -197,7 +197,16 @@ Provide a structured summary of the key findings."""
     except Exception as e:
         logger.warning(f"⚠️ Failed to store in memory: {e}")
 
-    return {"findings": findings, "report": report}
+    # Routing decision (v6.4-beta-asimov)
+    # Research complete → back to architect for design
+    return {
+        "findings": findings,
+        "report": report,
+        "next_agent": "architect",
+        "routing_confidence": 0.90,
+        "routing_reason": "Research findings ready for architecture design",
+        "can_end_workflow": False
+    }
 
 
 async def research_explain_mode(
@@ -347,7 +356,16 @@ Focus on providing clear, actionable explanations that help the user understand 
     except Exception as e:
         logger.warning(f"⚠️ Failed to store in memory: {e}")
 
-    return {"findings": findings, "report": report}
+    # Routing decision (v6.4-beta-asimov)
+    # Explain complete → workflow can END (EXPLAIN workflows don't generate code)
+    return {
+        "findings": findings,
+        "report": report,
+        "next_agent": "END",
+        "routing_confidence": 1.0,
+        "routing_reason": "Explain complete, results ready for user",
+        "can_end_workflow": True
+    }
 
 
 async def research_analyze_mode(
@@ -500,7 +518,16 @@ Focus on actionable insights and concrete recommendations."""
     except Exception as e:
         logger.warning(f"⚠️ Failed to store in memory: {e}")
 
-    return {"findings": findings, "report": report}
+    # Routing decision (v6.4-beta-asimov)
+    # Analyze complete → workflow can END (ANALYZE workflows don't generate code)
+    return {
+        "findings": findings,
+        "report": report,
+        "next_agent": "END",
+        "routing_confidence": 1.0,
+        "routing_reason": "Analyze complete, results ready for user",
+        "can_end_workflow": True
+    }
 
 
 async def research_index_mode(
@@ -616,7 +643,16 @@ async def research_index_mode(
         # Note: NO Memory storage for index mode - returned directly to caller
         logger.info("✅ Code index ready (not stored in memory - returned directly)")
 
-        return {"findings": findings, "report": report}
+        # Routing decision (v6.4-beta-asimov)
+        # Index complete → return to caller (usually architect or codesmith)
+        return {
+            "findings": findings,
+            "report": report,
+            "next_agent": "architect",  # Default: return to architect
+            "routing_confidence": 0.85,
+            "routing_reason": "Code index complete, returning to architect",
+            "can_end_workflow": False
+        }
 
     except Exception as e:
         logger.error(f"❌ Index mode failed: {e}", exc_info=True)
