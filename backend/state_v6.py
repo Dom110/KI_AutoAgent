@@ -68,6 +68,24 @@ class SupervisorState(TypedDict):
     # Accumulated errors (using reducer)
     errors: Annotated[list[dict[str, Any]], operator.add]
 
+    # ========================================================================
+    # ASIMOV RULES TRACKING (v6.4-beta-asimov)
+    # ========================================================================
+
+    # Asimov Rule tracking
+    architect_modes_executed: list[str]  # Track which architect modes ran (for Rule 2)
+    reviewfix_iteration: int  # Track ReviewFix iterations (for Rule 1)
+    user_summary_shown: bool  # Track if final summary shown (for Rule 3)
+    asimov_rule_enforced: str | None  # Which rule was enforced (if any)
+
+    # Agent autonomous routing (v6.4-beta-asimov)
+    next_agent: str | None  # Agent's routing decision
+    routing_confidence: float  # Confidence in routing decision (0.0-1.0)
+    routing_reason: str  # Why this routing decision was made
+    can_end_workflow: bool  # Can workflow end now?
+    executed_agents: list[str]  # Track which agents have executed
+    files_modified: list[str]  # Track modified files (for Rule 1)
+
 
 # ============================================================================
 # RESEARCH STATE (Research Subgraph)
@@ -112,6 +130,12 @@ class ResearchState(TypedDict):
 
     # Errors
     errors: Annotated[list[dict[str, Any]], operator.add]
+
+    # Agent routing (v6.4-beta-asimov)
+    next_agent: str | None  # Agent's routing decision
+    routing_confidence: float  # Confidence in routing decision
+    routing_reason: str  # Why this routing decision
+    can_end_workflow: bool  # Can workflow end now?
 
 
 # ============================================================================
@@ -182,6 +206,13 @@ class ArchitectState(TypedDict):
 
     # Errors
     errors: Annotated[list[dict[str, Any]], operator.add]
+
+    # Agent routing (v6.4-beta-asimov)
+    next_agent: str | None  # Agent's routing decision
+    routing_confidence: float  # Confidence in routing decision
+    routing_reason: str  # Why this routing decision
+    can_end_workflow: bool  # Can workflow end now?
+    architect_modes_executed: list[str]  # Track executed modes (for Asimov Rule 2)
 
 
 # ============================================================================
@@ -260,6 +291,13 @@ class CodesmithState(TypedDict):
 
     # Errors
     errors: Annotated[list[dict[str, Any]], operator.add]
+
+    # Agent routing (v6.4-beta-asimov)
+    next_agent: str | None  # Agent's routing decision
+    routing_confidence: float  # Confidence in routing decision
+    routing_reason: str  # Why this routing decision
+    can_end_workflow: bool  # Can workflow end now?
+    files_modified: list[str]  # Track modified files (for Asimov Rule 1)
 
 
 # ============================================================================
@@ -353,6 +391,12 @@ class ReviewFixState(TypedDict):
 
     # Errors
     errors: Annotated[list[dict[str, Any]], operator.add]
+
+    # Agent routing (v6.4-beta-asimov)
+    next_agent: str | None  # Agent's routing decision
+    routing_confidence: float  # Confidence in routing decision
+    routing_reason: str  # Why this routing decision
+    can_end_workflow: bool  # Can workflow end now?
 
 
 # ============================================================================

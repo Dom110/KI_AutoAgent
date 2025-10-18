@@ -105,12 +105,15 @@ from cognitive.neurosymbolic_reasoner_v6 import (
 )
 from cognitive.self_diagnosis_v6 import SelfDiagnosisV6
 
-# NEW v6.2: Workflow Planner & Timeout Handler
-from cognitive.workflow_planner_v6 import WorkflowPlannerV6, WorkflowPlan, AgentType, ConditionType
+# NEW v6.2: Workflow Estimator & Timeout Handler (v6.4-asimov: renamed from planner)
+from cognitive.workflow_estimator_v6 import WorkflowEstimator, WorkflowPlan, AgentType, ConditionType
 from utils.timeout_handler import HumanResponseManager, TimeoutPolicy
 
-# NEW v6.4: Workflow-Aware Router for dynamic execution
-from cognitive.workflow_aware_router import WorkflowAwareRouter
+# NEW v6.4-asimov: Asimov Rules for hard constraints
+from cognitive.asimov_rules import AsimovRules
+
+# OBSOLETE v6.4: Workflow-Aware Router (replaced by Asimov Rules)
+# from cognitive.workflow_aware_router import WorkflowAwareRouter
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -160,15 +163,15 @@ class WorkflowV6Integrated:
         self.neurosymbolic: NeurosymbolicReasonerV6 | None = None
         self.self_diagnosis: SelfDiagnosisV6 | None = None
 
-        # NEW v6.2: Workflow Planner & Human Response Timeout Handler
-        self.workflow_planner: WorkflowPlannerV6 | None = None
+        # NEW v6.2: Workflow Estimator & Human Response Timeout Handler (v6.4-asimov: renamed)
+        self.workflow_estimator: WorkflowEstimator | None = None
         self.response_manager: HumanResponseManager | None = None
 
         # NEW v6.2: Agent Orchestrator (for agent-to-agent communication)
         self.orchestrator: Any | None = None
 
-        # NEW v6.4: Workflow-Aware Router for dynamic execution
-        self.workflow_router: WorkflowAwareRouter | None = None
+        # NEW v6.4-asimov: Asimov Rules for hard constraints
+        self.asimov_rules: AsimovRules | None = None
 
         # Execution tracking
         self.current_session: dict[str, Any] = {}
@@ -340,16 +343,16 @@ class WorkflowV6Integrated:
         self.self_diagnosis = SelfDiagnosisV6(learning_system=self.learning)
         logger.debug("  ✅ Self-Diagnosis System")
 
-        # NEW v6.2: Workflow Planner & Human Response Timeout Handler
-        self.workflow_planner = WorkflowPlannerV6()
-        logger.debug("  ✅ Workflow Planner")
+        # NEW v6.2: Workflow Estimator & Human Response Timeout Handler (v6.4-asimov: renamed)
+        self.workflow_estimator = WorkflowEstimator()
+        logger.debug("  ✅ Workflow Estimator (duration prediction only)")
 
         self.response_manager = HumanResponseManager()
         logger.debug("  ✅ Human Response Manager")
 
-        # NEW v6.4: Workflow-Aware Router
-        self.workflow_router = WorkflowAwareRouter()
-        logger.debug("  ✅ Workflow-Aware Router")
+        # NEW v6.4-asimov: Asimov Rules for hard constraints
+        self.asimov_rules = AsimovRules()
+        logger.debug("  ✅ Asimov Rules (Code Safety, Architecture Documentation, Human Involvement)")
 
         # NEW v6.2: Agent Orchestrator (for agent-to-agent communication)
         from core.agent_orchestrator import AgentOrchestrator
@@ -847,7 +850,7 @@ class WorkflowV6Integrated:
 
             # Create dynamic workflow plan using AI
             try:
-                plan = await self.workflow_planner.plan_workflow(
+                plan = await self.workflow_estimator.plan_workflow(
                     user_task=user_query,
                     workspace_path=workspace_path,
                     context={
@@ -857,7 +860,7 @@ class WorkflowV6Integrated:
                 )
 
                 # Validate plan
-                is_valid, issues = await self.workflow_planner.validate_plan(plan)
+                is_valid, issues = await self.workflow_estimator.validate_plan(plan)
                 if not is_valid:
                     logger.warning(f"  ⚠️  Plan validation issues: {issues}")
                     # Continue anyway - fallback in plan should be safe
