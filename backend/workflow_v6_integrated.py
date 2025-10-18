@@ -1247,9 +1247,18 @@ class WorkflowV6Integrated:
         # Workflow Planning → Dynamic routing based on AI plan (v6.4-asimov)
         # NEW v6.4: Workflow starts with ARCHITECT for CREATE/UPDATE/FIX/REFACTOR
         #           Only EXPLAIN/ANALYZE start with research!
+        def _intent_decide_next_with_timing(state: SupervisorState) -> str:
+            """Wrapper to add timing debug for routing decisions."""
+            from datetime import datetime
+            start = datetime.now()
+            decision = _intent_decide_next(state)
+            elapsed = (datetime.now() - start).total_seconds()
+            logger.info(f"🔍 DEBUG: _intent_decide_next took {elapsed:.2f}s → {decision}")
+            return decision
+
         graph.add_conditional_edges(
             "workflow_planning",
-            _intent_decide_next,
+            _intent_decide_next_with_timing,
             {
                 "architect": "architect",    # CREATE/UPDATE/REFACTOR/FIX (most workflows)
                 "research": "research",      # EXPLAIN/ANALYZE only

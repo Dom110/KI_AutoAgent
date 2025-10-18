@@ -402,6 +402,9 @@ async def websocket_chat(websocket: WebSocket):
 
                     # Send comprehensive result
                     # Use "result" type for E2E test compatibility
+                    logger.info(f"🔍 DEBUG: Sending result to {client_id}, WebSocket state: {websocket.client_state}")
+                    logger.info(f"🔍 DEBUG: client_id in active_connections: {client_id in manager.active_connections}")
+
                     await manager.send_json(client_id, {
                         "type": "result",
                         "subtype": "workflow_complete",
@@ -425,6 +428,8 @@ async def websocket_chat(websocket: WebSocket):
 
                         "message": "✅ Workflow complete with v6 intelligence!"
                     })
+
+                    logger.info(f"🔍 DEBUG: Result sent successfully to {client_id}")
 
                     # Store response
                     session["messages"].append({
