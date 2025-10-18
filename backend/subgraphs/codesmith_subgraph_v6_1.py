@@ -579,7 +579,8 @@ Generate complete, production-ready code files."""
                                 "temperature": 0.2,
                                 "max_tokens": 8192,
                                 "tools": ["Read", "Edit", "Bash"]
-                            }
+                            },
+                            timeout=900  # 15 min timeout for completion generation
                         )
 
                         # Extract completion output

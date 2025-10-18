@@ -1327,44 +1327,56 @@ class WorkflowV6Integrated:
             }
         )
 
-        # Research → Architect OR HITL OR END (conditional)
+        # Research → Architect OR Codesmith OR ReviewFix OR HITL OR END (conditional)
+        # NEW v6.4: Full dynamic routing - router decides based on AI plan
         graph.add_conditional_edges(
             "research",
             self._research_decide_next,
             {
                 "architect": "architect",
+                "codesmith": "codesmith",    # NEW v6.4: Direct to codesmith (FIX workflow)
+                "reviewfix": "reviewfix",    # NEW v6.4: Direct to reviewfix (rare)
                 "hitl": "hitl",
                 END: END  # NEW v6.4: Allow research to end workflow (EXPLAIN/ANALYZE)
             }
         )
 
-        # Architect → Codesmith OR Research OR HITL (conditional)
+        # Architect → Codesmith OR Research OR ReviewFix OR HITL OR END (conditional)
+        # NEW v6.4: Full dynamic routing - router decides based on AI plan
         graph.add_conditional_edges(
             "architect",
             self._architect_decide_next,
             {
                 "codesmith": "codesmith",
-                "research": "research",  # Can loop back for more info!
-                "hitl": "hitl"
+                "research": "research",      # Can loop back for more info!
+                "reviewfix": "reviewfix",    # NEW v6.4: Skip codesmith in some workflows
+                "hitl": "hitl",
+                END: END                     # NEW v6.4: Allow architect to end workflow
             }
         )
 
-        # Codesmith → ReviewFix OR HITL (conditional)
+        # Codesmith → ReviewFix OR Architect OR HITL OR END (conditional)
+        # NEW v6.4: Full dynamic routing - router decides based on AI plan
         graph.add_conditional_edges(
             "codesmith",
             self._codesmith_decide_next,
             {
                 "reviewfix": "reviewfix",
-                "hitl": "hitl"
+                "architect": "architect",    # NEW v6.4: Loop back to architect for re-design
+                "hitl": "hitl",
+                END: END                     # NEW v6.4: Allow codesmith to end workflow
             }
         )
 
-        # ReviewFix → Codesmith OR HITL OR END (conditional)
+        # ReviewFix → Codesmith OR Architect OR Research OR HITL OR END (conditional)
+        # NEW v6.4: Full dynamic routing - router decides based on AI plan
         graph.add_conditional_edges(
             "reviewfix",
             self._reviewfix_decide_next,
             {
-                "codesmith": "codesmith",  # Can loop back for fixes!
+                "codesmith": "codesmith",    # Can loop back for fixes!
+                "architect": "architect",    # NEW v6.4: Loop back to architect for re-design
+                "research": "research",      # NEW v6.4: Loop back to research for more info
                 "hitl": "hitl",
                 END: END
             }

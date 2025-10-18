@@ -1,12 +1,19 @@
 """
-Workflow Planner v6 - Dynamic AI-based Workflow Generation
+Workflow Estimator v6 - Duration and Complexity Prediction
 
-This module replaces the Intent Detector with a dynamic workflow planner
-that uses LLM to create flexible, context-aware execution plans.
+IMPORTANT: This is NOT a workflow planner!
+This module ONLY provides estimates for user information.
+Actual routing is decided by agents autonomously using Asimov Rules.
+
+Changes from workflow_planner_v6:
+- Removed agent sequence generation (agents decide routing themselves)
+- Removed routing logic (handled by Asimov Rules)
+- ONLY estimates duration and complexity
+- Results are advisory, not prescriptive
 
 Author: KI AutoAgent Team
-Date: 2025-10-12
-Version: v6.1-alpha (Prototype)
+Date: 2025-10-18
+Version: v6.4.0-beta-asimov
 """
 
 from __future__ import annotations
@@ -123,10 +130,14 @@ class WorkflowPlan:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class WorkflowPlannerV6:
+class WorkflowEstimator:
     """
-    AI-based Workflow Planner that dynamically creates execution plans.
-    Replaces the Intent Detector with flexible, context-aware planning.
+    AI-based Workflow Estimator for duration and complexity prediction.
+
+    IMPORTANT: This does NOT create routing plans!
+    Agents make their own routing decisions using Asimov Rules.
+
+    This only provides ADVISORY estimates for user information.
     """
 
     def __init__(self, model: str = "gpt-4o-mini", temperature: float = 0.2):
@@ -517,7 +528,8 @@ Create an optimal workflow plan for this task."""
                 metadata=plan_data
             )
 
-            logger.info(f"✅ Workflow plan created: {len(agents)} agents, {plan.complexity} complexity")
+            logger.info(f"✅ Workflow estimate created: {len(agents)} estimated agents, {plan.complexity} complexity")
+            logger.info(f"📊 NOTE: This is ADVISORY ONLY - actual routing decided by agents + Asimov Rules")
             self._log_plan(plan)
 
             return plan
@@ -589,8 +601,8 @@ Create an optimal workflow plan for this task."""
 
 # Example usage and testing
 async def test_planner():
-    """Test the workflow planner with various tasks."""
-    planner = WorkflowPlannerV6()
+    """Test the workflow estimator with various tasks."""
+    planner = WorkflowEstimator()
 
     # Test cases
     test_cases = [

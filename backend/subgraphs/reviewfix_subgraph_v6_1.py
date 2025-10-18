@@ -460,7 +460,8 @@ Generate complete fixed versions of all files."""
                     "temperature": 0.2,
                     "max_tokens": 8192,
                     "tools": ["Read", "Edit", "Bash"]
-                }
+                },
+                timeout=600  # 10 min timeout for applying fixes
             )
 
             # Extract fixes from MCP response

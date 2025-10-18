@@ -298,20 +298,27 @@ class MCPClient:
             request_line = json.dumps(request) + "\n"
             process.stdin.write(request_line.encode())
             await process.stdin.drain()
+            logger.debug(f"   📤 Request sent to {server} (id={request['id']}, method={method})")
 
             # Read response from stdout (loop to handle progress notifications)
             # MCP servers send progress notifications during long-running operations
             request_id = request["id"]
             start_time = asyncio.get_event_loop().time()
+            lines_read = 0
 
             while True:
                 # Check global timeout
                 elapsed = asyncio.get_event_loop().time() - start_time
                 if elapsed > self.timeout:
+                    logger.error(f"   ❌ {server} timeout after {elapsed:.1f}s (read {lines_read} lines)")
                     raise MCPConnectionError(
                         f"MCP call to {server} timed out after {elapsed:.1f}s "
-                        f"(exceeded global timeout of {self.timeout}s)"
+                        f"(exceeded global timeout of {self.timeout}s, read {lines_read} lines)"
                     )
+
+                # Log every 10 seconds to show we're still waiting
+                if int(elapsed) % 10 == 0 and elapsed > 0:
+                    logger.info(f"   ⏳ {server} still processing... ({elapsed:.0f}s elapsed, {lines_read} lines read)")
 
                 try:
                     # Read one line with short timeout (15s per line)
@@ -320,6 +327,7 @@ class MCPClient:
                         process.stdout.readline(),
                         timeout=15.0
                     )
+                    lines_read += 1
                 except asyncio.TimeoutError:
                     # No output for 15s - check if we're still within global timeout
                     elapsed = asyncio.get_event_loop().time() - start_time
@@ -402,7 +410,8 @@ class MCPClient:
         if server not in self._connections:
             raise MCPConnectionError(f"Server '{server}' not connected")
 
-        logger.debug(f"🔧 Calling {server}.{tool}()")
+        logger.info(f"🔧 Calling {server}.{tool}() with timeout={timeout or self.timeout}s")
+        logger.debug(f"   Arguments keys: {list(arguments.keys())}")
 
         # Auto-add workspace_path if tool expects it
         if "workspace_path" not in arguments and server in ["memory", "workflow", "asimov"]:
@@ -417,15 +426,18 @@ class MCPClient:
         # Save timeout
         original_timeout = self.timeout
         if timeout:
+            logger.info(f"   📊 Setting custom timeout: {self.timeout}s → {timeout}s")
             self.timeout = timeout
 
         try:
             # Execute tool call
+            logger.debug(f"   🔄 Sending request to {server}...")
             response = await self._raw_call(
                 server=server,
                 method="tools/call",
                 params=params
             )
+            logger.info(f"   ✅ {server}.{tool}() received response")
 
             # Check for errors
             if "error" in response:

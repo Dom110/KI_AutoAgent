@@ -600,7 +600,8 @@ Provide a comprehensive architecture design."""
             "temperature": 0.3,
             "max_tokens": 4096,
             "tools": ["Read", "Bash"]
-        }
+        },
+        timeout=300  # 5 min timeout for architecture design
     )
 
     # Extract text from response

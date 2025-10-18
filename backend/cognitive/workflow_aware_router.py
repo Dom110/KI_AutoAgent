@@ -1,19 +1,28 @@
 """
-Workflow-Aware Router - Intelligent Dynamic Routing
+OBSOLETE - Workflow-Aware Router (Replaced by Asimov Rules)
 
-This module provides intelligent routing logic that respects the AI-generated
-workflow plan while maintaining compatibility with LangGraph's fixed edges.
+This file is no longer used in v6.4.0-beta-asimov.
 
-The solution: Hybrid routing that checks:
-1. Is there a next agent in the workflow_path?
-2. If yes, route to it
-3. If no, use default logic or END
+Routing is now done by agents themselves with Asimov Rules enforcement.
+Each agent makes its own routing decision based on results and context.
 
-This allows dynamic workflows within LangGraph's constraints.
+Replacement Architecture:
+- cognitive/asimov_rules.py - Hard constraints that override agent decisions
+- workflow_v6_integrated.py - Simplified routing delegation
+- Each subgraph - Agent autonomous routing decisions
+
+Migration Notes:
+- Old: Router dictated next agent based on static plan
+- New: Agents decide next agent, Asimov Rules enforce safety
+
+See:
+- /ARCHITECTURE_v6.4_ASIMOV.md for new architecture
+- cognitive/asimov_rules.py for routing constraints
 
 Author: KI AutoAgent Team
-Version: 6.4.0-beta
+Version: 6.4.0-beta-asimov (OBSOLETE)
 Python: 3.13+
+Date Obsoleted: 2025-10-18
 """
 
 from __future__ import annotations
