@@ -457,7 +457,10 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
     def _generate_overview(self, analysis: dict[str, Any]) -> str:
         """Generate overview from code analysis."""
-        file_count = len(analysis.get("files", []))
+        # FIX v6.4: analysis["files"] is an int, not a list!
+        file_count = analysis.get("files", 0)
+        if isinstance(file_count, list):
+            file_count = len(file_count)
         languages = list(analysis.get("languages", {}).keys())
 
         return f"""This system consists of {file_count} files across {len(languages)} languages.
@@ -476,9 +479,15 @@ This overview was automatically generated from code analysis.
         """Infer components from directory structure."""
         components = []
 
+        # FIX v6.4: analysis["files"] is an int, not a list!
+        # We can't infer components without file list, so return empty
+        files = analysis.get("files", [])
+        if isinstance(files, int) or not isinstance(files, list):
+            return []
+
         # Group files by directory
         dirs = {}
-        for file_path in analysis.get("files", []):
+        for file_path in files:
             dir_name = str(Path(file_path).parent)
             if dir_name not in dirs:
                 dirs[dir_name] = []
