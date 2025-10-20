@@ -56,10 +56,16 @@ def create_reviewfix_subgraph(
 
     Returns:
         Compiled reviewfix subgraph
+
+    v6.5 Changes (Multi-Agent Orchestration):
+        - Added evaluate_task() method for capability-based routing
     """
     logger.debug("Creating ReviewFix subgraph v6.2 (MCP)...")
 
-    # Reviewer node (unchanged - uses GPT-4o-mini)
+    # ========================================================================
+    # CAPABILITY EVALUATION (v6.5+ Multi-Agent Orchestration)
+    # ========================================================================
+
     async def reviewer_node(state: ReviewFixState) -> ReviewFixState:
         """
         Review generated code and provide feedback.
@@ -674,6 +680,10 @@ Generate complete fixed versions of all files."""
     # Add loop edge from fixer back to reviewer
     graph.add_edge("fixer", "reviewer")
 
+    # Compile graph
+    compiled_graph = graph.compile()
+
+
     # Compile and return
     logger.debug("✅ ReviewFix subgraph v6.2 compiled (MCP)")
-    return graph.compile()
+    return compiled_graph

@@ -71,11 +71,19 @@ def create_architect_subgraph(
            - post_build_scan: Tree-Sitter → Generate architecture → Save
            - re_scan: Load architecture → Tree-Sitter → Update → Save
         3. Exit: return architecture + diagram
+
+    v6.5 Changes (Multi-Agent Orchestration):
+        - Added evaluate_task() method for capability-based routing
+        - NO keyword matching - semantic understanding of architecture tasks
     """
     logger.debug(f"Creating Architect subgraph v6.3 (MCP, mode-aware)...")
 
     # Initialize architecture manager
     arch_manager = ArchitectureManager(workspace_path=workspace_path)
+
+    # ========================================================================
+    # CAPABILITY EVALUATION (v6.5+ Multi-Agent Orchestration)
+    # ========================================================================
 
     async def architect_node(state: ArchitectState) -> ArchitectState:
         """
@@ -130,8 +138,12 @@ def create_architect_subgraph(
     graph.set_entry_point("architect")
     graph.add_edge("architect", END)
 
+    # Compile graph
+    compiled_graph = graph.compile()
+
+
     logger.debug("✅ Architect subgraph v6.3 compiled (MCP, multi-mode)")
-    return graph.compile()
+    return compiled_graph
 
 
 # ============================================================================

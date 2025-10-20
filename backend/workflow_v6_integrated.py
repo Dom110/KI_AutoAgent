@@ -106,11 +106,15 @@ from cognitive.neurosymbolic_reasoner_v6 import (
 from cognitive.self_diagnosis_v6 import SelfDiagnosisV6
 
 # NEW v6.2: Workflow Estimator & Timeout Handler (v6.4-asimov: renamed from planner)
-from cognitive.workflow_estimator_v6 import WorkflowEstimator, WorkflowPlan, AgentType, ConditionType
+# OBSOLETE v6.5: WorkflowEstimator replaced by MultiAgentOrchestrator (capability-based routing)
+# from cognitive.workflow_estimator_v6 import WorkflowEstimator, WorkflowPlan, AgentType, ConditionType
 from utils.timeout_handler import HumanResponseManager, TimeoutPolicy
 
 # NEW v6.4-asimov: Asimov Rules for hard constraints
 from cognitive.asimov_rules import AsimovRules
+
+# NEW v6.5: Multi-Agent Orchestrator for capability-based routing
+from core.multi_agent_orchestrator import MultiAgentOrchestrator, RoutingDecision
 
 # OBSOLETE v6.4: Workflow-Aware Router (replaced by Asimov Rules)
 # from cognitive.workflow_aware_router import WorkflowAwareRouter
@@ -166,8 +170,7 @@ class WorkflowV6Integrated:
         self.neurosymbolic: NeurosymbolicReasonerV6 | None = None
         self.self_diagnosis: SelfDiagnosisV6 | None = None
 
-        # NEW v6.2: Workflow Estimator & Human Response Timeout Handler (v6.4-asimov: renamed)
-        self.workflow_estimator: WorkflowEstimator | None = None
+        # NEW v6.2: Human Response Timeout Handler
         self.response_manager: HumanResponseManager | None = None
 
         # NEW v6.2: Agent Orchestrator (for agent-to-agent communication)
@@ -175,6 +178,9 @@ class WorkflowV6Integrated:
 
         # NEW v6.4-asimov: Asimov Rules for hard constraints
         self.asimov_rules: AsimovRules | None = None
+
+        # NEW v6.5: Multi-Agent Orchestrator for capability-based routing
+        self.routing_orchestrator: MultiAgentOrchestrator | None = None
 
         # Execution tracking
         self.current_session: dict[str, Any] = {}
@@ -346,10 +352,7 @@ class WorkflowV6Integrated:
         self.self_diagnosis = SelfDiagnosisV6(learning_system=self.learning)
         logger.debug("  ✅ Self-Diagnosis System")
 
-        # NEW v6.2: Workflow Estimator & Human Response Timeout Handler (v6.4-asimov: renamed)
-        self.workflow_estimator = WorkflowEstimator()
-        logger.debug("  ✅ Workflow Estimator (duration prediction only)")
-
+        # NEW v6.2: Human Response Timeout Handler
         self.response_manager = HumanResponseManager()
         logger.debug("  ✅ Human Response Manager")
 
@@ -744,25 +747,34 @@ class WorkflowV6Integrated:
         codesmith_subgraph = self._build_codesmith_subgraph()
         reviewfix_subgraph = self._build_reviewfix_subgraph()
 
+        # NEW v6.5: Initialize routing orchestrator with compiled subgraphs
+        self.routing_orchestrator = MultiAgentOrchestrator(
+            research_agent=research_subgraph,
+            architect_agent=architect_subgraph,
+            codesmith_agent=codesmith_subgraph,
+            reviewfix_agent=reviewfix_subgraph
+        )
+        logger.debug("  ✅ Multi-Agent Routing Orchestrator (capability-based)")
+
         # Create graph
         graph = StateGraph(SupervisorState)
 
-        # NEW v6.2: Workflow Planning Node (Entry Point)
-        async def workflow_planning_node(state: SupervisorState) -> dict[str, Any]:
+        # NEW v6.5: Capability-Based Routing Node (Entry Point)
+        async def routing_node(state: SupervisorState) -> dict[str, Any]:
             """
-            NEW v6.2: Dynamic workflow planning using AI.
+            NEW v6.5: Capability-based routing using Multi-Agent Orchestration.
 
-            Replaces fixed intent detection with flexible, context-aware planning.
-            The AI analyzes the task and creates an optimal execution plan.
+            Replaces pattern-matching with semantic agent evaluation.
+            Each agent self-evaluates if it can help with the task.
 
-            Returns workflow_path for routing to first agent.
+            Returns workflow_path for routing to first agent(s).
             """
-            logger.info("🎯 Workflow Planning: Analyzing user request with AI")
+            logger.info("🎯 Multi-Agent Routing: Querying agents via capability evaluation")
 
             workspace_path = state["workspace_path"]
             user_query = state["user_query"]
 
-            # Gather context for planner
+            # Gather context for agents
             import glob
             existing_files: list[str] = []
             workspace_has_code = False
@@ -776,44 +788,35 @@ class WorkflowV6Integrated:
             logger.debug(f"  Workspace has code: {workspace_has_code}")
             logger.debug(f"  Existing files: {len(existing_files)} found")
 
-            # Create dynamic workflow plan using AI
+            # Build context for agents
+            context = {
+                "existing_files": existing_files[:10],
+                "workspace_has_code": workspace_has_code,
+                "has_architecture": False,  # Will be updated after Architect runs
+                "has_generated_files": False  # Will be updated after Codesmith runs
+            }
+
+            # Ask agents: "Can you help with this task?"
             try:
-                plan = await self.workflow_estimator.plan_workflow(
-                    user_task=user_query,
+                routing_decision = await self.routing_orchestrator.route_request(
+                    user_query=user_query,
                     workspace_path=workspace_path,
-                    context={
-                        "existing_files": existing_files[:10],
-                        "workspace_has_code": workspace_has_code
-                    }
+                    context=context
                 )
 
-                # Validate plan
-                is_valid, issues = await self.workflow_estimator.validate_plan(plan)
-                if not is_valid:
-                    logger.warning(f"  ⚠️  Plan validation issues: {issues}")
-                    # Continue anyway - fallback in plan should be safe
+                # Extract workflow path from decision
+                workflow_path = [agent for agent, mode in routing_decision.agents]
+                agent_modes = {agent: mode for agent, mode in routing_decision.agents}
 
-                # Extract agent names from plan
-                workflow_path = [step.agent.value for step in plan.agents]
-
-                logger.info(f"  ✅ Workflow planned: {plan.workflow_type} ({plan.complexity})")
+                logger.info(f"  ✅ Routing: {routing_decision.strategy} strategy")
                 logger.info(f"  📋 Agents: {' → '.join(workflow_path)}")
-                logger.debug(f"  ⏱️  Estimated: {plan.estimated_duration}")
-                logger.debug(f"  🎯 Success criteria: {', '.join(plan.success_criteria)}")
+                logger.info(f"  🎯 Confidence: {routing_decision.confidence:.2f}")
+                logger.info(f"  💭 Reasoning: {routing_decision.reasoning}")
 
-                # Extract agent modes from plan for later use
-                agent_modes = {}
-                for step in plan.agents:
-                    agent_modes[step.agent.value] = step.mode
-
-                # NOTE v6.4-asimov: Workflow router removed!
-                # Routing is now done by agents autonomously with Asimov Rules.
-                # Agent modes are stored in session metadata for agent initialization.
-
-                # Store plan in current session
+                # Store routing in current session
                 self.current_session = {
                     "task_description": user_query,
-                    "current_phase": "workflow_planning",
+                    "current_phase": "routing",
                     "workspace_path": workspace_path,
                     "start_time": datetime.now(),
                     "completed_agents": [],
@@ -822,46 +825,48 @@ class WorkflowV6Integrated:
                     "errors": [],
                     "quality_scores": {},
                     "metadata": {
-                        "workflow_plan": {
-                            "type": plan.workflow_type,
-                            "complexity": plan.complexity,
-                            "agents": workflow_path,
-                            "estimated_duration": plan.estimated_duration,
-                            "success_criteria": plan.success_criteria
+                        "routing_decision": {
+                            "strategy": routing_decision.strategy,
+                            "confidence": routing_decision.confidence,
+                            "reasoning": routing_decision.reasoning
                         },
-                        "agent_modes": agent_modes,  # ← NEW v6.2: Store modes per agent
+                        "agent_modes": agent_modes,
                         "workspace_has_code": workspace_has_code
                     }
                 }
 
                 return {
-                    "final_result": f"Workflow planned: {plan.workflow_type} with {len(workflow_path)} agents",
+                    "final_result": f"Routing: {routing_decision.strategy} with {len(workflow_path)} agents",
                     "errors": [],
                     "workflow_path": workflow_path
                 }
 
             except Exception as e:
-                logger.error(f"  ❌ Workflow planning failed: {e}")
-                # Fallback to simple CREATE workflow (v6.4-asimov: starts with architect!)
-                logger.warning("  ⚠️  Using fallback CREATE workflow")
-                fallback_path = ["architect", "codesmith", "reviewfix"]  # v6.4: Architect FIRST!
+                logger.error(f"  ❌ Routing failed: {e}", exc_info=True)
+                # Fallback: Start with Research (explain mode) for safety
+                logger.warning("  ⚠️  Using fallback: Research (explain mode)")
+                fallback_path = ["research"]
+                fallback_modes = {"research": "explain"}
 
                 self.current_session = {
                     "task_description": user_query,
-                    "current_phase": "workflow_planning",
+                    "current_phase": "routing",
                     "workspace_path": workspace_path,
                     "start_time": datetime.now(),
                     "completed_agents": [],
                     "pending_agents": fallback_path.copy(),
                     "results": {},
-                    "errors": [f"Planning error: {str(e)}"],
+                    "errors": [f"Routing error: {str(e)}"],
                     "quality_scores": {},
-                    "metadata": {"fallback": True}
+                    "metadata": {
+                        "fallback": True,
+                        "agent_modes": fallback_modes
+                    }
                 }
 
                 return {
-                    "final_result": "Using fallback CREATE workflow",
-                    "errors": [f"Planning failed: {str(e)}"],
+                    "final_result": "Using fallback: Research agent",
+                    "errors": [f"Routing failed: {str(e)}"],
                     "workflow_path": fallback_path
                 }
 
@@ -1265,36 +1270,27 @@ class WorkflowV6Integrated:
             return workflow_path[0]
 
         # Add nodes
-        graph.add_node("workflow_planning", workflow_planning_node)  # NEW v6.2!
-        # NOTE: supervisor_node removed in v6.2 - replaced by workflow_planning
+        graph.add_node("routing", routing_node)  # NEW v6.5: Capability-based routing!
         graph.add_node("research", research_node_wrapper)
         graph.add_node("architect", architect_node_wrapper)
         graph.add_node("codesmith", codesmith_node_wrapper)
         graph.add_node("reviewfix", reviewfix_node_wrapper)
         graph.add_node("hitl", hitl_node)
 
-        # NEW v6.2: Workflow Planning is Entry Point
-        graph.set_entry_point("workflow_planning")
+        # NEW v6.5: Routing is Entry Point (capability-based)
+        graph.set_entry_point("routing")
 
-        # Workflow Planning → Dynamic routing based on AI plan (v6.4-asimov)
-        # NEW v6.4: Workflow starts with ARCHITECT for CREATE/UPDATE/FIX/REFACTOR
-        #           Only EXPLAIN/ANALYZE start with research!
-        def _intent_decide_next_with_timing(state: SupervisorState) -> str:
-            """Wrapper to add timing debug for routing decisions."""
-            from datetime import datetime
-            start = datetime.now()
-            decision = _intent_decide_next(state)
-            elapsed = (datetime.now() - start).total_seconds()
-            logger.info(f"🔍 DEBUG: _intent_decide_next took {elapsed:.2f}s → {decision}")
-            return decision
-
+        # Routing → First agent based on capability evaluation (v6.5)
+        # Agents self-evaluate, orchestrator determines best match
         graph.add_conditional_edges(
-            "workflow_planning",
-            _intent_decide_next_with_timing,
+            "routing",
+            _intent_decide_next,
             {
-                "architect": "architect",    # CREATE/UPDATE/REFACTOR/FIX (most workflows)
-                "research": "research",      # EXPLAIN/ANALYZE only
-                "reviewfix": "reviewfix"     # Direct to review (rare edge case)
+                "architect": "architect",
+                "research": "research",
+                "codesmith": "codesmith",  # Can start directly if context available
+                "reviewfix": "reviewfix",   # Can start directly for review tasks
+                "hitl": "hitl"              # If clarification needed
             }
         )
 

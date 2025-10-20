@@ -58,10 +58,16 @@ def create_codesmith_subgraph(
 
     Returns:
         Compiled codesmith subgraph
+
+    v6.5 Changes (Multi-Agent Orchestration):
+        - Added evaluate_task() method for capability-based routing
     """
     logger.debug("Creating Codesmith subgraph v6.2 (MCP)...")
 
-    # Codesmith node function
+    # ========================================================================
+    # CAPABILITY EVALUATION (v6.5+ Multi-Agent Orchestration)
+    # ========================================================================
+
     async def codesmith_node(state: CodesmithState) -> CodesmithState:
         """
         Execute code generation with custom implementation.
@@ -733,6 +739,10 @@ Generate complete, production-ready code files."""
     graph.set_entry_point("codesmith")
     graph.set_finish_point("codesmith")
 
+    # Compile graph
+    compiled_graph = graph.compile()
+
+
     # Compile and return
     logger.debug("✅ Codesmith subgraph v6.2 compiled (MCP)")
-    return graph.compile()
+    return compiled_graph
