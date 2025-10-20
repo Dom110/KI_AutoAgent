@@ -134,7 +134,8 @@ class WorkflowV6Integrated:
     def __init__(
         self,
         workspace_path: str,
-        websocket_callback: Any | None = None
+        websocket_callback: Any | None = None,
+        progress_callback: Any | None = None  # v6.4-asimov: NEW!
     ):
         """
         Initialize WorkflowV6Integrated.
@@ -142,9 +143,11 @@ class WorkflowV6Integrated:
         Args:
             workspace_path: Absolute path to user workspace
             websocket_callback: Optional WebSocket callback for approvals
+            progress_callback: Optional async callback for progress updates (v6.4-asimov)
         """
         self.workspace_path = workspace_path
         self.websocket_callback = websocket_callback
+        self.progress_callback = progress_callback  # v6.4-asimov: Store progress callback
 
         # Base components
         self.checkpointer: AsyncSqliteSaver | None = None
@@ -900,6 +903,17 @@ class WorkflowV6Integrated:
             print("🔬 === RESEARCH NODE START ===")
             logger.info("🔬 Research Agent executing...")
 
+            # v6.4-asimov: Send progress message for agent start
+            if self.progress_callback:
+                try:
+                    await self.progress_callback({
+                        "event_type": "agent_start",
+                        "agent": "research",
+                        "message": "🔬 Research Agent executing..."
+                    })
+                except Exception as e:
+                    logger.debug(f"Progress callback failed: {e}")  # Don't fail workflow
+
             try:
                 self.current_session["current_phase"] = "research"
                 print(f"  Input query: {state.get('user_query', 'N/A')[:80]}")
@@ -954,6 +968,12 @@ class WorkflowV6Integrated:
             """Architect with neurosymbolic validation (v6.3: mode-aware)."""
             print("📐 === ARCHITECT NODE START ===")
             logger.info("📐 Architect Agent executing...")
+
+            # v6.4-asimov: Send progress message
+            if self.progress_callback:
+                try:
+                    await self.progress_callback({"event_type": "agent_start", "agent": "architect", "message": "📐 Architect Agent executing..."})
+                except Exception: pass
 
             try:
                 self.current_session["current_phase"] = "architect"
@@ -1049,6 +1069,12 @@ class WorkflowV6Integrated:
             print("⚒️  === CODESMITH NODE START ===")
             logger.info("⚒️  Codesmith Agent executing...")
 
+            # v6.4-asimov: Send progress message
+            if self.progress_callback:
+                try:
+                    await self.progress_callback({"event_type": "agent_start", "agent": "codesmith", "message": "⚒️ Codesmith Agent executing..."})
+                except Exception: pass
+
             try:
                 self.current_session["current_phase"] = "codesmith"
                 print(f"  Architecture design available: {bool(state.get('architecture_design'))}")
@@ -1105,6 +1131,12 @@ class WorkflowV6Integrated:
             """ReviewFix with Asimov Rule 3 and self-healing."""
             print("🔬 === REVIEWFIX NODE START ===")
             logger.info("🔬 ReviewFix Loop executing...")
+
+            # v6.4-asimov: Send progress message
+            if self.progress_callback:
+                try:
+                    await self.progress_callback({"event_type": "agent_start", "agent": "reviewfix", "message": "🔬 ReviewFix Loop executing..."})
+                except Exception: pass
 
             try:
                 self.current_session["current_phase"] = "reviewfix"
