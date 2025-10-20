@@ -321,9 +321,38 @@ async def websocket_chat(websocket: WebSocket):
                     logger.info(f"  (Auto-approving for test)")
                     return {"approved": True, "response": "Auto-approved in test"}
 
+                # v6.4-asimov: Create progress callback for workflow updates
+                async def progress_callback(event: dict):
+                    """Send workflow progress updates to client."""
+                    event_type = event.get("event_type", "progress")
+
+                    if event_type == "agent_start":
+                        await manager.send_json(client_id, {
+                            "type": "status",
+                            "status": "agent_executing",
+                            "agent": event.get("agent"),
+                            "message": event.get("message", f"🤖 {event.get('agent')} executing...")
+                        })
+                    elif event_type == "routing_decision":
+                        await manager.send_json(client_id, {
+                            "type": "status",
+                            "status": "routing",
+                            "next_agent": event.get("next_agent"),
+                            "routing_confidence": event.get("routing_confidence"),
+                            "routing_reason": event.get("routing_reason"),
+                            "message": f"🔀 Routing: {event.get('next_agent')} (confidence: {event.get('routing_confidence', 0):.2f})"
+                        })
+                    elif event_type == "progress":
+                        await manager.send_json(client_id, {
+                            "type": "status",
+                            "status": "processing",
+                            "message": event.get("message", "Processing...")
+                        })
+
                 workflow = WorkflowV6Integrated(
                     workspace_path=workspace_path,
-                    websocket_callback=approval_callback
+                    websocket_callback=approval_callback,
+                    progress_callback=progress_callback  # v6.4-asimov: NEW!
                 )
                 await workflow.initialize()
 
