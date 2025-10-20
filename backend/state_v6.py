@@ -509,11 +509,22 @@ def supervisor_to_codesmith(state: SupervisorState) -> CodesmithState:
     Args:
         state: SupervisorState
     """
+    # FIX v6.4-asimov: Extract design from architecture_design if available
+    # CRITICAL: Architect stores design in state["architecture_design"]["design"],
+    # but Codesmith needs it in state["design"]. Without this, Codesmith gets
+    # empty design and Claude asks for clarification instead of generating code.
+    arch_design = state.get("architecture_design", {})
+    design = arch_design.get("design", {}) if arch_design else {}
+
+    # Also extract research if available
+    research_results = state.get("research_results", {})
+    research = research_results if research_results else {}
+
     return {
         "workspace_path": state["workspace_path"],
         "requirements": state["user_query"],
-        "design": {},  # Populated from Memory in agent
-        "research": {},  # Populated from Memory in agent
+        "design": design,  # FIX: Use actual design from Architect!
+        "research": research,  # FIX: Use actual research from Research agent!
         "past_successes": [],  # Populated from Learning System in agent
         "generated_files": [],
         "tests": [],

@@ -337,8 +337,11 @@ Generate complete, production-ready code files."""
                 raise Exception(f"Code generation failed: {claude_result.get('error', 'Unknown error')}")
 
             logger.info(f"✅ Code generated: {len(code_output)} chars")
-            logger.debug(f"📄 First 500 chars of generated code:\n{code_output[:500]}")
-            logger.debug(f"📄 Last 500 chars of generated code:\n{code_output[-500:]}")
+            # CRITICAL DEBUG: Log actual Claude output to understand parsing failure
+            logger.info(f"📄 First 500 chars of generated code:\n{code_output[:500]}")
+            logger.info(f"📄 Last 500 chars of generated code:\n{code_output[-500:]}")
+            logger.info(f"📄 Contains 'FILE:': {'FILE:' in code_output}")
+            logger.info(f"📄 Contains '```': {'```' in code_output}")
 
             # Step 3: Parse and write files
             logger.info("📝 Writing files to workspace...")
