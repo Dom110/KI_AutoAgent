@@ -316,7 +316,26 @@ export class BackendClient extends EventEmitter {
      * Handle incoming messages from the backend
      */
     private handleMessage(message: BackendMessage): void {
-        this.log(`📨 Received: ${message.type}`);
+        // v6.4-asimov: Enhanced debug logging
+        const msgAny = message as any;
+        let debugInfo = `📨 Received: ${message.type}`;
+
+        // Add agent info if present
+        if (message.agent) {
+            debugInfo += ` [${message.agent}]`;
+        }
+
+        // v6.4-asimov: Add routing info if present
+        if (msgAny.next_agent) {
+            debugInfo += ` → ${msgAny.next_agent}`;
+        }
+
+        this.log(debugInfo);
+
+        // v6.4-asimov: Log full message payload in debug mode
+        if (this.debugChannel) {
+            this.debugChannel.appendLine(`[PAYLOAD] ${JSON.stringify(message, null, 2)}`);
+        }
 
         switch (message.type) {
             case 'connection':
@@ -430,7 +449,23 @@ export class BackendClient extends EventEmitter {
 
             case 'status':
                 // v6.0.0: Workflow status updates
+                // v6.4-asimov: Also log routing decisions if present
+                const statusMsg = message as any;
                 this.log(`📊 v6 Status: ${message.status} - ${message.message}`);
+
+                // v6.4-asimov: Log routing decisions
+                if (statusMsg.next_agent) {
+                    this.log(`   🔀 Routing: ${statusMsg.next_agent} (confidence: ${statusMsg.routing_confidence || 'N/A'})`);
+                    if (statusMsg.routing_reason) {
+                        this.log(`   💭 Reason: ${statusMsg.routing_reason}`);
+                    }
+                }
+
+                // v6.4-asimov: Log Asimov Rules enforcement
+                if (statusMsg.asimov_rule_enforced) {
+                    this.log(`   ⚖️  ASIMOV RULE ENFORCED: ${statusMsg.asimov_rule_enforced}`);
+                }
+
                 this.emit('progress', message);
                 break;
 
