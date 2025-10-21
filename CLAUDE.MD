@@ -1,7 +1,17 @@
 # Claude Code Instructions - Core Guidelines
 
-**Version:** v6.2.0-alpha
-**Last Updated:** 2025-10-13
+**Version:** v7.0.0-alpha (MIGRATION IN PROGRESS)
+**Last Updated:** 2025-10-20
+
+---
+
+## 🚨 WICHTIG: v7.0 Migration zu Supervisor Pattern läuft!
+
+**Neue Architektur-Dokumente:**
+- **Current Architecture:** `/ARCHITECTURE_CURRENT_v6.6.md` - Was wir haben
+- **Target Architecture:** `/ARCHITECTURE_TARGET_v7.0.md` - Wohin wir wollen ⚠️ **READ THIS!**
+- **Migration Guide:** `/MIGRATION_GUIDE_v7.0.md` - Wie wir migrieren
+- **Quick Briefing:** `/SONNET_BRIEFING_v7.0.md` - Schnellübersicht
 
 ---
 
@@ -9,13 +19,12 @@
 
 This document contains ONLY core instructions. Detailed guides have been split into separate files:
 
-- **Critical Failure Detection:** `/CRITICAL_FAILURE_INSTRUCTIONS.md` ⚠️ **READ THIS FIRST!**
+- **Critical Failure Detection:** `/CRITICAL_FAILURE_INSTRUCTIONS.md` ⚠️
 - **Claude CLI Integration:** `/CLAUDE_CLI_INTEGRATION.md`
 - **Build Validation System:** `/BUILD_VALIDATION_GUIDE.md`
 - **E2E Testing Best Practices:** `/E2E_TESTING_GUIDE.md`
 - **Python Coding Standards:** `/PYTHON_BEST_PRACTICES.md`
 - **Claude Best Practices:** `/CLAUDE_BEST_PRACTICES.md`
-- **System Architecture:** `/ARCHITECTURE_v6.2_CURRENT.md`
 
 ---
 
@@ -173,17 +182,12 @@ When removing code:
 - E2E Testing: `/E2E_TESTING_GUIDE.md`
 - Python Best Practices: `/PYTHON_BEST_PRACTICES.md`
 - Claude Best Practices: `/CLAUDE_BEST_PRACTICES.md`
-- System Architecture: `/ARCHITECTURE_v6.2_CURRENT.md`
+- Current Architecture: `/ARCHITECTURE_CURRENT_v6.6.md`
+- Target Architecture: `/ARCHITECTURE_TARGET_v7.0.md`
 
-### Roadmaps & Status:
-- v6.1 Roadmap: `/V6.1_ROADMAP.md`
-- v6.2 Changelog: `/CHANGELOG_v6.2.0-alpha.md`
-- Missing Features: `/MISSING_FEATURES.md`
-
-### Test Results:
-- Executive Summary: `/EXECUTIVE_SUMMARY_E2E_TESTS.md`
-- Final Test Results: `/FINAL_TEST_RESULTS_SUMMARY.md`
-- Test Execution Status: `/TEST_EXECUTION_STATUS.md`
+### Migration Documents:
+- Migration Guide: `/MIGRATION_GUIDE_v7.0.md`
+- Quick Briefing: `/SONNET_BRIEFING_v7.0.md`
 
 ### Official Claude Docs:
 - **Claude 4 Best Practices:** https://docs.claude.com/en/docs/build-with-claude/prompt-engineering/claude-4-best-practices
