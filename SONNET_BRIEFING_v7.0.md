@@ -82,6 +82,16 @@ class ResearchAgent:
     async def execute(state):
         # Sammelt Kontext für ANDERE Agents
         # Gibt NIE direkte User-Antworten
+
+# WICHTIG: Agents können Research ANFORDERN:
+class AnyAgent:
+    async def execute(state):
+        if needs_more_info:
+            return {
+                "needs_research": True,
+                "research_request": "What I need to know"
+            }
+        # Supervisor reagiert und ruft Research auf
 ```
 
 ### 5. Responder Agent NEU
@@ -143,6 +153,15 @@ class ResponderAgent:
    - Architect (initial design)
    - Architect (add database)
    - Architect (add auth)
+
+4. **RESEARCH-FIX-LOOP:** Iterative Fehlerbehebung
+   - ReviewFix findet Fehler → needs_research=True
+   - Supervisor → Research (analyze error)
+   - Research → liefert Lösung
+   - Supervisor → Codesmith (fix with context)
+   - Codesmith → fixed_files
+   - Supervisor → ReviewFix (re-validate)
+   - Loop bis validation="passed"
 
 ---
 

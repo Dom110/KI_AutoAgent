@@ -178,6 +178,39 @@ class ResponderAgent:
         return {"user_response": response}
 ```
 
+### 6. Agent-Research Anforderung (WICHTIG!)
+
+**Agents können Research ANFORDERN aber nicht AUFRUFEN:**
+
+```python
+# Jeder Agent kann Research anfordern:
+class AnyAgent:
+    async def execute(self, state: AgentState) -> dict:
+        # Agent entscheidet: Brauche ich mehr Kontext?
+        if self._needs_more_information():
+            return {
+                "needs_research": True,
+                "research_request": "Specific information needed",
+                "reason": "Why I need this information"
+            }
+
+        # Sonst normale Execution
+        return {"result": ...}
+
+# Supervisor reagiert auf Research-Anfragen:
+class Supervisor:
+    async def decide_next(self, state: SupervisorState) -> Command:
+        # Check if any agent needs research
+        if state.get("needs_research"):
+            request = state.get("research_request")
+            return Command(
+                goto="research",
+                update={
+                    "instructions": f"Research: {request}"
+                }
+            )
+```
+
 ---
 
 ## 🔄 Workflow mit LangGraph
@@ -280,6 +313,51 @@ responder: "✅ Task Manager API created successfully..."
 # 14. Supervisor
 supervisor: "Task complete"
 → Command(goto=END)
+```
+
+### Research-Fix Loop Beispiel
+
+```python
+# Wichtiger Flow: Research → Fix → Research → Fix (iterativ)
+
+# 1. ReviewFix findet Probleme
+reviewfix: "Tests schlagen fehl: ImportError"
+→ Returns: {
+    "validation": "failed",
+    "issues": ["ImportError: cannot import FastAPI"],
+    "needs_research": True,
+    "research_request": "Find correct FastAPI import patterns"
+}
+
+# 2. Supervisor sieht needs_research
+supervisor: "Research needed for import issue"
+→ Command(goto="research", instructions="Find FastAPI import patterns")
+
+# 3. Research findet Lösung
+research: Analysiert, findet korrekte Import-Syntax
+→ Returns: {
+    "research_context": {
+        "solution": "from fastapi import FastAPI, not import FastAPI"
+    }
+}
+
+# 4. Supervisor mit neuem Kontext
+supervisor: "Now fix with research context"
+→ Command(goto="codesmith", instructions="Fix imports using research")
+
+# 5. Codesmith fixt mit Kontext
+codesmith: Nutzt Research-Kontext für Fix
+→ Returns: {"fixed_files": [...]}
+
+# 6. Supervisor
+supervisor: "Validate fixes"
+→ Command(goto="reviewfix", instructions="Re-validate")
+
+# 7. ReviewFix prüft nochmal
+reviewfix: "All tests pass!"
+→ Returns: {"validation": "passed"}
+
+# Loop endet wenn validation="passed"
 ```
 
 ---

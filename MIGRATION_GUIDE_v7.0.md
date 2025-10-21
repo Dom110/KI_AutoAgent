@@ -141,6 +141,16 @@ class ResearchAgent:
             query = self._extract_search_query(instructions)
             results["web_results"] = await self._search_web(query)
 
+        if "analyze error" in instructions.lower():
+            # Support for Research-Fix Loop
+            error_info = state.get("error_info", {})
+            results["error_analysis"] = await self._analyze_error(
+                error_info
+            )
+            results["suggested_fixes"] = await self._suggest_fixes(
+                error_info
+            )
+
         if "index code" in instructions.lower():
             results["code_index"] = await self._index_codebase(
                 workspace_path
@@ -164,11 +174,12 @@ class ArchitectAgent:
         instructions = state.get("instructions", "")
         context = state.get("research_context", {})
 
-        # ALWAYS use research context
+        # Agent kann Research anfordern!
         if not context:
             return {
                 "error": "No research context available",
-                "needs_research": True
+                "needs_research": True,
+                "research_request": "Need workspace analysis before architecture design"
             }
 
         # Design based on instructions and context
