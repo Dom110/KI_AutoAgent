@@ -157,6 +157,11 @@ class Supervisor:
         # Build context from state
         context = self._build_context(state)
 
+        # Check if response is ready - workflow complete!
+        if state.get("response_ready", False):
+            logger.info("✅ Response ready - workflow complete!")
+            return Command(goto=END)
+
         # Check if any agent requested research
         if context.needs_research and context.research_request:
             logger.info(f"📚 Agent requested research: {context.research_request}")
@@ -177,7 +182,7 @@ class Supervisor:
             logger.error(f"❌ Supervisor decision failed: {e}")
             # Fallback to HITL on error
             return Command(
-                goto=AgentType.HITL,
+                goto="hitl",  # Use string node name
                 update={
                     "instructions": f"Supervisor error: {str(e)}. Please provide guidance.",
                     "error": str(e)
@@ -212,7 +217,7 @@ class Supervisor:
     def _route_to_research(self, context: SupervisorContext) -> Command:
         """Route to research agent when requested by another agent."""
         return Command(
-            goto=AgentType.RESEARCH,
+            goto="research",  # Use string node name, not enum
             update={
                 "instructions": f"Research requested: {context.research_request}",
                 "needs_research": False,  # Reset flag
@@ -360,7 +365,7 @@ Return your decision as structured JSON."""
         if decision.action == SupervisorAction.CLARIFY or decision.confidence < 0.5:
             logger.info("❓ Requesting user clarification")
             return Command(
-                goto=AgentType.HITL,
+                goto="hitl",  # Use string node name
                 update={
                     "instructions": decision.instructions or "Low confidence - please clarify the request",
                     "confidence": decision.confidence
@@ -384,19 +389,22 @@ Return your decision as structured JSON."""
 
         # Handle CONTINUE action (normal flow)
         if decision.action == SupervisorAction.CONTINUE and decision.next_agent:
+            # Convert enum to string if needed
+            agent_name = decision.next_agent.value if hasattr(decision.next_agent, 'value') else str(decision.next_agent).lower()
+
             # Check for self-invocation
-            is_self_invocation = (decision.next_agent == context.last_agent)
+            is_self_invocation = (agent_name == context.last_agent)
             if is_self_invocation:
-                logger.info(f"🔄 Self-invocation: {decision.next_agent} (iteration {context.iteration + 1})")
+                logger.info(f"🔄 Self-invocation: {agent_name} (iteration {context.iteration + 1})")
             else:
-                logger.info(f"➡️ Routing to: {decision.next_agent}")
+                logger.info(f"➡️ Routing to: {agent_name}")
 
             return Command(
-                goto=decision.next_agent,
+                goto=agent_name,  # Use string node name
                 update={
                     "instructions": decision.instructions,
                     "iteration": context.iteration + 1,
-                    "last_agent": decision.next_agent,
+                    "last_agent": agent_name,
                     "is_self_invocation": is_self_invocation
                 }
             )
@@ -404,7 +412,7 @@ Return your decision as structured JSON."""
         # Fallback to HITL if decision is unclear
         logger.warning("⚠️ Unclear decision, routing to HITL")
         return Command(
-            goto=AgentType.HITL,
+            goto="hitl",  # Use string node name
             update={
                 "instructions": "Supervisor decision unclear - please provide guidance",
                 "decision": decision.dict()

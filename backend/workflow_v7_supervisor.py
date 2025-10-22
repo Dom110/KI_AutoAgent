@@ -129,7 +129,10 @@ async def supervisor_node(state: SupervisorState) -> Command:
 
     # Log the decision
     logger.info(f"   Decision: Route to {command.goto if hasattr(command, 'goto') else 'END'}")
-    logger.info(f"   Instructions: {command.update.get('instructions', 'None') if hasattr(command, 'update') else 'None'}")
+    if hasattr(command, 'update') and command.update:
+        logger.info(f"   Instructions: {command.update.get('instructions', 'None')}")
+    else:
+        logger.info(f"   Instructions: None (workflow complete)")
 
     return command
 
@@ -159,7 +162,7 @@ async def research_node(state: SupervisorState) -> Command:
     # Update state and return to supervisor
     update = {
         "research_context": result.get("research_context", {}),
-        "last_agent": AgentType.RESEARCH
+        "last_agent": "research"
     }
 
     # Always go back to supervisor
@@ -186,7 +189,7 @@ async def architect_node(state: SupervisorState) -> Command:
             update={
                 "needs_research": True,
                 "research_request": "Need workspace analysis before architecture design",
-                "last_agent": AgentType.ARCHITECT
+                "last_agent": "architect"
             }
         )
 
@@ -207,7 +210,7 @@ async def architect_node(state: SupervisorState) -> Command:
             update={
                 "needs_research": True,
                 "research_request": result.get("research_request", "Need more context"),
-                "last_agent": AgentType.ARCHITECT
+                "last_agent": "architect"
             }
         )
 
@@ -242,7 +245,7 @@ async def codesmith_node(state: SupervisorState) -> Command:
             update={
                 "needs_research": True,
                 "research_request": "Need architecture before code generation",
-                "last_agent": AgentType.CODESMITH
+                "last_agent": "codesmith"
             }
         )
 
@@ -299,7 +302,7 @@ async def reviewfix_node(state: SupervisorState) -> Command:
                 "research_request": result.get("research_request", "Need help with error analysis"),
                 "validation_results": result.get("validation_results"),
                 "issues": result.get("issues", []),
-                "last_agent": AgentType.REVIEWFIX
+                "last_agent": "reviewfix"
             }
         )
 
@@ -348,7 +351,7 @@ async def responder_node(state: SupervisorState) -> Command:
     update = {
         "user_response": result.get("user_response"),
         "response_ready": True,
-        "last_agent": AgentType.RESPONDER
+        "last_agent": "responder"
     }
 
     logger.info("   Response ready, returning to Supervisor")
@@ -382,7 +385,7 @@ async def hitl_node(state: SupervisorState) -> Command:
     update = {
         "hitl_response": result.get("user_input"),
         "awaiting_human": False,
-        "last_agent": AgentType.HITL
+        "last_agent": "hitl"
     }
 
     logger.info("   User input received, returning to Supervisor")
@@ -433,16 +436,11 @@ def build_supervisor_workflow() -> StateGraph:
     logger.info("      [any agent] → supervisor via Command")
     logger.info("      supervisor → END via Command")
 
-    # Set up persistence
-    memory = SqliteSaver.from_conn_string(":memory:")
+    # Compile workflow without checkpointer for now
+    # TODO: Fix checkpointer initialization
+    app = graph.compile()
 
-    # Compile with recursion limit
-    app = graph.compile(
-        checkpointer=memory,
-        config={"recursion_limit": 30}  # Allow up to 30 steps
-    )
-
-    logger.info("   ✅ Workflow compiled with recursion_limit=30")
+    logger.info("   ✅ Workflow compiled successfully")
 
     return app
 
@@ -510,24 +508,29 @@ async def execute_supervisor_workflow(
     try:
         logger.info("\n📊 Starting workflow execution...")
 
+        # Track the final state by accumulating updates
+        final_state = dict(initial_state)
+
         # Run with streaming for visibility
         async for output in app.astream(initial_state):
             # Log each step
             for node, state_update in output.items():
                 logger.info(f"\n   Step: {node}")
                 if isinstance(state_update, dict):
+                    # Update final state with changes
+                    final_state.update(state_update)
+
                     if "last_agent" in state_update:
                         logger.info(f"   Last Agent: {state_update['last_agent']}")
                     if "instructions" in state_update:
                         logger.info(f"   Instructions: {state_update['instructions'][:100]}...")
-
-        # Get final state
-        final_state = await app.aget_state()
+                    if "response_ready" in state_update and state_update["response_ready"]:
+                        logger.info(f"   ✅ Response ready from Responder!")
 
         logger.info("\n✅ Workflow execution complete!")
 
-        # Return final state
-        return final_state.values
+        # Return final state with accumulated updates
+        return final_state
 
     except Exception as e:
         logger.error(f"❌ Workflow execution failed: {e}", exc_info=True)
