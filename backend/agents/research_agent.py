@@ -227,18 +227,24 @@ class ResearchAgent:
             except Exception as e:
                 logger.error(f"   ❌ Web search error: {e}")
 
-        # Fallback when Perplexity not available
-        # Use HARDCODED responses for common queries (not real research!)
-        logger.warning("   ⚠️ Web search unavailable - using hardcoded fallback")
+        # Try to use project knowledge when Perplexity not available
+        project_knowledge = self._get_project_knowledge(query)
 
-        fallback_info = self._get_fallback_info(query)
+        if project_knowledge:
+            logger.info("   ✅ Found relevant project knowledge")
+            return [{
+                "title": "Project Knowledge (from previous work)",
+                "summary": project_knowledge,
+                "source": "Internal project memory/learning system",
+                "timestamp": datetime.now().isoformat()
+            }]
 
+        # No knowledge available - be honest about it
+        logger.warning("   ❌ No web search or project knowledge available")
         return [{
-            "title": "⚠️ Hardcoded Response (No Web Search)",
-            "summary": fallback_info,
-            "note": "IMPORTANT: This is NOT from web search. It's a hardcoded response from the agent's code.",
-            "warning": "Perplexity API timed out. Using static, potentially outdated information.",
-            "is_fallback": True,
+            "title": "Research Unavailable",
+            "summary": "Unable to perform web research (API timeout) and no relevant project knowledge found.",
+            "error": True,
             "timestamp": datetime.now().isoformat()
         }]
 
@@ -429,96 +435,28 @@ class ResearchAgent:
 
         return errors
 
-    def _get_fallback_info(self, query: str) -> str:
+    def _get_project_knowledge(self, query: str) -> str | None:
         """
-        HARDCODED fallback responses for common queries.
+        Search for knowledge from previous project work.
 
-        WARNING: This is NOT real research! Just static text in the code.
-        Only covers: async/await, FastAPI, React
-        Everything else gets a generic "search failed" message.
+        This should search:
+        1. Previous Research results (cached)
+        2. Architecture decisions from Architect
+        3. Code documentation from Codesmith
+        4. Learning system memories
+
+        Returns None if no relevant knowledge found.
         """
-        query_lower = query.lower()
+        # TODO: Integrate with actual knowledge sources:
+        # - backend/memory/memory_system_v6.py
+        # - backend/cognitive/learning_system_v6.py
+        # - Cached research results
+        # - Architecture documents
 
-        # Provide basic information for common queries
-        if "async" in query_lower and "await" in query_lower:
-            return """Python async/await is a way to write concurrent code that looks sequential.
+        logger.info(f"   🔍 Searching project knowledge for: {query[:50]}...")
 
-Key concepts:
-- **async def**: Defines an asynchronous function (coroutine)
-- **await**: Pauses execution until an async operation completes
-- **asyncio.run()**: Runs the main async function
-
-Simple example:
-```python
-import asyncio
-
-async def fetch_data():
-    print("Starting fetch...")
-    await asyncio.sleep(2)  # Simulate network delay
-    print("Data fetched!")
-    return "data"
-
-async def main():
-    result = await fetch_data()
-    print(f"Got: {result}")
-
-asyncio.run(main())
-```
-
-Benefits:
-- Non-blocking I/O operations
-- Better performance for I/O-bound tasks
-- Cleaner code than callbacks or threads
-
-Use cases:
-- Web scraping multiple URLs
-- API calls
-- Database operations
-- File I/O operations"""
-
-        elif "fastapi" in query_lower:
-            return """FastAPI is a modern Python web framework for building APIs.
-
-Key features:
-- Fast performance (on par with Node.js and Go)
-- Automatic API documentation
-- Type hints and validation with Pydantic
-- Async/await support
-
-Basic example:
-```python
-from fastapi import FastAPI
-
-app = FastAPI()
-
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
-```"""
-
-        elif "react" in query_lower:
-            return """React is a JavaScript library for building user interfaces.
-
-Key concepts:
-- Components (building blocks)
-- JSX (JavaScript XML syntax)
-- State management
-- Virtual DOM for performance"""
-
-        else:
-            # Generic fallback - BE HONEST
-            return f"""❌ NO HARDCODED RESPONSE AVAILABLE
-
-Query: '{query[:100]}'
-
-This agent has hardcoded responses for only 3 topics:
-- Python async/await
-- FastAPI basics
-- React basics
-
-Your query doesn't match any of these. Without Perplexity API access,
-I cannot provide real research. The supervisor will need to make decisions
-without research context, using only its general knowledge."""
+        # For now, return None - no hardcoded knowledge!
+        return None
 
 
 # ============================================================================

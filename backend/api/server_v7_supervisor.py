@@ -23,9 +23,33 @@ Date: 2025-10-21
 
 from __future__ import annotations
 
-# Import version FIRST
+# CHECK PYTHON VERSION FIRST - MUST BE 3.13.8 OR HIGHER!
 import sys
 import os
+
+MIN_PYTHON_VERSION = (3, 13, 8)
+current_version = sys.version_info[:3]
+
+if current_version < MIN_PYTHON_VERSION:
+    print("\n" + "=" * 60)
+    print("❌ PYTHON VERSION ERROR")
+    print("=" * 60)
+    print(f"Current Python: {current_version[0]}.{current_version[1]}.{current_version[2]}")
+    print(f"Required: Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]}.{MIN_PYTHON_VERSION[2]} or higher")
+    print("\nThis project uses Python 3.13+ features:")
+    print("  - Native type unions with |")
+    print("  - Pattern matching")
+    print("  - Enhanced error messages")
+    print("\nTo run the server correctly:")
+    print("\n  # From project root directory:")
+    print("  cd /Users/dominikfoert/git/KI_AutoAgent")
+    print("  source venv/bin/activate")
+    print("  pip install -r requirements.txt")
+    print("  python backend/api/server_v7_supervisor.py")
+    print("\n" + "=" * 60)
+    sys.exit(1)
+
+# After version check, continue with imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from __version__ import __version__, __release_tag__
 
