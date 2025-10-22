@@ -50,6 +50,7 @@ class ResearchAgent:
         self.workspace_path = workspace_path
         self.memory_system = None
         self.learning_system = None
+        self.global_memory = None
 
         # Initialize Perplexity service if available
         self.perplexity_service = None
@@ -63,6 +64,14 @@ class ResearchAgent:
         # Initialize Memory System if workspace provided
         if workspace_path:
             self._initialize_memory_system(workspace_path)
+
+        # Initialize Global Memory (optional)
+        try:
+            from backend.memory.global_memory_system import GlobalMemorySystem
+            self.global_memory = GlobalMemorySystem()
+            logger.info("   🌍 Global memory available")
+        except Exception as e:
+            logger.debug(f"   Global memory not available: {e}")
 
     def _initialize_memory_system(self, workspace_path: str) -> None:
         """Initialize connection to Memory and Learning systems."""
@@ -478,20 +487,66 @@ class ResearchAgent:
         Search for knowledge from previous project work.
 
         This searches:
-        1. Previous Research results (cached)
-        2. Architecture decisions from Architect
-        3. Code documentation from Codesmith
-        4. Learning system memories
+        1. Global patterns (cross-project learning)
+        2. Previous Research results (cached)
+        3. Architecture decisions from Architect
+        4. Code documentation from Codesmith
+        5. Learning system memories
 
         Returns None if no relevant knowledge found.
         """
         logger.info(f"   🔍 Searching project knowledge for: {query[:50]}...")
 
-        if not self.workspace_path:
-            logger.debug("   No workspace path - cannot search project knowledge")
-            return None
-
         knowledge_parts = []
+
+        # 1. CHECK GLOBAL KNOWLEDGE FIRST (cross-project patterns)
+        if self.global_memory:
+            try:
+                # Initialize global memory if needed
+                if not hasattr(self.global_memory, 'initialized'):
+                    await self.global_memory.initialize()
+                    self.global_memory.initialized = True
+
+                # Search for relevant patterns
+                patterns = await self.global_memory.search_patterns(
+                    query=query,
+                    project_type=self._detect_project_type(query),
+                    limit=3
+                )
+
+                if patterns:
+                    logger.info(f"   🌍 Found {len(patterns)} global patterns")
+                    for pattern in patterns:
+                        knowledge_parts.append(
+                            f"Global Pattern ({pattern['success_rate']:.0%} success, "
+                            f"used {pattern['usage_count']}x):\n"
+                            f"{pattern['content']}"
+                        )
+
+                # Check for known error solutions if we have errors
+                error_info = getattr(self, 'state', {}).get('error_info', [])
+                if error_info:
+                    for error in error_info[:2]:
+                        solutions = await self.global_memory.get_error_solutions(str(error))
+                        if solutions:
+                            logger.info(f"   🔧 Found {len(solutions)} known solutions")
+                            knowledge_parts.append(
+                                f"Known solutions for similar error:\n" +
+                                "\n".join(f"- {s}" for s in solutions)
+                            )
+
+            except Exception as e:
+                logger.debug(f"   Global memory search failed: {e}")
+
+        # 2. CHECK LOCAL PROJECT KNOWLEDGE
+        if not self.workspace_path:
+            logger.debug("   No workspace path - cannot search local project knowledge")
+            # Return global knowledge if we have any
+            if knowledge_parts:
+                combined_knowledge = "\n\n---\n\n".join(knowledge_parts)
+                logger.info(f"   ✅ Compiled {len(knowledge_parts)} global knowledge sources")
+                return combined_knowledge
+            return None
 
         try:
             # Lazy initialize Memory System
