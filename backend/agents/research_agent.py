@@ -38,9 +38,18 @@ class ResearchAgent:
     responses go through ResponderAgent.
     """
 
-    def __init__(self):
-        """Initialize the Research agent."""
+    def __init__(self, workspace_path: str | None = None):
+        """
+        Initialize the Research agent.
+
+        Args:
+            workspace_path: Path to workspace for memory/learning access
+        """
         logger.info("🔬 ResearchAgent initialized")
+
+        self.workspace_path = workspace_path
+        self.memory_system = None
+        self.learning_system = None
 
         # Initialize Perplexity service if available
         self.perplexity_service = None
@@ -50,6 +59,22 @@ class ResearchAgent:
             logger.info("   ✅ Perplexity API connected")
         except Exception as e:
             logger.warning(f"   ⚠️ Perplexity API not available: {e}")
+
+        # Initialize Memory System if workspace provided
+        if workspace_path:
+            self._initialize_memory_system(workspace_path)
+
+    def _initialize_memory_system(self, workspace_path: str) -> None:
+        """Initialize connection to Memory and Learning systems."""
+        try:
+            from backend.memory.memory_system_v6 import MemorySystem
+            from backend.cognitive.learning_system_v6 import LearningSystemV6
+
+            # Note: We'll initialize these lazily when needed to avoid async in __init__
+            self.workspace_path = workspace_path
+            logger.info(f"   📚 Memory/Learning systems will initialize on first use")
+        except Exception as e:
+            logger.warning(f"   ⚠️ Memory/Learning systems not available: {e}")
 
     async def execute(self, state: dict[str, Any]) -> dict[str, Any]:
         """
@@ -67,6 +92,11 @@ class ResearchAgent:
         instructions = state.get("instructions", "")
         workspace_path = state.get("workspace_path", "")
         error_info = state.get("error_info", [])
+
+        # Update workspace path if different
+        if workspace_path and workspace_path != self.workspace_path:
+            self.workspace_path = workspace_path
+            self._initialize_memory_system(workspace_path)
 
         logger.info(f"🔍 Researching: {instructions[:100]}...")
 
@@ -205,6 +235,7 @@ class ResearchAgent:
     async def _search_web(self, query: str) -> list[dict[str, Any]]:
         """
         Search web for information using Perplexity API.
+        Also caches results in memory for future use.
         """
         logger.info(f"   🌐 Searching web: {query[:50]}...")
 
@@ -216,19 +247,26 @@ class ResearchAgent:
                     self.perplexity_service.search_web(query),
                     timeout=5.0  # 5 second timeout
                 )
-                return [{
+
+                web_results = [{
                     "title": "Web Search Results",
                     "summary": result.get("answer", ""),
                     "citations": result.get("citations", []),
                     "timestamp": datetime.now().isoformat()
                 }]
+
+                # Cache the results in memory for future use
+                await self._cache_research_results(query, web_results)
+
+                return web_results
+
             except asyncio.TimeoutError:
                 logger.warning(f"   ⏱️ Web search timed out after 5 seconds")
             except Exception as e:
                 logger.error(f"   ❌ Web search error: {e}")
 
         # Try to use project knowledge when Perplexity not available
-        project_knowledge = self._get_project_knowledge(query)
+        project_knowledge = await self._get_project_knowledge(query)
 
         if project_knowledge:
             logger.info("   ✅ Found relevant project knowledge")
@@ -435,11 +473,11 @@ class ResearchAgent:
 
         return errors
 
-    def _get_project_knowledge(self, query: str) -> str | None:
+    async def _get_project_knowledge(self, query: str) -> str | None:
         """
         Search for knowledge from previous project work.
 
-        This should search:
+        This searches:
         1. Previous Research results (cached)
         2. Architecture decisions from Architect
         3. Code documentation from Codesmith
@@ -447,16 +485,167 @@ class ResearchAgent:
 
         Returns None if no relevant knowledge found.
         """
-        # TODO: Integrate with actual knowledge sources:
-        # - backend/memory/memory_system_v6.py
-        # - backend/cognitive/learning_system_v6.py
-        # - Cached research results
-        # - Architecture documents
-
         logger.info(f"   🔍 Searching project knowledge for: {query[:50]}...")
 
-        # For now, return None - no hardcoded knowledge!
+        if not self.workspace_path:
+            logger.debug("   No workspace path - cannot search project knowledge")
+            return None
+
+        knowledge_parts = []
+
+        try:
+            # Lazy initialize Memory System
+            if not self.memory_system:
+                from backend.memory.memory_system_v6 import MemorySystem
+                self.memory_system = MemorySystem(self.workspace_path)
+                await self.memory_system.initialize()
+                logger.debug("   ✅ Memory System initialized")
+
+            # 1. Search for previous research results
+            research_results = await self.memory_system.search(
+                query=query,
+                filters={"agent": "research"},
+                k=3
+            )
+
+            if research_results:
+                logger.info(f"   📚 Found {len(research_results)} previous research results")
+                for result in research_results:
+                    knowledge_parts.append(
+                        f"Previous Research (similarity: {result['similarity']:.2f}):\n"
+                        f"{result['content']}"
+                    )
+
+            # 2. Search for architecture decisions
+            arch_results = await self.memory_system.search(
+                query=query,
+                filters={"agent": "architect"},
+                k=2
+            )
+
+            if arch_results:
+                logger.info(f"   🏗️ Found {len(arch_results)} architecture decisions")
+                for result in arch_results:
+                    knowledge_parts.append(
+                        f"Architecture Decision:\n{result['content']}"
+                    )
+
+            # 3. Search for code documentation
+            code_docs = await self.memory_system.search(
+                query=query,
+                filters={"agent": "codesmith"},
+                k=2
+            )
+
+            if code_docs:
+                logger.info(f"   📝 Found {len(code_docs)} code documentations")
+                for result in code_docs:
+                    knowledge_parts.append(
+                        f"Code Documentation:\n{result['content']}"
+                    )
+
+            # 4. Get insights from Learning System
+            if not self.learning_system:
+                from backend.cognitive.learning_system_v6 import LearningSystemV6
+                self.learning_system = LearningSystemV6(memory=self.memory_system)
+                logger.debug("   ✅ Learning System initialized")
+
+            # Try to detect project type from query
+            project_type = self._detect_project_type(query)
+            suggestions = await self.learning_system.suggest_optimizations(
+                task_description=query,
+                project_type=project_type
+            )
+
+            if suggestions and suggestions["based_on"] > 0:
+                logger.info(f"   🧠 Found learning insights from {suggestions['based_on']} similar tasks")
+                knowledge_parts.append(
+                    f"Learning System Insights (based on {suggestions['based_on']} similar tasks):\n"
+                    + "\n".join(f"- {s}" for s in suggestions["suggestions"])
+                )
+
+        except Exception as e:
+            logger.warning(f"   ⚠️ Error searching project knowledge: {e}")
+
+        # Combine all knowledge parts
+        if knowledge_parts:
+            combined_knowledge = "\n\n---\n\n".join(knowledge_parts)
+            logger.info(f"   ✅ Compiled {len(knowledge_parts)} knowledge sources")
+            return combined_knowledge
+
+        logger.debug("   No relevant project knowledge found")
         return None
+
+    def _detect_project_type(self, query: str) -> str | None:
+        """
+        Detect project type from query text.
+
+        Returns:
+            Project type string or None
+        """
+        query_lower = query.lower()
+
+        # Common project type patterns
+        project_types = {
+            "calculator": ["calculator", "calculation", "math"],
+            "web_app": ["web app", "web application", "frontend", "website"],
+            "api": ["api", "rest", "endpoint", "backend service"],
+            "cli": ["cli", "command line", "terminal"],
+            "game": ["game", "gaming", "player"],
+            "ml": ["machine learning", "ml", "neural", "model training"],
+            "database": ["database", "sql", "postgres", "mongodb"]
+        }
+
+        for project_type, keywords in project_types.items():
+            if any(keyword in query_lower for keyword in keywords):
+                return project_type
+
+        return None
+
+    async def _cache_research_results(
+        self,
+        query: str,
+        results: list[dict[str, Any]]
+    ) -> None:
+        """
+        Cache research results in memory for future retrieval.
+
+        Args:
+            query: The original search query
+            results: The research results to cache
+        """
+        if not self.workspace_path or not results:
+            return
+
+        try:
+            # Ensure memory system is initialized
+            if not self.memory_system:
+                from backend.memory.memory_system_v6 import MemorySystem
+                self.memory_system = MemorySystem(self.workspace_path)
+                await self.memory_system.initialize()
+
+            # Store each result in memory with appropriate metadata
+            for result in results:
+                content = f"Query: {query}\n\n{result.get('title', '')}\n\n{result.get('summary', '')}"
+
+                # Add citations if available
+                if result.get('citations'):
+                    content += f"\n\nCitations: {', '.join(result['citations'])}"
+
+                metadata = {
+                    "agent": "research",
+                    "type": "research_result",
+                    "query": query,
+                    "timestamp": result.get('timestamp', datetime.now().isoformat()),
+                    "has_citations": bool(result.get('citations')),
+                    "source": "perplexity_api"
+                }
+
+                await self.memory_system.store(content=content, metadata=metadata)
+                logger.debug(f"   💾 Cached research result in memory")
+
+        except Exception as e:
+            logger.warning(f"   ⚠️ Failed to cache research results: {e}")
 
 
 # ============================================================================

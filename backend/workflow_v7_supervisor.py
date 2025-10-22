@@ -149,8 +149,8 @@ async def research_node(state: SupervisorState) -> Command:
     instructions = state.get("instructions", "")
     workspace_path = state.get("workspace_path", "")
 
-    # Initialize agent
-    agent = ResearchAgent()
+    # Initialize agent with workspace path for memory access
+    agent = ResearchAgent(workspace_path=workspace_path)
 
     # Execute with supervisor instructions
     result = await agent.execute({
