@@ -227,13 +227,18 @@ class ResearchAgent:
             except Exception as e:
                 logger.error(f"   ❌ Web search error: {e}")
 
-        # Fallback response when Perplexity not available
-        # Provide basic information based on query
+        # Fallback when Perplexity not available
+        # Use HARDCODED responses for common queries (not real research!)
+        logger.warning("   ⚠️ Web search unavailable - using hardcoded fallback")
+
         fallback_info = self._get_fallback_info(query)
+
         return [{
-            "title": "Fallback Information (Web Search Unavailable)",
+            "title": "⚠️ Hardcoded Response (No Web Search)",
             "summary": fallback_info,
-            "note": "Web search timed out or unavailable. Using local knowledge base.",
+            "note": "IMPORTANT: This is NOT from web search. It's a hardcoded response from the agent's code.",
+            "warning": "Perplexity API timed out. Using static, potentially outdated information.",
+            "is_fallback": True,
             "timestamp": datetime.now().isoformat()
         }]
 
@@ -426,7 +431,11 @@ class ResearchAgent:
 
     def _get_fallback_info(self, query: str) -> str:
         """
-        Provide fallback information when web search is unavailable.
+        HARDCODED fallback responses for common queries.
+
+        WARNING: This is NOT real research! Just static text in the code.
+        Only covers: async/await, FastAPI, React
+        Everything else gets a generic "search failed" message.
         """
         query_lower = query.lower()
 
@@ -497,15 +506,19 @@ Key concepts:
 - Virtual DOM for performance"""
 
         else:
-            # Generic fallback
-            return f"""Information about '{query[:100]}' would typically be gathered from web sources.
+            # Generic fallback - BE HONEST
+            return f"""❌ NO HARDCODED RESPONSE AVAILABLE
 
-Currently using offline knowledge base due to API timeout.
-For comprehensive information, consider:
-1. Official documentation
-2. Technical blogs and tutorials
-3. Community forums and discussions
-4. Recent best practices guides"""
+Query: '{query[:100]}'
+
+This agent has hardcoded responses for only 3 topics:
+- Python async/await
+- FastAPI basics
+- React basics
+
+Your query doesn't match any of these. Without Perplexity API access,
+I cannot provide real research. The supervisor will need to make decisions
+without research context, using only its general knowledge."""
 
 
 # ============================================================================
