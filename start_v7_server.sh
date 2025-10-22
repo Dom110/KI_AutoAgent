@@ -46,10 +46,17 @@ fi
 
 echo -e "${GREEN}✅ Python version: $PYTHON_VERSION${NC}"
 
-# Install/update requirements
+# Check if requirements are already satisfied
 echo "📚 Checking requirements..."
 pip install -q --upgrade pip
-pip install -q -r requirements.txt
+
+# Only install if langgraph is not already installed
+if ! python -c "import langgraph" 2>/dev/null; then
+    echo "📦 Installing requirements..."
+    pip install -q -r requirements.txt
+else
+    echo "✅ Requirements already satisfied"
+fi
 
 # Load environment variables if .env exists
 ENV_FILE="$HOME/.ki_autoagent/config/.env"

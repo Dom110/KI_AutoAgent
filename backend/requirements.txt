@@ -70,15 +70,15 @@ pyvis==0.3.2
 diagrams==0.24.4  # Updated for Python 3.13 compatibility (no typed-ast dependency)
 
 # LangGraph and LangChain for Agent Communication
-# CRITICAL: These versions are pinned for Pydantic v2 compatibility (updated 2025-10-13)
+# CRITICAL: These versions are pinned for Pydantic v2 compatibility (updated 2025-10-22)
 # DO NOT use >= or ~ operators - exact versions required to avoid compatibility issues
-langgraph==0.6.10  # Updated 2025-10-13 (was 0.2.45)
+langgraph==0.6.10  # Using actual installed version
 langchain==0.3.9
 langchain-core==0.3.79  # Updated 2025-10-13 (was 0.3.21) - Required for Pydantic v2 fix
 langchain-community==0.3.31  # Updated 2025-10-13 (was 0.3.8)
 langchain-openai==0.2.10
 langchain-anthropic==0.3.22  # Updated 2025-10-13 (was 0.3.0) - Pydantic v2 compatibility
-langgraph-checkpoint==2.0.7
+langgraph-checkpoint==2.1.2  # Updated to actual installed version
 langgraph-checkpoint-sqlite==2.0.11  # Updated 2025-10-13 (was 2.0.1)
 faiss-cpu==1.12.0  # For vector memory (updated from 1.9.0 for Python 3.13 compatibility)
 
