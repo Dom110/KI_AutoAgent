@@ -105,6 +105,41 @@ if _env_loaded:
 else:
     logger.warning(f"⚠️ .env not found at: {global_env}")
 
+# Validate API keys on startup
+def validate_api_keys():
+    """Validate required API keys and test connectivity."""
+    logger.info("🔑 Validating API keys...")
+
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    perplexity_key = os.environ.get("PERPLEXITY_API_KEY")
+
+    if not openai_key or openai_key == "":
+        logger.error("❌ OPENAI_API_KEY not set or empty!")
+        logger.error("   Required for: GPT-4o Supervisor, Embeddings")
+        logger.error("   Set in: ~/.ki_autoagent/config/.env")
+        sys.exit(1)
+
+    # Test OpenAI connection
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=openai_key)
+        client.models.list()  # Quick API test
+        logger.info("✅ OPENAI_API_KEY: Valid")
+    except Exception as e:
+        logger.error(f"❌ OPENAI_API_KEY: Invalid - {str(e)[:80]}")
+        logger.error("   Update your key in: ~/.ki_autoagent/config/.env")
+        sys.exit(1)
+
+    if not perplexity_key or perplexity_key == "":
+        logger.warning("⚠️ PERPLEXITY_API_KEY not set - web research will use fallback")
+    else:
+        logger.info("✅ PERPLEXITY_API_KEY: Set (validation skipped)")
+
+    logger.info("🔑 API key validation complete")
+
+# Run validation
+validate_api_keys()
+
 
 # ============================================================================
 # CONNECTION MANAGER

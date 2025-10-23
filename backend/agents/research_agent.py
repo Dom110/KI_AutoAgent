@@ -254,7 +254,7 @@ class ResearchAgent:
                 import asyncio
                 result = await asyncio.wait_for(
                     self.perplexity_service.search_web(query),
-                    timeout=5.0  # 5 second timeout
+                    timeout=30.0  # 30 second timeout
                 )
 
                 web_results = [{
