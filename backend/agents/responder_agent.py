@@ -190,8 +190,17 @@ I've identified and addressed the issues:
 
         if "components" in architecture:
             parts.append("\n**Components:**")
-            for component in architecture["components"]:
-                parts.append(f"- **{component['name']}**: {component['description']}")
+            components = architecture["components"]
+            # Handle both list of dicts and list of strings
+            for component in components:
+                if isinstance(component, dict):
+                    name = component.get('name', 'Unknown')
+                    desc = component.get('description', '')
+                    parts.append(f"- **{name}**: {desc}")
+                elif isinstance(component, str):
+                    parts.append(f"- {component}")
+                else:
+                    parts.append(f"- {str(component)}")
 
         if "file_structure" in architecture:
             parts.append("\n**File Structure:**")

@@ -30,6 +30,8 @@ from langgraph.types import Command
 from langgraph.graph import END
 from pydantic import BaseModel, Field
 
+from backend.utils.rate_limiter import wait_for_provider
+
 # Setup logging
 logger = logging.getLogger(__name__)
 
@@ -172,6 +174,11 @@ class Supervisor:
 
         # Get structured decision from LLM
         try:
+            # ⏱️ RATE LIMITING: Wait if needed to respect rate limits
+            wait_time = await wait_for_provider("openai")
+            if wait_time > 0:
+                logger.debug(f"⏸️ Rate limit: waited {wait_time:.2f}s for Supervisor decision")
+
             decision = await self.llm.with_structured_output(
                 SupervisorDecision
             ).ainvoke([

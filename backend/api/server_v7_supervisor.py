@@ -140,6 +140,93 @@ def validate_api_keys():
 # Run validation
 validate_api_keys()
 
+# ============================================================================
+# AI FACTORY - Register Providers
+# ============================================================================
+logger.info("🏭 Registering AI providers...")
+
+# Import providers to trigger registration
+try:
+    from backend.utils import openai_provider
+    from backend.utils import claude_cli_service
+    from backend.utils import perplexity_provider
+    logger.info("✅ AI providers registered")
+except Exception as e:
+    logger.error(f"❌ Failed to register AI providers: {e}")
+    sys.exit(1)
+
+# Validate all active AI providers
+logger.info("🔍 Validating active AI providers...")
+try:
+    from backend.utils.ai_factory import AIFactory
+
+    # Define agent configurations
+    agent_configs = {
+        "research": os.getenv("RESEARCH_AI_PROVIDER"),
+        "architect": os.getenv("ARCHITECT_AI_PROVIDER"),
+        "codesmith": os.getenv("CODESMITH_AI_PROVIDER"),
+        "reviewfix": os.getenv("REVIEWFIX_AI_PROVIDER")
+    }
+
+    # Validate each configured agent
+    validation_failed = False
+    for agent_name, provider_name in agent_configs.items():
+        if not provider_name:
+            logger.error(f"❌ {agent_name.upper()}_AI_PROVIDER not configured!")
+            logger.error(f"   Set {agent_name.upper()}_AI_PROVIDER in ~/.ki_autoagent/config/.env")
+            validation_failed = True
+            continue
+
+        # Get model config
+        model_key = f"{agent_name.upper()}_AI_MODEL"
+        model = os.getenv(model_key)
+
+        if not model:
+            logger.warning(f"⚠️ {model_key} not set - using provider default")
+
+        # Validate provider
+        try:
+            provider = AIFactory.get_provider_for_agent(agent_name)
+            logger.info(f"✅ {agent_name.title()}: {provider.provider_name} ({provider.model})")
+
+            # Run validation check
+            import asyncio
+            is_valid, message = asyncio.run(provider.validate_connection())
+
+            if not is_valid:
+                logger.error(f"❌ {agent_name.title()} provider validation failed: {message}")
+                validation_failed = True
+            else:
+                logger.info(f"   ✓ Connection validated: {message}")
+
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize {agent_name} provider: {e}")
+            validation_failed = True
+
+    if validation_failed:
+        logger.error("\n" + "=" * 60)
+        logger.error("AI PROVIDER VALIDATION FAILED")
+        logger.error("=" * 60)
+        logger.error("Please check your ~/.ki_autoagent/config/.env file")
+        logger.error("Required settings:")
+        logger.error("  RESEARCH_AI_PROVIDER=perplexity")
+        logger.error("  ARCHITECT_AI_PROVIDER=openai")
+        logger.error("  CODESMITH_AI_PROVIDER=claude-cli")
+        logger.error("  REVIEWFIX_AI_PROVIDER=claude-cli")
+        logger.error("")
+        logger.error("  RESEARCH_AI_MODEL=sonar")
+        logger.error("  ARCHITECT_AI_MODEL=gpt-4o-2024-11-20")
+        logger.error("  CODESMITH_AI_MODEL=claude-sonnet-4-20250514")
+        logger.error("  REVIEWFIX_AI_MODEL=claude-sonnet-4-20250514")
+        logger.error("=" * 60)
+        sys.exit(1)
+
+    logger.info("✅ All AI providers validated successfully")
+
+except Exception as e:
+    logger.error(f"❌ AI provider validation failed: {e}")
+    sys.exit(1)
+
 
 # ============================================================================
 # CONNECTION MANAGER

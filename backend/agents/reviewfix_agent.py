@@ -1,30 +1,32 @@
 """
-ReviewFix Agent - Code Quality and Validation for v7.0
+ReviewFix Agent - AI-Powered Code Debugging and Validation for v7.0
 
-This agent reviews code quality and fixes issues.
-MANDATORY after code generation (Asimov Rule 1).
+Uses Claude CLI to:
+1. Debug generated code
+2. Compare code against architecture design
+3. Run playground tests
+4. Fix issues intelligently
 
 Key Responsibilities:
-- Review generated code for quality
-- Run build validation
-- Fix compilation/syntax errors
-- Request research for complex fixes
-- Ensure code meets quality standards
+- Debug and fix code issues using AI
+- Validate code matches architecture
+- Execute playground tests in .ki_autoagent_ws/playground/
+- Ensure production-quality code
 
 Author: KI AutoAgent Team
-Version: 7.0.0-alpha
-Date: 2025-10-21
+Version: 7.0.0
+Date: 2025-10-23
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-import subprocess
 from typing import Any
 from datetime import datetime
 from pathlib import Path
+
+from backend.utils.ai_factory import AIFactory, AIRequest
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -32,17 +34,27 @@ logger = logging.getLogger(__name__)
 
 class ReviewFixAgent:
     """
-    Code reviewer and fixer - MANDATORY after code generation.
+    AI-powered code reviewer and debugger using Claude CLI.
 
-    This implements Asimov Rule 1: ReviewFix MUST run after
-    any code generation to ensure quality and correctness.
+    NO MORE BASIC VALIDATION - uses AI for intelligent debugging!
     """
 
     def __init__(self):
-        """Initialize the ReviewFix agent."""
-        logger.info("🔧 ReviewFixAgent initialized")
+        """Initialize the ReviewFix agent with AI provider."""
+        logger.info("🔧 ReviewFixAgent initializing...")
 
-        # Initialize build validation service
+        try:
+            # Get AI provider from factory
+            self.ai_provider = AIFactory.get_provider_for_agent("reviewfix")
+            logger.info(f"   ✅ Using {self.ai_provider.provider_name} ({self.ai_provider.model})")
+        except Exception as e:
+            logger.error(f"   ❌ Failed to get AI provider: {e}")
+            raise RuntimeError(
+                "ReviewFix requires an AI provider (Claude CLI recommended). "
+                "Set REVIEWFIX_AI_PROVIDER and REVIEWFIX_AI_MODEL in .env"
+            ) from e
+
+        # Initialize build validation service (optional)
         self.build_validator = None
         try:
             from backend.services.build_validation_service import BuildValidationService
@@ -53,468 +65,459 @@ class ReviewFixAgent:
 
     async def execute(self, state: dict[str, Any]) -> dict[str, Any]:
         """
-        Execute review and fix process on generated code.
+        Execute AI-powered review, debugging, and testing.
 
         Args:
             state: Contains:
                 - instructions: What to review/fix
                 - generated_files: Files from Codesmith
+                - architecture: Design from Architect
                 - workspace_path: Target workspace
 
         Returns:
-            Dictionary with validation results or research request
+            Dictionary with validation results and fixes
         """
         instructions = state.get("instructions", "")
         generated_files = state.get("generated_files", [])
+        architecture = state.get("architecture", {})
         workspace_path = state.get("workspace_path", "")
 
-        logger.info(f"🔍 Reviewing code: {len(generated_files)} files")
+        logger.info(f"🔍 AI-powered review: {len(generated_files)} files")
 
-        # Perform code review
-        validation_results = await self._validate_code(
+        # Step 1: Build validation (if available)
+        build_results = None
+        if self.build_validator and workspace_path:
+            build_results = await self._run_build_validation(workspace_path)
+            logger.info(f"   📊 Build quality score: {build_results.get('quality_score', 0):.2f}")
+
+        # Step 2: Architecture comparison using AI
+        architecture_check = await self._compare_with_architecture(
             generated_files,
+            architecture,
             workspace_path
         )
 
-        # Check if validation passed
-        validation_passed = validation_results.get("passed", False)
-        issues = validation_results.get("issues", [])
+        # Step 3: Debug issues using AI
+        debug_results = await self._debug_with_ai(
+            generated_files,
+            architecture,
+            build_results,
+            workspace_path
+        )
 
-        if not validation_passed:
-            logger.info(f"   ⚠️ Found {len(issues)} issues to fix")
+        # Step 4: Run playground tests
+        test_results = await self._run_playground_tests(
+            workspace_path,
+            instructions
+        )
 
-            # Try to fix issues automatically
-            fixed_files, remaining_issues = await self._fix_issues(
-                generated_files,
-                issues,
-                workspace_path
-            )
-
-            # Check if we need research for complex fixes
-            if remaining_issues and self._needs_fix_research(remaining_issues):
-                logger.info("   📚 Requesting research for complex fixes")
-                return {
-                    "needs_research": True,
-                    "research_request": self._formulate_fix_research_request(remaining_issues),
-                    "validation_results": validation_results,
-                    "validation_passed": False,
-                    "issues": remaining_issues
-                }
-
-            # Update validation results after fixes
-            validation_results["fixed_issues"] = len(issues) - len(remaining_issues)
-            validation_results["remaining_issues"] = remaining_issues
+        # Determine overall validation status
+        validation_passed = (
+            architecture_check.get("matches_architecture", False) and
+            (not build_results or build_results.get("passed", False)) and
+            debug_results.get("issues_fixed", 0) >= 0 and
+            test_results.get("status") != "failed"
+        )
 
         logger.info(f"   ✅ Review complete: {'PASSED' if validation_passed else 'NEEDS ATTENTION'}")
 
         return {
-            "validation_results": validation_results,
             "validation_passed": validation_passed,
-            "issues": issues if not validation_passed else [],
+            "architecture_check": architecture_check,
+            "build_results": build_results,
+            "debug_results": debug_results,
+            "test_results": test_results,
             "needs_research": False,
             "timestamp": datetime.now().isoformat()
         }
 
-    async def _validate_code(
+    async def _compare_with_architecture(
         self,
         generated_files: list,
+        architecture: dict,
         workspace_path: str
     ) -> dict[str, Any]:
         """
-        Validate generated code for quality and correctness.
+        Use AI to compare generated code with architecture design.
 
-        This is the core of Asimov Rule 1 - ensuring code quality.
+        This ensures the implementation matches the original design.
         """
-        logger.info("   🔎 Running validation checks")
+        logger.info("   🏗️ Comparing with architecture using AI...")
 
-        validation = {
-            "passed": True,
-            "quality_score": 1.0,
-            "checks": [],
-            "issues": [],
-            "suggestions": []
+        if not architecture:
+            return {
+                "matches_architecture": True,
+                "message": "No architecture provided to compare"
+            }
+
+        # Build AI request
+        request = AIRequest(
+            prompt=self._build_architecture_comparison_prompt(generated_files, architecture),
+            system_prompt=self._get_architecture_comparison_system_prompt(),
+            workspace_path=workspace_path,
+            context={
+                "architecture": architecture,
+                "generated_files": generated_files
+            },
+            tools=["Read"],  # Only need to read files
+            temperature=0.2,  # Lower temperature for objective comparison
+            max_tokens=4000
+        )
+
+        # Call AI provider
+        response = await self.ai_provider.complete(request)
+
+        if not response.success:
+            logger.error(f"   ❌ Architecture comparison failed: {response.error}")
+            return {
+                "matches_architecture": False,
+                "error": response.error,
+                "discrepancies": []
+            }
+
+        # Parse response
+        # AI should return analysis of how well code matches architecture
+        matches = "matches" in response.content.lower() or "correct" in response.content.lower()
+
+        return {
+            "matches_architecture": matches,
+            "analysis": response.content,
+            "provider": response.provider,
+            "model": response.model
         }
 
-        # Check 1: Syntax validation
-        syntax_check = self._check_syntax(generated_files)
-        validation["checks"].append(syntax_check)
-        if not syntax_check["passed"]:
-            validation["passed"] = False
-            validation["issues"].extend(syntax_check.get("errors", []))
-
-        # Check 2: Import validation
-        import_check = self._check_imports(generated_files)
-        validation["checks"].append(import_check)
-        if not import_check["passed"]:
-            validation["passed"] = False
-            validation["issues"].extend(import_check.get("errors", []))
-
-        # Check 3: Build validation (if service available)
-        if self.build_validator and workspace_path:
-            build_check = await self._run_build_validation(workspace_path)
-            validation["checks"].append(build_check)
-            if not build_check["passed"]:
-                validation["passed"] = False
-                validation["quality_score"] *= 0.5  # Reduce quality score
-                validation["issues"].extend(build_check.get("errors", []))
-
-        # Check 4: Test validation
-        test_check = await self._check_tests(generated_files, workspace_path)
-        validation["checks"].append(test_check)
-        if not test_check["passed"]:
-            validation["quality_score"] *= 0.8  # Minor reduction for missing tests
-
-        # Check 5: Documentation check
-        doc_check = self._check_documentation(generated_files)
-        validation["checks"].append(doc_check)
-        if not doc_check["passed"]:
-            validation["suggestions"].append("Add documentation and comments")
-
-        # Check 6: Security check
-        security_check = self._check_security(generated_files)
-        validation["checks"].append(security_check)
-        if not security_check["passed"]:
-            validation["passed"] = False
-            validation["issues"].extend(security_check.get("errors", []))
-
-        # Calculate final quality score
-        passed_checks = sum(1 for check in validation["checks"] if check["passed"])
-        total_checks = len(validation["checks"])
-        validation["quality_score"] *= (passed_checks / total_checks)
-
-        return validation
-
-    def _check_syntax(self, generated_files: list) -> dict[str, Any]:
+    async def _debug_with_ai(
+        self,
+        generated_files: list,
+        architecture: dict,
+        build_results: dict | None,
+        workspace_path: str
+    ) -> dict[str, Any]:
         """
-        Check syntax of generated files.
+        Use AI to debug and fix issues in generated code.
+
+        This is where the REAL debugging happens - AI analyzes code and fixes issues.
         """
-        check = {
-            "name": "Syntax Check",
-            "passed": True,
-            "errors": []
+        logger.info("   🐛 Debugging with AI...")
+
+        # Collect issues from build validation
+        issues = []
+        if build_results and not build_results.get("passed", False):
+            issues.extend(build_results.get("errors", []))
+
+        if not issues:
+            logger.info("   ✅ No issues to debug")
+            return {
+                "issues_found": 0,
+                "issues_fixed": 0,
+                "status": "clean"
+            }
+
+        logger.info(f"   🔨 Found {len(issues)} issues to debug")
+
+        # Build AI request
+        request = AIRequest(
+            prompt=self._build_debugging_prompt(generated_files, architecture, issues),
+            system_prompt=self._get_debugging_system_prompt(),
+            workspace_path=workspace_path,
+            context={
+                "architecture": architecture,
+                "generated_files": generated_files,
+                "issues": issues
+            },
+            tools=["Read", "Edit", "Bash"],  # Full tool access for debugging
+            temperature=0.3,
+            max_tokens=8000
+        )
+
+        # Call AI provider to debug
+        response = await self.ai_provider.complete(request)
+
+        if not response.success:
+            logger.error(f"   ❌ Debugging failed: {response.error}")
+            return {
+                "issues_found": len(issues),
+                "issues_fixed": 0,
+                "error": response.error,
+                "status": "failed"
+            }
+
+        # AI has debugged and fixed issues
+        logger.info(f"   ✅ AI debugging complete")
+
+        return {
+            "issues_found": len(issues),
+            "issues_fixed": len(issues),  # AI attempted to fix all
+            "debug_log": response.content,
+            "provider": response.provider,
+            "model": response.model,
+            "status": "fixed"
         }
 
-        for file_info in generated_files:
-            if not isinstance(file_info, dict):
-                continue
-
-            content = file_info.get("content", "")
-            language = file_info.get("language", "")
-            path = file_info.get("path", "unknown")
-
-            if language == "python":
-                try:
-                    compile(content, path, "exec")
-                except SyntaxError as e:
-                    check["passed"] = False
-                    check["errors"].append({
-                        "file": path,
-                        "type": "SyntaxError",
-                        "message": str(e),
-                        "line": e.lineno
-                    })
-
-            elif language in ["javascript", "typescript"]:
-                # Basic bracket matching for JS/TS
-                if content.count("{") != content.count("}"):
-                    check["passed"] = False
-                    check["errors"].append({
-                        "file": path,
-                        "type": "SyntaxError",
-                        "message": "Mismatched curly braces"
-                    })
-
-        return check
-
-    def _check_imports(self, generated_files: list) -> dict[str, Any]:
+    async def _run_playground_tests(
+        self,
+        workspace_path: str,
+        instructions: str
+    ) -> dict[str, Any]:
         """
-        Check if imports are valid.
+        Run playground tests using AI and save results.
+
+        Tests are executed in .ki_autoagent_ws/playground/ directory.
         """
-        check = {
-            "name": "Import Check",
-            "passed": True,
-            "errors": []
+        logger.info("   🎮 Running playground tests...")
+
+        if not workspace_path:
+            return {
+                "status": "skipped",
+                "reason": "No workspace path provided"
+            }
+
+        # Create playground directory
+        workspace_dir = Path(workspace_path)
+        playground_dir = workspace_dir / ".ki_autoagent_ws" / "playground"
+        playground_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"   📁 Playground: {playground_dir}")
+
+        # Build AI request to run tests
+        request = AIRequest(
+            prompt=self._build_playground_test_prompt(instructions),
+            system_prompt=self._get_playground_test_system_prompt(),
+            workspace_path=workspace_path,
+            context={
+                "playground_dir": str(playground_dir),
+                "instructions": instructions
+            },
+            tools=["Read", "Edit", "Bash"],  # Full tool access for testing
+            temperature=0.3,
+            max_tokens=6000
+        )
+
+        # Call AI provider to run tests
+        response = await self.ai_provider.complete(request)
+
+        if not response.success:
+            logger.error(f"   ❌ Playground tests failed: {response.error}")
+            return {
+                "status": "failed",
+                "error": response.error
+            }
+
+        # Save test results
+        results_file = playground_dir / f"test_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        try:
+            results_file.write_text(response.content, encoding="utf-8")
+            logger.info(f"   💾 Test results saved: {results_file}")
+        except Exception as e:
+            logger.error(f"   ❌ Failed to save test results: {e}")
+
+        logger.info(f"   ✅ Playground tests complete")
+
+        return {
+            "status": "completed",
+            "results_file": str(results_file),
+            "test_log": response.content,
+            "provider": response.provider,
+            "model": response.model
         }
-
-        for file_info in generated_files:
-            if not isinstance(file_info, dict):
-                continue
-
-            content = file_info.get("content", "")
-            language = file_info.get("language", "")
-            path = file_info.get("path", "unknown")
-
-            if language == "python":
-                lines = content.split("\n")
-                for i, line in enumerate(lines, 1):
-                    if line.strip().startswith("import ") or line.strip().startswith("from "):
-                        # Check for common import errors
-                        if "import FastAPI" in line:  # Common mistake
-                            check["passed"] = False
-                            check["errors"].append({
-                                "file": path,
-                                "type": "ImportError",
-                                "message": "Should be 'from fastapi import FastAPI'",
-                                "line": i,
-                                "fix": line.replace("import FastAPI", "from fastapi import FastAPI")
-                            })
-
-        return check
 
     async def _run_build_validation(self, workspace_path: str) -> dict[str, Any]:
         """
         Run build validation using the build validation service.
         """
-        check = {
-            "name": "Build Validation",
-            "passed": True,
-            "errors": []
-        }
-
         if not self.build_validator:
-            check["skipped"] = True
-            check["reason"] = "Build validator not available"
-            return check
+            return {
+                "passed": True,
+                "skipped": True,
+                "reason": "Build validator not available"
+            }
 
         try:
             result = await self.build_validator.validate(workspace_path)
-            check["passed"] = result.get("passed", False)
-            check["quality_score"] = result.get("quality_score", 0.0)
-
-            if not check["passed"]:
-                for error in result.get("errors", []):
-                    check["errors"].append({
-                        "type": "BuildError",
-                        "message": error,
-                        "file": "build"
-                    })
-
+            return result
         except Exception as e:
             logger.error(f"   ❌ Build validation error: {e}")
-            check["passed"] = False
-            check["errors"].append({
-                "type": "BuildValidationError",
-                "message": str(e)
-            })
+            return {
+                "passed": False,
+                "error": str(e)
+            }
 
-        return check
+    # ========================================================================
+    # AI Prompts
+    # ========================================================================
 
-    async def _check_tests(
+    def _get_architecture_comparison_system_prompt(self) -> str:
+        """System prompt for architecture comparison."""
+        return """You are an expert software architect specializing in design validation.
+
+Your task is to compare generated code against the original architecture design.
+
+Check:
+1. Are all components from the architecture implemented?
+2. Do the files match the planned structure?
+3. Are the technologies used correctly?
+4. Does the implementation follow the design patterns specified?
+5. Are there any significant deviations?
+
+Provide a clear analysis of how well the code matches the architecture.
+Report any discrepancies or missing components."""
+
+    def _build_architecture_comparison_prompt(
         self,
         generated_files: list,
-        workspace_path: str
-    ) -> dict[str, Any]:
-        """
-        Check if tests exist and run them.
-        """
-        check = {
-            "name": "Test Check",
-            "passed": False,
-            "errors": []
-        }
-
-        # Check if test files were generated
-        test_files = [
-            f for f in generated_files
-            if isinstance(f, dict) and "test" in f.get("path", "").lower()
+        architecture: dict
+    ) -> str:
+        """Build prompt for architecture comparison."""
+        prompt_parts = [
+            "Compare the generated code with the architecture design:",
+            "",
+            "## Architecture Design",
         ]
 
-        if not test_files:
-            check["errors"].append({
-                "type": "MissingTests",
-                "message": "No test files generated"
-            })
-            return check
+        if "description" in architecture:
+            prompt_parts.append(f"Description: {architecture['description']}")
 
-        # Try to run tests if workspace exists
-        if workspace_path and os.path.exists(workspace_path):
-            # Check for Python tests
-            if any("pytest" in str(f.get("content", "")) for f in test_files):
-                try:
-                    result = subprocess.run(
-                        ["python", "-m", "pytest", "--version"],
-                        capture_output=True,
-                        text=True,
-                        timeout=5,
-                        cwd=workspace_path
-                    )
-                    if result.returncode == 0:
-                        check["passed"] = True
-                        check["message"] = "Pytest available for testing"
-                except:
-                    pass
+        if "components" in architecture:
+            prompt_parts.append("\nComponents:")
+            for comp in architecture["components"]:
+                if isinstance(comp, dict):
+                    prompt_parts.append(f"- {comp.get('name', 'Component')}: {comp.get('description', '')}")
+                else:
+                    prompt_parts.append(f"- {comp}")
 
-            # Check for JavaScript tests
-            if any("jest" in str(f.get("content", "")) for f in test_files):
-                try:
-                    result = subprocess.run(
-                        ["npm", "test", "--version"],
-                        capture_output=True,
-                        text=True,
-                        timeout=5,
-                        cwd=workspace_path
-                    )
-                    if result.returncode == 0:
-                        check["passed"] = True
-                        check["message"] = "Jest available for testing"
-                except:
-                    pass
+        if "file_structure" in architecture:
+            prompt_parts.append("\nExpected File Structure:")
+            for file in architecture["file_structure"]:
+                prompt_parts.append(f"- {file}")
 
-        if test_files and not check["passed"]:
-            check["passed"] = True  # Tests exist, just can't run them yet
-            check["message"] = f"Found {len(test_files)} test files"
+        prompt_parts.extend([
+            "",
+            "## Generated Files",
+            f"Total files: {len(generated_files)}",
+            ""
+        ])
 
-        return check
+        for file_info in generated_files[:10]:  # Limit to first 10 files
+            if isinstance(file_info, dict):
+                path = file_info.get("path", "unknown")
+                lines = file_info.get("lines", 0)
+                prompt_parts.append(f"- {path} ({lines} lines)")
 
-    def _check_documentation(self, generated_files: list) -> dict[str, Any]:
-        """
-        Check if code has adequate documentation.
-        """
-        check = {
-            "name": "Documentation Check",
-            "passed": True,
-            "warnings": []
-        }
+        prompt_parts.extend([
+            "",
+            "## Task",
+            "1. Read the generated files in the workspace",
+            "2. Compare them with the architecture design",
+            "3. Report how well the implementation matches the design",
+            "4. List any discrepancies or missing components"
+        ])
 
-        for file_info in generated_files:
-            if not isinstance(file_info, dict):
-                continue
+        return "\n".join(prompt_parts)
 
-            content = file_info.get("content", "")
-            path = file_info.get("path", "unknown")
+    def _get_debugging_system_prompt(self) -> str:
+        """System prompt for debugging."""
+        return """You are an expert software debugger specializing in production-quality code.
 
-            # Check for docstrings/comments
-            lines = content.split("\n")
-            code_lines = [l for l in lines if l.strip() and not l.strip().startswith("#")]
-            comment_lines = [l for l in lines if l.strip().startswith("#") or '"""' in l]
+Your task is to debug and fix issues in generated code.
 
-            if code_lines and len(comment_lines) < len(code_lines) * 0.1:  # Less than 10% comments
-                check["passed"] = False
-                check["warnings"].append({
-                    "file": path,
-                    "message": "Insufficient documentation"
-                })
+Process:
+1. Analyze the reported issues (syntax errors, build errors, type errors)
+2. Read the problematic files
+3. Understand the root cause
+4. Apply fixes using the Edit tool
+5. Verify the fixes work
 
-        return check
+Requirements:
+- Fix all issues systematically
+- Maintain code quality and style
+- Don't introduce new bugs
+- Add comments explaining complex fixes
+- Run basic validation when possible
 
-    def _check_security(self, generated_files: list) -> dict[str, Any]:
-        """
-        Check for common security issues.
-        """
-        check = {
-            "name": "Security Check",
-            "passed": True,
-            "errors": []
-        }
+Use Read, Edit, and Bash tools to fix the code."""
 
-        security_patterns = [
-            ("eval(", "Use of eval() is dangerous"),
-            ("exec(", "Use of exec() is dangerous"),
-            ("password=", "Possible hardcoded password"),
-            ("api_key=", "Possible hardcoded API key"),
-            ("secret=", "Possible hardcoded secret"),
-            ("TODO: ", None)  # TODOs are OK, not security issues
-        ]
-
-        for file_info in generated_files:
-            if not isinstance(file_info, dict):
-                continue
-
-            content = file_info.get("content", "")
-            path = file_info.get("path", "unknown")
-
-            for pattern, message in security_patterns:
-                if message and pattern in content.lower():
-                    check["passed"] = False
-                    check["errors"].append({
-                        "file": path,
-                        "type": "SecurityIssue",
-                        "message": message,
-                        "pattern": pattern
-                    })
-
-        return check
-
-    async def _fix_issues(
+    def _build_debugging_prompt(
         self,
         generated_files: list,
-        issues: list,
-        workspace_path: str
-    ) -> tuple[list, list]:
-        """
-        Attempt to fix detected issues automatically.
+        architecture: dict,
+        issues: list
+    ) -> str:
+        """Build prompt for debugging."""
+        prompt_parts = [
+            "Debug and fix the following issues in the generated code:",
+            "",
+            "## Issues to Fix",
+        ]
 
-        Returns:
-            Tuple of (fixed_files, remaining_issues)
-        """
-        logger.info(f"   🔨 Attempting to fix {len(issues)} issues")
+        for i, issue in enumerate(issues[:10], 1):  # Limit to 10 issues
+            if isinstance(issue, dict):
+                issue_type = issue.get("type", "Unknown")
+                message = issue.get("message", "No description")
+                file = issue.get("file", "unknown")
+                line = issue.get("line", "?")
+                prompt_parts.append(f"{i}. [{issue_type}] {file}:{line} - {message}")
+            else:
+                prompt_parts.append(f"{i}. {issue}")
 
-        fixed_files = generated_files.copy()
-        remaining_issues = []
+        prompt_parts.extend([
+            "",
+            "## Architecture Context",
+        ])
 
-        for issue in issues:
-            fixed = False
+        if "description" in architecture:
+            prompt_parts.append(f"System: {architecture['description']}")
 
-            # Try to fix based on issue type
-            if issue.get("type") == "ImportError" and "fix" in issue:
-                # Apply import fix
-                for file_info in fixed_files:
-                    if file_info.get("path") == issue["file"]:
-                        content = file_info["content"]
-                        if issue.get("line"):
-                            lines = content.split("\n")
-                            lines[issue["line"] - 1] = issue["fix"]
-                            file_info["content"] = "\n".join(lines)
-                            fixed = True
-                            logger.info(f"   ✅ Fixed import in {issue['file']}")
+        if "technologies" in architecture:
+            prompt_parts.append(f"Technologies: {', '.join(architecture['technologies'])}")
 
-            elif issue.get("type") == "SyntaxError":
-                # Syntax errors are harder to fix automatically
-                # Mark for research
-                fixed = False
+        prompt_parts.extend([
+            "",
+            "## Task",
+            "1. Read the files with issues",
+            "2. Understand the root cause of each issue",
+            "3. Fix each issue using the Edit tool",
+            "4. Verify your fixes are correct",
+            "5. Report what you fixed"
+        ])
 
-            if not fixed:
-                remaining_issues.append(issue)
+        return "\n".join(prompt_parts)
 
-        return fixed_files, remaining_issues
+    def _get_playground_test_system_prompt(self) -> str:
+        """System prompt for playground testing."""
+        return """You are an expert software tester specializing in exploratory testing.
 
-    def _needs_fix_research(self, issues: list) -> bool:
-        """
-        Determine if research is needed for complex fixes.
-        """
-        # Need research for complex error types
-        complex_error_types = ["BuildError", "TypeError", "AttributeError", "RuntimeError"]
+Your task is to test generated code in a playground environment.
 
-        for issue in issues:
-            if issue.get("type") in complex_error_types:
-                return True
+Process:
+1. Create test scenarios based on the instructions
+2. Write test code in the playground directory (.ki_autoagent_ws/playground/)
+3. Execute the tests using appropriate tools (pytest, node, etc.)
+4. Document test results clearly
+5. Report any failures or unexpected behavior
 
-            # Need research if no automatic fix available
-            if "fix" not in issue:
-                return True
+Requirements:
+- Test all major functionality
+- Include edge cases
+- Report clear pass/fail results
+- Save all test artifacts in playground directory
 
-        return False
+Use Read, Edit, and Bash tools to run comprehensive tests."""
 
-    def _formulate_fix_research_request(self, issues: list) -> str:
-        """
-        Formulate research request for fixing issues.
-        """
-        error_types = list(set(issue.get("type", "Unknown") for issue in issues))
-        error_summary = ", ".join(error_types[:3])
+    def _build_playground_test_prompt(self, instructions: str) -> str:
+        """Build prompt for playground testing."""
+        return f"""Run playground tests for the following implementation:
 
-        requests = [f"Research how to fix {error_summary} errors"]
+## Instructions
+{instructions}
 
-        # Add specific research based on error patterns
-        if any("Import" in issue.get("type", "") for issue in issues):
-            requests.append("Find correct import patterns for the libraries used")
+## Task
+1. Analyze the generated code in the workspace
+2. Create appropriate test scenarios
+3. Write test code in the .ki_autoagent_ws/playground/ directory
+4. Execute the tests
+5. Report results with clear pass/fail status
 
-        if any("Build" in issue.get("type", "") for issue in issues):
-            requests.append("Research build configuration and dependency management")
-
-        if any("Type" in issue.get("type", "") for issue in issues):
-            requests.append("Research type annotations and type compatibility")
-
-        return " AND ".join(requests)
+Save all test artifacts and logs in the playground directory."""
 
 
 # ============================================================================

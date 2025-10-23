@@ -14,6 +14,8 @@ from typing import Any
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
+from backend.utils.rate_limiter import wait_for_provider
+
 # Load environment variables
 load_dotenv()
 
@@ -105,6 +107,11 @@ class OpenAIService:
                             await asyncio.sleep(wait_time)
                             # Increase timeout for retries
                             api_timeout = min(api_timeout * 1.5, 300.0)
+
+                        # ⏱️ RATE LIMITING: Wait if needed to respect rate limits
+                        wait_time = await wait_for_provider("openai")
+                        if wait_time > 0:
+                            logger.debug(f"⏸️ Rate limit: waited {wait_time:.2f}s for OpenAI")
 
                         api_params = {
                             "model": self.config.model,

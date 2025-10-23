@@ -14,6 +14,8 @@ from typing import Any
 
 import aiohttp
 
+from backend.utils.rate_limiter import wait_for_provider
+
 logger = logging.getLogger(__name__)
 
 
@@ -93,6 +95,11 @@ class PerplexityService:
             payload["search_recency_filter"] = search_recency_filter
 
         try:
+            # ⏱️ RATE LIMITING: Wait if needed to respect rate limits
+            wait_time = await wait_for_provider("perplexity")
+            if wait_time > 0:
+                logger.debug(f"⏸️ Rate limit: waited {wait_time:.2f}s for Perplexity")
+
             timeout = aiohttp.ClientTimeout(total=30.0)  # 30 second timeout
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
@@ -164,6 +171,11 @@ class PerplexityService:
             payload["search_domain_filter"] = search_domain_filter
 
         try:
+            # ⏱️ RATE LIMITING: Wait if needed to respect rate limits
+            wait_time = await wait_for_provider("perplexity")
+            if wait_time > 0:
+                logger.debug(f"⏸️ Rate limit: waited {wait_time:.2f}s for Perplexity streaming")
+
             timeout = aiohttp.ClientTimeout(total=30.0)  # 30 second timeout
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(

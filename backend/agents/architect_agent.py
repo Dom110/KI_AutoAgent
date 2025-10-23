@@ -38,17 +38,20 @@ class ArchitectAgent:
     """
 
     def __init__(self):
-        """Initialize the Architect agent."""
-        logger.info("📐 ArchitectAgent initialized")
+        """Initialize the Architect agent with AI provider."""
+        logger.info("📐 ArchitectAgent initializing...")
 
-        # Initialize OpenAI service for architecture generation
-        self.openai_service = None
         try:
-            from backend.utils.openai_service import OpenAIService
-            self.openai_service = OpenAIService(model="gpt-4o-2024-11-20")
-            logger.info("   ✅ OpenAI service connected")
+            # Get AI provider from factory
+            from backend.utils.ai_factory import AIFactory
+            self.ai_provider = AIFactory.get_provider_for_agent("architect")
+            logger.info(f"   ✅ Using {self.ai_provider.provider_name} ({self.ai_provider.model})")
         except Exception as e:
-            logger.warning(f"   ⚠️ OpenAI service not available: {e}")
+            logger.error(f"   ❌ Failed to get AI provider: {e}")
+            raise RuntimeError(
+                "Architect requires an AI provider (OpenAI recommended). "
+                "Set ARCHITECT_AI_PROVIDER and ARCHITECT_AI_MODEL in .env"
+            ) from e
 
     async def execute(self, state: dict[str, Any]) -> dict[str, Any]:
         """
@@ -102,33 +105,18 @@ class ArchitectAgent:
         """
         Determine if more research is needed before design.
 
-        This implements the research request mechanism where
-        agents can ask for additional context.
+        CRITICAL FIX: Only request research ONCE when context is empty.
+        Otherwise we get infinite loops (recursion limit 25).
+
+        The Research agent returns generic results, not specific keys
+        like "tech_verification". Checking for specific keys causes loops.
         """
-        # Check if we have any research context
-        if not research_context:
+        # Only request research if we have NO context at all
+        if not research_context or len(research_context) == 0:
             return True
 
-        # Check for specific missing information
-        workspace_analysis = research_context.get("workspace_analysis", {})
-
-        # Need workspace analysis for existing project modifications
-        if "modify" in instructions.lower() or "refactor" in instructions.lower():
-            if not workspace_analysis or workspace_analysis.get("file_count", 0) == 0:
-                return True
-
-        # Need technology verification for specific tech mentions
-        if "fastapi" in instructions.lower() or "django" in instructions.lower():
-            tech_verification = research_context.get("tech_verification", {})
-            if not tech_verification:
-                return True
-
-        # Need security analysis for security-related tasks
-        if "security" in instructions.lower() or "authentication" in instructions.lower():
-            security_analysis = research_context.get("security_analysis", {})
-            if not security_analysis:
-                return True
-
+        # If we have ANY research context, proceed with architecture
+        # Don't check for specific keys - research agent doesn't guarantee them
         return False
 
     def _formulate_research_request(
@@ -181,19 +169,12 @@ class ArchitectAgent:
         web_results = research_context.get("web_results", [])
         tech_verification = research_context.get("tech_verification", {})
 
-        # Use OpenAI to generate architecture if available
-        if self.openai_service:
-            architecture = await self._generate_with_ai(
-                instructions,
-                research_context,
-                workspace_analysis
-            )
-        else:
-            # Fallback to rule-based architecture
-            architecture = self._generate_rule_based(
-                instructions,
-                workspace_analysis
-            )
+        # Generate architecture with AI
+        architecture = await self._generate_with_ai(
+            instructions,
+            research_context,
+            workspace_analysis
+        )
 
         # Add workspace-specific adjustments
         if workspace_analysis:
@@ -211,158 +192,130 @@ class ArchitectAgent:
         workspace_analysis: dict
     ) -> dict[str, Any]:
         """
-        Generate architecture using OpenAI GPT-4o.
+        Generate architecture using AI provider (OpenAI GPT-4o by default).
         """
-        prompt = f"""Design a system architecture based on the following:
+        logger.info("   🤖 Generating architecture with AI...")
 
-Instructions: {instructions}
+        # Build AI request
+        from backend.utils.ai_factory import AIRequest
 
-Workspace Context:
-- Project Type: {workspace_analysis.get('project_type', 'Unknown')}
-- Languages: {', '.join(workspace_analysis.get('languages', []))}
-- Existing Files: {workspace_analysis.get('file_count', 0)}
-- Has Tests: {workspace_analysis.get('has_tests', False)}
+        request = AIRequest(
+            prompt=self._build_architecture_prompt(instructions, research_context, workspace_analysis),
+            system_prompt=self._get_architecture_system_prompt(),
+            context={
+                "instructions": instructions,
+                "research_context": research_context,
+                "workspace_analysis": workspace_analysis
+            },
+            temperature=0.4,  # Balanced between creativity and consistency
+            max_tokens=4000
+        )
 
-Research Context:
-{json.dumps(research_context, indent=2)[:1000]}  # Truncate for token limits
+        # Call AI provider
+        response = await self.ai_provider.complete(request)
 
-Please provide a comprehensive architecture with:
-1. Overall system description
-2. Core components and their responsibilities
-3. File structure
-4. Technology stack
-5. Design patterns to use
-6. Data flow between components
+        if not response.success:
+            logger.error(f"   ❌ AI architecture generation failed: {response.error}")
+            raise RuntimeError(f"Architecture generation failed: {response.error}")
 
-Format as JSON with these keys: description, components, file_structure, technologies, patterns, data_flow"""
-
+        # Parse response as JSON
         try:
-            response = await self.openai_service.complete(prompt)
-            # Parse response as JSON
-            if "```json" in response:
-                json_str = response.split("```json")[1].split("```")[0]
+            if "```json" in response.content:
+                json_str = response.content.split("```json")[1].split("```")[0]
             else:
-                json_str = response
+                json_str = response.content
 
             architecture = json.loads(json_str)
+            architecture["provider"] = response.provider
+            architecture["model"] = response.model
             return architecture
 
-        except Exception as e:
-            logger.error(f"   ❌ AI generation error: {e}")
-            # Fallback to rule-based
-            return self._generate_rule_based(instructions, workspace_analysis)
+        except json.JSONDecodeError as e:
+            logger.error(f"   ❌ Failed to parse architecture JSON: {e}")
+            # Return minimal valid architecture
+            return {
+                "description": f"Architecture for: {instructions[:100]}",
+                "components": [{"name": "Main Component", "description": "Core functionality"}],
+                "file_structure": ["src/", "tests/"],
+                "technologies": ["Python"],
+                "patterns": ["MVC"],
+                "data_flow": [],
+                "provider": response.provider,
+                "model": response.model,
+                "parse_error": str(e)
+            }
 
-    def _generate_rule_based(
+    def _get_architecture_system_prompt(self) -> str:
+        """Get system prompt for architecture generation."""
+        return """You are an expert software architect specializing in system design.
+
+Your task is to design comprehensive system architectures based on:
+- User instructions (what to build)
+- Research context (best practices, patterns, documentation)
+- Workspace analysis (existing code structure)
+
+Requirements:
+1. Design scalable, maintainable architectures
+2. Select appropriate technologies and patterns
+3. Create clear component structure
+4. Define file organization
+5. Document data flow between components
+6. Follow modern best practices
+
+Output Format (JSON):
+{
+  "description": "Overall system description",
+  "components": [{"name": "...", "description": "..."}],
+  "file_structure": ["path/to/file", ...],
+  "technologies": ["Technology1", "Technology2", ...],
+  "patterns": ["Pattern1", "Pattern2", ...],
+  "data_flow": [{"from": "ComponentA", "to": "ComponentB", "description": "..."}]
+}
+
+Design production-ready, well-structured architectures."""
+
+    def _build_architecture_prompt(
         self,
         instructions: str,
+        research_context: dict,
         workspace_analysis: dict
-    ) -> dict[str, Any]:
-        """
-        Generate architecture using rule-based approach.
-        """
-        logger.info("   📏 Using rule-based architecture generation")
+    ) -> str:
+        """Build detailed prompt for architecture generation."""
+        prompt_parts = [
+            "Design a system architecture based on the following:",
+            "",
+            "## Instructions",
+            instructions,
+            "",
+            "## Workspace Context",
+        ]
 
-        architecture = {
-            "description": f"Architecture for: {instructions[:100]}",
-            "components": [],
-            "file_structure": [],
-            "technologies": [],
-            "patterns": ["MVC", "Repository Pattern", "Dependency Injection"],
-            "data_flow": []
-        }
+        if workspace_analysis:
+            prompt_parts.append(f"- Project Type: {workspace_analysis.get('project_type', 'Unknown')}")
+            prompt_parts.append(f"- Languages: {', '.join(workspace_analysis.get('languages', []))}")
+            prompt_parts.append(f"- Existing Files: {workspace_analysis.get('file_count', 0)}")
+            prompt_parts.append(f"- Has Tests: {workspace_analysis.get('has_tests', False)}")
+            if workspace_analysis.get('frameworks'):
+                prompt_parts.append(f"- Frameworks: {', '.join(workspace_analysis['frameworks'])}")
 
-        # Determine architecture based on keywords
-        instructions_lower = instructions.lower()
+        prompt_parts.extend([
+            "",
+            "## Research Context",
+            json.dumps(research_context, indent=2)[:1000],  # Truncate for token limits
+            "",
+            "## Task",
+            "Design a comprehensive architecture with:",
+            "1. Overall system description",
+            "2. Core components and their responsibilities",
+            "3. File structure (be specific with paths)",
+            "4. Technology stack",
+            "5. Design patterns to use",
+            "6. Data flow between components",
+            "",
+            "Output ONLY valid JSON in the specified format."
+        ])
 
-        if "api" in instructions_lower or "fastapi" in instructions_lower:
-            architecture["components"] = [
-                {"name": "API Gateway", "description": "Handles HTTP requests and routing"},
-                {"name": "Controllers", "description": "Request handlers and validation"},
-                {"name": "Services", "description": "Business logic implementation"},
-                {"name": "Repositories", "description": "Data access layer"},
-                {"name": "Models", "description": "Data models and schemas"}
-            ]
-            architecture["file_structure"] = [
-                "app/",
-                "app/api/",
-                "app/api/endpoints/",
-                "app/core/",
-                "app/core/config.py",
-                "app/models/",
-                "app/services/",
-                "app/repositories/",
-                "tests/",
-                "requirements.txt"
-            ]
-            architecture["technologies"] = ["FastAPI", "Pydantic", "SQLAlchemy", "PostgreSQL"]
-
-        elif "frontend" in instructions_lower or "react" in instructions_lower:
-            architecture["components"] = [
-                {"name": "Components", "description": "Reusable UI components"},
-                {"name": "Pages", "description": "Route-level components"},
-                {"name": "Services", "description": "API communication layer"},
-                {"name": "Store", "description": "State management"},
-                {"name": "Utils", "description": "Helper functions"}
-            ]
-            architecture["file_structure"] = [
-                "src/",
-                "src/components/",
-                "src/pages/",
-                "src/services/",
-                "src/store/",
-                "src/utils/",
-                "public/",
-                "package.json"
-            ]
-            architecture["technologies"] = ["React", "TypeScript", "Redux", "Axios"]
-
-        elif "microservice" in instructions_lower:
-            architecture["components"] = [
-                {"name": "API Gateway", "description": "Entry point for all services"},
-                {"name": "Auth Service", "description": "Authentication and authorization"},
-                {"name": "User Service", "description": "User management"},
-                {"name": "Data Service", "description": "Data operations"},
-                {"name": "Message Queue", "description": "Async communication"}
-            ]
-            architecture["file_structure"] = [
-                "services/",
-                "services/gateway/",
-                "services/auth/",
-                "services/users/",
-                "services/data/",
-                "docker-compose.yml",
-                "kubernetes/"
-            ]
-            architecture["technologies"] = ["Docker", "Kubernetes", "RabbitMQ", "Redis"]
-
-        else:
-            # Generic architecture
-            architecture["components"] = [
-                {"name": "Main Module", "description": "Core application logic"},
-                {"name": "Utils", "description": "Helper functions"},
-                {"name": "Config", "description": "Configuration management"},
-                {"name": "Tests", "description": "Test suite"}
-            ]
-            architecture["file_structure"] = [
-                "src/",
-                "src/main.py",
-                "src/utils/",
-                "src/config/",
-                "tests/",
-                "README.md"
-            ]
-            architecture["technologies"] = ["Python", "pytest"]
-
-        # Add data flow
-        if architecture["components"]:
-            for i in range(len(architecture["components"]) - 1):
-                architecture["data_flow"].append({
-                    "from": architecture["components"][i]["name"],
-                    "to": architecture["components"][i + 1]["name"],
-                    "description": "Data flow"
-                })
-
-        return architecture
+        return "\n".join(prompt_parts)
 
     def _adjust_for_workspace(
         self,
