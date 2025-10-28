@@ -20,9 +20,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime
 from typing import Any, TypedDict
 
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Command
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -149,25 +151,55 @@ async def research_node(state: SupervisorState) -> Command:
     instructions = state.get("instructions", "")
     workspace_path = state.get("workspace_path", "")
 
-    # Initialize agent with workspace path for memory access
-    agent = ResearchAgent(workspace_path=workspace_path)
+    logger.info(f"   Instructions: {instructions[:200]}")
+    logger.info(f"   Workspace: {workspace_path}")
 
-    # Execute with supervisor instructions
-    result = await agent.execute({
-        "instructions": instructions,
-        "workspace_path": workspace_path,
-        "error_info": state.get("errors", [])
-    })
+    try:
+        # Initialize agent with workspace path for memory access
+        logger.info("   Initializing ResearchAgent...")
+        agent = ResearchAgent(workspace_path=workspace_path)
+        logger.info("   ResearchAgent initialized successfully")
 
-    # Update state and return to supervisor
-    update = {
-        "research_context": result.get("research_context", {}),
-        "last_agent": "research"
-    }
+        # Execute with supervisor instructions
+        logger.info("   Executing research with instructions...")
+        start_time = asyncio.get_event_loop().time()
 
-    # Always go back to supervisor
-    logger.info("   Returning to Supervisor for next decision")
-    return Command(goto="supervisor", update=update)
+        result = await agent.execute({
+            "instructions": instructions,
+            "workspace_path": workspace_path,
+            "error_info": state.get("errors", [])
+        })
+
+        execution_time = asyncio.get_event_loop().time() - start_time
+        logger.info(f"   Research execution completed in {execution_time:.2f}s")
+
+        if not result:
+            logger.error("   ❌ Research returned None/empty result!")
+            raise ValueError("Research agent returned empty result")
+
+        logger.info(f"   Research result keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
+
+        # Update state and return to supervisor
+        update = {
+            "research_context": result.get("research_context", {}),
+            "last_agent": "research"
+        }
+
+        # Always go back to supervisor
+        logger.info("   Returning to Supervisor for next decision")
+        return Command(goto="supervisor", update=update)
+
+    except Exception as e:
+        logger.error(f"   ❌ RESEARCH NODE FAILED: {e}", exc_info=True)
+        # Return error to supervisor for handling
+        return Command(
+            goto="supervisor",
+            update={
+                "last_agent": "research",
+                "errors": state.get("errors", []) + [f"Research failed: {str(e)}"],
+                "error_count": state.get("error_count", 0) + 1
+            }
+        )
 
 
 async def architect_node(state: SupervisorState) -> Command:
@@ -348,13 +380,14 @@ async def responder_node(state: SupervisorState) -> Command:
     })
 
     # Update state and return to supervisor
+    # Let supervisor make the final termination decision (Pattern C - Hybrid)
     update = {
         "user_response": result.get("user_response"),
-        "response_ready": True,
+        "response_ready": True,  # Signal workflow completion
         "last_agent": "responder"
     }
 
-    logger.info("   Response ready, returning to Supervisor")
+    logger.info("   ✅ Response ready - Returning to Supervisor for termination")
     return Command(goto="supervisor", update=update)
 
 
@@ -436,11 +469,12 @@ def build_supervisor_workflow() -> StateGraph:
     logger.info("      [any agent] → supervisor via Command")
     logger.info("      supervisor → END via Command")
 
-    # Compile workflow without checkpointer for now
-    # TODO: Fix checkpointer initialization
+    # Compile workflow with higher recursion limit
+    # v7.0 workflows can iterate more due to supervisor decision-making
     app = graph.compile()
 
     logger.info("   ✅ Workflow compiled successfully")
+    logger.info("   📊 Recursion limit: 25 (LangGraph default)")
 
     return app
 
@@ -448,6 +482,104 @@ def build_supervisor_workflow() -> StateGraph:
 # ============================================================================
 # Workflow Execution
 # ============================================================================
+
+async def execute_supervisor_workflow_streaming(
+    user_query: str,
+    workspace_path: str
+):
+    """
+    Execute supervisor workflow with real-time streaming updates.
+
+    Yields workflow events as they occur for real-time client feedback.
+
+    Args:
+        user_query: The user's request
+        workspace_path: Path to the workspace
+
+    Yields:
+        Dict events with type and data
+    """
+    logger.info("="*60)
+    logger.info("🚀 EXECUTING SUPERVISOR WORKFLOW v7.0 (STREAMING)")
+    logger.info("="*60)
+    logger.info(f"Query: {user_query}")
+    logger.info(f"Workspace: {workspace_path}")
+
+    # Build workflow
+    app = build_supervisor_workflow()
+
+    # Initialize state
+    initial_state = {
+        "messages": [{"role": "user", "content": user_query}],
+        "goal": user_query,
+        "user_query": user_query,
+        "workspace_path": workspace_path,
+        "iteration": 0,
+        "last_agent": None,
+        "is_self_invocation": False,
+        "instructions": "",
+        "research_context": None,
+        "needs_research": False,
+        "research_request": None,
+        "architecture": None,
+        "architecture_complete": False,
+        "generated_files": None,
+        "code_complete": False,
+        "validation_results": None,
+        "validation_passed": False,
+        "issues": None,
+        "user_response": None,
+        "response_ready": False,
+        "error_count": 0,
+        "errors": [],
+        "confidence": 1.0,
+        "requires_clarification": False,
+        "hitl_response": None,
+        "awaiting_human": False
+    }
+
+    # Configure recursion limit
+    config = RunnableConfig(recursion_limit=150)
+    logger.info(f"   📊 Recursion limit set to: 150")
+
+    # Execute workflow with streaming
+    try:
+        logger.info("\n📊 Starting workflow execution with streaming...")
+
+        # Stream workflow events
+        async for event in app.astream(initial_state, config=config, stream_mode="updates"):
+            # Each event is {node_name: state_update}
+            for node_name, state_update in event.items():
+                # Send event to client
+                yield {
+                    "type": "workflow_event",
+                    "node": node_name,
+                    "state_update": state_update,
+                    "timestamp": datetime.now().isoformat()
+                }
+
+                # Log progress
+                logger.info(f"\n   📥 Event from: {node_name}")
+                if isinstance(state_update, dict) and "last_agent" in state_update:
+                    logger.info(f"      Agent: {state_update['last_agent']}")
+
+        # Send completion
+        yield {
+            "type": "workflow_complete",
+            "message": "✅ Workflow completed successfully",
+            "timestamp": datetime.now().isoformat()
+        }
+
+        logger.info("\n✅ Workflow execution complete!")
+
+    except Exception as e:
+        logger.error(f"❌ Workflow execution failed: {e}", exc_info=True)
+        yield {
+            "type": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
 
 async def execute_supervisor_workflow(
     user_query: str,
@@ -504,6 +636,11 @@ async def execute_supervisor_workflow(
         "awaiting_human": False
     }
 
+    # Configure recursion limit for complex workflows
+    # Increased from default 25 to 150 for multi-agent systems
+    config = RunnableConfig(recursion_limit=150)
+    logger.info(f"   📊 Recursion limit set to: 150")
+
     # Execute workflow
     try:
         logger.info("\n📊 Starting workflow execution...")
@@ -511,8 +648,8 @@ async def execute_supervisor_workflow(
         # Track the final state by accumulating updates
         final_state = dict(initial_state)
 
-        # Run with streaming for visibility
-        async for output in app.astream(initial_state):
+        # Run with streaming for visibility and recursion limit config
+        async for output in app.astream(initial_state, config=config):
             # Log each step
             for node, state_update in output.items():
                 logger.info(f"\n   Step: {node}")

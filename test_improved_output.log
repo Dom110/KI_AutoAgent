@@ -1,0 +1,89 @@
+============================================================
+🔍 DEBUG TEST - Simple Task with Maximum Logging
+============================================================
+Backend: ws://localhost:8002/ws/chat
+Workspace: /Users/dominikfoert/TestApps/debug_test
+============================================================
+✅ Workspace created: /Users/dominikfoert/TestApps/debug_test
+
+🔌 Connecting to ws://localhost:8002/ws/chat...
+✅ Connected to WebSocket
+
+📤 Sending init message: {
+  "type": "init",
+  "workspace_path": "/Users/dominikfoert/TestApps/debug_test"
+}
+
+⏳ Waiting for init response (5s timeout)...
+📥 Init response: {
+  "type": "connected",
+  "message": "Connected to KI AutoAgent v7.0.0-alpha-supervisor - Supervisor Pattern",
+  "session_id": "6318dee0-9107-443a-873b-447bb100d8a9",
+  "client_id": "client_6a79d766",
+  "version": "7.0.0-alpha",
+  "release_tag": "v7.0.0-alpha-supervisor",
+  "architecture": "supervisor_pattern",
+  "requires_init": true
+}
+
+========================================
+📋 SENDING SIMPLE TASK
+========================================
+Task: Write a simple Python function that adds two numbers together.
+Include a docstring and type hints.
+
+📤 Sending task message: {
+  "type": "task",
+  "task": "Write a simple Python function that adds two numbers together.\nInclude a docstring and type hints."
+}
+
+========================================
+📥 MONITORING MESSAGES (2s timeouts)
+========================================
+
+[0.0s] Message #1:
+  Type: initialized
+  Full data: {
+  "type": "initialized",
+  "session_id": "6318dee0-9107-443a-873b-447bb100d8a9",
+  "workspace_path": "/Users/dominikfoert/TestApps/debug_test",
+  "message": "v7.0 Supervisor workflow ready!",
+  "architecture": "supervisor_pattern",
+  "agents_available": [
+    "supervisor",
+    "research",
+    "architect",
+    "codesmith",
+    "reviewfix",
+    "responder",
+    "hitl"
+  ]
+}...
+
+[0.0s] Message #2:
+  Type: status
+  Full data: {
+  "type": "status",
+  "status": "analyzing",
+  "message": "\ud83c\udfaf Supervisor analyzing request..."
+}...
+[0.0s] No message for 2s (occurrence #1)
+[2.0s] No message for 2s (occurrence #2)
+[4.0s] No message for 2s (occurrence #3)
+[6.0s] No message for 2s (occurrence #4)
+[8.0s] No message for 2s (occurrence #5)
+
+⚠️ No messages for 10 seconds!
+Server might be stuck or task processing failed.
+
+🔌 Connection closed
+
+============================================================
+📊 DEBUG SUMMARY
+============================================================
+Total time: 8.02s
+Messages received: 2
+
+All message types received:
+  initialized: 1 times at ['0.0s']
+  status: 1 times at ['0.0s']

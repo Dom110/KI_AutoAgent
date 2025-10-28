@@ -74,14 +74,6 @@ class ClaudeCLIService(AIProvider):
                 "Claude CLI binary not found. Install: npm install -g @anthropic-ai/claude-cli"
             )
 
-        # Check API key
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            return (
-                False,
-                "ANTHROPIC_API_KEY not set. Required for Claude CLI."
-            )
-
         # Try to run claude --version
         try:
             result = subprocess.run(
@@ -92,6 +84,8 @@ class ClaudeCLIService(AIProvider):
             )
             if result.returncode == 0:
                 version = result.stdout.strip()
+                # Claude Code authenticates via its own config
+                # No need for ANTHROPIC_API_KEY in .env
                 return (True, f"Claude CLI {version}")
             else:
                 return (False, f"Claude CLI error: {result.stderr}")
@@ -124,39 +118,56 @@ class ClaudeCLIService(AIProvider):
         full_prompt = self._build_prompt(request)
 
         # Build claude CLI command
+        # Use --print for non-interactive mode
         cmd = [
             self.cli_path,
+            "--print",  # Non-interactive output
             "--model", self.model,
-            "--workspace", request.workspace_path or os.getcwd(),
         ]
 
-        # Add tools (Read, Edit, Bash)
+        # Add allowed tools (space-separated list)
         if request.tools:
-            for tool in request.tools:
-                if tool in ["Read", "Edit", "Bash"]:
-                    cmd.extend(["--tool", tool])
+            tools_str = " ".join(request.tools)
+            cmd.extend(["--allowed-tools", tools_str])
         else:
             # Default tools for code generation
-            cmd.extend(["--tool", "Read", "--tool", "Edit", "--tool", "Bash"])
+            cmd.extend(["--allowed-tools", "Read Edit Bash"])
 
-        # Add prompt
+        # Add system prompt if provided
+        if request.system_prompt:
+            cmd.extend(["--system-prompt", request.system_prompt])
+
+        # Add prompt as final argument
         cmd.append(full_prompt)
 
-        try:
-            logger.debug(f"🔨 Running Claude CLI: {' '.join(cmd[:5])}...")
+        # Set working directory to workspace_path
+        workspace = request.workspace_path or os.getcwd()
 
-            # Run claude CLI
+        try:
+            logger.debug(f"🔨 Running Claude CLI in {workspace}")
+            logger.debug(f"   Command: claude --print --model {self.model} --allowed-tools 'Read Edit Bash'")
+            logger.debug(f"   Prompt length: {len(full_prompt)} chars")
+
+            # Run claude CLI with workspace as cwd
+            # CRITICAL FIX: Close stdin to prevent Claude CLI from waiting for input
             process = await asyncio.create_subprocess_exec(
                 *cmd,
+                stdin=asyncio.subprocess.DEVNULL,  # Close stdin - Claude CLI shouldn't wait for input
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=request.workspace_path or os.getcwd()
+                cwd=workspace
             )
 
+            logger.debug(f"   📡 Process started (PID: {process.pid})")
+
+            # Wait for completion with timeout
+            # Reduced timeout from 5 min to 2 min (should be enough for code gen)
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(),
-                timeout=300.0  # 5 minute timeout
+                timeout=120.0  # 2 minute timeout
             )
+
+            logger.debug(f"   📡 Process completed (returncode: {process.returncode})")
 
             if process.returncode == 0:
                 content = stdout.decode('utf-8').strip()
@@ -185,13 +196,24 @@ class ClaudeCLIService(AIProvider):
                 )
 
         except asyncio.TimeoutError:
-            logger.error("❌ Claude CLI timed out after 5 minutes")
+            logger.error("❌ Claude CLI timed out after 2 minutes")
+            logger.error(f"   Workspace: {workspace}")
+            logger.error(f"   Prompt: {full_prompt[:200]}...")
+
+            # Try to kill the process if it's still running
+            try:
+                if process and process.returncode is None:
+                    process.kill()
+                    logger.warning("   🔪 Killed hanging Claude CLI process")
+            except Exception as kill_err:
+                logger.warning(f"   Failed to kill process: {kill_err}")
+
             return AIResponse(
                 content="",
                 provider=self.provider_name,
                 model=self.model,
                 success=False,
-                error="Claude CLI timeout (5 minutes)"
+                error="Claude CLI timeout (2 minutes)"
             )
         except Exception as e:
             logger.error(f"❌ Claude CLI exception: {e}")
@@ -216,19 +238,15 @@ class ClaudeCLIService(AIProvider):
 
     def _build_prompt(self, request: AIRequest) -> str:
         """
-        Build the full prompt for Claude CLI.
+        Build the user prompt for Claude CLI.
 
-        Includes system prompt, context, and user prompt.
+        System prompt is passed via --system-prompt flag, not in user message.
         """
         parts = []
 
-        # System prompt
-        if request.system_prompt:
-            parts.append(f"<system>\n{request.system_prompt}\n</system>")
-
         # Context (architecture, research, etc.)
         if request.context:
-            parts.append("\n<context>")
+            parts.append("<context>")
             for key, value in request.context.items():
                 if value:
                     parts.append(f"\n## {key.title()}")
@@ -239,14 +257,14 @@ class ClaudeCLIService(AIProvider):
                             parts.append(f"- {item}")
                     else:
                         parts.append(str(value))
-            parts.append("\n</context>")
+            parts.append("</context>\n")
 
         # User prompt (instructions)
-        parts.append(f"\n<task>\n{request.prompt}\n</task>")
+        parts.append(f"<task>\n{request.prompt}\n</task>")
 
         # Workspace hint
         if request.workspace_path:
-            parts.append(f"\n<workspace>{request.workspace_path}</workspace>")
+            parts.append(f"\nWorking directory: {request.workspace_path}")
 
         return "\n".join(parts)
 

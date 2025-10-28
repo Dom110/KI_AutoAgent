@@ -50,8 +50,10 @@ if current_version < MIN_PYTHON_VERSION:
     sys.exit(1)
 
 # After version check, continue with imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from __version__ import __version__, __release_tag__
+# Add PROJECT ROOT to sys.path (two levels up from backend/api/)
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
+from backend.__version__ import __version__, __release_tag__
 
 # Optional performance optimization
 try:
@@ -85,7 +87,7 @@ if global_env.exists():
     _env_loaded = True
 
 # Import v7.0 supervisor workflow
-from workflow_v7_supervisor import execute_supervisor_workflow
+from backend.workflow_v7_supervisor import execute_supervisor_workflow, execute_supervisor_workflow_streaming
 
 # Configure logging
 logging.basicConfig(
@@ -155,8 +157,8 @@ except Exception as e:
     logger.error(f"❌ Failed to register AI providers: {e}")
     sys.exit(1)
 
-# Validate all active AI providers
-logger.info("🔍 Validating active AI providers...")
+# Initialize AI providers for all agents
+logger.info("🔍 Initializing AI providers...")
 try:
     from backend.utils.ai_factory import AIFactory
 
@@ -168,13 +170,13 @@ try:
         "reviewfix": os.getenv("REVIEWFIX_AI_PROVIDER")
     }
 
-    # Validate each configured agent
-    validation_failed = False
+    # Initialize each configured agent's provider
+    initialization_failed = False
     for agent_name, provider_name in agent_configs.items():
         if not provider_name:
             logger.error(f"❌ {agent_name.upper()}_AI_PROVIDER not configured!")
             logger.error(f"   Set {agent_name.upper()}_AI_PROVIDER in ~/.ki_autoagent/config/.env")
-            validation_failed = True
+            initialization_failed = True
             continue
 
         # Get model config
@@ -184,28 +186,18 @@ try:
         if not model:
             logger.warning(f"⚠️ {model_key} not set - using provider default")
 
-        # Validate provider
+        # Initialize provider (but don't test connection - that's async)
         try:
             provider = AIFactory.get_provider_for_agent(agent_name)
             logger.info(f"✅ {agent_name.title()}: {provider.provider_name} ({provider.model})")
 
-            # Run validation check
-            import asyncio
-            is_valid, message = asyncio.run(provider.validate_connection())
-
-            if not is_valid:
-                logger.error(f"❌ {agent_name.title()} provider validation failed: {message}")
-                validation_failed = True
-            else:
-                logger.info(f"   ✓ Connection validated: {message}")
-
         except Exception as e:
             logger.error(f"❌ Failed to initialize {agent_name} provider: {e}")
-            validation_failed = True
+            initialization_failed = True
 
-    if validation_failed:
+    if initialization_failed:
         logger.error("\n" + "=" * 60)
-        logger.error("AI PROVIDER VALIDATION FAILED")
+        logger.error("AI PROVIDER INITIALIZATION FAILED")
         logger.error("=" * 60)
         logger.error("Please check your ~/.ki_autoagent/config/.env file")
         logger.error("Required settings:")
@@ -221,10 +213,11 @@ try:
         logger.error("=" * 60)
         sys.exit(1)
 
-    logger.info("✅ All AI providers validated successfully")
+    logger.info("✅ All AI providers initialized successfully")
+    logger.info("   (Connection validation will occur at runtime)")
 
 except Exception as e:
-    logger.error(f"❌ AI provider validation failed: {e}")
+    logger.error(f"❌ AI provider initialization failed: {e}")
     sys.exit(1)
 
 
@@ -567,34 +560,61 @@ async def websocket_chat(websocket: WebSocket):
                 try:
                     logger.info(f"🚀 Running v7.0 Supervisor workflow for: {user_query[:80]}...")
 
-                    # Create a wrapper for the workflow that sends callbacks
-                    async def workflow_with_callbacks():
-                        """Run workflow and send events to WebSocket."""
+                    # Add debug logging
+                    logger.info(f"   Workspace: {session['workspace_path']}")
+                    logger.info(f"   Session ID: {session['session_id']}")
+                    logger.info(f"   Client ID: {client_id}")
 
-                        # Mock implementation for now - replace with actual workflow
-                        # In production, modify execute_supervisor_workflow to accept callbacks
+                    # Execute workflow WITH STREAMING for real-time updates
+                    final_result = {}
+                    async for event in execute_supervisor_workflow_streaming(
+                        user_query=user_query,
+                        workspace_path=session["workspace_path"]
+                    ):
+                        # Forward workflow events to WebSocket client
+                        event_type = event.get("type")
 
-                        await callbacks.on_supervisor_decision({
-                            "next_agent": "research",
-                            "instructions": "Analyze workspace and gather context",
-                            "reasoning": "Need to understand the project first",
-                            "confidence": 0.9
-                        })
+                        if event_type == "workflow_event":
+                            # Send progress update to client
+                            node = event.get("node", "unknown")
+                            await manager.send_json(client_id, {
+                                "type": "progress",
+                                "node": node,
+                                "message": f"Executing {node}...",
+                                "timestamp": event.get("timestamp")
+                            })
 
-                        await callbacks.on_agent_start("research", "Analyzing workspace...")
-                        await asyncio.sleep(1)  # Simulate work
-                        await callbacks.on_agent_complete("research", {"success": True})
+                            # Store state updates
+                            state_update = event.get("state_update", {})
+                            final_result.update(state_update)
 
-                        # Execute actual workflow
-                        result = await execute_supervisor_workflow(
-                            user_query=user_query,
-                            workspace_path=session["workspace_path"]
-                        )
+                        elif event_type == "workflow_complete":
+                            # Send completion to client
+                            await manager.send_json(client_id, {
+                                "type": "workflow_complete",
+                                "message": "✅ Workflow completed!",
+                                "timestamp": event.get("timestamp")
+                            })
 
-                        return result
+                        elif event_type == "error":
+                            # Handle error
+                            error_msg = event.get("error", "Unknown error")
+                            await manager.send_json(client_id, {
+                                "type": "error",
+                                "error": error_msg,
+                                "timestamp": event.get("timestamp")
+                            })
+                            raise Exception(error_msg)
 
-                    # Execute workflow
-                    result = await workflow_with_callbacks()
+                    # Use final result
+                    result = final_result
+
+                    # Log what we got back
+                    logger.info(f"   Workflow returned: {type(result)}")
+                    if isinstance(result, dict):
+                        logger.info(f"   Keys in result: {list(result.keys())}")
+                        logger.info(f"   Response ready: {result.get('response_ready', False)}")
+                        logger.info(f"   Last agent: {result.get('last_agent', 'None')}")
 
                     # Extract user response from result
                     user_response = result.get("user_response", "Workflow completed successfully")

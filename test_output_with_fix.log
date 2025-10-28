@@ -1,0 +1,156 @@
+============================================================
+🔍 DEBUG TEST - Simple Task with Maximum Logging
+============================================================
+Backend: ws://localhost:8002/ws/chat
+Workspace: /Users/dominikfoert/TestApps/debug_test
+============================================================
+✅ Workspace created: /Users/dominikfoert/TestApps/debug_test
+
+🔌 Connecting to ws://localhost:8002/ws/chat...
+✅ Connected to WebSocket
+
+📤 Sending init message: {
+  "type": "init",
+  "workspace_path": "/Users/dominikfoert/TestApps/debug_test"
+}
+
+⏳ Waiting for init response (5s timeout)...
+📥 Init response: {
+  "type": "connected",
+  "message": "Connected to KI AutoAgent v7.0.0-alpha-supervisor - Supervisor Pattern",
+  "session_id": "12ff7a37-c88a-4ea8-b044-6f808bb73c5b",
+  "client_id": "client_1d181482",
+  "version": "7.0.0-alpha",
+  "release_tag": "v7.0.0-alpha-supervisor",
+  "architecture": "supervisor_pattern",
+  "requires_init": true
+}
+
+========================================
+📋 SENDING SIMPLE TASK
+========================================
+Task: Write a simple Python function that adds two numbers together.
+Include a docstring and type hints.
+
+📤 Sending task message: {
+  "type": "task",
+  "task": "Write a simple Python function that adds two numbers together.\nInclude a docstring and type hints."
+}
+
+========================================
+📥 MONITORING MESSAGES (2s timeouts)
+========================================
+
+[0.0s] Message #1:
+  Type: initialized
+  Full data: {
+  "type": "initialized",
+  "session_id": "12ff7a37-c88a-4ea8-b044-6f808bb73c5b",
+  "workspace_path": "/Users/dominikfoert/TestApps/debug_test",
+  "message": "v7.0 Supervisor workflow ready!",
+  "architecture": "supervisor_pattern",
+  "agents_available": [
+    "supervisor",
+    "research",
+    "architect",
+    "codesmith",
+    "reviewfix",
+    "responder",
+    "hitl"
+  ]
+}...
+
+[0.0s] Message #2:
+  Type: status
+  Full data: {
+  "type": "status",
+  "status": "analyzing",
+  "message": "\ud83c\udfaf Supervisor analyzing request..."
+}...
+
+[0.0s] Message #3:
+  Type: progress
+  Full data: {
+  "type": "progress",
+  "node": "supervisor",
+  "message": "Executing supervisor...",
+  "timestamp": "2025-10-28T06:13:28.394501"
+}...
+
+[2.9s] Message #4:
+  Type: progress
+  Full data: {
+  "type": "progress",
+  "node": "research",
+  "message": "Executing research...",
+  "timestamp": "2025-10-28T06:13:28.411853"
+}...
+
+[2.9s] Message #5:
+  Type: progress
+  Full data: {
+  "type": "progress",
+  "node": "supervisor",
+  "message": "Executing supervisor...",
+  "timestamp": "2025-10-28T06:13:29.887963"
+}...
+
+[4.3s] Message #6:
+  Type: progress
+  Full data: {
+  "type": "progress",
+  "node": "architect",
+  "message": "Executing architect...",
+  "timestamp": "2025-10-28T06:13:33.668471"
+}...
+
+[8.1s] Message #7:
+  Type: progress
+  Full data: {
+  "type": "progress",
+  "node": "supervisor",
+  "message": "Executing supervisor...",
+  "timestamp": "2025-10-28T06:13:35.744599"
+}...
+
+[10.2s] Message #8:
+  Type: progress
+  Full data: {
+  "type": "progress",
+  "node": "codesmith",
+  "message": "Executing codesmith...",
+  "timestamp": "2025-10-28T06:14:43.679374"
+}...
+
+[78.1s] Message #9:
+  Type: progress
+  Full data: {
+  "type": "progress",
+  "node": "supervisor",
+  "message": "Executing supervisor...",
+  "timestamp": "2025-10-28T06:14:45.298294"
+}...
+
+[79.8s] Message #10:
+  Type: progress
+  Full data: {
+  "type": "progress",
+  "node": "reviewfix",
+  "message": "Executing reviewfix...",
+  "timestamp": "2025-10-28T06:15:45.307712"
+}...
+
+⏱️ Test timeout after 120s
+
+🔌 Connection closed
+
+============================================================
+📊 DEBUG SUMMARY
+============================================================
+Total time: 139.77s
+Messages received: 10
+
+All message types received:
+  initialized: 1 times at ['0.0s']
+  status: 1 times at ['0.0s']
+  progress: 8 times at ['0.0s', '2.9s', '2.9s']

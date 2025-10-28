@@ -159,10 +159,39 @@ class Supervisor:
         # Build context from state
         context = self._build_context(state)
 
-        # Check if response is ready - workflow complete!
+        # ========================================================================
+        # EXPLICIT TERMINATION CONDITIONS (Pattern C - Hybrid)
+        # ========================================================================
+
+        # Condition 1: Response is ready (Responder completed)
         if state.get("response_ready", False):
             logger.info("✅ Response ready - workflow complete!")
             return Command(goto=END)
+
+        # Condition 2: Too many errors (safety limit)
+        error_count = state.get("error_count", 0)
+        if error_count > 3:
+            logger.error(f"❌ Too many errors ({error_count}) - terminating workflow!")
+            return Command(goto=END, update={
+                "user_response": f"❌ Workflow failed after {error_count} errors. Please check logs.",
+                "response_ready": True
+            })
+
+        # Condition 3: Max iterations reached (prevent infinite loops)
+        iteration = state.get("iteration", 0)
+        if iteration > 20:
+            logger.warning(f"⚠️ Max iterations ({iteration}) reached - terminating workflow!")
+            return Command(goto=END, update={
+                "user_response": f"⚠️ Workflow exceeded maximum iterations ({iteration}). Partial results may be available.",
+                "response_ready": True
+            })
+
+        # Condition 4: Explicit supervisor FINISH decision (checked later in _decision_to_command)
+        # This happens when the supervisor LLM decides the task is complete
+
+        # ========================================================================
+        # NORMAL ROUTING LOGIC
+        # ========================================================================
 
         # Check if any agent requested research
         if context.needs_research and context.research_request:

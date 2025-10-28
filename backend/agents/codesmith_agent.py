@@ -85,6 +85,7 @@ class CodesmithAgent:
 
         # Generate the code using AI
         try:
+            logger.info("   🚀 Starting AI code generation...")
             generated_files = await self._generate_code_with_ai(
                 instructions,
                 architecture,
@@ -92,7 +93,8 @@ class CodesmithAgent:
                 workspace_path
             )
 
-            logger.info(f"   ✅ Generated {len(generated_files)} files")
+            logger.info(f"   ✅ Code generation completed successfully")
+            logger.info(f"   📁 Generated {len(generated_files)} files")
 
             return {
                 "generated_files": generated_files,
@@ -102,7 +104,7 @@ class CodesmithAgent:
             }
 
         except Exception as e:
-            logger.error(f"   ❌ Code generation failed: {e}")
+            logger.error(f"   ❌ Code generation failed: {e}", exc_info=True)
             return {
                 "generated_files": [],
                 "code_complete": False,
@@ -164,6 +166,9 @@ class CodesmithAgent:
         This is the ONLY code generation method - no template fallback!
         """
         logger.info("   🤖 Generating code with AI...")
+        logger.debug(f"      Workspace: {workspace_path}")
+        logger.debug(f"      Provider: {self.ai_provider.provider_name}")
+        logger.debug(f"      Model: {self.ai_provider.model}")
 
         # Build the AI request
         request = AIRequest(
@@ -180,8 +185,15 @@ class CodesmithAgent:
             max_tokens=8000
         )
 
+        logger.debug(f"      Prompt length: {len(request.prompt)} chars")
+        logger.info("      📡 Calling AI provider...")
+
         # Call AI provider
         response = await self.ai_provider.complete(request)
+
+        logger.info("      📡 AI provider returned")
+        logger.debug(f"      Success: {response.success}")
+        logger.debug(f"      Content length: {len(response.content) if response.content else 0} chars")
 
         if not response.success:
             raise RuntimeError(f"AI code generation failed: {response.error}")

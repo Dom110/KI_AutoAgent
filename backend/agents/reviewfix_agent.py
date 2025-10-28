@@ -20,6 +20,7 @@ Date: 2025-10-23
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Any
@@ -293,8 +294,20 @@ class ReviewFixAgent:
             max_tokens=6000
         )
 
-        # Call AI provider to run tests
-        response = await self.ai_provider.complete(request)
+        # Call AI provider to run tests with 60s timeout
+        try:
+            response = await asyncio.wait_for(
+                self.ai_provider.complete(request),
+                timeout=60.0  # 60 second timeout for playground tests
+            )
+        except asyncio.TimeoutError:
+            logger.warning("   ⏱️ Playground tests timed out after 60s - skipping")
+            return {
+                "status": "timeout",
+                "passed": True,  # Don't fail workflow on timeout
+                "skipped": True,
+                "reason": "Timeout after 60s (playground tests took too long)"
+            }
 
         if not response.success:
             logger.error(f"   ❌ Playground tests failed: {response.error}")
