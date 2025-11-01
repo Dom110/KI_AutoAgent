@@ -1,24 +1,25 @@
 """
-KI AutoAgent v7.0 Supervisor Server
+⚠️ MCP BLEIBT: KI AutoAgent v7.0 Pure MCP Server
+⚠️ WICHTIG: MCP BLEIBT! Alle Agent-Calls ausschließlich via MCP Protocol!
 
-FastAPI server using the new Supervisor Pattern architecture.
-Single LLM orchestrator makes ALL routing decisions.
+FastAPI server using Pure MCP architecture where ALL agents
+are MCP servers communicating via JSON-RPC.
 
-Key Changes from v6:
-- Supervisor-based routing instead of distributed intelligence
-- Command-based navigation instead of conditional edges
-- Research as support agent (never user-facing)
-- Responder is ONLY agent that talks to users
-- Dynamic instructions instead of static modes
+Key Changes from server_v7_supervisor.py:
+- ALL agents are MCP servers (separate processes)
+- Communication via JSON-RPC over stdin/stdout
+- MCPManager orchestrates all agent calls
+- Progress notifications via $/progress
+- NO direct agent instantiation
+- Pure MCP architecture!
 
 Usage:
-    python backend/api/server_v7_supervisor.py
+    python backend/api/server_v7_mcp.py
 
     WebSocket: ws://localhost:8002/ws/chat
 
-Author: KI AutoAgent Team
-Version: 7.0.0-alpha
-Date: 2025-10-21
+Author: KI AutoAgent v7.0
+Date: 2025-10-30
 """
 
 from __future__ import annotations
@@ -86,8 +87,11 @@ if global_env.exists():
     load_dotenv(global_env)
     _env_loaded = True
 
-# Import v7.0 supervisor workflow
-from backend.workflow_v7_supervisor import execute_supervisor_workflow, execute_supervisor_workflow_streaming
+# ⚠️ MCP BLEIBT: Import v7.0 Pure MCP workflow
+from backend.workflow_v7_mcp import execute_supervisor_workflow_mcp, execute_supervisor_workflow_streaming_mcp
+
+# ⚠️ MCP BLEIBT: Import MCPManager for lifecycle management
+from backend.utils.mcp_manager import get_mcp_manager, close_mcp_manager
 
 # Configure logging
 logging.basicConfig(
@@ -143,82 +147,13 @@ def validate_api_keys():
 validate_api_keys()
 
 # ============================================================================
-# AI FACTORY - Register Providers
+# MCP ARCHITECTURE - NO AI FACTORY NEEDED!
 # ============================================================================
-logger.info("🏭 Registering AI providers...")
-
-# Import providers to trigger registration
-try:
-    from backend.utils import openai_provider
-    from backend.utils import claude_cli_service
-    from backend.utils import perplexity_provider
-    logger.info("✅ AI providers registered")
-except Exception as e:
-    logger.error(f"❌ Failed to register AI providers: {e}")
-    sys.exit(1)
-
-# Initialize AI providers for all agents
-logger.info("🔍 Initializing AI providers...")
-try:
-    from backend.utils.ai_factory import AIFactory
-
-    # Define agent configurations
-    agent_configs = {
-        "research": os.getenv("RESEARCH_AI_PROVIDER"),
-        "architect": os.getenv("ARCHITECT_AI_PROVIDER"),
-        "codesmith": os.getenv("CODESMITH_AI_PROVIDER"),
-        "reviewfix": os.getenv("REVIEWFIX_AI_PROVIDER")
-    }
-
-    # Initialize each configured agent's provider
-    initialization_failed = False
-    for agent_name, provider_name in agent_configs.items():
-        if not provider_name:
-            logger.error(f"❌ {agent_name.upper()}_AI_PROVIDER not configured!")
-            logger.error(f"   Set {agent_name.upper()}_AI_PROVIDER in ~/.ki_autoagent/config/.env")
-            initialization_failed = True
-            continue
-
-        # Get model config
-        model_key = f"{agent_name.upper()}_AI_MODEL"
-        model = os.getenv(model_key)
-
-        if not model:
-            logger.warning(f"⚠️ {model_key} not set - using provider default")
-
-        # Initialize provider (but don't test connection - that's async)
-        try:
-            provider = AIFactory.get_provider_for_agent(agent_name)
-            logger.info(f"✅ {agent_name.title()}: {provider.provider_name} ({provider.model})")
-
-        except Exception as e:
-            logger.error(f"❌ Failed to initialize {agent_name} provider: {e}")
-            initialization_failed = True
-
-    if initialization_failed:
-        logger.error("\n" + "=" * 60)
-        logger.error("AI PROVIDER INITIALIZATION FAILED")
-        logger.error("=" * 60)
-        logger.error("Please check your ~/.ki_autoagent/config/.env file")
-        logger.error("Required settings:")
-        logger.error("  RESEARCH_AI_PROVIDER=perplexity")
-        logger.error("  ARCHITECT_AI_PROVIDER=openai")
-        logger.error("  CODESMITH_AI_PROVIDER=claude-cli")
-        logger.error("  REVIEWFIX_AI_PROVIDER=claude-cli")
-        logger.error("")
-        logger.error("  RESEARCH_AI_MODEL=sonar")
-        logger.error("  ARCHITECT_AI_MODEL=gpt-4o-2024-11-20")
-        logger.error("  CODESMITH_AI_MODEL=claude-sonnet-4-20250514")
-        logger.error("  REVIEWFIX_AI_MODEL=claude-sonnet-4-20250514")
-        logger.error("=" * 60)
-        sys.exit(1)
-
-    logger.info("✅ All AI providers initialized successfully")
-    logger.info("   (Connection validation will occur at runtime)")
-
-except Exception as e:
-    logger.error(f"❌ AI provider initialization failed: {e}")
-    sys.exit(1)
+logger.info("⚠️ MCP BLEIBT: Pure MCP architecture - agents are MCP servers!")
+logger.info("   NO AI Factory initialization needed")
+logger.info("   All agents run as separate MCP server processes")
+logger.info("   Communication via JSON-RPC over stdin/stdout")
+logger.info("   MCPManager will start all agents on first workflow execution")
 
 
 # ============================================================================
@@ -362,20 +297,45 @@ class WorkflowCallbacks:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage app lifecycle."""
-    logger.info("🚀 Starting KI AutoAgent v7.0 Supervisor Server...")
-    logger.info("🎯 Architecture: Supervisor Pattern with Central Orchestration")
+    """
+    ⚠️ MCP BLEIBT: Manage app lifecycle with MCP server management
+    """
+    logger.info("🚀 Starting KI AutoAgent v7.0 Pure MCP Server...")
+    logger.info("⚠️ MCP BLEIBT: Pure MCP Architecture Active!")
+    logger.info("🎯 Architecture: Supervisor Pattern + Pure MCP Protocol")
     logger.info("📡 WebSocket endpoint: ws://localhost:8002/ws/chat")
     logger.info("✨ Key Features:")
     logger.info("   - Single LLM orchestrator (GPT-4o)")
+    logger.info("   - ALL agents as MCP servers (JSON-RPC)")
+    logger.info("   - Progress streaming via $/progress")
     logger.info("   - Command-based routing")
     logger.info("   - Research as support agent")
     logger.info("   - Responder-only user communication")
     logger.info("   - Dynamic instructions")
+    logger.info("")
+    logger.info("📋 MCP Servers (will start on first request):")
+    logger.info("   - openai_server.py (OpenAI GPT-4o wrapper)")
+    logger.info("   - research_agent_server.py")
+    logger.info("   - architect_agent_server.py")
+    logger.info("   - codesmith_agent_server.py")
+    logger.info("   - reviewfix_agent_server.py")
+    logger.info("   - responder_agent_server.py")
+    logger.info("   + utility servers (perplexity, memory, etc.)")
+    logger.info("")
+    logger.info("⚠️ MCP BLEIBT: NO direct agent instantiation!")
+    logger.info("⚠️ MCP BLEIBT: All communication via MCPManager!")
 
     yield
 
-    logger.info("🛑 Shutting down v7.0 Supervisor Server...")
+    # ⚠️ MCP BLEIBT: Shutdown MCP connections
+    logger.info("🛑 Shutting down v7.0 Pure MCP Server...")
+    logger.info("⚠️ MCP BLEIBT: Closing all MCP server connections...")
+    try:
+        await close_mcp_manager()
+        logger.info("✅ MCP connections closed successfully")
+    except Exception as e:
+        logger.error(f"❌ Error closing MCP connections: {e}")
+    logger.info("👋 Server shutdown complete")
 
 
 # ============================================================================
@@ -383,8 +343,8 @@ async def lifespan(app: FastAPI):
 # ============================================================================
 
 app = FastAPI(
-    title=f"KI AutoAgent {__release_tag__}",
-    description="v7.0 Supervisor Pattern Architecture",
+    title=f"KI AutoAgent {__release_tag__} (Pure MCP)",
+    description="⚠️ MCP BLEIBT: v7.0 Pure MCP Architecture - All agents as MCP servers",
     version=__version__,
     lifespan=lifespan
 )
@@ -405,12 +365,15 @@ app.add_middleware(
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
+    """
+    ⚠️ MCP BLEIBT: Health check endpoint showing MCP architecture status
+    """
     return {
         "status": "healthy",
         "version": __version__,
         "release_tag": __release_tag__,
-        "architecture": "supervisor_pattern",
+        "architecture": "pure_mcp",  # ⚠️ MCP BLEIBT!
+        "mcp_active": True,
         "timestamp": datetime.now().isoformat(),
         "active_connections": len(manager.active_connections),
         "active_sessions": len(active_sessions)
@@ -419,31 +382,55 @@ async def health_check():
 
 @app.get("/api/v7/info")
 async def get_v7_info():
-    """Get v7.0 system information."""
+    """
+    ⚠️ MCP BLEIBT: Get v7.0 Pure MCP system information
+    """
     return {
         "version": __version__,
-        "architecture": "Supervisor Pattern",
+        "architecture": "Pure MCP (Model Context Protocol)",
+        "mcp_protocol_version": "2024-11-05",
         "agents": [
-            "supervisor",
-            "research",
-            "architect",
-            "codesmith",
-            "reviewfix",
-            "responder",
-            "hitl"
+            "supervisor (GPT-4o orchestrator)",
+            "research (via research_agent MCP server)",
+            "architect (via architect_agent MCP server)",
+            "codesmith (via codesmith_agent MCP server)",
+            "reviewfix (via reviewfix_agent MCP server)",
+            "responder (via responder_agent MCP server)",
+            "hitl (special UI interaction)"
+        ],
+        "mcp_servers": [
+            "openai_server.py",
+            "research_agent_server.py",
+            "architect_agent_server.py",
+            "codesmith_agent_server.py",
+            "reviewfix_agent_server.py",
+            "responder_agent_server.py",
+            "perplexity_server.py",
+            "memory_server.py",
+            "build_validation_server.py"
         ],
         "features": {
             "central_orchestration": True,
+            "mcp_protocol": True,  # ⚠️ MCP BLEIBT!
+            "json_rpc_communication": True,
+            "progress_notifications": True,
             "command_routing": True,
             "research_requests": True,
             "self_invocation": True,
             "research_fix_loop": True,
-            "dynamic_instructions": True
+            "dynamic_instructions": True,
+            "subprocess_isolation": True
         },
         "asimov_rules": {
             "rule_1": "ReviewFix MANDATORY after code generation",
             "rule_2": "Architecture documentation required",
             "rule_3": "HITL on low confidence"
+        },
+        "mcp_benefits": {
+            "industry_standard": "Anthropic, OpenAI, Google, Microsoft",
+            "composability": "Swap AI providers easily",
+            "observability": "Central progress monitoring",
+            "security": "Process isolation per agent"
         }
     }
 
@@ -454,7 +441,11 @@ async def get_v7_info():
 
 @app.websocket("/ws/chat")
 async def websocket_chat(websocket: WebSocket):
-    """Main WebSocket endpoint with v7.0 Supervisor workflow."""
+    """
+    ⚠️ MCP BLEIBT: Main WebSocket endpoint with v7.0 Pure MCP workflow
+
+    ALL agent calls via MCP protocol - NO direct instantiation!
+    """
 
     client_id = f"client_{uuid.uuid4().hex[:8]}"
     await manager.connect(websocket, client_id)
@@ -477,12 +468,13 @@ async def websocket_chat(websocket: WebSocket):
         # Welcome message
         await manager.send_json(client_id, {
             "type": "connected",
-            "message": f"Connected to KI AutoAgent {__release_tag__} - Supervisor Pattern",
+            "message": f"⚠️ MCP BLEIBT: Connected to KI AutoAgent {__release_tag__} - Pure MCP Architecture",
             "session_id": session["session_id"],
             "client_id": client_id,
             "version": __version__,
             "release_tag": __release_tag__,
-            "architecture": "supervisor_pattern",
+            "architecture": "pure_mcp",  # ⚠️ MCP BLEIBT!
+            "mcp_protocol": "2024-11-05",
             "requires_init": True
         })
 
@@ -512,15 +504,25 @@ async def websocket_chat(websocket: WebSocket):
                     "type": "initialized",
                     "session_id": session["session_id"],
                     "workspace_path": workspace_path,
-                    "message": "v7.0 Supervisor workflow ready!",
-                    "architecture": "supervisor_pattern",
+                    "message": "⚠️ MCP BLEIBT: v7.0 Pure MCP workflow ready!",
+                    "architecture": "pure_mcp",  # ⚠️ MCP BLEIBT!
+                    "mcp_servers_available": [
+                        "openai_server",
+                        "research_agent_server",
+                        "architect_agent_server",
+                        "codesmith_agent_server",
+                        "reviewfix_agent_server",
+                        "responder_agent_server",
+                        "perplexity_server",
+                        "memory_server"
+                    ],
                     "agents_available": [
-                        "supervisor",
-                        "research",
-                        "architect",
-                        "codesmith",
-                        "reviewfix",
-                        "responder",
+                        "supervisor (GPT-4o)",
+                        "research (MCP)",
+                        "architect (MCP)",
+                        "codesmith (MCP)",
+                        "reviewfix (MCP)",
+                        "responder (MCP)",
                         "hitl"
                     ]
                 })
@@ -558,18 +560,21 @@ async def websocket_chat(websocket: WebSocket):
                 })
 
                 try:
-                    logger.info(f"🚀 Running v7.0 Supervisor workflow for: {user_query[:80]}...")
+                    logger.info(f"🚀 Running v7.0 Pure MCP workflow for: {user_query[:80]}...")
+                    logger.info("⚠️ MCP BLEIBT: All agents will execute via MCP protocol!")
 
                     # Add debug logging
                     logger.info(f"   Workspace: {session['workspace_path']}")
                     logger.info(f"   Session ID: {session['session_id']}")
                     logger.info(f"   Client ID: {client_id}")
 
-                    # Execute workflow WITH STREAMING for real-time updates
+                    # ⚠️ MCP BLEIBT: Execute workflow WITH STREAMING for real-time updates
+                    # This will initialize MCPManager and start all MCP servers!
                     final_result = {}
-                    async for event in execute_supervisor_workflow_streaming(
+                    async for event in execute_supervisor_workflow_streaming_mcp(
                         user_query=user_query,
-                        workspace_path=session["workspace_path"]
+                        workspace_path=session["workspace_path"],
+                        session_id=session["session_id"]  # For event streaming
                     ):
                         # Forward workflow events to WebSocket client
                         event_type = event.get("type")
@@ -580,7 +585,8 @@ async def websocket_chat(websocket: WebSocket):
                             await manager.send_json(client_id, {
                                 "type": "progress",
                                 "node": node,
-                                "message": f"Executing {node}...",
+                                "message": f"⚠️ MCP: Executing {node} via MCP protocol...",
+                                "architecture": "pure_mcp",
                                 "timestamp": event.get("timestamp")
                             })
 
@@ -588,11 +594,30 @@ async def websocket_chat(websocket: WebSocket):
                             state_update = event.get("state_update", {})
                             final_result.update(state_update)
 
+                        elif event_type == "mcp_progress":
+                            # ⚠️ MCP BLEIBT: Forward MCP $/progress notifications!
+                            await manager.send_json(client_id, {
+                                "type": "mcp_progress",
+                                "server": event.get("server"),
+                                "message": event.get("message"),
+                                "progress": event.get("progress"),
+                                "timestamp": event.get("timestamp")
+                            })
+
+                        elif event_type == "agent_event":
+                            # Forward agent event (think, progress, result, decision)
+                            await manager.send_json(client_id, event)
+
+                        elif event_type == "supervisor_event":
+                            # Forward supervisor event (decision, routing, analysis)
+                            await manager.send_json(client_id, event)
+
                         elif event_type == "workflow_complete":
-                            # Send completion to client
+                            # ⚠️ MCP BLEIBT: Workflow complete via Pure MCP!
                             await manager.send_json(client_id, {
                                 "type": "workflow_complete",
-                                "message": "✅ Workflow completed!",
+                                "message": "✅ Pure MCP workflow completed successfully!",
+                                "architecture": "pure_mcp",
                                 "timestamp": event.get("timestamp")
                             })
 
@@ -682,8 +707,11 @@ async def websocket_chat(websocket: WebSocket):
 # ============================================================================
 
 if __name__ == "__main__":
+    logger.info("="*60)
+    logger.info("⚠️ MCP BLEIBT: Starting Pure MCP Server")
+    logger.info("="*60)
     uvicorn.run(
-        "server_v7_supervisor:app",
+        "server_v7_mcp:app",  # ⚠️ MCP BLEIBT: Changed module name!
         host="0.0.0.0",
         port=8002,
         reload=False,

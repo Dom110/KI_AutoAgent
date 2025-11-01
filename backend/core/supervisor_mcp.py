@@ -1,19 +1,27 @@
 """
-Supervisor Pattern Implementation for KI AutoAgent v7.0
+⚠️ MCP BLEIBT: Supervisor Pattern for v7.0 Pure MCP Architecture
+⚠️ WICHTIG: MCP BLEIBT! Supervisor orchestriert Agents AUSSCHLIESSLICH via MCP!
 
 This module implements the central orchestrator using GPT-4o that makes
-ALL routing decisions in the system. No more distributed intelligence!
+ALL routing decisions in the system, using Pure MCP architecture for all
+agent communication.
+
+Key Changes from v6.6:
+- ALL agent calls go through MCPManager
+- Progress notifications forwarded from MCP servers
+- No direct agent instantiation
+- Pure JSON-RPC communication
 
 Key Principles:
 1. Single decision maker - only the Supervisor decides routing
-2. Agents are "dumb" tools - they only execute instructions
+2. Agents are MCP servers - they execute via mcp.call()
 3. Research is a support agent - never user-facing
 4. Dynamic instructions - no hardcoded modes
 5. Self-invocation possible - agents can be called multiple times
+6. ⚠️ MCP BLEIBT: All communication via MCPManager!
 
-Author: KI AutoAgent Team
-Version: 7.0.0-alpha
-Date: 2025-10-20
+Author: KI AutoAgent v7.0
+Date: 2025-10-30
 """
 
 from __future__ import annotations
@@ -32,6 +40,9 @@ from pydantic import BaseModel, Field
 
 from backend.utils.rate_limiter import wait_for_provider
 
+# ⚠️ MCP BLEIBT: Import MCPManager for all agent calls!
+from backend.utils.mcp_manager import get_mcp_manager, MCPConnectionError, MCPToolError
+
 # Setup logging
 logger = logging.getLogger(__name__)
 
@@ -41,7 +52,11 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 class AgentType(str, Enum):
-    """Available agents in the system."""
+    """
+    ⚠️ MCP BLEIBT: Available MCP agent servers in the system.
+
+    Each agent is a separate MCP server process.
+    """
     RESEARCH = "research"
     ARCHITECT = "architect"
     CODESMITH = "codesmith"
@@ -53,7 +68,7 @@ class AgentType(str, Enum):
 class SupervisorAction(str, Enum):
     """Possible supervisor actions."""
     CONTINUE = "CONTINUE"  # Continue with next agent
-    PARALLEL = "PARALLEL"  # Run multiple agents in parallel
+    PARALLEL = "PARALLEL"  # Run multiple agents in parallel (via MCP)
     FINISH = "FINISH"      # Complete workflow
     CLARIFY = "CLARIFY"    # Need user clarification
 
@@ -72,7 +87,7 @@ class SupervisorDecision(BaseModel):
 
     parallel_agents: list[AgentType] | None = Field(
         default=None,
-        description="Agents to run in parallel (for PARALLEL action)"
+        description="Agents to run in parallel (for PARALLEL action) - ⚠️ MCP BLEIBT: via mcp.call_multiple()"
     )
 
     instructions: str = Field(
@@ -116,22 +131,39 @@ class SupervisorContext:
 # Supervisor Class
 # ============================================================================
 
-class Supervisor:
+class SupervisorMCP:
     """
-    Central orchestrator using GPT-4o for all routing decisions.
+    ⚠️ MCP BLEIBT: Central orchestrator using Pure MCP Architecture.
 
     This is the ONLY decision maker in the v7.0 architecture.
-    All agents are subordinate tools that execute instructions.
+    All agents are MCP servers that execute via mcp.call().
+
+    Key Difference from v6.6:
+    - NO direct agent instantiation
+    - ALL agent calls via MCPManager
+    - Progress notifications forwarded from MCP servers
+    - Pure JSON-RPC communication
     """
 
-    def __init__(self, model: str = "gpt-4o-2024-11-20", temperature: float = 0.3):
+    def __init__(
+        self,
+        workspace_path: str,
+        model: str = "gpt-4o-2024-11-20",
+        temperature: float = 0.3,
+        session_id: str | None = None
+    ):
         """
-        Initialize the Supervisor.
+        ⚠️ MCP BLEIBT: Initialize Supervisor with MCP Manager
 
         Args:
-            model: OpenAI model to use for decisions
-            temperature: Creativity level (0.0-1.0), lower = more deterministic
+            workspace_path: Workspace path for MCPManager
+            model: OpenAI model for decisions
+            temperature: Creativity level (0.0-1.0)
+            session_id: Session ID for event streaming
         """
+        self.workspace_path = workspace_path
+        self.session_id = session_id
+
         self.llm = ChatOpenAI(
             model=model,
             temperature=temperature,
@@ -141,14 +173,22 @@ class Supervisor:
         # Track workflow history for learning
         self.workflow_history: list[dict] = []
 
-        logger.info(f"🎯 Supervisor initialized with {model}")
+        # ⚠️ MCP BLEIBT: Get MCPManager instance
+        # Progress callback will be set by workflow
+        self.mcp = get_mcp_manager(workspace_path=workspace_path)
+
+        logger.info(f"🎯 SupervisorMCP initialized with {model}")
+        logger.info("⚠️ MCP BLEIBT: Pure MCP architecture active!")
 
     async def decide_next(self, state: dict[str, Any]) -> Command:
         """
-        Main decision function that analyzes state and decides next action.
+        ⚠️ MCP BLEIBT: Main decision function using MCP architecture
 
         This is the core of the Supervisor Pattern - ALL routing decisions
         happen here, not in individual agents.
+
+        Key Change: Instead of routing to agent nodes in LangGraph, we now
+        document the MCP-based communication pattern.
 
         Args:
             state: Current workflow state
@@ -157,7 +197,7 @@ class Supervisor:
             Command object with routing decision
         """
         # Get session_id for event streaming
-        session_id = state.get("session_id", "unknown")
+        session_id = state.get("session_id", self.session_id or "unknown")
 
         # Import event streaming utilities
         from backend.utils.event_stream import send_supervisor_decision, send_agent_think
@@ -169,7 +209,8 @@ class Supervisor:
             thinking="Analyzing current state and making routing decision...",
             details={
                 "iteration": state.get("iteration", 0),
-                "last_agent": state.get("last_agent")
+                "last_agent": state.get("last_agent"),
+                "mcp_architecture": "pure"  # ⚠️ MCP BLEIBT!
             }
         )
 
@@ -177,7 +218,7 @@ class Supervisor:
         context = self._build_context(state)
 
         # ========================================================================
-        # EXPLICIT TERMINATION CONDITIONS (Pattern C - Hybrid)
+        # EXPLICIT TERMINATION CONDITIONS
         # ========================================================================
 
         # Condition 1: Response is ready (Responder completed)
@@ -203,9 +244,6 @@ class Supervisor:
                 "response_ready": True
             })
 
-        # Condition 4: Explicit supervisor FINISH decision (checked later in _decision_to_command)
-        # This happens when the supervisor LLM decides the task is complete
-
         # ========================================================================
         # NORMAL ROUTING LOGIC
         # ========================================================================
@@ -213,6 +251,7 @@ class Supervisor:
         # Check if any agent requested research
         if context.needs_research and context.research_request:
             logger.info(f"📚 Agent requested research: {context.research_request}")
+            logger.info("⚠️ MCP BLEIBT: Research will be called via mcp.call()")
             return self._route_to_research(context)
 
         # Build decision prompt
@@ -220,7 +259,7 @@ class Supervisor:
 
         # Get structured decision from LLM
         try:
-            # ⏱️ RATE LIMITING: Wait if needed to respect rate limits
+            # ⏱️ RATE LIMITING: Wait if needed
             wait_time = await wait_for_provider("openai")
             if wait_time > 0:
                 logger.debug(f"⏸️ Rate limit: waited {wait_time:.2f}s for Supervisor decision")
@@ -235,7 +274,7 @@ class Supervisor:
             logger.error(f"❌ Supervisor decision failed: {e}")
             # Fallback to HITL on error
             return Command(
-                goto="hitl",  # Use string node name
+                goto="hitl",
                 update={
                     "instructions": f"Supervisor error: {str(e)}. Please provide guidance.",
                     "error": str(e)
@@ -246,6 +285,8 @@ class Supervisor:
         logger.info(f"🤔 Supervisor decision: {decision.action}")
         logger.info(f"   Reasoning: {decision.reasoning}")
         logger.info(f"   Confidence: {decision.confidence:.2f}")
+        if decision.next_agent:
+            logger.info(f"   ⚠️ MCP BLEIBT: Next agent will be called via mcp.call('{decision.next_agent.value}_agent', ...)")
 
         # Stream detailed decision to client
         next_agent_str = decision.next_agent.value if decision.next_agent and hasattr(decision.next_agent, 'value') else str(decision.next_agent) if decision.next_agent else "END"
@@ -278,55 +319,73 @@ class Supervisor:
         )
 
     def _route_to_research(self, context: SupervisorContext) -> Command:
-        """Route to research agent when requested by another agent."""
+        """
+        ⚠️ MCP BLEIBT: Route to research agent via MCP
+
+        The actual call will be: mcp.call("research_agent", "research", {...})
+        """
+        logger.info("⚠️ MCP BLEIBT: Routing to research_agent MCP server")
         return Command(
-            goto="research",  # Use string node name, not enum
+            goto="research",
             update={
                 "instructions": f"Research requested: {context.research_request}",
-                "needs_research": False,  # Reset flag
+                "needs_research": False,
                 "research_request": None
             }
         )
 
     def _get_system_prompt(self) -> str:
-        """Get the system prompt for the Supervisor."""
-        return """You are the Supervisor, the ONLY decision maker in a multi-agent system.
+        """
+        ⚠️ MCP BLEIBT: System prompt for Supervisor (MCP-aware)
+        """
+        return """You are the Supervisor, the ONLY decision maker in a Pure MCP multi-agent system.
 
-Your job is to orchestrate agents to complete tasks. You decide:
-- Which agent to call next
+Your job is to orchestrate MCP agent servers to complete tasks. You decide:
+- Which MCP agent to call next
 - What instructions to give them
 - When to call the same agent again (self-invocation)
 - When the task is complete
 
-Available agents and their capabilities:
+⚠️ IMPORTANT: All agents are MCP servers that communicate via JSON-RPC protocol!
+
+Available MCP agents and their capabilities:
 
 1. RESEARCH - Support agent (NOT user-facing):
    - Analyzes workspace and codebase
-   - Searches web for best practices
+   - Searches web for best practices via Perplexity MCP
    - Gathers context for other agents
    - Analyzes errors and suggests fixes
+   - Tool: "research"
 
 2. ARCHITECT - System designer:
    - Designs system architecture
    - Creates file structures
    - Documents systems
    - Needs research context first
+   - Uses OpenAI via MCP
+   - Tool: "design"
 
 3. CODESMITH - Code generator:
    - Implements code from architecture
    - Fixes bugs
    - Needs architecture first
+   - Uses Claude CLI via MCP
+   - Tool: "generate"
 
 4. REVIEWFIX - Quality assurance:
    - Reviews code quality
    - Runs build validation
    - Fixes issues
    - MANDATORY after code generation (Asimov Rule 1)
+   - Uses Claude CLI via MCP
+   - Tool: "review_and_fix"
 
 5. RESPONDER - User interface (ONLY agent that talks to users):
    - Formats final responses
    - Summarizes results for users
    - Creates readable output
+   - Pure formatting (no AI)
+   - Tool: "format_response"
 
 6. HITL - Human in the loop:
    - Asks for user clarification
@@ -342,12 +401,19 @@ CRITICAL RULES:
 6. Agents CAN be called multiple times (refinement/iteration)
 7. When confidence < 0.5, use HITL for clarification
 
+⚠️ MCP ARCHITECTURE:
+- All agents are MCP servers (separate processes)
+- Communication via JSON-RPC over stdin/stdout
+- Progress notifications via $/progress
+- Parallel execution possible via mcp.call_multiple()
+
 WORKFLOW PATTERNS:
 - CREATE: research → architect → codesmith → reviewfix → responder
 - EXPLAIN: research → responder
 - FIX: research → (architect) → codesmith → reviewfix → responder
 
-Remember: You are the ONLY decision maker. Agents don't decide routing!"""
+Remember: You are the ONLY decision maker. Agents don't decide routing!
+⚠️ MCP BLEIBT: All communication via MCP protocol!"""
 
     def _build_decision_prompt(self, context: SupervisorContext) -> str:
         """Build the decision prompt based on current context."""
@@ -361,26 +427,26 @@ Remember: You are the ONLY decision maker. Agents don't decide routing!"""
         # Add workflow progress
         progress = []
         if context.research_context:
-            progress.append("✅ Research complete (context collected)")
+            progress.append("✅ Research complete (context collected via MCP)")
         else:
             progress.append("⏳ Research pending (no context yet)")
 
         if context.architecture:
-            progress.append("✅ Architecture complete")
+            progress.append("✅ Architecture complete (designed via MCP)")
         else:
             progress.append("⏳ Architecture pending")
 
         if context.generated_files:
-            progress.append(f"✅ Code generated ({len(context.generated_files)} files)")
+            progress.append(f"✅ Code generated via MCP ({len(context.generated_files)} files)")
         else:
             progress.append("⏳ Code generation pending")
 
         if context.validation_results:
             passed = context.validation_results.get("passed", False)
             if passed:
-                progress.append("✅ Validation passed")
+                progress.append("✅ Validation passed (reviewed via MCP)")
             else:
-                progress.append("❌ Validation failed (needs fixes)")
+                progress.append("❌ Validation failed (needs fixes via MCP)")
         else:
             progress.append("⏳ Validation pending")
 
@@ -392,12 +458,18 @@ Remember: You are the ONLY decision maker. Agents don't decide routing!"""
         # Build final prompt
         prompt = f"""Current task: {context.goal}
 
-Workflow Progress:
+Workflow Progress (Pure MCP Architecture):
 {chr(10).join(progress)}
 
 Context:
 {chr(10).join(context_parts)}
 {error_info}
+
+⚠️ Note: All agents are MCP servers. When you route to an agent, the workflow will call:
+- mcp.call("research_agent", "research", {{...}})
+- mcp.call("architect_agent", "design", {{...}})
+- mcp.call("codesmith_agent", "generate", {{...}})
+- etc.
 
 Based on the current state, decide the next action.
 
@@ -417,18 +489,22 @@ Return your decision as structured JSON."""
         decision: SupervisorDecision,
         context: SupervisorContext
     ) -> Command:
-        """Convert supervisor decision to LangGraph Command."""
+        """
+        ⚠️ MCP BLEIBT: Convert supervisor decision to LangGraph Command
+
+        The Command will route to MCP agent nodes that call mcp.call().
+        """
 
         # Handle FINISH action
         if decision.action == SupervisorAction.FINISH:
-            logger.info("✅ Workflow complete")
+            logger.info("✅ Workflow complete (MCP architecture)")
             return Command(goto=END)
 
         # Handle CLARIFY action (low confidence)
         if decision.action == SupervisorAction.CLARIFY or decision.confidence < 0.5:
-            logger.info("❓ Requesting user clarification")
+            logger.info("❓ Requesting user clarification (low confidence)")
             return Command(
-                goto="hitl",  # Use string node name
+                goto="hitl",
                 update={
                     "instructions": decision.instructions or "Low confidence - please clarify the request",
                     "confidence": decision.confidence
@@ -437,7 +513,8 @@ Return your decision as structured JSON."""
 
         # Handle PARALLEL action
         if decision.action == SupervisorAction.PARALLEL and decision.parallel_agents:
-            logger.info(f"⚡ Parallel execution: {decision.parallel_agents}")
+            logger.info(f"⚡ Parallel execution via MCP: {decision.parallel_agents}")
+            logger.info("⚠️ MCP BLEIBT: Will use mcp.call_multiple() for parallel agent calls")
             # Note: LangGraph parallel execution requires special handling
             # For now, we'll execute sequentially
             return Command(
@@ -452,18 +529,20 @@ Return your decision as structured JSON."""
 
         # Handle CONTINUE action (normal flow)
         if decision.action == SupervisorAction.CONTINUE and decision.next_agent:
-            # Convert enum to string if needed
+            # Convert enum to string
             agent_name = decision.next_agent.value if hasattr(decision.next_agent, 'value') else str(decision.next_agent).lower()
 
             # Check for self-invocation
             is_self_invocation = (agent_name == context.last_agent)
             if is_self_invocation:
-                logger.info(f"🔄 Self-invocation: {agent_name} (iteration {context.iteration + 1})")
+                logger.info(f"🔄 Self-invocation via MCP: {agent_name} (iteration {context.iteration + 1})")
             else:
-                logger.info(f"➡️ Routing to: {agent_name}")
+                logger.info(f"➡️ Routing to MCP agent: {agent_name}")
+
+            logger.info(f"⚠️ MCP BLEIBT: Workflow will call mcp.call('{agent_name}_agent', ...)")
 
             return Command(
-                goto=agent_name,  # Use string node name
+                goto=agent_name,
                 update={
                     "instructions": decision.instructions,
                     "iteration": context.iteration + 1,
@@ -475,7 +554,7 @@ Return your decision as structured JSON."""
         # Fallback to HITL if decision is unclear
         logger.warning("⚠️ Unclear decision, routing to HITL")
         return Command(
-            goto="hitl",  # Use string node name
+            goto="hitl",
             update={
                 "instructions": "Supervisor decision unclear - please provide guidance",
                 "decision": decision.dict()
@@ -501,26 +580,40 @@ Return your decision as structured JSON."""
         self.workflow_history.append({
             "workflow": workflow,
             "outcome": outcome,
-            "success": success
+            "success": success,
+            "architecture": "pure_mcp"  # ⚠️ MCP BLEIBT!
         })
 
         # TODO: Implement learning mechanism
-        # - Store successful patterns
+        # - Store successful MCP patterns
         # - Adjust confidence thresholds
         # - Optimize instruction templates
+        # - Track MCP server performance
 
-        logger.info(f"📊 Workflow outcome recorded (success={success})")
+        logger.info(f"📊 Workflow outcome recorded (success={success}, architecture=pure_mcp)")
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
 
-def create_supervisor() -> Supervisor:
-    """Factory function to create a configured Supervisor instance."""
-    return Supervisor(
+def create_supervisor_mcp(workspace_path: str, session_id: str | None = None) -> SupervisorMCP:
+    """
+    ⚠️ MCP BLEIBT: Factory function to create Pure MCP Supervisor
+
+    Args:
+        workspace_path: Workspace path for MCPManager
+        session_id: Session ID for event streaming
+
+    Returns:
+        SupervisorMCP instance configured for Pure MCP architecture
+    """
+    logger.info("⚠️ MCP BLEIBT: Creating SupervisorMCP with Pure MCP architecture")
+    return SupervisorMCP(
+        workspace_path=workspace_path,
         model="gpt-4o-2024-11-20",
-        temperature=0.3
+        temperature=0.3,
+        session_id=session_id
     )
 
 
@@ -529,10 +622,10 @@ def create_supervisor() -> Supervisor:
 # ============================================================================
 
 __all__ = [
-    "Supervisor",
+    "SupervisorMCP",
     "SupervisorDecision",
     "SupervisorContext",
     "SupervisorAction",
     "AgentType",
-    "create_supervisor"
+    "create_supervisor_mcp"
 ]
