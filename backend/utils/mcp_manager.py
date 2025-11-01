@@ -112,6 +112,7 @@ class MCPManager:
             "responder_agent",     # Responder Agent
 
             # === UTILITY MCP SERVERS ===
+            "claude_cli",          # Claude CLI wrapper (code generation)
             "perplexity",          # Web search (existing)
             "memory",              # Memory system (existing)
             "build_validation",    # Build validation (existing)
@@ -155,6 +156,7 @@ class MCPManager:
             "responder_agent": project_root / "mcp_servers" / "responder_agent_server.py",
 
             # === UTILITY MCP SERVERS ===
+            "claude_cli": project_root / "mcp_servers" / "claude_cli_server.py",
             "perplexity": project_root / "mcp_servers" / "perplexity_server.py",
             "memory": project_root / "mcp_servers" / "memory_server.py",
             "build_validation": project_root / "mcp_servers" / "build_validation_server.py",

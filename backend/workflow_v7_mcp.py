@@ -663,15 +663,19 @@ async def execute_supervisor_workflow_streaming_mcp(
     def progress_callback(server: str, message: str, progress: float):
         """
         ⚠️ MCP BLEIBT: Forward MCP $/progress notifications to event stream
+
+        Note: This is a sync callback called from MCPManager.
+        We use asyncio.create_task to send events asynchronously.
         """
         try:
-            event_manager.send_event(session_id, {
+            # Create async task to send event (don't await - we're in sync context)
+            asyncio.create_task(event_manager._send_event(session_id, {
                 "type": "mcp_progress",
                 "server": server,
                 "message": message,
                 "progress": progress,
                 "timestamp": datetime.now().isoformat()
-            })
+            }))
             logger.debug(f"📊 MCP Progress ({server}): {message}")
         except Exception as e:
             logger.warning(f"Progress callback error: {e}")

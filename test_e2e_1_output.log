@@ -1,0 +1,267 @@
+================================================================================
+🧪 E2E Test 1: Build New App from Scratch
+================================================================================
+Workspace: /Users/dominikfoert/TestApps/e2e_test_1_new_app
+Backend: ws://localhost:8002/ws/chat
+
+✅ Created test workspace: /Users/dominikfoert/TestApps/e2e_test_1_new_app
+
+✅ WebSocket connected
+
+📥 Connect response: {'type': 'connected', 'message': '⚠️ MCP BLEIBT: Connected to KI AutoAgent v7.0.0-alpha-supervisor - Pure MCP Architecture', 'session_id': '378e1895-5e04-4450-9285-7e56b4479fe6', 'client_id': 'client_7c4c4aa7', 'version': '7.0.0-alpha', 'release_tag': 'v7.0.0-alpha-supervisor', 'architecture': 'pure_mcp', 'mcp_protocol': '2024-11-05', 'requires_init': True}
+
+✅ Session ID: 378e1895-5e04-4450-9285-7e56b4479fe6
+
+📤 Sent init: {'type': 'init', 'workspace_path': '/Users/dominikfoert/TestApps/e2e_test_1_new_app'}
+
+📥 Init success: {'type': 'initialized', 'session_id': '378e1895-5e04-4450-9285-7e56b4479fe6', 'workspace_path': '/Users/dominikfoert/TestApps/e2e_test_1_new_app', 'message': '⚠️ MCP BLEIBT: v7.0 Pure MCP workflow ready!', 'architecture': 'pure_mcp', 'mcp_servers_available': ['openai_server', 'research_agent_server', 'architect_agent_server', 'codesmith_agent_server', 'reviewfix_agent_server', 'responder_agent_server', 'perplexity_server', 'memory_server'], 'agents_available': ['supervisor (GPT-4o)', 'research (MCP)', 'architect (MCP)', 'codesmith (MCP)', 'reviewfix (MCP)', 'responder (MCP)', 'hitl']}
+
+📤 Sent query: 
+Create a Python CLI tool for converting temperatures between Celsius, Fahrenheit, and Kelvin.
+
+Requ...
+
+================================================================================
+📊 Receiving Events...
+================================================================================
+
+[Event #1] Type: status
+
+[Event #2] Type: agent_event
+
+[Event #3] Type: supervisor_event
+
+[Event #4] Type: progress
+
+[Event #5] Type: progress
+
+[Event #6] Type: agent_event
+
+[Event #7] Type: supervisor_event
+
+[Event #8] Type: progress
+
+[Event #9] Type: progress
+
+[Event #10] Type: agent_event
+
+[Event #11] Type: supervisor_event
+
+[Event #12] Type: progress
+
+[Event #13] Type: progress
+
+[Event #14] Type: agent_event
+
+[Event #15] Type: supervisor_event
+
+[Event #16] Type: progress
+
+[Event #17] Type: progress
+
+[Event #18] Type: agent_event
+
+[Event #19] Type: supervisor_event
+
+[Event #20] Type: progress
+
+[Event #21] Type: progress
+
+[Event #22] Type: agent_event
+
+[Event #23] Type: supervisor_event
+
+[Event #24] Type: progress
+
+[Event #25] Type: progress
+
+[Event #26] Type: agent_event
+
+[Event #27] Type: supervisor_event
+
+[Event #28] Type: progress
+
+[Event #29] Type: progress
+
+[Event #30] Type: agent_event
+
+[Event #31] Type: supervisor_event
+
+[Event #32] Type: progress
+
+[Event #33] Type: progress
+
+[Event #34] Type: agent_event
+
+[Event #35] Type: supervisor_event
+
+[Event #36] Type: progress
+
+[Event #37] Type: progress
+
+[Event #38] Type: agent_event
+
+[Event #39] Type: supervisor_event
+
+[Event #40] Type: progress
+
+[Event #41] Type: progress
+
+[Event #42] Type: agent_event
+
+[Event #43] Type: supervisor_event
+
+[Event #44] Type: progress
+
+[Event #45] Type: progress
+
+[Event #46] Type: agent_event
+
+[Event #47] Type: supervisor_event
+
+[Event #48] Type: progress
+
+[Event #49] Type: progress
+
+[Event #50] Type: agent_event
+
+[Event #51] Type: supervisor_event
+
+[Event #52] Type: progress
+
+[Event #53] Type: progress
+
+[Event #54] Type: agent_event
+
+[Event #55] Type: supervisor_event
+
+[Event #56] Type: progress
+
+[Event #57] Type: progress
+
+[Event #58] Type: agent_event
+
+[Event #59] Type: supervisor_event
+
+[Event #60] Type: progress
+
+[Event #61] Type: progress
+
+[Event #62] Type: agent_event
+
+[Event #63] Type: supervisor_event
+
+[Event #64] Type: progress
+
+[Event #65] Type: progress
+
+[Event #66] Type: agent_event
+
+[Event #67] Type: supervisor_event
+
+[Event #68] Type: progress
+
+[Event #69] Type: progress
+
+[Event #70] Type: agent_event
+
+[Event #71] Type: supervisor_event
+
+[Event #72] Type: progress
+
+[Event #73] Type: progress
+
+[Event #74] Type: agent_event
+
+[Event #75] Type: supervisor_event
+
+[Event #76] Type: progress
+
+[Event #77] Type: progress
+
+[Event #78] Type: agent_event
+
+[Event #79] Type: supervisor_event
+
+[Event #80] Type: progress
+
+[Event #81] Type: progress
+
+[Event #82] Type: agent_event
+
+[Event #83] Type: supervisor_event
+
+[Event #84] Type: progress
+
+[Event #85] Type: progress
+
+[Event #86] Type: agent_event
+
+[Event #87] Type: progress
+
+[Event #88] Type: workflow_complete
+   ✅ Workflow complete!
+
+================================================================================
+📊 Test Summary
+================================================================================
+Success: True
+Events received: 88
+  - MCP progress events: 0
+  - Workflow events: 0
+Agents executed: []
+Files created: 0
+
+📁 Workspace contents:
+e2e_test_1_new_app/
+  requirements.txt
+  tempconv.py
+  README.md
+  setup.py
+  .pytest_cache/
+    CACHEDIR.TAG
+    README.md
+    .gitignore
+    v/
+      cache/
+        nodeids
+        lastfailed
+        stepwise
+  tests/
+    test_temperature_converter.py
+    __init__.py
+    test_converter.py
+    test_cli.py
+    __pycache__/
+      test_converter.cpython-313-pytest-7.4.3.pyc
+      test_temperature_converter.cpython-313-pytest-7.4.3.pyc
+      test_cli.cpython-313.pyc
+      test_temperature_converter.cpython-313.pyc
+      test_cli.cpython-313-pytest-7.4.3.pyc
+      test_converter.cpython-313.pyc
+      __init__.cpython-313.pyc
+  __pycache__/
+    tempconv.cpython-313.pyc
+    setup.cpython-313.pyc
+  src/
+    converter.py
+    __init__.py
+    cli.py
+    __main__.py
+    temperature_converter.py
+    temp_converter/
+      converter.py
+      __init__.py
+      cli.py
+      __main__.py
+      __pycache__/
+        __main__.cpython-313.pyc
+        __init__.cpython-313.pyc
+    __pycache__/
+      converter.cpython-313.pyc
+      temperature_converter.cpython-313.pyc
+      cli.cpython-313.pyc
+      __main__.cpython-313.pyc
+      __init__.cpython-313.pyc
+
+📄 Report saved: /Users/dominikfoert/git/KI_AutoAgent/E2E_TEST_1_REPORT.md
