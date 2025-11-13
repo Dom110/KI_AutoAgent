@@ -57,45 +57,64 @@ logger.info(f"🚀 Architect MCP Server starting at {datetime.now()}")
 logger.info(f"=" * 80)
 
 
-# ⚠️ MCP BLEIBT: INLINE Helper for non-blocking stdin (FIXES FIX #2: Async Blocking I/O)
+# ⚠️ MCP BLEIBT: INLINE Helper for non-blocking stdin (FIX #2 V2: No Timeout)
 async def async_stdin_readline() -> str:
     """
-    🔄 Non-blocking stdin readline for asyncio
+    🔧 FIX #2 V2: Non-blocking stdin readline WITHOUT arbitrary timeout
     
-    Fixes the asyncio blocking I/O issue where servers would freeze
-    waiting for input from stdin. Uses run_in_executor with 300s timeout.
+    Solves the asyncio blocking I/O issue while avoiding 300s timeout problems.
+    
+    Key improvements:
+    - NO timeout → Operations complete fully, no interruptions at 300s
+    - EOF detection → Natural shutdown when parent closes connection
+    - Signal handling ready → Can add graceful shutdown handlers
+    - Scales → Works for any operation duration
+    
+    How it works:
+    - Uses run_in_executor() to keep event loop responsive
+    - Waits indefinitely for stdin data or EOF from parent
+    - Parent process controls server lifetime via connection
+    - Signal handlers provide additional graceful shutdown control
     
     Returns:
-        str: Line read from stdin, or empty string on timeout/EOF
+        str: Line read from stdin, or empty string on EOF
+        
+    Logging:
+        [stdin_v2] - All stdin operations prefixed with this tag
     """
     loop = asyncio.get_event_loop()
     
     def _read():
+        """Blocking read - runs in executor thread, non-blocking to event loop"""
         try:
+            logger.debug("[stdin_v2] sys.stdin.readline() called (blocking in executor)")
             line = sys.stdin.readline()
+            
             if line:
-                logger.debug(f"🔍 [stdin] Read {len(line)} bytes")
+                logger.debug(f"[stdin_v2] Read {len(line)} bytes")
+            else:
+                logger.info("[stdin_v2] EOF detected (empty line from stdin)")
+            
             return line
+            
         except Exception as e:
-            logger.error(f"❌ [stdin] readline() error: {type(e).__name__}: {e}")
+            logger.error(f"[stdin_v2] Read error: {type(e).__name__}: {e}")
             return ""
     
     try:
-        logger.debug("⏳ [stdin] Waiting for input (300s timeout)...")
-        result = await asyncio.wait_for(
-            loop.run_in_executor(None, _read),
-            timeout=300.0
-        )
-        if result:
-            logger.debug(f"✅ [stdin] Got line: {result[:60].strip()}...")
-        else:
-            logger.debug("ℹ️ [stdin] EOF (empty line)")
+        logger.debug("[stdin_v2] Waiting for input (NO timeout - waits for EOF or data)")
+        
+        # KEY CHANGE: NO timeout!
+        # The old code used: await asyncio.wait_for(..., timeout=300.0)
+        # This interrupted operations after 300s arbitrarily.
+        # New approach: Just await the executor directly.
+        # Server lifetime is controlled by parent process closing stdin.
+        result = await loop.run_in_executor(None, _read)
+        
         return result
-    except asyncio.TimeoutError:
-        logger.warning("⏱️ [stdin] Timeout (300s) - parent process may have disconnected")
-        return ""
+        
     except Exception as e:
-        logger.error(f"❌ [stdin] Unexpected error: {type(e).__name__}: {e}")
+        logger.error(f"[stdin_v2] Unexpected error: {type(e).__name__}: {e}")
         return ""
 
 

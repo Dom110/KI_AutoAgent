@@ -53,23 +53,30 @@ logger.info(f"=" * 80)
 
 # ⚠️ MCP BLEIBT: INLINE Helper for non-blocking stdin
 async def async_stdin_readline() -> str:
-    """Non-blocking stdin readline for asyncio"""
+    """
+    🔧 FIX #2 V2: Non-blocking stdin readline WITHOUT arbitrary timeout
+    
+    Solves the asyncio blocking I/O issue while avoiding 300s timeout problems.
+    """
     loop = asyncio.get_event_loop()
     def _read():
         try:
-            return sys.stdin.readline()
-        except:
+            logger.debug("[stdin_v2] Reading line from stdin")
+            line = sys.stdin.readline()
+            if line:
+                logger.debug(f"[stdin_v2] Read {len(line)} bytes")
+            else:
+                logger.info("[stdin_v2] EOF detected")
+            return line
+        except Exception as e:
+            logger.error(f"[stdin_v2] Read error: {e}")
             return ""
     try:
-        return await asyncio.wait_for(
-            loop.run_in_executor(None, _read),
-            timeout=300.0
-        )
-    except asyncio.TimeoutError:
-        logger.warning("⏱️ stdin timeout (parent disconnect?)")
-        return ""
+        logger.debug("[stdin_v2] Waiting for input (NO timeout)")
+        # KEY CHANGE: NO timeout - waits for real EOF from parent process
+        return await loop.run_in_executor(None, _read)
     except Exception as e:
-        logger.error(f"❌ stdin error: {e}")
+        logger.error(f"[stdin_v2] Unexpected error: {e}")
         return ""
 
 
