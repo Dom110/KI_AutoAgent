@@ -6,7 +6,7 @@
 fastapi==0.117.1
 uvicorn[standard]==0.37.0
 uvloop==0.21.0  # High-performance event loop (2-4x faster than asyncio) (v5.9.0)
-websockets==10.4
+websockets==13.1
 python-multipart==0.0.6
 
 # AI Services
@@ -93,6 +93,10 @@ py-spy==0.3.14
 austin-python==1.7.0
 memory-profiler==0.61.0
 scalene==1.5.55  # Latest version - may have Python 3.13 fixes
+
+# Monitoring & Observability (Phase 3b)
+prometheus-client==0.23.0  # Real-time metrics export (Prometheus format)
+prometheus-async==25.1.0   # Async support for Prometheus decorators
 
 # Additional Utilities
 pygments==2.17.2  # Syntax highlighting

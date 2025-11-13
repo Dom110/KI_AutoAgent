@@ -88,15 +88,22 @@ class E2ETestV7:
 
                 message_count = 0
                 max_messages = 500
+                silent_count = 0
+                max_silent = 10  # Allow 10 consecutive timeouts before giving up
 
                 while message_count < max_messages:
                     try:
                         response = await asyncio.wait_for(
                             websocket.recv(),
-                            timeout=5.0
+                            timeout=3.0  # Reduced timeout but more retries
                         )
                         data = json.loads(response)
                         message_count += 1
+                        silent_count = 0  # Reset silent counter when we get a message
+
+                        # DEBUG: Show all messages for first 20 messages
+                        if message_count <= 20:
+                            print(f"[MSG #{message_count}] Type: {data.get('type')} | Content: {str(data)[:150]}...")
 
                         if data.get("type") == "log":
                             log_msg = data.get("message", "")
@@ -111,13 +118,38 @@ class E2ETestV7:
                                 command_routing.append(log_msg)
                                 print(f"  ➡️ {log_msg[:100]}")
 
-                            # Agent execution
+                            # Agent execution (from logs)
                             for agent in ["research", "architect", "codesmith", "reviewfix", "responder", "hitl"]:
                                 if f"{agent.upper()} NODE" in log_msg or f"{agent}Agent" in log_msg:
                                     if agent not in agents_invoked:
                                         agents_invoked.append(agent)
                                         print(f"🚀 Agent Started: {agent}")
-
+                        
+                        # FIX: Also detect agent_event messages (v7.0 MCP events)
+                        elif data.get("type") == "agent_event":
+                            agent_name = data.get("agent", "")
+                            if agent_name:
+                                if agent_name not in agents_invoked:
+                                    agents_invoked.append(agent_name)
+                                    print(f"🚀 Agent Started (MCP Event): {agent_name}")
+                        
+                        # FIX: Detect supervisor_event messages for decisions
+                        elif data.get("type") == "supervisor_event":
+                            supervisor_decisions += 1
+                            decision = data.get("decision", "")
+                            print(f"🎯 Supervisor Decision #{supervisor_decisions}: {decision[:100]}")
+                        
+                        # FIX: Detect agents from progress messages (node field)
+                        elif data.get("type") == "progress":
+                            node_name = data.get("node", "")
+                            if node_name and node_name not in agents_invoked:
+                                agents_invoked.append(node_name)
+                                print(f"🚀 Agent Started (Progress): {node_name}")
+                        
+                        # Continue with log type checks for other metrics
+                        if data.get("type") == "log":
+                            log_msg = data.get("message", "")
+                            
                             # Research requests (v7.0 feature)
                             if "needs_research: True" in log_msg or "Requesting research" in log_msg:
                                 research_requests.append(log_msg)
@@ -154,16 +186,19 @@ class E2ETestV7:
                             result_content = data.get("content", "")
                             if "Generated with Claude Code" in result_content or "KI AutoAgent v7.0" in result_content:
                                 print(f"  ✅ Response formatted by Responder")
-                            break
+                            # DON'T break yet - wait for more messages (especially progress updates)
 
-                        elif data.get("type") == "error"):
+                        elif data.get("type") == "error":
                             errors.append(data.get("message", "Unknown error"))
                             print(f"\n❌ Error: {data.get('message')}")
-                            break
+                            # Keep collecting messages after error too
 
                     except asyncio.TimeoutError:
-                        # Check if we've made progress
-                        if completed or (supervisor_decisions > 0 and len(agents_invoked) > 0):
+                        silent_count += 1
+                        # Only exit after multiple consecutive timeouts
+                        if completed and silent_count >= max_silent:
+                            break
+                        if not completed and silent_count >= max_silent:
                             break
                         continue
 

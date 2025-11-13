@@ -1,0 +1,47 @@
+18:10:00.490 | DEBUG    | Using selector: KqueueSelector
+18:10:00.490 | INFO     | 
+🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 
+18:10:00.490 | INFO     | KI_AutoAgent E2E Test Suite - ReviewFix Validation
+18:10:00.490 | INFO     | 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 
+18:10:00.490 | INFO     | 
+📁 Test Workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000
+18:10:00.490 | INFO     | 📝 Main Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000/logs/e2e_main_20251113_181000.log
+18:10:00.490 | INFO     | 📤 WebSocket Send Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000/logs/websocket_send_20251113_181000.log
+18:10:00.490 | INFO     | 📥 WebSocket Recv Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000/logs/websocket_recv_20251113_181000.log
+18:10:00.490 | INFO     | 📊 WebSocket Combined Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000/logs/websocket_both_20251113_181000.log
+
+18:10:00.490 | INFO     | 
+================================================================================
+18:10:00.490 | INFO     | PHASE 1: Environment Setup
+18:10:00.490 | INFO     | ================================================================================
+18:10:00.491 | INFO     |   Removing old workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000
+18:10:00.491 | INFO     |   ✅ Created workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000
+18:10:00.491 | INFO     | ✅ Phase 'Environment Setup' complete (elapsed: 0.0s)
+18:10:00.491 | INFO     | 
+================================================================================
+18:10:00.491 | INFO     | PHASE 2: Backend Connection
+18:10:00.491 | INFO     | ================================================================================
+18:10:00.491 | INFO     |   Connecting to ws://localhost:8002/ws/chat...
+18:10:00.497 | DEBUG    | = connection is CONNECTING
+18:10:00.497 | DEBUG    | > GET /ws/chat HTTP/1.1
+18:10:00.497 | DEBUG    | > Host: localhost:8002
+18:10:00.497 | DEBUG    | > Upgrade: websocket
+18:10:00.497 | DEBUG    | > Connection: Upgrade
+18:10:00.497 | DEBUG    | > Sec-WebSocket-Key: uc19lizNTxS7CdbqCgjpgA==
+18:10:00.497 | DEBUG    | > Sec-WebSocket-Version: 13
+18:10:00.497 | DEBUG    | > Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits
+18:10:00.497 | DEBUG    | > User-Agent: Python/3.13 websockets/13.1
+18:10:00.498 | DEBUG    | < HTTP/1.1 101 Switching Protocols
+18:10:00.498 | DEBUG    | < Upgrade: websocket
+18:10:00.498 | DEBUG    | < Connection: Upgrade
+18:10:00.498 | DEBUG    | < Sec-WebSocket-Accept: E1uxJzFY4s3F9O7wKlXLLAfVxuE=
+18:10:00.498 | DEBUG    | < Sec-WebSocket-Extensions: permessage-deflate
+18:10:00.498 | DEBUG    | < date: Thu, 13 Nov 2025 17:10:00 GMT
+18:10:00.498 | DEBUG    | < server: uvicorn
+18:10:00.498 | DEBUG    | = connection is OPEN
+18:10:00.499 | DEBUG    | < TEXT '{"type":"connected","message":"⚠️ MCP BLEIBT: C...","requires_init":true}' [346 bytes]
+18:10:00.499 | ERROR    | ❌ ERROR: Phase 2 failed: [Errno 2] No such file or directory: '/Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000/logs/websocket_recv_20251113_181000.log'
+18:10:00.499 | ERROR    | ❌ Phase 2 failed - stopping tests
+18:10:10.500 | DEBUG    | ! timed out waiting for TCP close
+18:10:10.500 | DEBUG    | x half-closing TCP connection
+18:10:10.501 | DEBUG    | = connection is CLOSED

@@ -1,0 +1,24 @@
+2025-11-12 19:52:47,666 | DEBUG    | Using selector: KqueueSelector
+2025-11-12 19:52:47,666 | INFO     | 
+====================================================================================================
+2025-11-12 19:52:47,667 | INFO     | 🧪 E2E TEST: ReviewFix Agent MCP Migration Validation
+2025-11-12 19:52:47,667 | INFO     | ====================================================================================================
+2025-11-12 19:52:47,667 | INFO     | ⏱️  Started: 2025-11-12T19:52:47.667093
+2025-11-12 19:52:47,667 | INFO     | 📁 Workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251112_195247
+2025-11-12 19:52:47,667 | INFO     | 📝 Log File: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251112_195247/logs/e2e_test_20251112_195247.log
+2025-11-12 19:52:47,667 | INFO     | ====================================================================================================
+2025-11-12 19:52:47,667 | INFO     | 
+📋 PHASE 1: Environment Setup
+2025-11-12 19:52:47,667 | INFO     | 
+====================================================================================================
+2025-11-12 19:52:47,667 | INFO     | 🛠️  SETUP: Test Environment
+2025-11-12 19:52:47,667 | INFO     | ====================================================================================================
+2025-11-12 19:52:47,667 | INFO     | 🧹 Removing old workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251112_195247
+2025-11-12 19:52:47,667 | INFO     | ✅ Created test workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251112_195247
+2025-11-12 19:52:47,667 | INFO     | ✅ Created log directory: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251112_195247/logs
+2025-11-12 19:52:47,667 | WARNING  | ⚠️  Found 1 directories in workspace (cleanup incomplete)
+2025-11-12 19:52:47,667 | INFO     | 
+📋 PHASE 2: Backend Connection
+2025-11-12 19:52:47,667 | INFO     | 🌐 Connecting to WebSocket: ws://localhost:8002/ws/chat
+2025-11-12 19:52:47,668 | ERROR    | ❌ WebSocket connection failed: No module named 'websockets'
+2025-11-12 19:52:47,668 | ERROR    | ❌ Failed to connect to backend

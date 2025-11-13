@@ -115,7 +115,13 @@ async def run_test():
                     test_results["events_received"] += 1
 
                     event_type = event.get("type")
-                    print(f"\n[Event #{test_results['events_received']}] Type: {event_type}")
+                    print(f"\n{'='*80}")
+                    print(f"[Event #{test_results['events_received']}] Type: {event_type}")
+                    print(f"{'='*80}")
+
+                    # Print FULL event as pretty JSON (no truncation)
+                    print(json.dumps(event, indent=2))
+                    print(f"{'='*80}\n")
 
                     # Track different event types
                     if event_type == "mcp_progress":

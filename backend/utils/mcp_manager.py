@@ -98,6 +98,7 @@ class MCPManager:
             timeout: Default timeout for MCP calls (seconds)
             progress_callback: Callback for progress notifications (server, message, progress)
         """
+        logger.info(f"🔍 DEBUG: MCPManager.__init__ called with workspace_path={workspace_path}")
         self.workspace_path = workspace_path
         self.progress_callback = progress_callback
 
@@ -179,12 +180,16 @@ class MCPManager:
         Raises:
             MCPConnectionError: If any server fails to connect
         """
+        logger.info("🔍 DEBUG: MCPManager.initialize() called")
         logger.info("🚀 Initializing MCP connections...")
         logger.info("⚠️ MCP BLEIBT: Starting Pure MCP v7.0 agent servers...")
 
+        logger.info(f"🔍 DEBUG: Connecting to {len(self.servers)} servers: {self.servers[:3]}...")
         # Connect to all servers in parallel
         tasks = [self._connect_server(server) for server in self.servers]
+        logger.info(f"🔍 DEBUG: Created {len(tasks)} connection tasks")
         results = await asyncio.gather(*tasks, return_exceptions=True)
+        logger.info(f"🔍 DEBUG: Connection results received")
 
         # Check for failures
         failures = []
@@ -221,19 +226,35 @@ class MCPManager:
             if not server_path or not server_path.exists():
                 raise MCPConnectionError(f"Server script not found: {server_path}")
 
+            # ⚠️ CRITICAL FIX: Kill old process before starting new one (prevent process leak!)
+            if server_name in self._processes:
+                old_process = self._processes[server_name]
+                logger.debug(f"🔄 Killing old {server_name} process (PID: {old_process.pid})")
+                try:
+                    old_process.kill()
+                    await asyncio.wait_for(old_process.wait(), timeout=2.0)
+                except Exception as e:
+                    logger.warning(f"⚠️  Failed to kill old process cleanly: {e}")
+                finally:
+                    del self._processes[server_name]
+
             # ⚠️ MCP BLEIBT: Start MCP server as subprocess
             # Run from project root, NOT workspace (workspace might not exist yet)
+            # ⚠️ LOGGING: Each MCP server logs to /tmp/mcp_{server_name}.log via logging.basicConfig
             logger.debug(f"Starting {server_name} server: {server_path}")
+            logger.info(f"   📝 Server will log to: /tmp/mcp_{server_name}.log")
+
             process = await asyncio.create_subprocess_exec(
                 self._python_exe,
                 str(server_path),
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,  # Server logs to file, not stderr
                 cwd=str(self._project_root)
             )
 
             self._processes[server_name] = process
+            logger.debug(f"✅ Started {server_name} process (PID: {process.pid})")
 
             # ⚠️ MCP BLEIBT: Initialize via JSON-RPC
             init_request = {
@@ -292,13 +313,21 @@ class MCPManager:
             logger.debug(f"Server {server_name} has {len(tools)} tools: {', '.join([t['name'] for t in tools])}")
 
         except Exception as e:
+            # ⚠️ DEBUG: Log full exception details!
+            import traceback
+            error_details = f"{type(e).__name__}: {str(e)}"
+            full_traceback = traceback.format_exc()
+            logger.error(f"❌ {server_name} connection failed:")
+            logger.error(f"   Error: {error_details}")
+            logger.error(f"   Traceback:\n{full_traceback}")
+
             # Cleanup on failure
             if server_name in self._processes:
                 process = self._processes[server_name]
                 process.kill()
                 await process.wait()
                 del self._processes[server_name]
-            raise MCPConnectionError(f"Failed to connect to {server_name}: {e}")
+            raise MCPConnectionError(f"Failed to connect to {server_name}: {error_details}")
 
     def _next_request_id(self) -> int:
         """Generate next JSON-RPC request ID"""
@@ -373,10 +402,12 @@ class MCPManager:
                     logger.info(f"   ⏳ {server} still processing... ({elapsed:.0f}s elapsed)")
 
                 try:
-                    # Read one line with short timeout (15s per line)
+                    # Read one line with timeout
+                    # ⚠️ INCREASED: 60s per line (Claude CLI can have long pauses between outputs)
+                    # Even with stream-json, Claude CLI may pause 15-30s between tool executions
                     response_line = await asyncio.wait_for(
                         process.stdout.readline(),
-                        timeout=15.0
+                        timeout=60.0  # Increased from 15s to 60s
                     )
                     lines_read += 1
                 except asyncio.TimeoutError:
@@ -386,7 +417,7 @@ class MCPManager:
                             f"MCP call to {server} timed out after {elapsed:.1f}s"
                         )
                     raise MCPConnectionError(
-                        f"MCP call to {server} timed out (no output for 15s)"
+                        f"MCP call to {server} timed out (no output for 60s)"
                     )
 
                 if not response_line:

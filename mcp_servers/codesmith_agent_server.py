@@ -25,16 +25,69 @@ import sys
 import json
 import asyncio
 import logging
+import time
+import os
 from typing import Any, Dict, Optional
 from datetime import datetime
+from pathlib import Path
 
-# Configure logging to stderr (stdout is for JSON-RPC)
+# ⚠️ LOGGING: Configure logging to file (stdout is for JSON-RPC)
+# All log messages (info, debug, warning, error) go to /tmp/mcp_codesmith_agent.log
+log_file = "/tmp/mcp_codesmith_agent.log"
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Log everything!
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stderr
+    filename=log_file,
+    filemode='a'  # Append mode
 )
 logger = logging.getLogger("codesmith_mcp_server")
+logger.info(f"=" * 80)
+logger.info(f"🚀 Codesmith MCP Server starting at {datetime.now()}")
+logger.info(f"=" * 80)
+
+
+# ⚠️ MCP BLEIBT: INLINE Helper for non-blocking stdin (FIXES FIX #2: Async Blocking I/O)
+async def async_stdin_readline() -> str:
+    """
+    🔄 Non-blocking stdin readline for asyncio
+    
+    Fixes the asyncio blocking I/O issue where servers would freeze
+    waiting for input from stdin. Uses run_in_executor with 300s timeout.
+    
+    Returns:
+        str: Line read from stdin, or empty string on timeout/EOF
+    """
+    loop = asyncio.get_event_loop()
+    
+    def _read():
+        try:
+            line = sys.stdin.readline()
+            if line:
+                logger.debug(f"🔍 [stdin] Read {len(line)} bytes")
+            return line
+        except Exception as e:
+            logger.error(f"❌ [stdin] readline() error: {type(e).__name__}: {e}")
+            return ""
+    
+    try:
+        logger.debug("⏳ [stdin] Waiting for input (300s timeout)...")
+        result = await asyncio.wait_for(
+            loop.run_in_executor(None, _read),
+            timeout=300.0
+        )
+        if result:
+            logger.debug(f"✅ [stdin] Got line: {result[:60].strip()}...")
+        else:
+            logger.debug("ℹ️ [stdin] EOF (empty line)")
+        return result
+    except asyncio.TimeoutError:
+        logger.warning("⏱️ [stdin] Timeout (300s) - parent process may have disconnected")
+        return ""
+    except Exception as e:
+        logger.error(f"❌ [stdin] Unexpected error: {type(e).__name__}: {e}")
+        return ""
+
+
 
 
 class CodesmithAgentMCPServer:
@@ -201,39 +254,440 @@ class CodesmithAgentMCPServer:
             prompt = self._build_code_generation_prompt(instructions, architecture)
             system_prompt = self._get_system_prompt()
 
-            # ⚠️ MCP BLEIBT: Call Claude CLI via MCP Server!
-            await self.send_progress(0.3, "🤖 Calling Claude CLI via MCP...")
-            logger.info("   📡 Calling Claude CLI MCP server...")
+            # ⚠️ CRITICAL FIX: Call Claude CLI DIRECTLY via subprocess!
+            # Cannot use MCPManager here because we ARE an MCP server!
+            # Using MCP-in-MCP causes stdin/stdout collision and process crashes!
+            await self.send_progress(0.3, "🤖 Calling Claude CLI directly...")
+            logger.info("   📡 Calling Claude CLI via direct subprocess...")
 
-            # ⚠️ MCP BLEIBT: Import MCPManager to call claude_cli server
-            import sys
-            from pathlib import Path
-            sys.path.insert(0, str(Path(__file__).parent.parent))
-            from backend.utils.mcp_manager import get_mcp_manager
+            import subprocess
+            import shutil
+            import psutil
+            import asyncio
 
-            # Get global MCP manager
-            mcp = get_mcp_manager(workspace_path=workspace_path)
+            # 🔒 ENHANCED CLAUDE LOCK WITH MULTIPLE SAFETY MECHANISMS
+            lock_file = Path("/tmp/.claude_instance.lock")
+            max_wait = 60  # seconds
 
-            # Ensure initialized
-            if not mcp._initialized:
-                await mcp.initialize()
+            logger.warning("🔒 STARTING CLAUDE SAFETY CHECKS...")
 
-            # ⚠️ MCP BLEIBT: Call Claude CLI via MCP!
-            claude_result = await mcp.call(
-                server="claude_cli",
-                tool="claude_generate",
-                arguments={
-                    "prompt": prompt,
-                    "system_prompt": system_prompt,
-                    "workspace_path": workspace_path,
-                    "agent_name": "codesmith",
-                    "tools": ["Read", "Edit", "Bash"],
-                    "temperature": 0.3,
-                    "max_tokens": 8000,
-                    "stream_events": True  # Enable event streaming!
-                },
-                timeout=300.0  # 5 minutes for code generation
-            )
+            # ⚠️ SAFETY CHECK 1: Kill any existing Claude CLI subprocess instances!
+            # IMPORTANT: Only kill Claude CLI processes (started with -p flag), NOT the parent Claude Code agent!
+            existing_claude_cli = []
+            try:
+                our_pid = os.getpid()
+                our_ppid = os.getppid()
+
+                for p in psutil.process_iter(['pid', 'name', 'create_time', 'cmdline']):
+                    # Skip if not claude process
+                    if 'claude' not in p.info['name'].lower():
+                        continue
+
+                    # Skip ourselves and our parent (Claude Code agent)
+                    if p.info['pid'] in (our_pid, our_ppid):
+                        logger.debug(f"   ⏩ Skipping our own process/parent: PID {p.info['pid']}")
+                        continue
+
+                    # Only kill Claude CLI subprocess instances (those with -p flag in cmdline)
+                    cmdline = p.info.get('cmdline', [])
+                    if cmdline and '-p' in cmdline:
+                        existing_claude_cli.append(p)
+                        age = time.time() - p.info['create_time']
+                        logger.error(f"❌ FOUND EXISTING CLAUDE CLI SUBPROCESS: PID {p.info['pid']}, age {age:.1f}s")
+                        logger.debug(f"   Command: {' '.join(cmdline[:5])}")
+
+                if existing_claude_cli:
+                    logger.error(f"🚨 KILLING {len(existing_claude_cli)} CLAUDE CLI SUBPROCESSES!")
+                    for p in existing_claude_cli:
+                        try:
+                            p.kill()
+                            logger.info(f"   ☠️ Killed Claude CLI subprocess PID {p.info['pid']}")
+                        except:
+                            pass
+                    # Wait for processes to die
+                    await asyncio.sleep(2)
+            except Exception as e:
+                logger.warning(f"Error checking processes: {e}")
+
+            # ⚠️ SAFETY CHECK 2: Clean up any stale lock files
+            if lock_file.exists():
+                logger.warning("🔓 Removing stale lock file before starting")
+                lock_file.unlink(missing_ok=True)
+
+            # ⚠️ SAFETY CHECK 3: Try to acquire lock with PID tracking
+            start_time = asyncio.get_event_loop().time()
+            lock_acquired = False
+            our_pid = os.getpid()
+
+            while (asyncio.get_event_loop().time() - start_time) < max_wait:
+                if not lock_file.exists():
+                    # Write our PID to the lock file for tracking
+                    try:
+                        lock_file.write_text(str(our_pid))
+                        lock_acquired = True
+                        logger.info(f"✅ Claude lock acquired by PID {our_pid}")
+                        break
+                    except Exception as e:
+                        logger.warning(f"Failed to write lock: {e}")
+
+                # Check if the lock holder is still alive
+                try:
+                    lock_pid = int(lock_file.read_text().strip())
+                    if not psutil.pid_exists(lock_pid):
+                        logger.warning(f"🔓 Lock holder PID {lock_pid} is dead - removing lock")
+                        lock_file.unlink(missing_ok=True)
+                        continue
+                except:
+                    # Invalid lock file - remove it
+                    logger.warning("🔓 Invalid lock file - removing")
+                    lock_file.unlink(missing_ok=True)
+                    continue
+
+                logger.info(f"⏳ Waiting for Claude lock... ({int(asyncio.get_event_loop().time() - start_time)}s)")
+                await asyncio.sleep(1)
+
+            if not lock_acquired:
+                # Final check - if still Claude CLI subprocesses, kill them
+                # IMPORTANT: Only kill Claude CLI (-p flag), not parent Claude Code agent!
+                for p in psutil.process_iter(['pid', 'name', 'cmdline']):
+                    if 'claude' not in p.info['name'].lower():
+                        continue
+                    # Skip ourselves and parent
+                    if p.info['pid'] in (our_pid, our_ppid):
+                        continue
+                    # Only kill Claude CLI subprocesses
+                    cmdline = p.info.get('cmdline', [])
+                    if cmdline and '-p' in cmdline:
+                        logger.error(f"🚨 EMERGENCY KILL: Claude CLI subprocess PID {p.info['pid']}")
+                        try:
+                            p.kill()
+                        except:
+                            pass
+                raise Exception("Could not acquire Claude lock after killing existing Claude CLI processes!")
+
+            # ⚠️ SAFETY CHECK 4: One final check before starting
+            # IMPORTANT: Only count Claude CLI subprocesses (-p flag), not parent Claude Code agent!
+            claude_cli_processes = []
+            for p in psutil.process_iter(['pid', 'name', 'create_time', 'cmdline']):
+                if 'claude' not in p.info['name'].lower():
+                    continue
+                # Skip ourselves and parent
+                if p.info['pid'] in (our_pid, our_ppid):
+                    continue
+                # Only count Claude CLI subprocesses
+                cmdline = p.info.get('cmdline', [])
+                if cmdline and '-p' in cmdline:
+                    claude_cli_processes.append(p)
+
+            if claude_cli_processes:
+                # Get details of existing Claude CLI subprocesses
+                existing_details = []
+                for p in claude_cli_processes:
+                    try:
+                        age = time.time() - p.info['create_time']
+                        cmd_str = ' '.join(p.info.get('cmdline', ['unknown'])[:3])
+                        existing_details.append(f"PID {p.info['pid']} (age {age:.1f}s): {cmd_str}")
+                    except:
+                        pass
+
+                error_msg = f"❌ BLOCKED: {len(claude_cli_processes)} Claude CLI subprocesses already running!\n"
+                error_msg += "Existing Claude CLI processes:\n"
+                for detail in existing_details:
+                    error_msg += f"  - {detail}\n"
+                error_msg += f"\nNew request details:\n"
+                error_msg += f"  - Workspace: {workspace_path}\n"
+                error_msg += f"  - Instructions: {instructions[:100]}...\n"
+
+                logger.error(error_msg)
+                lock_file.unlink(missing_ok=True)
+
+                # Send detailed error via progress
+                await self.send_progress(1.0, f"❌ BLOCKED: Claude CLI subprocess already running! See logs for details")
+
+                raise Exception(error_msg)
+
+            logger.info("✅ ALL SAFETY CHECKS PASSED - Starting Claude CLI")
+
+            # ⚠️ CREDIT MONITORING: Track start time and warn about costs
+            claude_start_time = time.time()
+            claude_pid = None
+            logger.warning("💰 STARTING CLAUDE - CREDITS WILL BE CONSUMED!")
+            logger.warning("   Estimated cost: $0.01-$0.10 per call")
+            logger.warning("   Max execution time: 180 seconds")
+
+            # Find claude command
+            claude_cmd = shutil.which("claude")
+            if not claude_cmd:
+                error_msg = "Claude CLI not found in PATH"
+                await self.send_progress(1.0, f"❌ {error_msg}")
+                raise Exception(error_msg)
+
+            # Build Claude CLI command
+            # Note: Claude CLI doesn't support --max-tokens, --temperature, or --workspace!
+            # Use --add-dir to grant access to workspace directory
+            # ⚠️ CORRECT Claude CLI command structure
+            # Use -p (print mode) for non-interactive automation
+            # Use --output-format stream-json for REALTIME streaming updates!
+            # This prevents MCP timeout and gives progress feedback
+            cmd = [
+                claude_cmd,
+                "-p",  # Print mode: non-interactive, returns output and exits
+                "--output-format", "stream-json",  # ⭐ STREAMING for realtime updates!
+                "--verbose",  # REQUIRED for stream-json output format!
+                "--model", "claude-sonnet-4-20250514",
+                "--tools", "Read,Edit,Bash",
+                "--add-dir", workspace_path,  # Grant access to workspace
+                "--permission-mode", "acceptEdits",  # Auto-approve edits
+                "--max-turns", "10",  # Prevent infinite execution (best practice)
+                "--dangerously-skip-permissions"  # Skip ALL permission prompts (automation)
+            ]
+
+            # Create full prompt
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+
+            # Call Claude CLI with detailed error handling
+            logger.info(f"   Executing: {' '.join(cmd)}")
+            logger.info(f"   Working directory: {workspace_path}")
+
+            # Check if workspace exists
+            if not Path(workspace_path).exists():
+                error_msg = f"❌ Workspace directory does not exist: {workspace_path}"
+                logger.error(error_msg)
+                await self.send_progress(1.0, error_msg)
+                lock_file.unlink(missing_ok=True)
+                raise FileNotFoundError(error_msg)
+
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdin=asyncio.subprocess.PIPE,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=workspace_path
+                )
+                claude_pid = proc.pid
+                logger.info(f"   ✅ Claude CLI started with PID: {claude_pid}")
+                await self.send_progress(0.4, f"🚀 Claude CLI started (PID {claude_pid})")
+
+            except Exception as e:
+                error_msg = f"❌ Failed to start Claude CLI: {str(e)}"
+                logger.error(error_msg)
+                logger.error(f"   Command: {' '.join(cmd)}")
+                logger.error(f"   Workspace: {workspace_path}")
+                await self.send_progress(1.0, error_msg)
+                lock_file.unlink(missing_ok=True)
+                raise
+
+            # ⚠️ CRITICAL: Use communicate() properly!
+            # communicate() sends input, closes stdin, and waits for output
+            # Do NOT manually close stdin before calling communicate()!
+            logger.info(f"   📡 Sending prompt to Claude CLI (PID {claude_pid})...")
+
+            try:
+                # ⚠️ STREAM-JSON: Read streaming JSON events from Claude CLI
+                # Each line is a JSON event with type and data
+                # This automatically keeps MCP connection alive (no 15s timeout!)
+
+                # Write prompt to stdin and close it
+                proc.stdin.write(full_prompt.encode())
+                await proc.stdin.drain()
+                proc.stdin.close()
+                await proc.stdin.wait_closed()
+
+                logger.info(f"   📡 Reading streaming JSON events from Claude CLI...")
+
+                collected_content = []
+                start_time = asyncio.get_event_loop().time()
+                last_event_time = start_time
+
+                while True:
+                    # Read one line (one JSON event)
+                    try:
+                        line = await asyncio.wait_for(
+                            proc.stdout.readline(),
+                            timeout=180.0  # Max 3 minutes per event
+                        )
+                    except asyncio.TimeoutError:
+                        elapsed = asyncio.get_event_loop().time() - start_time
+                        raise asyncio.TimeoutError(f"Claude CLI stream timeout after {elapsed:.0f}s")
+
+                    if not line:
+                        # EOF - Claude CLI finished
+                        break
+
+                    # Parse JSON event
+                    try:
+                        event = json.loads(line.decode().strip())
+                        event_type = event.get("type")
+                        event_subtype = event.get("subtype", "")
+
+                        # Log event for debugging
+                        logger.debug(f"   📥 Claude event: {event_type}/{event_subtype}")
+
+                        # ⚠️ ACTUAL CLAUDE CLI STREAM-JSON FORMAT:
+                        # {"type":"system","subtype":"init",...}
+                        # {"type":"assistant","message":{"content":[{"type":"text","text":"..."}]}}
+                        # {"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{...}}]}}
+                        # {"type":"user","message":{"content":[{"type":"tool_result",...}]}}
+                        # {"type":"result","subtype":"success"|"error_max_turns","result":"..."}
+
+                        if event_type == "system":
+                            # System initialization event
+                            if event_subtype == "init":
+                                logger.info(f"   🚀 Claude session initialized: {event.get('session_id','')}")
+                                await self.send_progress(0.5, "🚀 Claude session started")
+
+                        elif event_type == "assistant":
+                            # Assistant message with content
+                            message = event.get("message", {})
+                            content_blocks = message.get("content", [])
+
+                            for block in content_blocks:
+                                block_type = block.get("type")
+
+                                if block_type == "text":
+                                    # Text content
+                                    text = block.get("text", "")
+                                    if text:
+                                        collected_content.append(text)
+                                        logger.debug(f"   📝 Claude text: {text[:100]}...")
+                                        await self.send_progress(
+                                            0.6,
+                                            f"📝 Claude is writing... ({len(collected_content)} chunks)"
+                                        )
+
+                                elif block_type == "tool_use":
+                                    # Tool usage
+                                    tool_name = block.get("name", "unknown")
+                                    tool_input = block.get("input", {})
+                                    logger.info(f"   🔧 Claude using tool: {tool_name} with {tool_input}")
+                                    await self.send_progress(0.7, f"🔧 Claude using tool: {tool_name}")
+
+                        elif event_type == "user":
+                            # User message (tool results)
+                            message = event.get("message", {})
+                            content_blocks = message.get("content", [])
+
+                            for block in content_blocks:
+                                if block.get("type") == "tool_result":
+                                    tool_result = block.get("content", "")
+                                    logger.debug(f"   ✅ Tool result: {str(tool_result)[:200]}...")
+
+                        elif event_type == "result":
+                            # Final result event - workflow complete!
+                            logger.info(f"   🏁 Claude workflow completed: {event_subtype}")
+
+                            if event_subtype in ("success", "error_max_turns"):
+                                # Extract final result
+                                result = event.get("result", "")
+                                if result:
+                                    collected_content.append(f"\n\n{result}")
+
+                                # Log usage/cost info
+                                total_cost = event.get("total_cost_usd", 0)
+                                num_turns = event.get("num_turns", 0)
+                                logger.info(f"   💰 Cost: ${total_cost:.4f}, Turns: {num_turns}")
+
+                                # Check for errors
+                                errors = event.get("errors", [])
+                                if errors:
+                                    logger.warning(f"   ⚠️ Errors occurred: {errors}")
+
+                                # Workflow complete - exit loop
+                                break
+
+                            elif "error" in event_subtype:
+                                # Error occurred
+                                error_msg = event.get("error", {}).get("message", "Unknown error")
+                                raise Exception(f"Claude CLI error: {error_msg}")
+
+                        # Update last event time
+                        last_event_time = asyncio.get_event_loop().time()
+
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"   ⚠️ Failed to parse JSON event: {line[:100]}")
+                        continue
+
+                # Wait for process to exit
+                await proc.wait()
+
+                # Combine collected content
+                result_text = "".join(collected_content)
+                logger.info(f"   ✅ Received {len(result_text)} chars from Claude CLI (PID {claude_pid})")
+
+                # Check return code
+                if proc.returncode != 0:
+                    error_msg = f"❌ Claude CLI failed with exit code {proc.returncode} (PID {claude_pid})"
+                    # Read stderr for error details
+                    try:
+                        stderr_data = await proc.stderr.read()
+                        if stderr_data:
+                            stderr_text = stderr_data.decode('utf-8', errors='ignore')
+                            error_msg += f"\n\nSTDERR Output:\n{stderr_text[:1000]}"
+                            logger.error(f"   Claude STDERR: {stderr_text}")
+                    except:
+                        pass
+
+                    logger.error(error_msg)
+                    await self.send_progress(1.0, error_msg)
+                    lock_file.unlink(missing_ok=True)
+                    raise Exception(error_msg)
+
+                # Success - we already collected the content from streaming events
+                if result_text:
+                    output_lines = result_text.split('\n')
+                    line_count = len(output_lines)
+
+                    # ⚠️ CREDIT MONITORING: Log execution time and estimated cost
+                    claude_duration = time.time() - claude_start_time
+                    estimated_tokens = len(result_text) // 4  # ~4 chars per token
+                    estimated_cost = estimated_tokens * 0.000003  # Sonnet pricing
+
+                    logger.info(f"   ✅ Claude CLI completed successfully (PID {claude_pid})")
+                    logger.warning(f"💰 CLAUDE EXECUTION COMPLETE:")
+                    logger.warning(f"   PID: {claude_pid}")
+                    logger.warning(f"   Duration: {claude_duration:.1f} seconds")
+                    logger.warning(f"   Output lines: {line_count}")
+                    logger.warning(f"   Output chars: {len(result_text)}")
+                    logger.warning(f"   Est. tokens: ~{estimated_tokens}")
+                    logger.warning(f"   Est. cost: ~${estimated_cost:.4f}")
+
+                    await self.send_progress(0.9, f"✅ Claude completed ({claude_duration:.1f}s, ${estimated_cost:.4f})")
+                else:
+                    result_text = ""
+                    logger.warning(f"   ⚠️ No content collected from Claude CLI (PID {claude_pid})")
+                    await self.send_progress(0.8, f"⚠️ Claude completed with no output")
+
+            except asyncio.TimeoutError:
+                error_msg = f"❌ Claude CLI TIMEOUT after 180s (PID {claude_pid})"
+                logger.error(error_msg)
+                logger.error(f"   Command was: {' '.join(cmd)}")
+                logger.error(f"   Workspace: {workspace_path}")
+                logger.error(f"   Collected {len(collected_content)} content chunks before timeout")
+
+                # Try to kill the process
+                try:
+                    proc.kill()
+                    logger.info(f"   Killed Claude process {claude_pid}")
+                    await asyncio.sleep(0.5)
+                except Exception as kill_error:
+                    logger.error(f"   Failed to kill Claude: {kill_error}")
+
+                await self.send_progress(1.0, error_msg)
+                lock_file.unlink(missing_ok=True)
+                raise Exception(error_msg)
+
+            except Exception as e:
+                error_msg = f"❌ Unexpected Claude error (PID {claude_pid}): {str(e)}"
+                logger.error(error_msg)
+                await self.send_progress(1.0, error_msg)
+                lock_file.unlink(missing_ok=True)
+                raise
+
+            # Wrap result in MCP-like format for compatibility
+            claude_result = {
+                "content": [{"text": result_text}]
+            }
 
             await self.send_progress(0.8, "📦 Processing Claude CLI response...")
 
@@ -300,6 +754,9 @@ class CodesmithAgentMCPServer:
                 logger.warning("   No content from Claude CLI")
                 generated_files = []
 
+            # ⚠️ OBSOLETE: Credit tracking removed - Claude CLI provides cost in result event
+            # Cost info is already logged in the event parsing loop (event_type == "result")
+
             await self.send_progress(1.0, "✅ Code generation complete")
             logger.info(f"   ✅ Generated {len(generated_files)} files")
 
@@ -323,7 +780,18 @@ class CodesmithAgentMCPServer:
         except Exception as e:
             logger.error(f"Code generation failed: {e}")
             await self.send_progress(1.0, f"❌ Error: {str(e)}")
+
+            # Clean up lock file on error
+            if 'lock_acquired' in locals() and lock_acquired:
+                lock_file.unlink(missing_ok=True)
+                logger.info("🔓 Released Claude lock (error)")
             raise
+
+        finally:
+            # 🔓 ALWAYS RELEASE CLAUDE LOCK!
+            if 'lock_acquired' in locals() and lock_acquired:
+                lock_file.unlink(missing_ok=True)
+                logger.info("🔓 Released Claude lock")
 
     def _get_system_prompt(self) -> str:
         """
@@ -457,7 +925,7 @@ Generate production-ready, fully functional code."""
             loop = asyncio.get_event_loop()
 
             while True:
-                line = await loop.run_in_executor(None, sys.stdin.readline)
+                line = await async_stdin_readline()
 
                 if not line:
                     logger.info("EOF received, shutting down")

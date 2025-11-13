@@ -20,20 +20,83 @@ import sys
 import json
 import asyncio
 import logging
+import os
+from pathlib import Path
 from typing import Any, Dict, Optional
 from datetime import datetime
+
+# ⚠️ FIX: Add project_root to path (not backend!) so we can import backend.utils
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Load environment variables
+from dotenv import load_dotenv
+env_path = Path.home() / ".ki_autoagent" / "config" / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
 
 # ⚠️ MCP BLEIBT: LangChain für OpenAI Integration
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
-# Configure logging to stderr (stdout is for JSON-RPC)
+# Import API validator (decentralized validation)
+# ⚠️ FIX: MCP servers run from project root, so import from backend.utils!
+from backend.utils.api_validator import validate_openai_key
+
+# ⚠️ LOGGING: Configure logging to file (stdout is for JSON-RPC)
+# All log messages (info, debug, warning, error) go to /tmp/mcp_openai.log
+log_file = "/tmp/mcp_openai.log"
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Log everything!
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stderr
+    filename=log_file,
+    filemode='a'  # Append mode
 )
 logger = logging.getLogger("openai_mcp_server")
+logger.info(f"=" * 80)
+logger.info(f"🚀 OpenAI MCP Server starting at {datetime.now()}")
+logger.info(f"=" * 80)
+
+
+# ⚠️ MCP BLEIBT: INLINE Helper for non-blocking stdin (FIXES FIX #2: Async Blocking I/O)
+async def async_stdin_readline() -> str:
+    """
+    🔄 Non-blocking stdin readline for asyncio
+    
+    Fixes the asyncio blocking I/O issue where servers would freeze
+    waiting for input from stdin. Uses run_in_executor with 300s timeout.
+    
+    Returns:
+        str: Line read from stdin, or empty string on timeout/EOF
+    """
+    loop = asyncio.get_event_loop()
+    
+    def _read():
+        try:
+            line = sys.stdin.readline()
+            if line:
+                logger.debug(f"🔍 [stdin] Read {len(line)} bytes")
+            return line
+        except Exception as e:
+            logger.error(f"❌ [stdin] readline() error: {type(e).__name__}: {e}")
+            return ""
+    
+    try:
+        logger.debug("⏳ [stdin] Waiting for input (300s timeout)...")
+        result = await asyncio.wait_for(
+            loop.run_in_executor(None, _read),
+            timeout=300.0
+        )
+        if result:
+            logger.debug(f"✅ [stdin] Got line: {result[:60].strip()}...")
+        else:
+            logger.debug("ℹ️ [stdin] EOF (empty line)")
+        return result
+    except asyncio.TimeoutError:
+        logger.warning("⏱️ [stdin] Timeout (300s) - parent process may have disconnected")
+        return ""
+    except Exception as e:
+        logger.error(f"❌ [stdin] Unexpected error: {type(e).__name__}: {e}")
+        return ""
 
 
 class OpenAIMCPServer:
@@ -294,41 +357,57 @@ class OpenAIMCPServer:
     async def run(self):
         """
         ⚠️ MCP BLEIBT: Main server loop - read from stdin, write to stdout
+        ⚠️ FIX #2: Uses async_stdin_readline() with 300s timeout (no blocking I/O)
         """
         logger.info("🚀 OpenAI MCP Server starting...")
         logger.info("⚠️ MCP BLEIBT: This server MUST remain MCP-compliant!")
+        logger.info("📡 FIX #2: Using async_stdin_readline() (timeout: 300s)")
 
         try:
-            # Read JSON-RPC requests from stdin line by line
-            loop = asyncio.get_event_loop()
-
+            request_count = 0
             while True:
-                line = await loop.run_in_executor(None, sys.stdin.readline)
+                logger.debug(f"📥 [loop] Waiting for request #{request_count + 1}...")
+                line = await async_stdin_readline()
 
                 if not line:
-                    logger.info("EOF received, shutting down")
+                    logger.info("ℹ️ [loop] EOF or timeout, shutting down")
                     break
 
                 line = line.strip()
                 if not line:
+                    logger.debug(f"📥 [loop] Empty line, skipping")
                     continue
+
+                request_count += 1
+                logger.debug(f"📥 [loop] Request #{request_count}: {line[:80]}...")
 
                 try:
                     request = json.loads(line)
+                    logger.info(f"📊 [request] ID={request.get('id')}, Method={request.get('method')}")
                     await self.handle_request(request)
                 except json.JSONDecodeError as e:
-                    logger.error(f"Invalid JSON: {e}")
+                    logger.error(f"❌ [json] Parse error on request #{request_count}: {e}")
+                    continue
+                except Exception as e:
+                    logger.error(f"❌ [handler] Unexpected error: {type(e).__name__}: {e}")
                     continue
 
         except Exception as e:
-            logger.error(f"Server error: {e}")
+            logger.error(f"❌ [server] Fatal error: {type(e).__name__}: {e}")
             raise
 
 
 async def main():
     """
     ⚠️ MCP BLEIBT: Entry point for OpenAI MCP Server
+    
+    Validates API keys before starting the server.
     """
+    # ✅ Validate OpenAI API key first (exit if invalid)
+    logger.info("🔑 Validating OpenAI API key...")
+    validate_openai_key(exit_on_fail=True)
+    logger.info("✅ OpenAI MCP Server starting...")
+    
     server = OpenAIMCPServer()
     await server.run()
 

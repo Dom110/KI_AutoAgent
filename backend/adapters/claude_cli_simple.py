@@ -610,22 +610,25 @@ NO explanations!"""
         # Extract system prompt (agent instructions) and user prompt (task)
         system_prompt, user_prompt = self._extract_system_and_user_prompts(messages)
 
-        # CRITICAL: Based on testing (2025-10-10):
-        # - System prompt in agent.prompt ALONE causes timeout!
-        # - MUST combine system + user in -p parameter
-        combined_prompt = f"{system_prompt}\n\n{user_prompt}"
+        # 🎯 FIX (2025-11-02): Use --system-prompt flag instead of combining!
+        # Claude CLI explicitly supports --system-prompt flag
+        # This ensures system instructions are properly passed to Claude
+        # instead of being merged with user prompt which can lose context
+        
+        logger.info(f"📋 System prompt: {len(system_prompt)} chars")
+        logger.info(f"📋 User prompt: {len(user_prompt)} chars")
 
         # Build agent definition with MINIMAL prompt
         agent_definition = {
             self.agent_name: {
                 "description": self.agent_description,
-                "prompt": "You are a helpful assistant.",  # Minimal! System goes in -p
+                "prompt": "You are a helpful assistant.",
                 "tools": self.agent_tools  # MUST be non-empty!
             }
         }
 
-        # Build CLI command
-        # SUCCESS: --agents + stream-json + --verbose + combined prompt!
+        # Build CLI command with PROPER system prompt passing
+        # SUCCESS: Use --system-prompt flag for proper instruction passing!
         cmd = [
             self.cli_path,
             "--model", self.model,
@@ -634,10 +637,11 @@ NO explanations!"""
             "--agents", json.dumps(agent_definition),
             "--output-format", "stream-json",
             "--verbose",                      # REQUIRED with stream-json!
-            "-p", combined_prompt             # System + User COMBINED!
+            "--system-prompt", system_prompt, # 🎯 CRITICAL: Pass system prompt separately!
+            "-p", user_prompt                 # User prompt alone in -p
         ]
 
-        logger.debug(f"Calling Claude CLI sync: --agents {self.agent_name} + stream-json + verbose")
+        logger.debug(f"Calling Claude CLI sync: --agents {self.agent_name} + --system-prompt + stream-json + verbose")
 
         try:
             # 🎯 FIX (2025-10-11): Set correct working directory!

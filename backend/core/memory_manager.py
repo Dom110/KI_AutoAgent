@@ -62,7 +62,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 # MemorySystem v6 for storage
-from backend.memory.memory_system_v6 import MemorySystem
+from ..memory.memory_system_v6 import MemorySystem
 
 logger = logging.getLogger(__name__)
 

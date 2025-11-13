@@ -1,0 +1,6 @@
+[18:07:03] SERVER | Traceback (most recent call last):
+[18:07:03] SERVER |   File "/Users/dominikfoert/git/KI_AutoAgent/api/server_langgraph.py", line 33, in <module>
+[18:07:03] SERVER |     from langgraph_system import (
+[18:07:03] SERVER |     ...<6 lines>...
+[18:07:03] SERVER |     )
+[18:07:03] SERVER | ModuleNotFoundError: No module named 'langgraph_system'

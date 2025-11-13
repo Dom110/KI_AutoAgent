@@ -1,0 +1,53 @@
+19:23:34.117 | DEBUG    | Using selector: KqueueSelector
+19:23:34.118 | INFO     | 
+🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 
+19:23:34.118 | INFO     | KI_AutoAgent E2E Test Suite - ReviewFix Validation
+19:23:34.118 | INFO     | 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 
+19:23:34.118 | INFO     | 
+📁 Test Workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192334
+19:23:34.118 | INFO     | 📝 Main Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192334/logs/e2e_main_20251113_192334.log
+19:23:34.118 | INFO     | 📤 WebSocket Send Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192334/logs/websocket_send_20251113_192334.log
+19:23:34.118 | INFO     | 📥 WebSocket Recv Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192334/logs/websocket_recv_20251113_192334.log
+19:23:34.118 | INFO     | 📊 WebSocket Combined Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192334/logs/websocket_both_20251113_192334.log
+
+19:23:34.118 | INFO     | 
+================================================================================
+19:23:34.118 | INFO     | PHASE 1: Environment Setup
+19:23:34.118 | INFO     | ================================================================================
+19:23:34.118 | INFO     |   Removing old workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192334
+19:23:34.118 | INFO     |   ✅ Created workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192334
+19:23:34.118 | INFO     | ✅ Phase 'Environment Setup' complete (elapsed: 0.0s)
+19:23:34.118 | INFO     | 
+================================================================================
+19:23:34.118 | INFO     | PHASE 2: Backend Connection
+19:23:34.118 | INFO     | ================================================================================
+19:23:34.118 | INFO     |   Connecting to ws://localhost:8002/ws/chat...
+19:23:34.124 | DEBUG    | = connection is CONNECTING
+19:23:34.124 | DEBUG    | > GET /ws/chat HTTP/1.1
+19:23:34.124 | DEBUG    | > Host: localhost:8002
+19:23:34.124 | DEBUG    | > Upgrade: websocket
+19:23:34.124 | DEBUG    | > Connection: Upgrade
+19:23:34.125 | DEBUG    | > Sec-WebSocket-Key: EsOh/DNgmOvfXQwc/V0kHQ==
+19:23:34.125 | DEBUG    | > Sec-WebSocket-Version: 13
+19:23:34.125 | DEBUG    | > Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits
+19:23:34.125 | DEBUG    | > User-Agent: Python/3.13 websockets/13.1
+19:23:34.126 | DEBUG    | < HTTP/1.1 101 Switching Protocols
+19:23:34.126 | DEBUG    | < Upgrade: websocket
+19:23:34.126 | DEBUG    | < Connection: Upgrade
+19:23:34.126 | DEBUG    | < Sec-WebSocket-Accept: P8VmdvecGNOr9cSozw+ZgFtanZE=
+19:23:34.126 | DEBUG    | < Sec-WebSocket-Extensions: permessage-deflate
+19:23:34.126 | DEBUG    | < date: Thu, 13 Nov 2025 18:23:33 GMT
+19:23:34.126 | DEBUG    | < server: uvicorn
+19:23:34.126 | DEBUG    | = connection is OPEN
+19:23:34.126 | DEBUG    | < TEXT '{"type":"connected","message":"⚠️ MCP BLEIBT: C...","requires_init":true}' [346 bytes]
+19:23:34.127 | INFO     | 📥 RECEIVED: connected
+19:23:34.127 | INFO     |   ✅ Connected! Session ID: None
+19:23:34.127 | INFO     | ✅ Phase 'Backend Connection' complete (elapsed: 0.0s)
+19:23:34.127 | INFO     | 
+================================================================================
+19:23:34.127 | INFO     | PHASE 3: Workspace Initialization
+19:23:34.127 | INFO     | ================================================================================
+19:23:34.127 | INFO     | 📤 SENT message #1: init
+19:23:34.127 | DEBUG    | > TEXT '{"type": "init", "workspace_path": "/Users/domi...ation_20251113_192334"}' [107 bytes]
+19:23:34.128 | DEBUG    | < TEXT '{"type":"initialized","session_id":"dbb970e9-b5...sponder (MCP)","hitl"]}' [591 bytes]
+19:23:34.129 | INFO     | 📥 RECEIVED: initialized

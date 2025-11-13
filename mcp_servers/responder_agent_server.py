@@ -27,13 +27,63 @@ import logging
 from typing import Any, Dict, Optional
 from datetime import datetime
 
-# Configure logging to stderr (stdout is for JSON-RPC)
+# ⚠️ LOGGING: Configure logging to file (stdout is for JSON-RPC)
+# All log messages (info, debug, warning, error) go to /tmp/mcp_responder_agent.log
+log_file = "/tmp/mcp_responder_agent.log"
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Log everything!
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stderr
+    filename=log_file,
+    filemode='a'  # Append mode
 )
 logger = logging.getLogger("responder_mcp_server")
+logger.info(f"=" * 80)
+logger.info(f"🚀 Responder MCP Server starting at {datetime.now()}")
+logger.info(f"=" * 80)
+
+
+# ⚠️ MCP BLEIBT: INLINE Helper for non-blocking stdin (FIXES FIX #2: Async Blocking I/O)
+async def async_stdin_readline() -> str:
+    """
+    🔄 Non-blocking stdin readline for asyncio
+    
+    Fixes the asyncio blocking I/O issue where servers would freeze
+    waiting for input from stdin. Uses run_in_executor with 300s timeout.
+    
+    Returns:
+        str: Line read from stdin, or empty string on timeout/EOF
+    """
+    loop = asyncio.get_event_loop()
+    
+    def _read():
+        try:
+            line = sys.stdin.readline()
+            if line:
+                logger.debug(f"🔍 [stdin] Read {len(line)} bytes")
+            return line
+        except Exception as e:
+            logger.error(f"❌ [stdin] readline() error: {type(e).__name__}: {e}")
+            return ""
+    
+    try:
+        logger.debug("⏳ [stdin] Waiting for input (300s timeout)...")
+        result = await asyncio.wait_for(
+            loop.run_in_executor(None, _read),
+            timeout=300.0
+        )
+        if result:
+            logger.debug(f"✅ [stdin] Got line: {result[:60].strip()}...")
+        else:
+            logger.debug("ℹ️ [stdin] EOF (empty line)")
+        return result
+    except asyncio.TimeoutError:
+        logger.warning("⏱️ [stdin] Timeout (300s) - parent process may have disconnected")
+        return ""
+    except Exception as e:
+        logger.error(f"❌ [stdin] Unexpected error: {type(e).__name__}: {e}")
+        return ""
+
+
 
 
 class ResponderAgentMCPServer:
@@ -158,8 +208,11 @@ class ResponderAgentMCPServer:
         try:
             await self.send_progress(0.0, "📝 Formatting response...")
 
-            workflow_result = args.get("workflow_result", {})
-            status = args.get("status", "success")
+            workflow_result = args.get("workflow_result") or {}
+            # FIX: Ensure workflow_result is not None
+            if not isinstance(workflow_result, dict):
+                workflow_result = {}
+            status = args.get("status") or "success"
 
             logger.info(f"Formatting response: status={status}")
 
@@ -181,26 +234,34 @@ class ResponderAgentMCPServer:
 
             # Add generated files if present
             if "generated_files" in workflow_result:
-                files = workflow_result["generated_files"]
-                response_parts.append(f"\n## 📁 Generated Files ({len(files)})\n")
-                for file in files[:10]:  # Limit to 10 files
-                    if isinstance(file, dict):
-                        path = file.get("path", "unknown")
-                        desc = file.get("description", "")
-                        response_parts.append(f"- `{path}` - {desc}")
-                response_parts.append("")
+                files = workflow_result["generated_files"] or []
+                # FIX: Ensure files is a list
+                if isinstance(files, list) and len(files) > 0:
+                    response_parts.append(f"\n## 📁 Generated Files ({len(files)})\n")
+                    for file in files[:10]:  # Limit to 10 files
+                        if isinstance(file, dict):
+                            path = file.get("path", "unknown")
+                            desc = file.get("description", "")
+                            response_parts.append(f"- `{path}` - {desc}")
+                    response_parts.append("")
 
             # Add architecture if present
             if "architecture" in workflow_result:
-                arch = workflow_result["architecture"]
-                response_parts.append("\n## 🏗️ Architecture\n")
-                if "description" in arch:
-                    response_parts.append(arch["description"])
-                if "components" in arch:
-                    response_parts.append(f"\n**Components:** {len(arch['components'])}")
-                if "technologies" in arch:
-                    response_parts.append(f"\n**Technologies:** {', '.join(arch['technologies'][:5])}")
-                response_parts.append("")
+                arch = workflow_result["architecture"] or {}
+                # FIX: Ensure arch is a dict
+                if isinstance(arch, dict):
+                    response_parts.append("\n## 🏗️ Architecture\n")
+                    if "description" in arch:
+                        response_parts.append(arch["description"])
+                    if "components" in arch:
+                        components = arch.get("components") or []
+                        if isinstance(components, list):
+                            response_parts.append(f"\n**Components:** {len(components)}")
+                    if "technologies" in arch:
+                        techs = arch.get("technologies") or []
+                        if isinstance(techs, list):
+                            response_parts.append(f"\n**Technologies:** {', '.join(str(t) for t in techs[:5])}")
+                    response_parts.append("")
 
             # Add validation results if present
             if "validation_passed" in workflow_result:
@@ -210,16 +271,19 @@ class ResponderAgentMCPServer:
                     response_parts.append("All tests passed successfully!\n")
                 else:
                     response_parts.append("\n## ❌ Validation\n")
-                    errors = workflow_result.get("validation_errors", [])
-                    response_parts.append(f"Found {len(errors)} validation errors:\n")
-                    for error in errors[:5]:  # Limit to 5 errors
-                        response_parts.append(f"- {error}")
+                    errors = workflow_result.get("validation_errors") or []
+                    # FIX: Ensure errors is a list
+                    if isinstance(errors, list):
+                        response_parts.append(f"Found {len(errors)} validation errors:\n")
+                        for error in errors[:5]:  # Limit to 5 errors
+                            response_parts.append(f"- {error}")
                     response_parts.append("")
 
             # Add errors if present
-            if "error" in workflow_result:
+            if "error" in workflow_result and workflow_result["error"]:
+                error_msg = workflow_result.get("error") or "Unknown error"
                 response_parts.append("\n## ❌ Error Details\n")
-                response_parts.append(f"```\n{workflow_result['error']}\n```\n")
+                response_parts.append(f"```\n{error_msg}\n```\n")
 
             # Add timestamp
             timestamp = workflow_result.get("timestamp", datetime.now().isoformat())
@@ -303,7 +367,7 @@ class ResponderAgentMCPServer:
             loop = asyncio.get_event_loop()
 
             while True:
-                line = await loop.run_in_executor(None, sys.stdin.readline)
+                line = await async_stdin_readline()
 
                 if not line:
                     logger.info("EOF received, shutting down")

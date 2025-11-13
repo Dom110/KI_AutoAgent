@@ -14,7 +14,7 @@ from typing import Any
 
 import aiohttp
 
-from backend.utils.rate_limiter import wait_for_provider
+from .rate_limiter import wait_for_provider
 
 logger = logging.getLogger(__name__)
 

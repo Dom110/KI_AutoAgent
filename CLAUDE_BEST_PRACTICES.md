@@ -346,55 +346,151 @@ memory.store(
 
 ---
 
-## 🛠️ Claude CLI Best Practices
+## 🛠️ Claude CLI Best Practices (v2.0+)
+
+### System Prompt Flags (From Official Docs)
+
+Three ways to customize system prompts - choose based on your use case:
+
+| Flag | Behavior | Modes | Use Case |
+|------|----------|-------|----------|
+| `--system-prompt` | **Replaces** entire default prompt | Interactive + Print | Complete control (blank slate) |
+| `--system-prompt-file` | **Replaces** with file contents | Print only | Load from files (team consistency) |
+| `--append-system-prompt` | **Appends** to default prompt | Interactive + Print | Add instructions + keep defaults |
+
+**Example: ReviewFix Agent (Dual-Level Architecture)**
+```bash
+# Global instructions (WHO: Reviewer role)
+GLOBAL_PROMPT="You are a code review expert specializing in security and performance..."
+
+# Project-specific instructions (WHAT: This task)
+TASK_PROMPT="Review this function for bugs: $(cat function.py)"
+
+# Recommended: Use --append-system-prompt to preserve Claude Code defaults
+claude -p --append-system-prompt "$GLOBAL_PROMPT" "$TASK_PROMPT"
+
+# Or for complete control:
+claude -p --system-prompt "$GLOBAL_PROMPT" "$TASK_PROMPT"
+```
+
+### Subagents (`--agents` flag - NEW!)
+
+**What are subagents?** Specialized AI assistants with separate context windows, custom prompts, and specific tools.
+
+**Define dynamically via CLI:**
+```bash
+claude --agents '{
+  "code-reviewer": {
+    "description": "Expert code reviewer. Use proactively after code changes.",
+    "prompt": "You are a senior code reviewer. Focus on code quality, security, and best practices.",
+    "tools": ["Read", "Edit", "Bash"],
+    "model": "sonnet"
+  },
+  "debugger": {
+    "description": "Debugging specialist for errors and test failures.",
+    "prompt": "You are an expert debugger. Analyze errors, identify root causes, and provide fixes.",
+    "model": "opus"
+  }
+}' -p "Use code-reviewer to review my changes"
+```
+
+**Or define as files** (`.claude/agents/` or `~/.claude/agents/`):
+```markdown
+---
+name: code-reviewer
+description: Expert code review specialist for quality and security
+tools: Read, Grep, Bash
+model: sonnet
+---
+
+You are a senior code reviewer ensuring high standards...
+
+Review checklist:
+- Code is simple and readable
+- Functions are well-named
+- Proper error handling
+- No security issues
+- Good test coverage
+```
+
+**KI AutoAgent Use Case: Agent Orchestration**
+```bash
+# Instead of separate MCP servers, use subagents for lightweight tasks
+claude --agents '{
+  "reviewer": {
+    "description": "Code review specialist",
+    "prompt": "You are a code reviewer...",
+    "model": "sonnet"
+  },
+  "architect": {
+    "description": "Architecture design expert",
+    "prompt": "You are an architecture expert...",
+    "model": "opus"
+  }
+}' -p "reviewer: Review this code; architect: Design the system"
+```
+
+### Output Formats (`--output-format` flag)
+
+| Format | Use Case | Example |
+|--------|----------|---------|
+| `text` | Default human-readable output | `claude -p --output-format text "query"` |
+| `json` | Structured output for parsing | `claude -p --output-format json "query"` |
+| `stream-json` | **Streaming JSON** (for real-time responses) | `claude -p --output-format stream-json "query"` |
+
+**KI AutoAgent Recommendation: Use `stream-json` for WebSocket responses**
+```python
+# In ReviewFix agent or any MCP server
+cmd = [
+    "claude",
+    "--system-prompt", global_instructions,
+    "-p", task_description,
+    "--output-format", "stream-json"
+]
+```
 
 ### Command Pipelining Patterns
 
 #### 1. Sequential Execution (Step-by-Step)
 ```bash
-claude -p "Step 1: Analyze codebase structure" && \
-claude -p "Step 2: Generate migration plan based on analysis" && \
-claude -p "Step 3: Execute migration"
+claude -p --output-format json "Step 1: Analyze codebase structure" && \
+claude -p --output-format json "Step 2: Generate migration plan" && \
+claude -p --output-format json "Step 3: Execute migration"
 ```
 
-#### 2. Parallel Execution (Multiple Instances)
+#### 2. Piping Workflow
 ```bash
-# Create separate git worktrees for parallel tasks
-git worktree add ../task1
-git worktree add ../task2
-git worktree add ../task3
+# Unix philosophy: compose commands
+cat app.log | claude -p "Find all ERROR lines and suggest fixes"
 
-# Run Claude in each (separate terminals/screen sessions)
-cd ../task1 && claude -p "Implement feature A"
-cd ../task2 && claude -p "Implement feature B"
-cd ../task3 && claude -p "Implement feature C"
+# With output format
+cat requirements.txt | claude -p --output-format json "Analyze dependencies for security"
 ```
 
-#### 3. Fanning Out (Generate Task List)
+#### 3. Using Subagents for Multi-Step Tasks
 ```bash
-# Step 1: Generate task breakdown
-claude -p "Analyze this migration and create a numbered task list" > tasks.txt
-
-# Step 2: Execute each task
-while read task; do
-    claude -p "Execute: $task"
-done < tasks.txt
+claude --agents '{
+  "analyzer": {
+    "description": "Analyze code structure",
+    "prompt": "You are a code structure analyzer..."
+  },
+  "implementer": {
+    "description": "Implement changes",
+    "prompt": "You are a code implementer..."
+  }
+}' -p "analyzer: Analyze this code; then implementer: Implement improvements"
 ```
 
-#### 4. Pipelining with Verification
+#### 4. Context Preservation with `--continue`
 ```bash
-claude \
-  --agents '{"generator": {...}, "verifier": {...}}' \
-  -p "Generate code, then verify it meets requirements"
+# Resume most recent conversation
+claude --continue
+
+# Resume specific session
+claude --resume abc123 "Continue where we left off"
 ```
 
-### Headless Mode (`-p` flag)
-
-**Use Cases:**
-- Automated workflows
-- CI/CD integration
-- Batch processing
-- Scripted migrations
+### Headless Mode Complete Example
 
 **Example:**
 ```bash

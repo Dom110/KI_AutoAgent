@@ -1,0 +1,58 @@
+{
+  "version": "1.0",
+  "agents": {
+    "supervisor": {
+      "description": "Central routing and decision making - orchestrates workflow",
+      "provider": "openai",
+      "model": "gpt-4o-2024-11-20",
+      "temperature": 0.3,
+      "max_tokens": 1500,
+      "timeout_seconds": 30
+    },
+    "codesmith": {
+      "description": "Code generation from architecture specifications",
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-20250514",
+      "temperature": 0.2,
+      "max_tokens": 4000,
+      "timeout_seconds": 60
+    },
+    "architect": {
+      "description": "System design and architecture planning",
+      "provider": "anthropic",
+      "model": "claude-opus-4-1",
+      "temperature": 0.3,
+      "max_tokens": 3000,
+      "timeout_seconds": 45
+    },
+    "research": {
+      "description": "Context gathering and repository research",
+      "provider": "anthropic",
+      "model": "claude-haiku-4",
+      "temperature": 0.7,
+      "max_tokens": 1000,
+      "timeout_seconds": 20
+    },
+    "reviewfix": {
+      "description": "Code review and bug fixing",
+      "provider": "openai",
+      "model": "gpt-4o-mini",
+      "temperature": 0.2,
+      "max_tokens": 2000,
+      "timeout_seconds": 30
+    },
+    "responder": {
+      "description": "Final response formatting and user communication",
+      "provider": "openai",
+      "model": "gpt-4o-2024-11-20",
+      "temperature": 0.5,
+      "max_tokens": 1500,
+      "timeout_seconds": 15
+    }
+  },
+  "defaults": {
+    "temperature": 0.4,
+    "max_tokens": 2000,
+    "timeout_seconds": 30
+  }
+}

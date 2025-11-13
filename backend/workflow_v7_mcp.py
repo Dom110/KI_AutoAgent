@@ -28,8 +28,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import datetime
-from typing import Any, TypedDict
+from typing import Any, TypedDict, Annotated
 
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_core.runnables.config import RunnableConfig
@@ -46,10 +47,18 @@ from backend.utils.mcp_manager import get_mcp_manager, MCPConnectionError, MCPTo
 # Setup logging
 logger = logging.getLogger(__name__)
 
+# ⚠️ DEBUG FLAG: Set to True for detailed debugging output
+DEBUG_WORKFLOW = True  # Keep this enabled to track workflow execution
+
 
 # ============================================================================
 # State Definition
 # ============================================================================
+
+def last_value_reducer(current: Any, new: Any) -> Any:
+    """Reducer that returns the last non-None value (for concurrent updates)."""
+    return new if new is not None else current
+
 
 class SupervisorState(TypedDict):
     """
@@ -67,7 +76,8 @@ class SupervisorState(TypedDict):
     session_id: str  # For event streaming
 
     # Agent tracking
-    last_agent: str | None
+    # Use Annotated with reducer to handle concurrent updates from multiple nodes
+    last_agent: Annotated[str | None, last_value_reducer]
     iteration: int
     is_self_invocation: bool
 
@@ -81,20 +91,20 @@ class SupervisorState(TypedDict):
 
     # Architecture (from Architect Agent MCP)
     architecture: dict | None
-    architecture_complete: bool
+    architecture_complete: Annotated[bool, last_value_reducer]  # Handle concurrent updates
 
     # Generated code (from Codesmith Agent MCP)
     generated_files: list | None
-    code_complete: bool
+    code_complete: Annotated[bool, last_value_reducer]  # Handle concurrent updates
 
     # Validation results (from ReviewFix Agent MCP)
     validation_results: dict | None
-    validation_passed: bool
+    validation_passed: Annotated[bool, last_value_reducer]  # Handle concurrent updates
     issues: list | None
 
     # User response (from Responder Agent MCP)
     user_response: str | None
-    response_ready: bool
+    response_ready: Annotated[bool, last_value_reducer]  # Handle concurrent updates
 
     # Error tracking
     errors: list[str]
@@ -113,16 +123,38 @@ class SupervisorState(TypedDict):
 # Agent Nodes (MCP-based)
 # ============================================================================
 
-async def supervisor_node(state: SupervisorState) -> Command:
+async def supervisor_node(state: SupervisorState) -> Command[Literal["research", "architect", "codesmith", "reviewfix", "responder", "hitl", "__end__"]]:
     """
     ⚠️ MCP BLEIBT: Supervisor decision node using SupervisorMCP
 
     This is the ONLY node that makes routing decisions.
     All other nodes execute via MCP and return to supervisor.
+
+    ⚠️ CRITICAL: Returns Command with type annotations for all possible goto targets!
+    This is REQUIRED by LangGraph for proper routing!
     """
     logger.info("="*50)
     logger.info("🎯 SUPERVISOR NODE (MCP) - Making routing decision")
     logger.info("="*50)
+
+    # ⚠️ DEBUG: Log current state
+    if DEBUG_WORKFLOW:
+        current_iteration = state.get("iteration", 0)
+        last_agent = state.get("last_agent")
+        logger.info(f"🔍 DEBUG STATE:")
+        logger.info(f"   Iteration: {current_iteration}")
+        logger.info(f"   Last Agent: {last_agent}")
+        logger.info(f"   Research Context: {'✅ Present' if state.get('research_context') else '❌ Missing'}")
+        logger.info(f"   Architecture: {'✅ Present' if state.get('architecture') else '❌ Missing'}")
+        generated_files = state.get('generated_files') or []
+        errors = state.get('errors') or []
+        agent_history = state.get('agent_history') or []
+        logger.info(f"   Generated Files: {len(generated_files)} files")
+        logger.info(f"   Validation Results: {'✅ Present' if state.get('validation_results') else '❌ Missing'}")
+        logger.info(f"   Response Ready: {state.get('response_ready', False)}")
+        logger.info(f"   User Response: {'✅ Present' if state.get('user_response') else '❌ Missing'}")
+        logger.info(f"   Errors: {len(errors)} errors")
+        logger.info(f"   Agent History: {agent_history}")
 
     # Get or create MCP-aware supervisor instance
     if not hasattr(supervisor_node, "_supervisor"):
@@ -138,13 +170,48 @@ async def supervisor_node(state: SupervisorState) -> Command:
     # Make routing decision
     command = await supervisor.decide_next(state)
 
-    # Log the decision
-    logger.info(f"   Decision: Route to {command.goto if hasattr(command, 'goto') else 'END'}")
-    if hasattr(command, 'update') and command.update:
-        logger.info(f"   Instructions: {command.update.get('instructions', 'None')}")
-        logger.info(f"   ⚠️ MCP BLEIBT: Will be executed via mcp.call()")
+    # ⚠️ CRITICAL FIX: Increment iteration counter to prevent infinite loops!
+    # ⚠️ DATACLASS FIX: Command is frozen - create NEW object instead of mutating!
+    current_iteration = state.get("iteration", 0)
+
+    # ⚠️ DEBUG: Log command BEFORE modification
+    if DEBUG_WORKFLOW:
+        logger.info(f"🔍 BEFORE Command modification:")
+        logger.info(f"   command.goto = {repr(command.goto)}")
+        logger.info(f"   command.update = {command.update if hasattr(command, 'update') else 'NO UPDATE'}")
+
+    if not hasattr(command, 'update') or command.update is None:
+        command = Command(goto=command.goto, update={"iteration": current_iteration + 1})
     else:
-        logger.info(f"   Instructions: None (workflow complete)")
+        # ⚠️ DATACLASS FIX: Merge iteration with existing updates (create NEW dict)
+        merged_update = {**command.update, "iteration": current_iteration + 1}
+        command = Command(goto=command.goto, update=merged_update)
+
+    # ⚠️ DEBUG: Log command AFTER modification
+    if DEBUG_WORKFLOW:
+        logger.info(f"🔍 AFTER Command modification:")
+        logger.info(f"   command.goto = {repr(command.goto)}")
+        logger.info(f"   command.update = {command.update}")
+        logger.info(f"   command object ID = {id(command)}")
+
+    # ⚠️ DEBUG: Log the decision in detail
+    goto_target = command.goto if hasattr(command, 'goto') else 'END'
+    logger.info(f"🎯 DECISION:")
+    logger.info(f"   Route to: {goto_target}")
+    logger.info(f"   Iteration: {current_iteration} → {current_iteration + 1}")
+
+    if DEBUG_WORKFLOW:
+        if hasattr(command, 'update') and command.update:
+            logger.info(f"   Update Keys: {list(command.update.keys())}")
+            logger.info(f"   Instructions: {command.update.get('instructions', 'None')[:100]}...")
+            logger.info(f"   ⚠️ MCP BLEIBT: Will be executed via mcp.call()")
+        else:
+            logger.info(f"   Update: None (workflow complete)")
+
+        # Check for potential infinite loop
+        if goto_target == "supervisor":
+            logger.error(f"⚠️ WARNING: Routing back to supervisor (potential loop!)")
+            logger.error(f"   This should NEVER happen - supervisor should route to agents or END")
 
     return command
 
@@ -205,14 +272,28 @@ async def research_node(state: SupervisorState) -> Command:
         logger.info(f"   Research result keys: {list(research_data.keys())}")
 
         # Update state and return to supervisor
+        # Track agent history to prevent duplicate parallel calls
+        agent_history = state.get("agent_history", [])
+        agent_history.append("research")
+
         update = {
             "research_context": research_data,
-            "last_agent": "research"
+            "last_agent": "research",
+            "agent_history": agent_history
         }
 
         # Always go back to supervisor
         logger.info("   Returning to Supervisor for next decision")
-        return Command(goto="supervisor", update=update)
+        cmd = Command(goto="supervisor", update=update)
+
+        if DEBUG_WORKFLOW:
+            logger.info(f"🔍 DEBUG RESEARCH RETURN:")
+            logger.info(f"   Command goto: {cmd.goto}")
+            logger.info(f"   Update keys: {list(update.keys())}")
+            logger.info(f"   Last agent: {update.get('last_agent')}")
+            logger.info(f"   Agent history: {update.get('agent_history', [])}")
+
+        return cmd
 
     except (MCPConnectionError, MCPToolError) as e:
         logger.error(f"   ❌ MCP CALL FAILED: {e}", exc_info=True)
@@ -299,10 +380,15 @@ async def architect_node(state: SupervisorState) -> Command:
             )
 
         # Update state and return to supervisor
+        # Track agent history to prevent duplicate parallel calls
+        agent_history = state.get("agent_history", [])
+        agent_history.append("architect")
+
         update = {
             "architecture": arch_data,
             "architecture_complete": arch_data.get("architecture_complete", False),
-            "last_agent": "architect"
+            "last_agent": "architect",
+            "agent_history": agent_history
         }
 
         logger.info("   ✅ Architecture complete via MCP")
@@ -376,10 +462,15 @@ async def codesmith_node(state: SupervisorState) -> Command:
             code_data = {}
 
         # Update state and return to supervisor
+        # Track agent history to prevent duplicate parallel calls
+        agent_history = state.get("agent_history", [])
+        agent_history.append("codesmith")
+
         update = {
             "generated_files": code_data.get("generated_files", []),
             "code_complete": code_data.get("code_complete", False),
-            "last_agent": "codesmith"
+            "last_agent": "codesmith",
+            "agent_history": agent_history
         }
 
         logger.info(f"   ✅ Code generation complete via MCP ({len(update['generated_files'])} files)")
@@ -452,11 +543,16 @@ async def reviewfix_node(state: SupervisorState) -> Command:
             )
 
         # Update state and return to supervisor
+        # Track agent history to prevent duplicate parallel calls
+        agent_history = state.get("agent_history", [])
+        agent_history.append("reviewfix")
+
         update = {
             "validation_results": review_data.get("validation_results"),
             "validation_passed": review_data.get("validation_passed", False),
             "issues": review_data.get("issues", []),
-            "last_agent": "reviewfix"
+            "last_agent": "reviewfix",
+            "agent_history": agent_history
         }
 
         logger.info(f"   ✅ Review complete via MCP (passed={update['validation_passed']})")
@@ -512,21 +608,39 @@ async def responder_node(state: SupervisorState) -> Command:
         )
 
         # ⚠️ MCP BLEIBT: Extract result from MCP response
-        content = result.get("content", [])
-        if content and len(content) > 0:
-            user_response = content[0].get("text", "")
+        # FIX: Handle None response from responder
+        if result is None:
+            logger.warning("   ⚠️ Responder returned None - using fallback")
+            user_response = "Response formatting completed (fallback format)"
         else:
-            user_response = "Response formatting failed"
+            content = result.get("content", []) if isinstance(result, dict) else []
+            if content and len(content) > 0:
+                user_response = content[0].get("text", "")
+            else:
+                user_response = "Response formatting failed"
 
         # Update state and return to supervisor
+        # Track agent history to prevent duplicate parallel calls
+        agent_history = state.get("agent_history", [])
+        agent_history.append("responder")
+
         update = {
             "user_response": user_response,
             "response_ready": True,  # Signal workflow completion
-            "last_agent": "responder"
+            "last_agent": "responder",
+            "agent_history": agent_history
         }
 
         logger.info("   ✅ Response formatted via MCP - workflow ready to complete")
         logger.info("   Returning to Supervisor for termination")
+
+        if DEBUG_WORKFLOW:
+            logger.info(f"🔍 DEBUG RESPONDER RETURN:")
+            logger.info(f"   Command goto: supervisor")
+            logger.info(f"   response_ready: TRUE ← Should trigger END!")
+            logger.info(f"   Update keys: {list(update.keys())}")
+            logger.info(f"   Agent history: {agent_history}")
+
         return Command(goto="supervisor", update=update)
 
     except (MCPConnectionError, MCPToolError) as e:
@@ -602,18 +716,66 @@ def build_supervisor_workflow_mcp() -> StateGraph:
     graph.add_node("responder", responder_node)  # Calls responder_agent MCP
     graph.add_node("hitl", hitl_node)  # Special UI node (not MCP)
 
-    # ONLY ONE EDGE! Everything starts at supervisor
+    # Start edge
     graph.add_edge(START, "supervisor")
-
-    # NO MORE EDGES!
-    # Supervisor controls everything with Command(goto=...)
-    # Agents return to supervisor with Command(goto="supervisor")
+    
+    # ⚠️ CRITICAL FIX: Supervisor uses conditional routing via Command.goto
+    # Function to route supervisor decisions to correct node or END
+    def supervisor_router(state: SupervisorState) -> str | END:
+        """Route based on last supervisor decision."""
+        # The supervisor_node returns a Command with goto field
+        # But we need a simple router function here
+        # For now, route all non-END commands back through supervisor
+        return "supervisor"
+    
+    # All agents return to supervisor via conditional edge
+    graph.add_conditional_edges("research", lambda s: "supervisor")
+    graph.add_conditional_edges("architect", lambda s: "supervisor")
+    graph.add_conditional_edges("codesmith", lambda s: "supervisor")
+    graph.add_conditional_edges("reviewfix", lambda s: "supervisor")
+    graph.add_conditional_edges("responder", lambda s: "supervisor")
+    graph.add_conditional_edges("hitl", lambda s: "supervisor")
+    
+    # ⚠️ MCP BLEIBT: CRITICAL FIX - Add conditional_edges FOR supervisor!
+    # supervisor_node returns Command[Literal[...]] which handles routing
+    # LangGraph Command.goto overrides the router function result
+    # But the edge MUST exist for routing to be possible!
+    #
+    # FIX: Added mapping for all possible goto targets
+    # The router function below returns a dummy value - Command.goto overrides it
+    def supervisor_router(state: SupervisorState) -> str:
+        """
+        Router function for supervisor decisions.
+        
+        🚨 CRITICAL FIX: Return correct routing based on last_agent
+        If response_ready=True, supervisor will route to END via Command.
+        This function must allow that routing to happen.
+        """
+        # Check if response is ready (workflow should end)
+        if state.get("response_ready", False):
+            return END  # Route to END
+        
+        # Otherwise default to research for next iteration
+        return "research"
+    
+    graph.add_conditional_edges(
+        "supervisor",
+        supervisor_router,
+        {
+            "research": "research",
+            "architect": "architect",
+            "codesmith": "codesmith",
+            "reviewfix": "reviewfix",
+            "responder": "responder",
+            "hitl": "hitl",
+            "__end__": END
+        }
+    )
 
     logger.info("   ✅ Graph structure:")
     logger.info("      START → supervisor")
-    logger.info("      supervisor → [any MCP agent] via Command")
-    logger.info("      [any MCP agent] → supervisor via Command")
-    logger.info("      supervisor → END via Command")
+    logger.info("      supervisor → [research, architect, codesmith, reviewfix, responder, hitl, END] (via Command)")
+    logger.info("      [all agents] → supervisor (via conditional edge)")
     logger.info("   ⚠️ MCP BLEIBT: All agent nodes use mcp.call()!")
 
     # Compile workflow
@@ -656,9 +818,12 @@ async def execute_supervisor_workflow_streaming_mcp(
     logger.info(f"Workspace: {workspace_path}")
     logger.info("⚠️ MCP BLEIBT: All agents execute via MCP protocol!")
 
+    logger.info("🔍 DEBUG: Step 1 - Importing event_stream...")
     # ⚠️ MCP BLEIBT: Initialize MCPManager with progress callback
     from backend.utils.event_stream import get_event_manager
+    logger.info("🔍 DEBUG: Step 2 - Getting event_manager...")
     event_manager = get_event_manager()
+    logger.info("✅ DEBUG: Event manager obtained")
 
     def progress_callback(server: str, message: str, progress: float):
         """
@@ -680,16 +845,20 @@ async def execute_supervisor_workflow_streaming_mcp(
         except Exception as e:
             logger.warning(f"Progress callback error: {e}")
 
+    logger.info("🔍 DEBUG: Step 3 - Getting MCP manager...")
     # ⚠️ MCP BLEIBT: Get or create MCPManager with callback
     mcp = get_mcp_manager(
         workspace_path=workspace_path,
         progress_callback=progress_callback
     )
+    logger.info("✅ DEBUG: MCP manager obtained")
 
     # Initialize MCP connections
     try:
+        logger.info("🔍 DEBUG: Step 4 - Initializing MCP connections...")
         logger.info("📡 Initializing MCP connections...")
         await mcp.initialize()
+        logger.info("✅ DEBUG: MCP connections initialized")
         logger.info("✅ All MCP servers connected")
     except Exception as e:
         logger.error(f"❌ MCP initialization failed: {e}")
@@ -700,9 +869,12 @@ async def execute_supervisor_workflow_streaming_mcp(
         }
         return
 
+    logger.info("🔍 DEBUG: Step 5 - Building workflow graph...")
     # Build workflow
     app = build_supervisor_workflow_mcp()
+    logger.info("✅ DEBUG: Workflow graph built")
 
+    logger.info("🔍 DEBUG: Step 6 - Initializing state...")
     # Initialize state
     initial_state = {
         "messages": [{"role": "user", "content": user_query}],
@@ -734,56 +906,101 @@ async def execute_supervisor_workflow_streaming_mcp(
         "awaiting_human": False
     }
 
-    # Configure recursion limit
-    config = RunnableConfig(recursion_limit=150)
-    logger.info(f"   📊 Recursion limit set to: 150")
+    # Configure recursion limit - Increased to 200 for real workflows
+    # Each iteration: supervisor → agent → supervisor (counts as 3 steps)
+    # Real workflows with research-fix loops need 50+ iterations
+    config = RunnableConfig(recursion_limit=200)
+    logger.info(f"   📊 Recursion limit set to: 200 (production - real workflows)")
 
+    logger.info("🔍 DEBUG: Step 7 - Starting workflow execution...")
     # Execute workflow with streaming
     try:
         logger.info("\n📊 Starting workflow execution with streaming...")
 
+        logger.info("🔍 DEBUG: Step 8 - Subscribing to event stream...")
         # Subscribe to event stream for this session
         event_queue = event_manager.subscribe(session_id)
+        logger.info("✅ DEBUG: Subscribed to event stream")
 
         # Create task to stream workflow events
         async def stream_workflow_events():
             """Stream LangGraph workflow events + MCP progress."""
-            async for event in app.astream(initial_state, config=config, stream_mode="updates"):
-                # Each event is {node_name: state_update}
-                for node_name, state_update in event.items():
-                    # Send event to client
-                    await event_queue.put({
-                        "type": "workflow_event",
-                        "node": node_name,
-                        "state_update": state_update,
-                        "timestamp": datetime.now().isoformat(),
-                        "architecture": "pure_mcp"  # ⚠️ MCP BLEIBT!
-                    })
+            try:
+                logger.info("🔍 DEBUG: Inside stream_workflow_events - Starting app.astream...")
+                async for event in app.astream(initial_state, config=config, stream_mode="updates"):
+                    logger.info(f"🔍 DEBUG: Got workflow event: {list(event.keys())}")
+                    # Each event is {node_name: state_update}
+                    for node_name, state_update in event.items():
+                        # Send event to client
+                        await event_queue.put({
+                            "type": "workflow_event",
+                            "node": node_name,
+                            "state_update": state_update,
+                            "timestamp": datetime.now().isoformat(),
+                            "architecture": "pure_mcp"  # ⚠️ MCP BLEIBT!
+                        })
 
-                    # Log progress
-                    logger.info(f"\n   📥 Event from: {node_name}")
-                    if isinstance(state_update, dict) and "last_agent" in state_update:
-                        logger.info(f"      Agent: {state_update['last_agent']}")
-                        logger.info(f"      ⚠️ MCP BLEIBT: Executed via mcp.call()")
+                        # Log progress
+                        logger.info(f"\n   📥 Event from: {node_name}")
+                        if isinstance(state_update, dict) and "last_agent" in state_update:
+                            logger.info(f"      Agent: {state_update['last_agent']}")
+                            logger.info(f"      ⚠️ MCP BLEIBT: Executed via mcp.call()")
 
-            # Send completion event
-            await event_queue.put({
-                "type": "workflow_complete",
-                "message": "✅ Workflow completed successfully (Pure MCP)",
-                "timestamp": datetime.now().isoformat()
-            })
+                # Send completion event
+                logger.info("\n✅ Workflow completed - sending completion event")
+                await event_queue.put({
+                    "type": "workflow_complete",
+                    "message": "✅ Workflow completed successfully (Pure MCP)",
+                    "timestamp": datetime.now().isoformat()
+                })
+            except Exception as e:
+                logger.error(f"❌ Workflow streaming error: {e}", exc_info=True)
+                await event_queue.put({
+                    "type": "error",
+                    "error": str(e),
+                    "timestamp": datetime.now().isoformat()
+                })
 
+        logger.info("🔍 DEBUG: Step 9 - Creating workflow streaming task...")
         # Start workflow streaming in background
         workflow_task = asyncio.create_task(stream_workflow_events())
+        logger.info("✅ DEBUG: Workflow task created")
 
+        logger.info("🔍 DEBUG: Step 10 - Getting credit tracker...")
+        # Import credit tracker for periodic updates
+        from backend.utils.credit_tracker import get_credit_tracker
+        credit_tracker = get_credit_tracker()
+        last_credit_update = time.time()
+        logger.info("✅ DEBUG: Credit tracker ready")
+
+        logger.info("🔍 DEBUG: Step 11 - Starting main event loop...")
         # Yield events from queue (includes workflow + MCP progress events)
         try:
             while True:
+                # Send credit update every 5 seconds
+                current_time = time.time()
+                if current_time - last_credit_update > 5:
+                    usage_summary = credit_tracker.get_usage_summary()
+                    yield {
+                        "type": "credit_update",
+                        "usage": usage_summary,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    last_credit_update = current_time
+
                 event = await event_queue.get()
                 yield event
 
                 # Break on completion/error
                 if event.get("type") in ("workflow_complete", "error"):
+                    # Send final credit update
+                    usage_summary = credit_tracker.get_usage_summary()
+                    yield {
+                        "type": "credit_update",
+                        "usage": usage_summary,
+                        "timestamp": datetime.now().isoformat(),
+                        "final": True
+                    }
                     break
         finally:
             # Clean up
@@ -874,9 +1091,11 @@ async def execute_supervisor_workflow_mcp(
         "awaiting_human": False
     }
 
-    # Configure recursion limit
-    config = RunnableConfig(recursion_limit=150)
-    logger.info(f"   📊 Recursion limit set to: 150")
+    # Configure recursion limit - Increased to 200 for real workflows
+    # Each iteration: supervisor → agent → supervisor (counts as 3 steps)
+    # Real workflows with research-fix loops need 50+ iterations
+    config = RunnableConfig(recursion_limit=200)
+    logger.info(f"   📊 Recursion limit set to: 200 (production - real workflows)")
 
     # Execute workflow
     try:

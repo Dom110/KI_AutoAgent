@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["version", "agents"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version"
+    },
+    "agents": {
+      "type": "object",
+      "description": "Agent-specific LLM configurations",
+      "additionalProperties": {
+        "$ref": "#/definitions/agentConfig"
+      }
+    },
+    "defaults": {
+      "$ref": "#/definitions/defaults"
+    }
+  },
+  "definitions": {
+    "agentConfig": {
+      "type": "object",
+      "required": ["provider", "model"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Agent description"
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["openai", "anthropic"],
+          "description": "LLM provider"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model name"
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "description": "Temperature for sampling"
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000,
+          "description": "Maximum tokens for response"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600,
+          "description": "Timeout in seconds"
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "temperature": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "description": "Default temperature"
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000,
+          "description": "Default max tokens"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600,
+          "description": "Default timeout"
+        }
+      }
+    }
+  }
+}

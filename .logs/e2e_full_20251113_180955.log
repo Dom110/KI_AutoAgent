@@ -1,0 +1,142 @@
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║          🚀 KI_AutoAgent E2E Testing with FULL WebSocket Logging              ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+📁 Project Directory:  /Users/dominikfoert/git/KI_AutoAgent
+📝 Server Log:         /Users/dominikfoert/git/KI_AutoAgent/.logs/server_20251113_180955.log
+📝 E2E Test Log:       /Users/dominikfoert/git/KI_AutoAgent/.logs/e2e_test_20251113_180955.log
+
+[18:09:55] 🛑 Cleaning up old processes...
+[18:09:57] 🎬 Starting backend server (v7 MCP)...
+[18:09:57] ✅ Server started (PID: 65037)
+[18:09:57] SERVER | 
+[18:09:57] SERVER | ================================================================================
+[18:09:57] SERVER | ❌ CRITICAL ERROR: DIRECT STARTUP NOT ALLOWED
+[18:09:57] SERVER | ================================================================================
+[18:09:57] SERVER | 
+[18:09:57] SERVER | 🚫 PROBLEM:
+[18:09:57] SERVER |    • Server cannot be started directly
+[18:09:57] SERVER |    • Critical port management checks are skipped
+[18:09:57] SERVER |    • System diagnostics are not run
+[18:09:57] SERVER |    • Dependencies are not validated
+[18:09:57] SERVER |    • Port conflicts are not detected/resolved
+[18:09:57] SERVER | 
+[18:09:57] SERVER | ✅ HOW TO FIX - Start the server using the provided script:
+[18:09:57] SERVER | 
+[18:09:57] SERVER |    cd /Users/dominikfoert/git/KI_AutoAgent
+[18:09:57] SERVER |    python start_server.py
+[18:09:57] SERVER | 
+[18:09:57] SERVER | 📋 Script options:
+[18:09:57] SERVER |    python start_server.py --check-only         # Run checks without starting
+[18:09:57] SERVER |    python start_server.py --port 8003          # Use different port
+[18:09:57] SERVER |    python start_server.py --no-cleanup         # Don't kill existing processes
+[18:09:57] SERVER | 
+[18:09:57] SERVER | ❌ STARTUP BLOCKED
+[18:09:57] SERVER |    Direct execution is not supported. Please use start_server.py
+[18:09:57] SERVER | 
+[18:09:57] SERVER | ================================================================================
+[18:09:57] SERVER | Server startup cancelled.
+[18:09:57] SERVER | ================================================================================
+[18:09:57] SERVER | 
+[18:09:57] SERVER | 
+[18:09:57] SERVER | ================================================================================
+[18:09:57] SERVER |                     📞 WELCHE DATEI LESEN?
+[18:09:57] SERVER | ================================================================================
+[18:09:57] SERVER | 
+[18:09:57] SERVER | WENN...                              DANN LESE...
+[18:09:57] SERVER | ───────────────────────────────────────────────────────────────────────────────
+[18:09:57] SERVER | Ich weiß nicht wie ich starte        → START_HERE.md
+[18:09:57] SERVER | Ich brauche schnelle Hilfe           → DEUTSCHE_ANLEITUNG.md
+[18:09:57] SERVER | Ich will alles verstehen             → START_SERVER_GUIDE.md
+[18:09:57] SERVER | Ich brauche technische Details       → COMPLETION_SUMMARY.md
+[18:09:57] SERVER | Ich muss berichten                   → EXECUTIVE_SUMMARY_DE.txt
+[18:09:57] SERVER | Ich deploye auf Production           → PRODUCTION_STATUS.md
+[18:09:57] SERVER | Ich brauche einen Quick Check        → README_LATEST.md
+[18:09:57] SERVER | Ich suche eine spezifische Info      → FILES_OVERVIEW.txt (diese!)
+[18:09:57] SERVER | 
+[18:09:57] SERVER | ================================================================================
+[18:09:57] SERVER | 
+[18:10:00] ⏳ Waiting for server to be ready...
+[18:10:00] ✅ Server is READY and listening!
+
+
+[18:10:00] 🧪 Starting E2E Test Suite...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+18:10:00.490 | DEBUG    | Using selector: KqueueSelector
+18:10:00.490 | INFO     | 
+🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 
+18:10:00.490 | INFO     | KI_AutoAgent E2E Test Suite - ReviewFix Validation
+18:10:00.490 | INFO     | 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 
+18:10:00.490 | INFO     | 
+📁 Test Workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000
+18:10:00.490 | INFO     | 📝 Main Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000/logs/e2e_main_20251113_181000.log
+18:10:00.490 | INFO     | 📤 WebSocket Send Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000/logs/websocket_send_20251113_181000.log
+18:10:00.490 | INFO     | 📥 WebSocket Recv Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000/logs/websocket_recv_20251113_181000.log
+18:10:00.490 | INFO     | 📊 WebSocket Combined Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000/logs/websocket_both_20251113_181000.log
+
+18:10:00.490 | INFO     | 
+================================================================================
+18:10:00.490 | INFO     | PHASE 1: Environment Setup
+18:10:00.490 | INFO     | ================================================================================
+18:10:00.491 | INFO     |   Removing old workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000
+18:10:00.491 | INFO     |   ✅ Created workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000
+18:10:00.491 | INFO     | ✅ Phase 'Environment Setup' complete (elapsed: 0.0s)
+18:10:00.491 | INFO     | 
+================================================================================
+18:10:00.491 | INFO     | PHASE 2: Backend Connection
+18:10:00.491 | INFO     | ================================================================================
+18:10:00.491 | INFO     |   Connecting to ws://localhost:8002/ws/chat...
+18:10:00.497 | DEBUG    | = connection is CONNECTING
+18:10:00.497 | DEBUG    | > GET /ws/chat HTTP/1.1
+18:10:00.497 | DEBUG    | > Host: localhost:8002
+18:10:00.497 | DEBUG    | > Upgrade: websocket
+18:10:00.497 | DEBUG    | > Connection: Upgrade
+18:10:00.497 | DEBUG    | > Sec-WebSocket-Key: uc19lizNTxS7CdbqCgjpgA==
+18:10:00.497 | DEBUG    | > Sec-WebSocket-Version: 13
+18:10:00.497 | DEBUG    | > Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits
+18:10:00.497 | DEBUG    | > User-Agent: Python/3.13 websockets/13.1
+18:10:00.498 | DEBUG    | < HTTP/1.1 101 Switching Protocols
+18:10:00.498 | DEBUG    | < Upgrade: websocket
+18:10:00.498 | DEBUG    | < Connection: Upgrade
+18:10:00.498 | DEBUG    | < Sec-WebSocket-Accept: E1uxJzFY4s3F9O7wKlXLLAfVxuE=
+18:10:00.498 | DEBUG    | < Sec-WebSocket-Extensions: permessage-deflate
+18:10:00.498 | DEBUG    | < date: Thu, 13 Nov 2025 17:10:00 GMT
+18:10:00.498 | DEBUG    | < server: uvicorn
+18:10:00.498 | DEBUG    | = connection is OPEN
+18:10:00.499 | DEBUG    | < TEXT '{"type":"connected","message":"⚠️ MCP BLEIBT: C...","requires_init":true}' [346 bytes]
+18:10:00.499 | ERROR    | ❌ ERROR: Phase 2 failed: [Errno 2] No such file or directory: '/Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_181000/logs/websocket_recv_20251113_181000.log'
+18:10:00.499 | ERROR    | ❌ Phase 2 failed - stopping tests
+18:10:10.500 | DEBUG    | ! timed out waiting for TCP close
+18:10:10.500 | DEBUG    | x half-closing TCP connection
+18:10:10.501 | DEBUG    | = connection is CLOSED
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[18:10:10] 🛑 Stopping server (PID: 65037)...
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    📊 TEST EXECUTION COMPLETE                                  ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+Exit Code: 
+
+📁 Log Files Generated:
+  📝 Server Log:       /Users/dominikfoert/git/KI_AutoAgent/.logs/server_20251113_180955.log
+  📝 E2E Test Log:     /Users/dominikfoert/git/KI_AutoAgent/.logs/e2e_test_20251113_180955.log
+
+🔍 How to View Logs:
+
+  In VSCode Terminal:
+    tail -f "/Users/dominikfoert/git/KI_AutoAgent/.logs/server_20251113_180955.log"
+    tail -f "/Users/dominikfoert/git/KI_AutoAgent/.logs/e2e_test_20251113_180955.log"
+
+  Find WebSocket detailed logs:
+    ls -lht ~/TestApps/e2e_reviewfix_validation_*/logs/
+    cat ~/TestApps/e2e_reviewfix_validation_*/logs/websocket_both_*.log
+
+📊 Test Results:
+run_e2e_complete.sh: line 110: [: -eq: unary operator expected
+  ❌ FAILED - Check logs for errors
+

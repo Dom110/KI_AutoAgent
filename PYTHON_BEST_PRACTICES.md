@@ -972,6 +972,203 @@ except SpecificError as e:
 
 ---
 
+## 🤖 LLM Provider Abstraction Patterns
+
+**Context:** KI AutoAgent nutzt mehrere LLM-Provider (OpenAI, Anthropic, zukünftig Zencoder). Code sollte Provider-agnostisch sein wo möglich.
+
+### Pattern 1: Factory Pattern (Recommended)
+
+```python
+# backend/core/llm_factory.py
+from typing import Literal
+from abc import ABC, abstractmethod
+
+class LLMProvider(ABC):
+    """Base class for LLM providers"""
+    
+    @abstractmethod
+    async def generate(self, prompt: str, **kwargs) -> str:
+        pass
+    
+    @abstractmethod
+    async def generate_with_tools(self, prompt: str, tools: list, **kwargs) -> dict:
+        pass
+
+class OpenAIProvider(LLMProvider):
+    def __init__(self, model: str = "gpt-4o-2024-11-20"):
+        from langchain_openai import ChatOpenAI
+        self.llm = ChatOpenAI(model=model, temperature=0.4)
+    
+    async def generate(self, prompt: str, **kwargs) -> str:
+        response = await self.llm.ainvoke(prompt)
+        return response.content
+    
+    async def generate_with_tools(self, prompt: str, tools: list, **kwargs) -> dict:
+        bound_llm = self.llm.bind_tools(tools)
+        response = await bound_llm.ainvoke(prompt)
+        return response.dict()
+
+class AnthropicProvider(LLMProvider):
+    def __init__(self, model: str = "claude-sonnet-4-20250514"):
+        from langchain_anthropic import ChatAnthropic
+        self.llm = ChatAnthropic(model=model, temperature=0.4)
+    
+    async def generate(self, prompt: str, **kwargs) -> str:
+        response = await self.llm.ainvoke(prompt)
+        return response.content
+    
+    async def generate_with_tools(self, prompt: str, tools: list, **kwargs) -> dict:
+        bound_llm = self.llm.bind_tools(tools)
+        response = await bound_llm.ainvoke(prompt)
+        return response.dict()
+
+class LLMFactory:
+    """Factory for creating LLM providers"""
+    
+    _providers: dict[str, type[LLMProvider]] = {
+        "openai": OpenAIProvider,
+        "anthropic": AnthropicProvider,
+    }
+    
+    @classmethod
+    def get_provider(
+        cls,
+        provider: Literal["openai", "anthropic"] = "openai",
+        model: str | None = None
+    ) -> LLMProvider:
+        """
+        Create LLM provider instance
+        
+        Args:
+            provider: Provider name (openai, anthropic)
+            model: Model name (uses default if None)
+        
+        Returns:
+            LLMProvider instance
+        
+        Raises:
+            ValueError: If provider not supported
+        """
+        if provider not in cls._providers:
+            supported = list(cls._providers.keys())
+            raise ValueError(f"Provider {provider} not supported. Choose from: {supported}")
+        
+        provider_class = cls._providers[provider]
+        if model:
+            return provider_class(model=model)
+        return provider_class()
+
+# Usage:
+llm = LLMFactory.get_provider(provider="openai")
+result = await llm.generate("Write a function that...")
+```
+
+### Pattern 2: Environment-Based Configuration
+
+```python
+import os
+from enum import Enum
+
+class LLMConfig:
+    """Load LLM configuration from environment"""
+    
+    PROVIDER = os.getenv("LLM_PROVIDER", "openai")
+    MODEL = os.getenv("LLM_MODEL", "gpt-4o-2024-11-20")
+    TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.4"))
+    MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "2000"))
+    
+    @classmethod
+    def get_llm(cls):
+        """Get LLM instance from current config"""
+        llm = LLMFactory.get_provider(
+            provider=cls.PROVIDER,
+            model=cls.MODEL
+        )
+        logger.info(f"🤖 LLM Config: {cls.PROVIDER}/{cls.MODEL}")
+        return llm
+
+# Usage: Simply call get_llm() and configuration is automatic!
+supervisor_llm = LLMConfig.get_llm()
+```
+
+### Pattern 3: Provider-Specific Error Handling
+
+```python
+async def call_llm(llm: LLMProvider, prompt: str) -> str:
+    """Call LLM with provider-specific error handling"""
+    
+    try:
+        logger.debug(f"📤 Calling LLM with {len(prompt)} char prompt")
+        result = await llm.generate(prompt)
+        logger.debug(f"✅ LLM returned {len(result)} chars")
+        return result
+    
+    except ValueError as e:
+        if "API key" in str(e):
+            logger.error("❌ LLM API key missing or invalid")
+            raise
+        elif "rate limit" in str(e):
+            logger.warning("⚠️ Rate limit hit, retrying...")
+            await asyncio.sleep(2)
+            return await llm.generate(prompt)
+        else:
+            logger.error(f"❌ LLM Error: {e}")
+            raise
+    
+    except TimeoutError:
+        logger.error("❌ LLM call timed out")
+        raise
+```
+
+### Anti-Pattern 1: Hard-Coded Model Selection
+
+```python
+# ❌ WRONG - Hard-coded provider
+from langchain_openai import ChatOpenAI
+llm = ChatOpenAI(model="gpt-4o-2024-11-20")
+
+# ✅ CORRECT - Use factory
+llm = LLMFactory.get_provider("openai", "gpt-4o-2024-11-20")
+```
+
+### Anti-Pattern 2: Mixing Providers in Same Function
+
+```python
+# ❌ WRONG - Mixes OpenAI and Anthropic logic
+def generate_response(use_openai: bool = True):
+    if use_openai:
+        from langchain_openai import ChatOpenAI
+        llm = ChatOpenAI(...)
+    else:
+        from langchain_anthropic import ChatAnthropic
+        llm = ChatAnthropic(...)
+    return llm.invoke(...)
+
+# ✅ CORRECT - Provider-agnostic
+def generate_response(llm: LLMProvider):
+    return llm.generate(...)
+```
+
+### Anti-Pattern 3: No Logging of LLM Configuration
+
+```python
+# ❌ WRONG - Silent initialization
+self.llm = ChatOpenAI(model="gpt-4o-2024-11-20")
+
+# ✅ CORRECT - Log what LLM is being used
+logger.info(f"🤖 Initializing Supervisor LLM")
+logger.info(f"   Provider: openai")
+logger.info(f"   Model: gpt-4o-2024-11-20")
+logger.info(f"   Temperature: 0.4")
+self.llm = ChatOpenAI(
+    model="gpt-4o-2024-11-20",
+    temperature=0.4
+)
+logger.info(f"✅ Supervisor LLM ready")
+```
+
+---
+
 ## ✅ Code Review Checklist
 
 Vor jedem Commit diese Punkte prüfen:
@@ -1020,6 +1217,16 @@ Vor jedem Commit diese Punkte prüfen:
 - [ ] Kein `type()` checking (use `isinstance()`)
 - [ ] Keine `assert` für Validation
 - [ ] Files IMMER mit Context Manager öffnen
+
+### LLM Provider Integration (NEW)
+- [ ] LLM initialization ist abstrahiert (nutzt Factory oder Config)
+- [ ] Keine hard-coded Model Names im Code
+- [ ] LLM selection ist konfigurierbar via Environment
+- [ ] Logging zeigt welchen Provider und Model wird genutzt
+- [ ] Error Handling für API Key und Rate Limit Fehler
+- [ ] LLM calls sind async-aware
+- [ ] Timeouts für LLM API calls gesetzt
+- [ ] Structured Output Requirements dokumentiert
 
 ---
 

@@ -24,36 +24,155 @@ Date: 2025-10-30
 
 from __future__ import annotations
 
-# CHECK PYTHON VERSION FIRST - MUST BE 3.13.8 OR HIGHER!
+# ============================================================================
+# LOAD ENVIRONMENT VARIABLES FIRST!
+# ============================================================================
 import sys
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 
+# Load .env BEFORE any checks
+global_env = Path.home() / ".ki_autoagent" / "config" / ".env"
+_env_loaded = False
+if global_env.exists():
+    load_dotenv(global_env)
+    _env_loaded = True
+
+# ============================================================================
+# CRITICAL STARTUP CHECKS - MUST RUN FIRST!
+# ============================================================================
+
+# ✅ CHECK 1: PYTHON VERSION FIRST - MUST BE 3.13.8 OR HIGHER!
 MIN_PYTHON_VERSION = (3, 13, 8)
 current_version = sys.version_info[:3]
 
 if current_version < MIN_PYTHON_VERSION:
-    print("\n" + "=" * 60)
-    print("❌ PYTHON VERSION ERROR")
-    print("=" * 60)
-    print(f"Current Python: {current_version[0]}.{current_version[1]}.{current_version[2]}")
-    print(f"Required: Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]}.{MIN_PYTHON_VERSION[2]} or higher")
-    print("\nThis project uses Python 3.13+ features:")
-    print("  - Native type unions with |")
-    print("  - Pattern matching")
-    print("  - Enhanced error messages")
-    print("\nTo run the server correctly:")
-    print("\n  # From project root directory:")
-    print("  cd /Users/dominikfoert/git/KI_AutoAgent")
-    print("  source venv/bin/activate")
-    print("  pip install -r requirements.txt")
-    print("  python backend/api/server_v7_supervisor.py")
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 80)
+    print("❌ CRITICAL ERROR: PYTHON VERSION INCOMPATIBLE")
+    print("=" * 80)
+    print(f"\n📍 Current Python: {current_version[0]}.{current_version[1]}.{current_version[2]}")
+    print(f"📍 Required: Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]}.{MIN_PYTHON_VERSION[2]} or higher")
+    print("\n⚠️  This project uses Python 3.13+ features:")
+    print("   • Native type unions with | (not Union[])")
+    print("   • Pattern matching (match/case)")
+    print("   • Enhanced error messages")
+    print("   • Modern asyncio features")
+    
+    print("\n✅ HOW TO FIX - Run from Virtual Environment:")
+    print("\n   # Step 1: Go to project root")
+    print("   cd /Users/dominikfoert/git/KI_AutoAgent")
+    print("\n   # Step 2: Activate virtual environment")
+    print("   source venv/bin/activate")
+    print("\n   # Step 3: Install dependencies")
+    print("   pip install -r backend/requirements.txt")
+    print("\n   # Step 4: Start the server")
+    print("   python backend/api/server_v7_mcp.py")
+    
+    print("\n" + "=" * 80)
+    print("Server startup cancelled.")
+    print("=" * 80 + "\n")
+    
+    # Import and show help message
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from backend.utils.error_handler import print_help_message_once
+        print_help_message_once()
+    except ImportError:
+        pass
+    
     sys.exit(1)
 
-# After version check, continue with imports
-# Add PROJECT ROOT to sys.path (two levels up from backend/api/)
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# ✅ CHECK 1.5: SERVER MUST BE STARTED VIA start_server.py SCRIPT
+# This ensures all pre-flight checks run (port cleanup, diagnostics, etc.)
+if os.environ.get('KI_AUTOAGENT_STARTUP_SCRIPT') != 'true':
+    print("\n" + "=" * 80)
+    print("❌ CRITICAL ERROR: DIRECT STARTUP NOT ALLOWED")
+    print("=" * 80)
+    
+    print("\n🚫 PROBLEM:")
+    print("   • Server cannot be started directly")
+    print("   • Critical port management checks are skipped")
+    print("   • System diagnostics are not run")
+    print("   • Dependencies are not validated")
+    print("   • Port conflicts are not detected/resolved")
+    
+    print("\n✅ HOW TO FIX - Start the server using the provided script:")
+    print("\n   cd /Users/dominikfoert/git/KI_AutoAgent")
+    print("   python start_server.py")
+    
+    print("\n📋 Script options:")
+    print("   python start_server.py --check-only         # Run checks without starting")
+    print("   python start_server.py --port 8003          # Use different port")
+    print("   python start_server.py --no-cleanup         # Don't kill existing processes")
+    
+    print("\n❌ STARTUP BLOCKED")
+    print("   Direct execution is not supported. Please use start_server.py")
+    
+    print("\n" + "=" * 80)
+    print("Server startup cancelled.")
+    print("=" * 80 + "\n")
+    
+    # Import and show help message
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from backend.utils.error_handler import print_help_message_once
+        print_help_message_once()
+    except ImportError:
+        pass
+    
+    sys.exit(1)
+
+# ✅ CHECK 2: SERVER MUST ALWAYS RUN FROM PROJECT ROOT
+# This prevents agents from scanning their own codebase (infinite loop)
+project_root_path = Path(__file__).parent.parent.parent  # /Users/dominikfoert/git/KI_AutoAgent
+current_cwd = Path.cwd()
+
+# 🚫 CRITICAL: Server MUST start from its own workspace!
+if current_cwd != project_root_path:
+    print("\n" + "=" * 80)
+    print("❌ CRITICAL ERROR: SERVER MUST RUN FROM PROJECT ROOT")
+    print("=" * 80)
+    print(f"\n📍 Current working directory: {current_cwd}")
+    print(f"📍 Required: {project_root_path}")
+    
+    print("\n🚫 PROBLEM:")
+    print("   • Server can only be started from its own workspace")
+    print("   • Running from other locations causes issues")
+    print("   • Architect Agent must scan OTHER projects, not itself!")
+    
+    print("\n✅ HOW TO FIX:")
+    print("\n   # Step 1: Go to project root")
+    print("   cd /Users/dominikfoert/git/KI_AutoAgent")
+    print("\n   # Step 2: Activate venv")
+    print("   source venv/bin/activate")
+    print("\n   # Step 3: Start the server")
+    print("   python backend/api/server_v7_mcp.py")
+    
+    print("\n📝 NOTE: E2E Tests should connect via WebSocket ONLY")
+    print("   • Tests run from: ~/TestApps/e2e_test_workspace")
+    print("   • Tests connect to: ws://localhost:8002/ws/chat")
+    print("   • Tests do NOT start the server!")
+    
+    print("\n" + "=" * 80)
+    print("Server startup cancelled.")
+    print("=" * 80 + "\n")
+    
+    # Import and show help message
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from backend.utils.error_handler import print_help_message_once
+        print_help_message_once()
+    except ImportError:
+        pass
+    
+    sys.exit(1)
+
+# ✅ Server is running from correct workspace - safe to proceed
+project_root = str(project_root_path)
 sys.path.insert(0, project_root)
+
+# Now safe to import from backend
 from backend.__version__ import __version__, __release_tag__
 
 # Optional performance optimization
@@ -72,26 +191,33 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocketState
 
-# Load environment variables
-from dotenv import load_dotenv
-global_env = Path.home() / ".ki_autoagent" / "config" / ".env"
-_env_loaded = False
-if global_env.exists():
-    load_dotenv(global_env)
-    _env_loaded = True
-
 # ⚠️ MCP BLEIBT: Import v7.0 Pure MCP workflow
 from backend.workflow_v7_mcp import execute_supervisor_workflow_mcp, execute_supervisor_workflow_streaming_mcp
 
 # ⚠️ MCP BLEIBT: Import MCPManager for lifecycle management
 from backend.utils.mcp_manager import get_mcp_manager, close_mcp_manager
+
+# Import API validator utility (decentralized validation)
+from backend.utils.api_validator import validate_all_required_keys
+
+# Import session store for persistent sessions
+from backend.utils.session_store import get_session_store
+
+# Import health check system
+from backend.utils.health_check import (
+    run_startup_diagnostics,
+    print_startup_header,
+    print_ready_message,
+    print_port_status,
+    SystemDiagnostics
+)
 
 # Configure logging
 logging.basicConfig(
@@ -100,6 +226,9 @@ logging.basicConfig(
     force=True
 )
 logger = logging.getLogger(__name__)
+
+# Store diagnostics globally for health check endpoints
+_startup_diagnostics: Optional[SystemDiagnostics] = None
 
 if _UVLOOP_INSTALLED:
     logger.info("⚡ uvloop ENABLED: Event loop performance boosted")
@@ -111,40 +240,76 @@ if _env_loaded:
 else:
     logger.warning(f"⚠️ .env not found at: {global_env}")
 
-# Validate API keys on startup
-def validate_api_keys():
-    """Validate required API keys and test connectivity."""
-    logger.info("🔑 Validating API keys...")
+# ✅ Validate API keys on startup (centralized check from utility)
+validate_all_required_keys()
 
-    openai_key = os.environ.get("OPENAI_API_KEY")
-    perplexity_key = os.environ.get("PERPLEXITY_API_KEY")
+# ============================================================================
+# WORKSPACE ISOLATION - SECURITY FEATURE
+# ============================================================================
 
-    if not openai_key or openai_key == "":
-        logger.error("❌ OPENAI_API_KEY not set or empty!")
-        logger.error("   Required for: GPT-4o Supervisor, Embeddings")
-        logger.error("   Set in: ~/.ki_autoagent/config/.env")
-        sys.exit(1)
+# Get server root from environment (set by start_server.py)
+SERVER_ROOT = os.environ.get('KI_AUTOAGENT_SERVER_ROOT')
+if SERVER_ROOT:
+    SERVER_ROOT = Path(SERVER_ROOT).resolve()
+    logger.info(f"🔒 Workspace Isolation Enabled - Server Root: {SERVER_ROOT}")
+else:
+    logger.warning("⚠️ Server Root not set - Workspace isolation may not work properly")
+    SERVER_ROOT = None
 
-    # Test OpenAI connection
+
+def validate_workspace_isolation(workspace_path: str) -> tuple[bool, str]:
+    """
+    Validate that client workspace is NOT inside the server's workspace.
+    
+    This prevents:
+    - Accidental test execution within server code
+    - Recursive/self-modification issues
+    - Potential security issues
+    
+    Args:
+        workspace_path: Client workspace path
+        
+    Returns:
+        (is_valid, error_message)
+        - is_valid=True if workspace is safe to use
+        - is_valid=False + error_message if workspace is blocked
+    """
+    if not SERVER_ROOT:
+        # If server root not configured, allow (non-fatal)
+        logger.warning("⚠️ Server root not configured - allowing workspace (isolation disabled)")
+        return True, ""
+    
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=openai_key)
-        client.models.list()  # Quick API test
-        logger.info("✅ OPENAI_API_KEY: Valid")
+        # Normalize both paths to absolute paths
+        client_workspace = Path(workspace_path).resolve()
+        
+        # Check if client workspace is inside server root
+        # Using relative_to() will raise ValueError if paths are not relative
+        try:
+            relative = client_workspace.relative_to(SERVER_ROOT)
+            # If we get here, client_workspace IS inside SERVER_ROOT
+            return False, (
+                f"❌ WORKSPACE ISOLATION VIOLATION\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"Client workspace cannot be inside server workspace.\n\n"
+                f"📍 Server Root:\n"
+                f"   {SERVER_ROOT}\n\n"
+                f"📍 Client Workspace:\n"
+                f"   {client_workspace}\n\n"
+                f"💡 Solution:\n"
+                f"   Please start Tests outside Server workspace\n"
+                f"   Example: /tmp, /Users/username/TestApps, /home/user/projects/\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            )
+        except ValueError:
+            # Paths are not relative - client is NOT inside server root
+            # This is what we want!
+            return True, ""
+            
     except Exception as e:
-        logger.error(f"❌ OPENAI_API_KEY: Invalid - {str(e)[:80]}")
-        logger.error("   Update your key in: ~/.ki_autoagent/config/.env")
-        sys.exit(1)
+        logger.error(f"❌ Error validating workspace isolation: {e}")
+        return False, f"Error validating workspace path: {str(e)}"
 
-    if not perplexity_key or perplexity_key == "":
-        logger.warning("⚠️ PERPLEXITY_API_KEY not set - web research will use fallback")
-    else:
-        logger.info("✅ PERPLEXITY_API_KEY: Set (validation skipped)")
-
-    logger.info("🔑 API key validation complete")
-
-# Run validation
-validate_api_keys()
 
 # ============================================================================
 # MCP ARCHITECTURE - NO AI FACTORY NEEDED!
@@ -210,6 +375,10 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 active_sessions: dict[str, dict[str, Any]] = {}
+
+# ⚠️ NEW: Initialize persistent session store
+session_store = get_session_store()
+logger.info(f"✅ Session store initialized: {len(session_store.get_all_sessions())} existing sessions")
 
 
 # ============================================================================
@@ -299,7 +468,21 @@ class WorkflowCallbacks:
 async def lifespan(app: FastAPI):
     """
     ⚠️ MCP BLEIBT: Manage app lifecycle with MCP server management
+    Includes port check and automatic cleanup if another server is running
     """
+    global _startup_diagnostics
+    
+    # Print startup header
+    print_startup_header()
+    
+    # Check port availability FIRST - auto-cleanup if needed
+    logger.info("🔍 Checking server port...")
+    print_port_status(port=8002, host="localhost")
+    
+    # Run comprehensive startup diagnostics (includes port cleanup)
+    logger.info("🔍 Running startup diagnostics...")
+    _startup_diagnostics = await run_startup_diagnostics()
+    
     logger.info("🚀 Starting KI AutoAgent v7.0 Pure MCP Server...")
     logger.info("⚠️ MCP BLEIBT: Pure MCP Architecture Active!")
     logger.info("🎯 Architecture: Supervisor Pattern + Pure MCP Protocol")
@@ -324,6 +507,10 @@ async def lifespan(app: FastAPI):
     logger.info("")
     logger.info("⚠️ MCP BLEIBT: NO direct agent instantiation!")
     logger.info("⚠️ MCP BLEIBT: All communication via MCPManager!")
+    
+    # Print ready message if all critical checks pass
+    if not _startup_diagnostics.errors:
+        print_ready_message()
 
     yield
 
@@ -368,15 +555,60 @@ async def health_check():
     """
     ⚠️ MCP BLEIBT: Health check endpoint showing MCP architecture status
     """
+    global _startup_diagnostics
+    
+    # Determine health status based on diagnostics
+    health_status = "unhealthy"
+    critical_errors = []
+    
+    if _startup_diagnostics:
+        if not _startup_diagnostics.errors:
+            health_status = "healthy"
+        else:
+            critical_errors = _startup_diagnostics.errors
+    
     return {
-        "status": "healthy",
+        "status": health_status,
         "version": __version__,
         "release_tag": __release_tag__,
         "architecture": "pure_mcp",  # ⚠️ MCP BLEIBT!
         "mcp_active": True,
         "timestamp": datetime.now().isoformat(),
         "active_connections": len(manager.active_connections),
-        "active_sessions": len(active_sessions)
+        "active_sessions": len(active_sessions),
+        "critical_errors": critical_errors,
+        "warnings": _startup_diagnostics.warnings if _startup_diagnostics else []
+    }
+
+
+@app.get("/diagnostics")
+async def get_diagnostics():
+    """
+    Full system diagnostics and health report
+    Shows all system checks, API key status, dependencies, etc.
+    """
+    global _startup_diagnostics
+    
+    if not _startup_diagnostics:
+        return {
+            "status": "error",
+            "message": "Diagnostics not yet available (server still initializing)",
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    return {
+        "status": "ok" if not _startup_diagnostics.errors else "failed",
+        "timestamp": datetime.now().isoformat(),
+        "checks": _startup_diagnostics.checks,
+        "errors": _startup_diagnostics.errors,
+        "warnings": _startup_diagnostics.warnings,
+        "server_info": {
+            "version": __version__,
+            "release_tag": __release_tag__,
+            "active_connections": len(manager.active_connections),
+            "active_sessions": len(active_sessions),
+            "uptime_seconds": (datetime.now() - _startup_diagnostics.startup_time).total_seconds()
+        }
     }
 
 
@@ -495,10 +727,31 @@ async def websocket_chat(websocket: WebSocket):
                     })
                     continue
 
+                # ✅ WORKSPACE ISOLATION CHECK - Prevent client workspace inside server workspace
+                is_valid, error_message = validate_workspace_isolation(workspace_path)
+                if not is_valid:
+                    logger.error(f"🚫 SECURITY: Workspace Isolation Violation from {client_id}")
+                    logger.error(f"   Attempted workspace: {workspace_path}")
+                    logger.error(f"   Server root: {SERVER_ROOT}")
+                    await manager.send_json(client_id, {
+                        "type": "error",
+                        "message": error_message,
+                        "error_code": "WORKSPACE_ISOLATION_VIOLATION"
+                    })
+                    continue
+
                 session["workspace_path"] = workspace_path
                 session["initialized"] = True
 
+                # ⚠️ NEW: Create persistent session
+                persistent_session = session_store.create_session(
+                    session_id=session["session_id"],
+                    workspace_path=workspace_path,
+                    client_id=client_id
+                )
+
                 logger.info(f"✅ Client {client_id} initialized with workspace: {workspace_path}")
+                logger.info(f"   Session persisted: {session['session_id']}")
 
                 await manager.send_json(client_id, {
                     "type": "initialized",
@@ -538,7 +791,15 @@ async def websocket_chat(websocket: WebSocket):
 
             # CHAT MESSAGE (execute workflow)
             if message_type in ["chat", "message", "task"]:
-                user_query = data.get("content") or data.get("message") or data.get("task", "")
+                logger.info("🔍 DEBUG: Entering chat message handler")
+                # Support multiple field names for backward compatibility
+                user_query = (
+                    data.get("query") or  # Add support for "query" field!
+                    data.get("content") or
+                    data.get("message") or
+                    data.get("task", "")
+                )
+                logger.info(f"🔍 DEBUG: user_query extracted: {user_query[:50] if user_query else 'EMPTY'}")
                 if not user_query:
                     await manager.send_json(client_id, {
                         "type": "error",
@@ -552,14 +813,27 @@ async def websocket_chat(websocket: WebSocket):
                     "timestamp": datetime.now().isoformat()
                 })
 
+                logger.info("🔍 DEBUG: Before persisting user message")
+                # ⚠️ NEW: Persist user message
+                session_store.add_message(
+                    session_id=session["session_id"],
+                    role="user",
+                    content=user_query
+                )
+                logger.info("🔍 DEBUG: User message persisted")
+
+                logger.info("🔍 DEBUG: Before sending analyzing status")
                 # Send "thinking" status
                 await manager.send_json(client_id, {
                     "type": "status",
                     "status": "analyzing",
                     "message": "🎯 Supervisor analyzing request..."
                 })
+                logger.info("🔍 DEBUG: Analyzing status sent")
 
+                logger.info("🔍 DEBUG: About to enter try block for workflow execution...")
                 try:
+                    logger.info("🔍 DEBUG: Inside try block")
                     logger.info(f"🚀 Running v7.0 Pure MCP workflow for: {user_query[:80]}...")
                     logger.info("⚠️ MCP BLEIBT: All agents will execute via MCP protocol!")
 
@@ -568,8 +842,18 @@ async def websocket_chat(websocket: WebSocket):
                     logger.info(f"   Session ID: {session['session_id']}")
                     logger.info(f"   Client ID: {client_id}")
 
+                    # DEBUG: Import check
+                    logger.info("🔍 DEBUG: Importing workflow module...")
+                    try:
+                        from backend.workflow_v7_mcp import execute_supervisor_workflow_streaming_mcp
+                        logger.info("✅ DEBUG: Workflow module imported successfully")
+                    except Exception as import_error:
+                        logger.error(f"❌ DEBUG: Import failed: {import_error}")
+                        raise
+
                     # ⚠️ MCP BLEIBT: Execute workflow WITH STREAMING for real-time updates
                     # This will initialize MCPManager and start all MCP servers!
+                    logger.info("🔍 DEBUG: Calling execute_supervisor_workflow_streaming_mcp...")
                     final_result = {}
                     async for event in execute_supervisor_workflow_streaming_mcp(
                         user_query=user_query,
@@ -591,8 +875,9 @@ async def websocket_chat(websocket: WebSocket):
                             })
 
                             # Store state updates
-                            state_update = event.get("state_update", {})
-                            final_result.update(state_update)
+                            state_update = event.get("state_update") or {}
+                            if state_update:
+                                final_result.update(state_update)
 
                         elif event_type == "mcp_progress":
                             # ⚠️ MCP BLEIBT: Forward MCP $/progress notifications!
@@ -666,6 +951,24 @@ async def websocket_chat(websocket: WebSocket):
                         "content": user_response,
                         "timestamp": datetime.now().isoformat()
                     })
+
+                    # ⚠️ NEW: Persist assistant message and workflow state
+                    session_store.add_message(
+                        session_id=session["session_id"],
+                        role="assistant",
+                        content=user_response
+                    )
+                    session_store.update_session(
+                        session_id=session["session_id"],
+                        updates={
+                            "conversation_state": {
+                                "last_agent": result.get("last_agent"),
+                                "response_ready": result.get("response_ready", False),
+                                "validation_passed": result.get("validation_passed", False),
+                                "iteration": result.get("iteration", 0)
+                            }
+                        }
+                    )
 
                     logger.info(f"✅ Workflow complete for {client_id}")
 

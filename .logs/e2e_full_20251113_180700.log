@@ -1,0 +1,100 @@
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║          🚀 KI_AutoAgent E2E Testing with FULL WebSocket Logging              ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+📁 Project Directory:  /Users/dominikfoert/git/KI_AutoAgent
+📝 Server Log:         /Users/dominikfoert/git/KI_AutoAgent/.logs/server_20251113_180700.log
+📝 E2E Test Log:       /Users/dominikfoert/git/KI_AutoAgent/.logs/e2e_test_20251113_180700.log
+
+[18:07:00] 🛑 Cleaning up old processes...
+[18:07:02] 🎬 Starting backend server...
+[18:07:02] ✅ Server started (PID: 63971)
+[18:07:03] SERVER | Traceback (most recent call last):
+[18:07:03] SERVER |   File "/Users/dominikfoert/git/KI_AutoAgent/api/server_langgraph.py", line 33, in <module>
+[18:07:03] SERVER |     from langgraph_system import (
+[18:07:03] SERVER |     ...<6 lines>...
+[18:07:03] SERVER |     )
+[18:07:03] SERVER | ModuleNotFoundError: No module named 'langgraph_system'
+[18:07:05] ⏳ Waiting for server to be ready...
+[18:07:05] ✅ Server is READY and listening!
+
+
+[18:07:05] 🧪 Starting E2E Test Suite...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+18:07:06.041 | DEBUG    | Using selector: KqueueSelector
+18:07:06.042 | INFO     | 
+🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 
+18:07:06.042 | INFO     | KI_AutoAgent E2E Test Suite - ReviewFix Validation
+18:07:06.042 | INFO     | 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 
+18:07:06.042 | INFO     | 
+📁 Test Workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_180706
+18:07:06.042 | INFO     | 📝 Main Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_180706/logs/e2e_main_20251113_180706.log
+18:07:06.042 | INFO     | 📤 WebSocket Send Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_180706/logs/websocket_send_20251113_180706.log
+18:07:06.042 | INFO     | 📥 WebSocket Recv Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_180706/logs/websocket_recv_20251113_180706.log
+18:07:06.042 | INFO     | 📊 WebSocket Combined Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_180706/logs/websocket_both_20251113_180706.log
+
+18:07:06.042 | INFO     | 
+================================================================================
+18:07:06.042 | INFO     | PHASE 1: Environment Setup
+18:07:06.042 | INFO     | ================================================================================
+18:07:06.042 | INFO     |   Removing old workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_180706
+18:07:06.042 | INFO     |   ✅ Created workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_180706
+18:07:06.042 | INFO     | ✅ Phase 'Environment Setup' complete (elapsed: 0.0s)
+18:07:06.042 | INFO     | 
+================================================================================
+18:07:06.042 | INFO     | PHASE 2: Backend Connection
+18:07:06.042 | INFO     | ================================================================================
+18:07:06.042 | INFO     |   Connecting to ws://localhost:8002/ws/chat...
+18:07:06.050 | DEBUG    | = connection is CONNECTING
+18:07:06.050 | DEBUG    | > GET /ws/chat HTTP/1.1
+18:07:06.050 | DEBUG    | > Host: localhost:8002
+18:07:06.051 | DEBUG    | > Upgrade: websocket
+18:07:06.051 | DEBUG    | > Connection: Upgrade
+18:07:06.051 | DEBUG    | > Sec-WebSocket-Key: q0QY2p02KkSG+wUP7wTrvA==
+18:07:06.051 | DEBUG    | > Sec-WebSocket-Version: 13
+18:07:06.051 | DEBUG    | > Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits
+18:07:06.051 | DEBUG    | > User-Agent: Python/3.13 websockets/13.1
+18:07:06.052 | DEBUG    | < HTTP/1.1 101 Switching Protocols
+18:07:06.053 | DEBUG    | < Upgrade: websocket
+18:07:06.053 | DEBUG    | < Connection: Upgrade
+18:07:06.053 | DEBUG    | < Sec-WebSocket-Accept: EdCnr25zRZMnGAzOXMYagiy5/T8=
+18:07:06.053 | DEBUG    | < Sec-WebSocket-Extensions: permessage-deflate
+18:07:06.053 | DEBUG    | < date: Thu, 13 Nov 2025 17:07:05 GMT
+18:07:06.053 | DEBUG    | < server: uvicorn
+18:07:06.053 | DEBUG    | = connection is OPEN
+18:07:06.053 | DEBUG    | < TEXT '{"type":"connected","message":"⚠️ MCP BLEIBT: C...","requires_init":true}' [346 bytes]
+18:07:06.053 | ERROR    | ❌ ERROR: Phase 2 failed: [Errno 2] No such file or directory: '/Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_180706/logs/websocket_recv_20251113_180706.log'
+18:07:06.053 | ERROR    | ❌ Phase 2 failed - stopping tests
+18:07:16.055 | DEBUG    | ! timed out waiting for TCP close
+18:07:16.055 | DEBUG    | x half-closing TCP connection
+18:07:16.056 | DEBUG    | = connection is CLOSED
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[18:07:16] 🛑 Stopping server (PID: 63971)...
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    📊 TEST EXECUTION COMPLETE                                  ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+Exit Code: 0
+
+📁 Log Files Generated:
+  📝 Server Log:       /Users/dominikfoert/git/KI_AutoAgent/.logs/server_20251113_180700.log
+  📝 E2E Test Log:     /Users/dominikfoert/git/KI_AutoAgent/.logs/e2e_test_20251113_180700.log
+
+🔍 How to View Logs:
+
+  In VSCode Terminal:
+    tail -f "/Users/dominikfoert/git/KI_AutoAgent/.logs/server_20251113_180700.log"
+    tail -f "/Users/dominikfoert/git/KI_AutoAgent/.logs/e2e_test_20251113_180700.log"
+
+  Find WebSocket detailed logs:
+    ls -lht ~/TestApps/e2e_reviewfix_validation_*/logs/
+    cat ~/TestApps/e2e_reviewfix_validation_*/logs/websocket_both_*.log
+
+📊 Test Results:
+  ✅ PASSED - All phases completed successfully!
+

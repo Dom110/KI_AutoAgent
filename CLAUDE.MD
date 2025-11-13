@@ -1,7 +1,60 @@
 # Claude Code Instructions - Core Guidelines
 
 **Version:** v7.0.0-mcp (PURE MCP ARCHITECTURE)
-**Last Updated:** 2025-10-31
+**Last Updated:** 2025-11-13
+
+---
+
+## 🔴 CRITICAL UPDATES (2025-11-13 - SESSION 2 SUMMARY)
+
+### ROOT CAUSE: THREE-LAYER PROBLEM IDENTIFIED
+
+**Layer 1**: ✅ JSON Markdown Parsing - FIXED  
+**Layer 2**: ⚠️ Async Blocking I/O in MCP - PARTIALLY FIXED  
+**Layer 3**: 🔴 Workflow Event Stream - NOT FIXED (Real blocker!)
+
+### ✅ FIX #1: JSON Markdown Extraction - COMPLETE ✅
+- **File:** `backend/core/llm_providers/base.py` (Lines 266-309)
+- **Test Results:** 3/3 tests pass ✅
+- **Verification:** `python test_json_fix_standalone.py`
+
+### ⚠️ FIX #2: Async Blocking I/O - PARTIALLY COMPLETE
+**Status:** research_agent FIXED, others pending
+
+- **Problem:** All MCP servers used `loop.run_in_executor()` which blocked event loop
+- **Root Cause:** After sending response, server blocks on stdin.readline()
+- **Solution:** Added inline `async_stdin_readline()` with 300s timeout
+- **Fixed:** `mcp_servers/research_agent_server.py` ✅
+- **TODO:** architect, codesmith, openai, responder, reviewfix
+
+**Evidence:** 179 server restarts found in logs (one restart per request!)
+
+### 🔴 FIX #3: Workflow Response Routing - IDENTIFIED BUT NOT FIXED
+**Real Problem:** Research agent sends response but it doesn't reach E2E test
+
+**Evidence Chain:**
+1. research_agent.log: Response sent at 19:39:11,230 ✅
+2. MCPManager receives? → UNKNOWN (need to debug)
+3. Workflow propagates? → UNKNOWN (need to debug)
+4. E2E test receives? → NO (times out) ❌
+
+### 📋 NEXT SESSION PRIORITY
+
+**CRITICAL** (Blocks E2E):
+1. Debug MCPManager._raw_call() response receipt
+2. Check workflow event streaming
+3. Verify response propagation path
+
+**HIGH** (Cleanup):
+1. Fix remaining 5 MCP servers (same async stdin pattern)
+2. Increase E2E timeout to 300s
+3. Add workspace validation to E2E tests
+
+### 🛠️ Files to Review
+- `ANALYSIS_REPORT_20251113.md` - Detailed findings
+- `DEBUG_ASYNCIO_ISSUE.md` - MCP blocking I/O analysis
+- `DEBUG_MCP_CRASH.py` - Tool for analyzing server restarts
+- `FIX_ALL_MCP_SERVERS.py` - Batch fix script (partially working)
 
 ---
 

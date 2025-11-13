@@ -1,0 +1,67 @@
+2025-11-13 19:52:36,108 | DEBUG    | Using selector: KqueueSelector
+2025-11-13 19:52:36,108 | INFO     | 
+================================================================================
+2025-11-13 19:52:36,108 | INFO     | 🧪 TEST: FIX #2 & FIX #3
+2025-11-13 19:52:36,108 | INFO     | ================================================================================
+2025-11-13 19:52:36,108 | INFO     | Time: 2025-11-13T19:52:36.108759
+2025-11-13 19:52:36,108 | INFO     | Python: 3.13.9
+2025-11-13 19:52:36,108 | INFO     | Log: /Users/dominikfoert/git/KI_AutoAgent/.logs/test_fix_2_and_3_20251113_195236.log
+2025-11-13 19:52:36,108 | INFO     | 
+================================================================================
+2025-11-13 19:52:36,108 | INFO     | TEST: FIX #2 - async_stdin_readline() in all servers
+2025-11-13 19:52:36,108 | INFO     | ================================================================================
+2025-11-13 19:52:36,109 | INFO     | ✅ openai_server.py: Has async_stdin_readline()
+2025-11-13 19:52:36,109 | INFO     |    ✅ Has 300s timeout
+2025-11-13 19:52:36,109 | INFO     | ✅ architect_agent_server.py: Has async_stdin_readline()
+2025-11-13 19:52:36,109 | INFO     |    ✅ Has 300s timeout
+2025-11-13 19:52:36,109 | INFO     | ✅ codesmith_agent_server.py: Has async_stdin_readline()
+2025-11-13 19:52:36,109 | INFO     |    ✅ Has 300s timeout
+2025-11-13 19:52:36,109 | INFO     | ✅ responder_agent_server.py: Has async_stdin_readline()
+2025-11-13 19:52:36,109 | INFO     |    ✅ Has 300s timeout
+2025-11-13 19:52:36,109 | INFO     | ✅ reviewfix_agent_server.py: Has async_stdin_readline()
+2025-11-13 19:52:36,109 | INFO     |    ✅ Has 300s timeout
+2025-11-13 19:52:36,110 | INFO     | ✅ research_agent_server.py: Has async_stdin_readline()
+2025-11-13 19:52:36,110 | INFO     |    ✅ Has 300s timeout
+2025-11-13 19:52:36,110 | INFO     | 
+Result: 6 passed, 0 failed
+2025-11-13 19:52:36,110 | INFO     | 
+================================================================================
+2025-11-13 19:52:36,110 | INFO     | TEST: MCPManager import
+2025-11-13 19:52:36,110 | INFO     | ================================================================================
+2025-11-13 19:52:36,112 | INFO     | ✅ MCPManager imported successfully
+2025-11-13 19:52:36,112 | INFO     | 
+================================================================================
+2025-11-13 19:52:36,112 | INFO     | TEST: MCP Server startup (openai)
+2025-11-13 19:52:36,112 | INFO     | ================================================================================
+2025-11-13 19:52:36,112 | INFO     | ℹ️ Checking if openai_server.py can be imported...
+2025-11-13 19:52:36,114 | INFO     | ✅ openai_server.py has valid syntax
+2025-11-13 19:52:36,114 | INFO     |   ✅ Has async_stdin_readline function
+2025-11-13 19:52:36,114 | INFO     |   ✅ Has run() method
+2025-11-13 19:52:36,114 | INFO     |   ✅ Has OpenAIMCPServer class
+2025-11-13 19:52:36,114 | INFO     |   ✅ Has Logger setup
+2025-11-13 19:52:36,114 | INFO     | Result: 4/4 checks passed
+2025-11-13 19:52:36,114 | INFO     | 
+================================================================================
+2025-11-13 19:52:36,114 | INFO     | TEST: Logging configuration
+2025-11-13 19:52:36,114 | INFO     | ================================================================================
+2025-11-13 19:52:36,114 | INFO     | ✅ openai_server.py: Has logging configured
+2025-11-13 19:52:36,114 | INFO     | ✅ architect_agent_server.py: Has logging configured
+2025-11-13 19:52:36,115 | INFO     | ✅ codesmith_agent_server.py: Has logging configured
+2025-11-13 19:52:36,115 | INFO     | ✅ responder_agent_server.py: Has logging configured
+2025-11-13 19:52:36,115 | INFO     | ✅ reviewfix_agent_server.py: Has logging configured
+2025-11-13 19:52:36,115 | INFO     | ✅ research_agent_server.py: Has logging configured
+2025-11-13 19:52:36,115 | INFO     | Result: 6/6 have logging
+2025-11-13 19:52:36,115 | INFO     | 
+================================================================================
+2025-11-13 19:52:36,115 | INFO     | TEST SUMMARY
+2025-11-13 19:52:36,115 | INFO     | ================================================================================
+2025-11-13 19:52:36,115 | INFO     | ✅ PASS | FIX #2: async_stdin_readline
+2025-11-13 19:52:36,115 | INFO     | ✅ PASS | MCPManager import
+2025-11-13 19:52:36,115 | INFO     | ✅ PASS | MCP server syntax
+2025-11-13 19:52:36,115 | INFO     | ✅ PASS | Logging setup
+2025-11-13 19:52:36,115 | INFO     | 
+Total: 4/4 tests passed
+2025-11-13 19:52:36,115 | INFO     | 
+✅ ALL TESTS PASSED
+2025-11-13 19:52:36,115 | INFO     | ================================================================================
+

@@ -1,0 +1,439 @@
+[19:03:56] SERVER | 🔄 Loading environment configuration...
+[19:03:56] SERVER | ✅ Loaded API keys from: /Users/dominikfoert/.ki_autoagent/config/.env
+[19:03:56] SERVER | 
+[19:03:56] SERVER | ====================================================================================================
+[19:03:56] SERVER | [1m[96m🚀 KI AutoAgent v7.0 - STARTUP[0m
+[19:03:56] SERVER | ====================================================================================================
+[19:03:56] SERVER | Started: 2025-11-13 19:03:56
+[19:03:56] SERVER | Python: 3.13.9
+[19:03:56] SERVER | ====================================================================================================
+[19:03:56] SERVER | 
+[19:03:56] SERVER | 
+[19:03:56] SERVER | [96m[1m🔄 STARTUP SEQUENCE INITIATED[0m
+[19:03:56] SERVER | 
+[19:03:56] SERVER | [1mStep 1: Checking Python Version...[0m
+[19:03:56] SERVER |    ✅ Python 3.13.9
+[19:03:56] SERVER | 
+[19:03:56] SERVER | [1mStep 2: Checking Environment...[0m
+[19:03:56] SERVER |    ✅ Environment file: /Users/dominikfoert/.ki_autoagent/config/.env
+[19:03:56] SERVER | 
+[19:03:56] SERVER | [1mStep 3: Checking Dependencies...[0m
+[19:03:56] SERVER |    ✅ fastapi
+[19:03:56] SERVER |    ✅ uvicorn
+[19:03:56] SERVER |    ✅ websockets
+[19:03:56] SERVER |    ✅ langgraph
+[19:03:57] SERVER |    ✅ langchain_openai
+[19:03:57] SERVER |    ✅ pydantic
+[19:03:57] SERVER | 
+[19:03:57] SERVER | [1mStep 4: Checking Port 8002...[0m
+[19:03:57] SERVER | 
+[19:03:57] SERVER | [96m[1m🔍 PORT STATUS[0m
+[19:03:57] SERVER |    Host: localhost
+[19:03:57] SERVER |    Port: 8002
+[19:03:57] SERVER |    Status: [91m❌ IN USE[0m
+[19:03:57] SERVER |    PID: 67751
+[19:03:57] SERVER |    Process: /opt/homebrew/Cellar/python@3.13/3.13.9_1/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python
+[19:03:57] SERVER | 
+[19:03:57] SERVER | [1mStep 5: Cleaning up port if needed...[0m
+[19:03:57] SERVER | 2025-11-13 19:03:57,209 - backend.utils.port_manager - WARNING - ⚠️ Port 8002 is in use
+[19:03:57] SERVER | 
+[19:03:57] SERVER | [93m[1m🔄 CLEANING UP EXISTING SERVER[0m
+[19:03:57] SERVER |    Found process using port 8002:
+[19:03:57] SERVER |    • PID: 67751
+[19:03:57] SERVER |    • Command: /opt/homebrew/Cellar/python@3.13/3.13.9_1/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python
+[19:03:57] SERVER |    • Status: running
+[19:03:57] SERVER | 2025-11-13 19:03:57,350 - backend.utils.port_manager - INFO -    Sending SIGTERM to PID 67751...
+[19:03:57] SERVER | 2025-11-13 19:03:57,558 - backend.utils.port_manager - INFO -    ✅ Process 67751 terminated gracefully
+[19:03:58] SERVER |    ✅ Port 8002 is now available
+[19:03:58] SERVER | 
+[19:03:58] SERVER |    ✅ Port 8002 is available
+[19:03:58] SERVER | 
+[19:03:58] SERVER | [1mStep 6: Running Full Diagnostics...[0m
+[19:03:58] SERVER | 
+[19:03:58] SERVER | [1mStep 7: Checking for Deprecated Modules...[0m
+[19:03:58] SERVER |    ℹ️  12 deprecated modules registered
+[19:03:58] SERVER |       • CRITICAL: 3 (blocks startup if loaded)
+[19:03:58] SERVER |       • ERROR:    5 (warns loudly)
+[19:03:58] SERVER |       • WARNING:  4 (informational)
+[19:03:58] SERVER | 2025-11-13 19:03:58,062 - backend.deprecation.validator - INFO - ✅ Import deprecation hook installed
+[19:03:58] SERVER |    ✅ Import deprecation hook installed
+[19:03:58] SERVER | 
+[19:03:58] SERVER | [92m[1m✅ ALL CHECKS PASSED - READY TO START SERVER[0m
+[19:03:58] SERVER | 
+[19:03:58] SERVER | [96m[1m🚀 STARTING SERVER...[0m
+[19:03:58] SERVER | 
+[19:03:58] SERVER |     WebSocket: ws://localhost:8002/ws/chat
+[19:03:58] SERVER |     Health Check: http://localhost:8002/health
+[19:03:58] SERVER |     Diagnostics: http://localhost:8002/diagnostics
+[19:03:58] SERVER | 
+[19:03:58] SERVER | 2025-11-13 19:03:58,193 - faiss.loader - INFO - Loading faiss.
+[19:03:58] SERVER | 2025-11-13 19:03:58,207 - faiss.loader - INFO - Successfully loaded faiss.
+[19:03:58] SERVER | 2025-11-13 19:03:58,222 - backend.api.server_v7_mcp - INFO - ⚡ uvloop ENABLED: Event loop performance boosted
+[19:03:58] SERVER | 2025-11-13 19:03:58,222 - backend.api.server_v7_mcp - INFO - ✅ Loaded API keys from: /Users/dominikfoert/.ki_autoagent/config/.env
+[19:03:58] SERVER | 2025-11-13 19:03:58,222 - backend.utils.api_validator - INFO - 🔑 Validating API keys...
+[19:03:59] SERVER | 2025-11-13 19:03:59,064 - httpx - INFO - HTTP Request: GET https://api.openai.com/v1/models "HTTP/1.1 200 OK"
+[19:03:59] SERVER | 2025-11-13 19:03:59,067 - backend.utils.api_validator - INFO - ✅ OPENAI_API_KEY: Valid
+[19:03:59] SERVER | 2025-11-13 19:03:59,248 - backend.utils.api_validator - WARNING - ⚠️ PERPLEXITY_API_KEY: Connectivity uncertain (HTTP 405)
+[19:03:59] SERVER | 2025-11-13 19:03:59,248 - backend.utils.api_validator - WARNING -    Will attempt to use the key anyway
+[19:03:59] SERVER | 2025-11-13 19:03:59,249 - backend.utils.api_validator - INFO - 🔑 API key validation complete
+[19:03:59] SERVER | 2025-11-13 19:03:59,249 - backend.api.server_v7_mcp - INFO - 🔒 Workspace Isolation Enabled - Server Root: /Users/dominikfoert/git/KI_AutoAgent
+[19:03:59] SERVER | 2025-11-13 19:03:59,249 - backend.api.server_v7_mcp - INFO - ⚠️ MCP BLEIBT: Pure MCP architecture - agents are MCP servers!
+[19:03:59] SERVER | 2025-11-13 19:03:59,249 - backend.api.server_v7_mcp - INFO -    NO AI Factory initialization needed
+[19:03:59] SERVER | 2025-11-13 19:03:59,249 - backend.api.server_v7_mcp - INFO -    All agents run as separate MCP server processes
+[19:03:59] SERVER | 2025-11-13 19:03:59,249 - backend.api.server_v7_mcp - INFO -    Communication via JSON-RPC over stdin/stdout
+[19:03:59] SERVER | 2025-11-13 19:03:59,249 - backend.api.server_v7_mcp - INFO -    MCPManager will start all agents on first workflow execution
+[19:03:59] SERVER | 2025-11-13 19:03:59,250 - backend.utils.session_store - INFO - 🧹 Cleaned up 2 expired sessions
+[19:03:59] SERVER | 2025-11-13 19:03:59,250 - backend.utils.session_store - INFO - ✅ Loaded 4 sessions from /Users/dominikfoert/.ki_autoagent/sessions/sessions.json
+[19:03:59] SERVER | 2025-11-13 19:03:59,250 - backend.utils.session_store - INFO -    Removed 2 expired sessions
+[19:03:59] SERVER | 2025-11-13 19:03:59,250 - backend.api.server_v7_mcp - INFO - ✅ Session store initialized: 4 existing sessions
+[19:03:59] SERVER | INFO:     Started server process [70333]
+[19:03:59] SERVER | INFO:     Waiting for application startup.
+[19:03:59] SERVER | 
+[19:03:59] SERVER | ====================================================================================================
+[19:03:59] SERVER | [1m[96m🚀 KI AutoAgent v7.0 - STARTUP[0m
+[19:03:59] SERVER | ====================================================================================================
+[19:03:59] SERVER | Started: 2025-11-13 19:03:59
+[19:03:59] SERVER | Python: 3.13.9
+[19:03:59] SERVER | ====================================================================================================
+[19:03:59] SERVER | 
+[19:03:59] SERVER | 2025-11-13 19:03:59,314 - backend.api.server_v7_mcp - INFO - 🔍 Checking server port...
+[19:03:59] SERVER | 
+[19:03:59] SERVER | [96m[1m🔍 PORT STATUS[0m
+[19:03:59] SERVER |    Host: localhost
+[19:03:59] SERVER |    Port: 8002
+[19:03:59] SERVER |    Status: [92m✅ AVAILABLE[0m
+[19:03:59] SERVER | 
+[19:03:59] SERVER | 2025-11-13 19:03:59,315 - backend.api.server_v7_mcp - INFO - 🔍 Running startup diagnostics...
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO - 🚀 Starting KI AutoAgent v7.0 Pure MCP Server...
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO - ⚠️ MCP BLEIBT: Pure MCP Architecture Active!
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO - 🎯 Architecture: Supervisor Pattern + Pure MCP Protocol
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO - 📡 WebSocket endpoint: ws://localhost:8002/ws/chat
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO - ✨ Key Features:
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - Single LLM orchestrator (GPT-4o)
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - ALL agents as MCP servers (JSON-RPC)
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - Progress streaming via $/progress
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - Command-based routing
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - Research as support agent
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - Responder-only user communication
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - Dynamic instructions
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO - 
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO - 📋 MCP Servers (will start on first request):
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - openai_server.py (OpenAI GPT-4o wrapper)
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - research_agent_server.py
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - architect_agent_server.py
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - codesmith_agent_server.py
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - reviewfix_agent_server.py
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    - responder_agent_server.py
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO -    + utility servers (perplexity, memory, etc.)
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO - 
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO - ⚠️ MCP BLEIBT: NO direct agent instantiation!
+[19:03:59] SERVER | 2025-11-13 19:03:59,316 - backend.api.server_v7_mcp - INFO - ⚠️ MCP BLEIBT: All communication via MCPManager!
+[19:03:59] SERVER | 
+[19:03:59] SERVER | ====================================================================================================
+[19:03:59] SERVER | [92m[1m✅ SERVER READY![0m
+[19:03:59] SERVER | ====================================================================================================
+[19:03:59] SERVER | WebSocket: [96mws://localhost:8002/ws/chat[0m
+[19:03:59] SERVER | Health Check: [96mhttp://localhost:8002/health[0m
+[19:03:59] SERVER | Full Diagnostics: [96mhttp://localhost:8002/diagnostics[0m
+[19:03:59] SERVER | ====================================================================================================
+[19:03:59] SERVER | 
+[19:03:59] SERVER | INFO:     Application startup complete.
+[19:03:59] SERVER | INFO:     Uvicorn running on http://0.0.0.0:8002 (Press CTRL+C to quit)
+[19:04:00] SERVER | INFO:     127.0.0.1:56978 - "GET /health HTTP/1.1" 200 OK
+[19:04:00] SERVER | INFO:     127.0.0.1:56979 - "WebSocket /ws/chat" [accepted]
+[19:04:00] SERVER | 2025-11-13 19:04:00,110 - backend.api.server_v7_mcp - INFO - ✅ Client connected: client_562cedce
+[19:04:00] SERVER | INFO:     connection open
+[19:04:00] SERVER | 2025-11-13 19:04:00,113 - backend.api.server_v7_mcp - INFO - 📨 Received init from client_562cedce
+[19:04:00] SERVER | 2025-11-13 19:04:00,113 - backend.utils.session_store - INFO - 📝 Created session: 5cf3e5e2-7adc-4aa7-ba5d-ec37d25cf887 for workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_190400
+[19:04:00] SERVER | 2025-11-13 19:04:00,113 - backend.api.server_v7_mcp - INFO - ✅ Client client_562cedce initialized with workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_190400
+[19:04:00] SERVER | 2025-11-13 19:04:00,113 - backend.api.server_v7_mcp - INFO -    Session persisted: 5cf3e5e2-7adc-4aa7-ba5d-ec37d25cf887
+[19:04:02] SERVER | 2025-11-13 19:04:02,116 - backend.api.server_v7_mcp - INFO - 📨 Received chat from client_562cedce
+[19:04:02] SERVER | 2025-11-13 19:04:02,116 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Entering chat message handler
+[19:04:02] SERVER | 2025-11-13 19:04:02,116 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: user_query extracted: Create a simple calculator app that adds two numbe
+[19:04:02] SERVER | 2025-11-13 19:04:02,116 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Before persisting user message
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: User message persisted
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Before sending analyzing status
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Analyzing status sent
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: About to enter try block for workflow execution...
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Inside try block
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO - 🚀 Running v7.0 Pure MCP workflow for: Create a simple calculator app that adds two numbers...
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO - ⚠️ MCP BLEIBT: All agents will execute via MCP protocol!
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO -    Workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_190400
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO -    Session ID: 5cf3e5e2-7adc-4aa7-ba5d-ec37d25cf887
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO -    Client ID: client_562cedce
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Importing workflow module...
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO - ✅ DEBUG: Workflow module imported successfully
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Calling execute_supervisor_workflow_streaming_mcp...
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.workflow_v7_mcp - INFO - ============================================================
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.workflow_v7_mcp - INFO - 🚀 EXECUTING SUPERVISOR WORKFLOW v7.0 (PURE MCP + STREAMING)
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.workflow_v7_mcp - INFO - ============================================================
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.workflow_v7_mcp - INFO - Query: Create a simple calculator app that adds two numbers
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.workflow_v7_mcp - INFO - Workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_190400
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.workflow_v7_mcp - INFO - ⚠️ MCP BLEIBT: All agents execute via MCP protocol!
+[19:04:02] SERVER | 2025-11-13 19:04:02,117 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 1 - Importing event_stream...
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.utils.event_stream - INFO - ✅ EventStreamManager initialized
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 2 - Getting event_manager...
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.workflow_v7_mcp - INFO - ✅ DEBUG: Event manager obtained
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 3 - Getting MCP manager...
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.utils.mcp_manager - INFO - ⚠️ MCP BLEIBT: Creating global MCPManager instance
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.utils.mcp_manager - INFO - 🔍 DEBUG: MCPManager.__init__ called with workspace_path=/Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_190400
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.utils.mcp_manager - INFO - 📡 MCPManager created for workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_190400
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.utils.mcp_manager - INFO -    Servers to connect: 12
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.workflow_v7_mcp - INFO - ✅ DEBUG: MCP manager obtained
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 4 - Initializing MCP connections...
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.workflow_v7_mcp - INFO - 📡 Initializing MCP connections...
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.utils.mcp_manager - INFO - 🔍 DEBUG: MCPManager.initialize() called
+[19:04:02] SERVER | 2025-11-13 19:04:02,119 - backend.utils.mcp_manager - INFO - 🚀 Initializing MCP connections...
+[19:04:02] SERVER | 2025-11-13 19:04:02,120 - backend.utils.mcp_manager - INFO - ⚠️ MCP BLEIBT: Starting Pure MCP v7.0 agent servers...
+[19:04:02] SERVER | 2025-11-13 19:04:02,120 - backend.utils.mcp_manager - INFO - 🔍 DEBUG: Connecting to 12 servers: ['openai', 'research_agent', 'architect_agent']...
+[19:04:02] SERVER | 2025-11-13 19:04:02,120 - backend.utils.mcp_manager - INFO - 🔍 DEBUG: Created 12 connection tasks
+[19:04:02] SERVER | 2025-11-13 19:04:02,120 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_openai.log
+[19:04:02] SERVER | 2025-11-13 19:04:02,120 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_research_agent.log
+[19:04:02] SERVER | 2025-11-13 19:04:02,121 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_architect_agent.log
+[19:04:02] SERVER | 2025-11-13 19:04:02,121 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_codesmith_agent.log
+[19:04:02] SERVER | 2025-11-13 19:04:02,122 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_reviewfix_agent.log
+[19:04:02] SERVER | 2025-11-13 19:04:02,122 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_responder_agent.log
+[19:04:02] SERVER | 2025-11-13 19:04:02,123 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_claude_cli.log
+[19:04:02] SERVER | 2025-11-13 19:04:02,123 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_perplexity.log
+[19:04:02] SERVER | 2025-11-13 19:04:02,126 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_memory.log
+[19:04:02] SERVER | 2025-11-13 19:04:02,128 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_build_validation.log
+[19:04:02] SERVER | 2025-11-13 19:04:02,129 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_file_tools.log
+[19:04:02] SERVER | 2025-11-13 19:04:02,129 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_tree_sitter.log
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - 🔍 DEBUG: Connection results received
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ Connected to openai
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ Connected to research_agent
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ Connected to architect_agent
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ Connected to codesmith_agent
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ Connected to reviewfix_agent
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ Connected to responder_agent
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ Connected to claude_cli
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ Connected to perplexity
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ Connected to memory
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ Connected to build_validation
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ Connected to file_tools
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ Connected to tree_sitter
+[19:04:04] SERVER | 2025-11-13 19:04:04,316 - backend.utils.mcp_manager - INFO - ✅ All 12 MCP servers connected
+[19:04:04] SERVER | 2025-11-13 19:04:04,317 - backend.utils.mcp_manager - INFO - ⚠️ MCP BLEIBT: Pure MCP architecture active!
+[19:04:04] SERVER | 2025-11-13 19:04:04,317 - backend.workflow_v7_mcp - INFO - ✅ DEBUG: MCP connections initialized
+[19:04:04] SERVER | 2025-11-13 19:04:04,317 - backend.workflow_v7_mcp - INFO - ✅ All MCP servers connected
+[19:04:04] SERVER | 2025-11-13 19:04:04,317 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 5 - Building workflow graph...
+[19:04:04] SERVER | 2025-11-13 19:04:04,317 - backend.workflow_v7_mcp - INFO - 🏗️ Building Supervisor Workflow v7.0 (PURE MCP)
+[19:04:04] SERVER | 2025-11-13 19:04:04,317 - backend.workflow_v7_mcp - INFO - ⚠️ MCP BLEIBT: All agents are MCP servers!
+[19:04:04] SERVER | 2025-11-13 19:04:04,320 - backend.workflow_v7_mcp - INFO -    ✅ Graph structure:
+[19:04:04] SERVER | 2025-11-13 19:04:04,320 - backend.workflow_v7_mcp - INFO -       START → supervisor
+[19:04:04] SERVER | 2025-11-13 19:04:04,320 - backend.workflow_v7_mcp - INFO -       supervisor → [research, architect, codesmith, reviewfix, responder, hitl, END] (via Command)
+[19:04:04] SERVER | 2025-11-13 19:04:04,320 - backend.workflow_v7_mcp - INFO -       [all agents] → supervisor (via conditional edge)
+[19:04:04] SERVER | 2025-11-13 19:04:04,321 - backend.workflow_v7_mcp - INFO -    ⚠️ MCP BLEIBT: All agent nodes use mcp.call()!
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO -    ✅ Workflow compiled successfully
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO -    📊 Recursion limit: 25 (LangGraph default)
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO -    ⚠️ MCP BLEIBT: Pure MCP architecture active!
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO - ✅ DEBUG: Workflow graph built
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 6 - Initializing state...
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO -    📊 Recursion limit set to: 200 (production - real workflows)
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 7 - Starting workflow execution...
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO - 
+[19:04:04] SERVER | 📊 Starting workflow execution with streaming...
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 8 - Subscribing to event stream...
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.utils.event_stream - INFO -    📡 New subscriber: 5cf3e5e2-7adc-4aa7-ba5d-ec37d25cf887
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO - ✅ DEBUG: Subscribed to event stream
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 9 - Creating workflow streaming task...
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO - ✅ DEBUG: Workflow task created
+[19:04:04] SERVER | 2025-11-13 19:04:04,344 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 10 - Getting credit tracker...
+[19:04:04] SERVER | 2025-11-13 19:04:04,346 - backend.utils.credit_tracker - WARNING - 💰 CREDIT TRACKER INITIALIZED
+[19:04:04] SERVER | 2025-11-13 19:04:04,346 - backend.utils.credit_tracker - WARNING -    Max per session: $5.00
+[19:04:04] SERVER | 2025-11-13 19:04:04,346 - backend.utils.credit_tracker - WARNING -    Max per hour: $10.00
+[19:04:04] SERVER | 2025-11-13 19:04:04,346 - backend.utils.credit_tracker - WARNING -    Max per day: $50.00
+[19:04:04] SERVER | 2025-11-13 19:04:04,346 - backend.utils.credit_tracker - WARNING -    EMERGENCY STOP: $100.00
+[19:04:04] SERVER | 2025-11-13 19:04:04,346 - backend.workflow_v7_mcp - INFO - ✅ DEBUG: Credit tracker ready
+[19:04:04] SERVER | 2025-11-13 19:04:04,346 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 11 - Starting main event loop...
+[19:04:04] SERVER | 2025-11-13 19:04:04,346 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Inside stream_workflow_events - Starting app.astream...
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO - ==================================================
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO - 🎯 SUPERVISOR NODE (MCP) - Making routing decision
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO - ==================================================
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG STATE:
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO -    Iteration: 0
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO -    Last Agent: None
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO -    Research Context: ❌ Missing
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO -    Architecture: ❌ Missing
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO -    Generated Files: 0 files
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO -    Validation Results: ❌ Missing
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO -    Response Ready: False
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO -    User Response: ❌ Missing
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO -    Errors: 0 errors
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.workflow_v7_mcp - INFO -    Agent History: []
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.core.supervisor_mcp - INFO - ✨ Phase 3: Creating SupervisorMCP with Factory-based LLM
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.core.supervisor_mcp - INFO - 🤖 Initializing SupervisorMCP...
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - backend.core.supervisor_mcp - INFO - 📂 Loading LLM config from: backend/config/agent_llm_config.json
+[19:04:04] SERVER | 2025-11-13 19:04:04,350 - agent.llm_config - INFO - 🔧 Loading LLM config from: backend/config/agent_llm_config.json
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - agent.llm_config - INFO - ✅ Config loaded: 6 agents configured
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - agent.llm_config - INFO - 🎯 LLM Config Manager initialized: AgentLLMConfig(v1.0, agents=[supervisor, codesmith, architect, research, reviewfix, responder])
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO -    ✅ Config loaded
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - agent.llm_factory - INFO - 🏭 Creating LLM provider for agent: supervisor
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - agent.llm_factory - INFO - ✅ Created openai provider: gpt-4o-2024-11-20
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO -    ✅ LLM Provider: openai
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO -    ✅ Model: gpt-4o-2024-11-20
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO -    ✅ Temperature: 0.3
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO -    ✅ Max tokens: 1500
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO -    ✅ Timeout: 30s
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO - ✅ SupervisorMCP initialized successfully
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO - ⚠️ MCP BLEIBT: Pure MCP architecture active!
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO - 🔍 DEBUG TERMINATION CHECK:
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO -    response_ready: False
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO -    error_count: 0
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO -    iteration: 0
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - backend.core.supervisor_mcp - INFO - 🏗️ Requesting structured decision from LLM...
+[19:04:04] SERVER | 2025-11-13 19:04:04,351 - agent.llm_provider - INFO - 🏗️ Generating structured output: SupervisorDecision
+[19:04:04] SERVER | 2025-11-13 19:04:04,352 - agent.llm_provider - INFO - 📤 Requesting structured output...
+[19:04:04] SERVER | 2025-11-13 19:04:04,352 - agent.llm_provider - INFO - 📤 Calling openai (attempt 1/3)
+[19:04:04] SERVER | 2025-11-13 19:04:04,352 - agent.llm_provider - INFO - ✅ OPENAI_API_KEY is set
+[19:04:07] SERVER | 2025-11-13 19:04:07,163 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+[19:04:07] SERVER | 2025-11-13 19:04:07,176 - agent.llm_provider - INFO - ✅ OpenAI response: LLMResponse(openai:gpt-4o-2024-11-20, content_len=511, tokens=1704, time=2818.3000087738037ms)
+[19:04:07] SERVER | 2025-11-13 19:04:07,176 - agent.llm_provider - INFO - ✅ LLMResponse(openai:gpt-4o-2024-11-20, content_len=511, tokens=1704, time=2818.3000087738037ms)
+[19:04:07] SERVER | 2025-11-13 19:04:07,176 - agent.llm_provider - INFO - 🔍 Parsing JSON response...
+[19:04:07] SERVER | 2025-11-13 19:04:07,176 - agent.llm_provider - ERROR - ❌ Response is not valid JSON
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - agent.llm_provider - ERROR -    Response: ```json
+[19:04:07] SERVER | {
+[19:04:07] SERVER |   "action": "CONTINUE",
+[19:04:07] SERVER |   "next_agent": "research",
+[19:04:07] SERVER |   "parallel_agents": null,
+[19:04:07] SERVER |   "instructions": "Analyze the workspace and gather context for creating a simple calculator app that adds two ...
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - agent.llm_provider - ERROR -    Error: Expecting value: line 1 column 1 (char 0)
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.core.supervisor_mcp - ERROR - ❌ Failed to parse LLM response as SupervisorDecision
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.core.supervisor_mcp - ERROR -    Error type: JSONDecodeError
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.core.supervisor_mcp - ERROR -    Message: Expecting value: line 1 column 1 (char 0)
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO - 🔍 BEFORE Command modification:
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO -    command.goto = 'responder'
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO -    command.update = {'response_ready': True, 'response': 'Supervisor failed to parse decision: Expecting value: line 1 column 1 (char 0)', 'error': 'Expecting value: line 1 column 1 (char 0)', 'last_agent': 'supervisor'}
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO - 🔍 AFTER Command modification:
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO -    command.goto = 'responder'
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO -    command.update = {'response_ready': True, 'response': 'Supervisor failed to parse decision: Expecting value: line 1 column 1 (char 0)', 'error': 'Expecting value: line 1 column 1 (char 0)', 'last_agent': 'supervisor', 'iteration': 1}
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO -    command object ID = 4536902080
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO - 🎯 DECISION:
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO -    Route to: responder
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO -    Iteration: 0 → 1
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO -    Update Keys: ['response_ready', 'response', 'error', 'last_agent', 'iteration']
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO -    Instructions: None...
+[19:04:07] SERVER | 2025-11-13 19:04:07,177 - backend.workflow_v7_mcp - INFO -    ⚠️ MCP BLEIBT: Will be executed via mcp.call()
+[19:04:07] SERVER | 2025-11-13 19:04:07,178 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Got workflow event: ['supervisor']
+[19:04:07] SERVER | 2025-11-13 19:04:07,179 - backend.workflow_v7_mcp - INFO - 
+[19:04:07] SERVER |    📥 Event from: supervisor
+[19:04:07] SERVER | 2025-11-13 19:04:07,179 - backend.workflow_v7_mcp - INFO -       Agent: supervisor
+[19:04:07] SERVER | 2025-11-13 19:04:07,179 - backend.workflow_v7_mcp - INFO -       ⚠️ MCP BLEIBT: Executed via mcp.call()
+[19:04:07] SERVER | 2025-11-13 19:04:07,179 - backend.workflow_v7_mcp - INFO - 💬 RESPONDER NODE (MCP) - Formatting user response via MCP
+[19:04:07] SERVER | 2025-11-13 19:04:07,179 - backend.workflow_v7_mcp - INFO -    🔧 Calling mcp.call('responder_agent', 'format_response', ...)
+[19:04:07] SERVER | 2025-11-13 19:04:07,179 - backend.utils.mcp_manager - INFO - 🔧 Calling responder_agent.format_response() with timeout=120.0s
+[19:04:07] SERVER | 2025-11-13 19:04:07,181 - backend.utils.mcp_manager - INFO -    ⏳ responder_agent still processing... (0s elapsed)
+[19:04:07] SERVER | 2025-11-13 19:04:07,181 - backend.utils.mcp_manager - INFO -    ⏳ responder_agent still processing... (0s elapsed)
+[19:04:07] SERVER | 2025-11-13 19:04:07,181 - backend.utils.mcp_manager - INFO -    ⏳ responder_agent still processing... (0s elapsed)
+[19:04:07] SERVER | 2025-11-13 19:04:07,181 - backend.utils.mcp_manager - INFO -    ⏳ responder_agent still processing... (0s elapsed)
+[19:04:07] SERVER | 2025-11-13 19:04:07,181 - backend.utils.mcp_manager - INFO -    ✅ responder_agent.format_response() received response
+[19:04:07] SERVER | 2025-11-13 19:04:07,181 - backend.workflow_v7_mcp - INFO -    ✅ Response formatted via MCP - workflow ready to complete
+[19:04:07] SERVER | 2025-11-13 19:04:07,181 - backend.workflow_v7_mcp - INFO -    Returning to Supervisor for termination
+[19:04:07] SERVER | 2025-11-13 19:04:07,181 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG RESPONDER RETURN:
+[19:04:07] SERVER | 2025-11-13 19:04:07,181 - backend.workflow_v7_mcp - INFO -    Command goto: supervisor
+[19:04:07] SERVER | 2025-11-13 19:04:07,181 - backend.workflow_v7_mcp - INFO -    response_ready: TRUE ← Should trigger END!
+[19:04:07] SERVER | 2025-11-13 19:04:07,181 - backend.workflow_v7_mcp - INFO -    Update keys: ['user_response', 'response_ready', 'last_agent', 'agent_history']
+[19:04:07] SERVER | 2025-11-13 19:04:07,181 - backend.workflow_v7_mcp - INFO -    Agent history: ['responder']
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Got workflow event: ['responder']
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO - 
+[19:04:07] SERVER |    📥 Event from: responder
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -       Agent: responder
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -       ⚠️ MCP BLEIBT: Executed via mcp.call()
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO - ==================================================
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO - 🎯 SUPERVISOR NODE (MCP) - Making routing decision
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO - ==================================================
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG STATE:
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Iteration: 1
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Last Agent: responder
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Research Context: ❌ Missing
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Architecture: ❌ Missing
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Generated Files: 0 files
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Validation Results: ❌ Missing
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Response Ready: True
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    User Response: ✅ Present
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Errors: 0 errors
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Agent History: []
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.core.supervisor_mcp - INFO - 🔍 DEBUG TERMINATION CHECK:
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.core.supervisor_mcp - INFO -    response_ready: True
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.core.supervisor_mcp - INFO -    error_count: 0
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.core.supervisor_mcp - INFO -    iteration: 1
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.core.supervisor_mcp - INFO - ✅ Response ready - workflow complete!
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.core.supervisor_mcp - INFO - 🔍 DEBUG: Routing to END (response_ready=True)
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO - 🔍 BEFORE Command modification:
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    command.goto = '__end__'
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    command.update = None
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO - 🔍 AFTER Command modification:
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    command.goto = '__end__'
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    command.update = {'iteration': 2}
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    command object ID = 4537440432
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO - 🎯 DECISION:
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Route to: __end__
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Iteration: 1 → 2
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Update Keys: ['iteration']
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    Instructions: None...
+[19:04:07] SERVER | 2025-11-13 19:04:07,183 - backend.workflow_v7_mcp - INFO -    ⚠️ MCP BLEIBT: Will be executed via mcp.call()
+[19:04:07] SERVER | 2025-11-13 19:04:07,184 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Got workflow event: ['supervisor']
+[19:04:07] SERVER | 2025-11-13 19:04:07,185 - backend.workflow_v7_mcp - INFO - 
+[19:04:07] SERVER |    📥 Event from: supervisor
+[19:04:07] SERVER | 2025-11-13 19:04:07,185 - backend.workflow_v7_mcp - INFO - 
+[19:04:07] SERVER | ✅ Workflow completed - sending completion event
+[19:04:07] SERVER | 2025-11-13 19:04:07,185 - backend.utils.event_stream - INFO -    📡 Unsubscribed: 5cf3e5e2-7adc-4aa7-ba5d-ec37d25cf887
+[19:04:07] SERVER | 2025-11-13 19:04:07,185 - backend.workflow_v7_mcp - INFO - 
+[19:04:07] SERVER | ✅ Workflow execution complete (Pure MCP)!
+[19:04:07] SERVER | 2025-11-13 19:04:07,185 - backend.workflow_v7_mcp - INFO - 🔌 Closing MCP connections...
+[19:04:07] SERVER | 2025-11-13 19:04:07,185 - backend.utils.mcp_manager - INFO - 🔌 Closing MCP connections...
+[19:04:07] SERVER | 2025-11-13 19:04:07,206 - backend.utils.mcp_manager - INFO - ✅ MCP connections closed
+[19:04:07] SERVER | 2025-11-13 19:04:07,206 - backend.workflow_v7_mcp - INFO - ✅ MCP connections closed
+[19:04:07] SERVER | 2025-11-13 19:04:07,206 - backend.api.server_v7_mcp - INFO -    Workflow returned: <class 'dict'>
+[19:04:07] SERVER | 2025-11-13 19:04:07,206 - backend.api.server_v7_mcp - INFO -    Keys in result: ['response_ready', 'last_agent', 'iteration', 'user_response']
+[19:04:07] SERVER | 2025-11-13 19:04:07,206 - backend.api.server_v7_mcp - INFO -    Response ready: True
+[19:04:07] SERVER | 2025-11-13 19:04:07,206 - backend.api.server_v7_mcp - INFO -    Last agent: responder
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - ✅ Workflow complete for client_562cedce
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - 📨 Received chat from client_562cedce
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Entering chat message handler
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: user_query extracted: Add a multiply function to the calculator
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Before persisting user message
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: User message persisted
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Before sending analyzing status
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Analyzing status sent
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: About to enter try block for workflow execution...
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Inside try block
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - 🚀 Running v7.0 Pure MCP workflow for: Add a multiply function to the calculator...
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - ⚠️ MCP BLEIBT: All agents will execute via MCP protocol!
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO -    Workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_190400
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO -    Session ID: 5cf3e5e2-7adc-4aa7-ba5d-ec37d25cf887
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO -    Client ID: client_562cedce
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Importing workflow module...
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - ✅ DEBUG: Workflow module imported successfully
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.api.server_v7_mcp - INFO - 🔍 DEBUG: Calling execute_supervisor_workflow_streaming_mcp...
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.workflow_v7_mcp - INFO - ============================================================
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.workflow_v7_mcp - INFO - 🚀 EXECUTING SUPERVISOR WORKFLOW v7.0 (PURE MCP + STREAMING)
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.workflow_v7_mcp - INFO - ============================================================
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.workflow_v7_mcp - INFO - Query: Add a multiply function to the calculator
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.workflow_v7_mcp - INFO - Workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_190400
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.workflow_v7_mcp - INFO - ⚠️ MCP BLEIBT: All agents execute via MCP protocol!
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 1 - Importing event_stream...
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 2 - Getting event_manager...
+[19:04:07] SERVER | 2025-11-13 19:04:07,207 - backend.workflow_v7_mcp - INFO - ✅ DEBUG: Event manager obtained
+[19:04:07] SERVER | 2025-11-13 19:04:07,208 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 3 - Getting MCP manager...
+[19:04:07] SERVER | 2025-11-13 19:04:07,208 - backend.workflow_v7_mcp - INFO - ✅ DEBUG: MCP manager obtained
+[19:04:07] SERVER | 2025-11-13 19:04:07,208 - backend.workflow_v7_mcp - INFO - 🔍 DEBUG: Step 4 - Initializing MCP connections...
+[19:04:07] SERVER | 2025-11-13 19:04:07,208 - backend.workflow_v7_mcp - INFO - 📡 Initializing MCP connections...
+[19:04:07] SERVER | 2025-11-13 19:04:07,208 - backend.utils.mcp_manager - INFO - 🔍 DEBUG: MCPManager.initialize() called
+[19:04:07] SERVER | 2025-11-13 19:04:07,208 - backend.utils.mcp_manager - INFO - 🚀 Initializing MCP connections...
+[19:04:07] SERVER | 2025-11-13 19:04:07,208 - backend.utils.mcp_manager - INFO - ⚠️ MCP BLEIBT: Starting Pure MCP v7.0 agent servers...
+[19:04:07] SERVER | 2025-11-13 19:04:07,208 - backend.utils.mcp_manager - INFO - 🔍 DEBUG: Connecting to 12 servers: ['openai', 'research_agent', 'architect_agent']...
+[19:04:07] SERVER | 2025-11-13 19:04:07,208 - backend.utils.mcp_manager - INFO - 🔍 DEBUG: Created 12 connection tasks
+[19:04:07] SERVER | 2025-11-13 19:04:07,208 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_openai.log
+[19:04:07] SERVER | 2025-11-13 19:04:07,208 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_research_agent.log
+[19:04:07] SERVER | 2025-11-13 19:04:07,208 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_architect_agent.log
+[19:04:07] SERVER | 2025-11-13 19:04:07,209 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_codesmith_agent.log
+[19:04:07] SERVER | 2025-11-13 19:04:07,209 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_reviewfix_agent.log
+[19:04:07] SERVER | 2025-11-13 19:04:07,210 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_responder_agent.log
+[19:04:07] SERVER | 2025-11-13 19:04:07,210 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_claude_cli.log
+[19:04:07] SERVER | 2025-11-13 19:04:07,210 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_perplexity.log
+[19:04:07] SERVER | 2025-11-13 19:04:07,211 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_memory.log
+[19:04:07] SERVER | 2025-11-13 19:04:07,212 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_build_validation.log
+[19:04:07] SERVER | 2025-11-13 19:04:07,213 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_file_tools.log
+[19:04:07] SERVER | 2025-11-13 19:04:07,213 - backend.utils.mcp_manager - INFO -    📝 Server will log to: /tmp/mcp_tree_sitter.log
+[19:04:09] SERVER | INFO:     connection closed

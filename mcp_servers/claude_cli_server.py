@@ -164,6 +164,9 @@ async def claude_generate(
         try:
             # Send initial progress
             await send_progress_notification(f"Starting Claude CLI: {agent_name}")
+            debug_log(f"📋 System prompt provided: {bool(system_prompt)}")
+            debug_log(f"📋 Tools available: {tools}")
+            debug_log(f"📋 Stream events enabled: {stream_events}")
 
             # Execute Claude CLI (may take minutes with tools!)
             start = datetime.now()
@@ -178,11 +181,27 @@ async def claude_generate(
             files_created = []
             if hasattr(llm, 'last_events') and llm.last_events:
                 files_created = llm.extract_file_paths_from_events(llm.last_events)
+                debug_log(f"📁 Extracted {len(files_created)} file paths from events")
         except Exception as e:
             # Stop heartbeat on error
             stop_event.set()
             heartbeat.cancel()
+            debug_log(f"❌ Claude execution failed: {str(e)[:200]}")
             raise
+
+        # DEBUG: Log full HITL events from ClaudeCLISimple
+        hitl_events_debug = []
+        if hasattr(llm, 'last_events') and llm.last_events:
+            debug_log(f"🎯 Captured {len(llm.last_events)} HITL events from Claude CLI")
+            for i, event in enumerate(llm.last_events):
+                event_type = event.get('type', 'unknown')
+                event_str = json.dumps(event)[:300]
+                debug_log(f"   Event {i+1}: type={event_type}, content={event_str}...")
+                hitl_events_debug.append({
+                    "index": i+1,
+                    "type": event_type,
+                    "event": event
+                })
 
         result = {
             "success": True,
@@ -198,6 +217,11 @@ async def claude_generate(
             result["events"] = collected_events
             result["event_count"] = len(collected_events)
             debug_log(f"Collected {len(collected_events)} HITL events")
+        
+        # Also add Claude's own events from llm.last_events
+        if hasattr(llm, 'last_events') and llm.last_events:
+            result["hitl_events_from_claude"] = hitl_events_debug
+            result["hitl_event_count"] = len(llm.last_events)
 
         return result
 

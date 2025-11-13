@@ -1,0 +1,150 @@
+[18:11:34] SERVER | 🔄 Loading environment configuration...
+[18:11:34] SERVER | ✅ Loaded API keys from: /Users/dominikfoert/.ki_autoagent/config/.env
+[18:11:34] SERVER | 
+[18:11:34] SERVER | ====================================================================================================
+[18:11:34] SERVER | [1m[96m🚀 KI AutoAgent v7.0 - STARTUP[0m
+[18:11:34] SERVER | ====================================================================================================
+[18:11:34] SERVER | Started: 2025-11-13 18:11:34
+[18:11:34] SERVER | Python: 3.13.9
+[18:11:34] SERVER | ====================================================================================================
+[18:11:34] SERVER | 
+[18:11:34] SERVER | 
+[18:11:34] SERVER | [96m[1m🔄 STARTUP SEQUENCE INITIATED[0m
+[18:11:34] SERVER | 
+[18:11:34] SERVER | [1mStep 1: Checking Python Version...[0m
+[18:11:34] SERVER |    ✅ Python 3.13.9
+[18:11:34] SERVER | 
+[18:11:34] SERVER | [1mStep 2: Checking Environment...[0m
+[18:11:34] SERVER |    ✅ Environment file: /Users/dominikfoert/.ki_autoagent/config/.env
+[18:11:34] SERVER | 
+[18:11:34] SERVER | [1mStep 3: Checking Dependencies...[0m
+[18:11:34] SERVER |    ✅ fastapi
+[18:11:34] SERVER |    ✅ uvicorn
+[18:11:34] SERVER |    ✅ websockets
+[18:11:34] SERVER |    ✅ langgraph
+[18:11:35] SERVER |    ✅ langchain_openai
+[18:11:35] SERVER |    ✅ pydantic
+[18:11:35] SERVER | 
+[18:11:35] SERVER | [1mStep 4: Checking Port 8002...[0m
+[18:11:35] SERVER | 
+[18:11:35] SERVER | [96m[1m🔍 PORT STATUS[0m
+[18:11:35] SERVER |    Host: localhost
+[18:11:35] SERVER |    Port: 8002
+[18:11:35] SERVER |    Status: [91m❌ IN USE[0m
+[18:11:35] SERVER |    PID: 65299
+[18:11:35] SERVER |    Process: /opt/homebrew/Cellar/python@3.13/3.13.9_1/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python
+[18:11:35] SERVER | 
+[18:11:35] SERVER | [1mStep 5: Cleaning up port if needed...[0m
+[18:11:35] SERVER | 2025-11-13 18:11:35,720 - backend.utils.port_manager - WARNING - ⚠️ Port 8002 is in use
+[18:11:35] SERVER | 
+[18:11:35] SERVER | [93m[1m🔄 CLEANING UP EXISTING SERVER[0m
+[18:11:35] SERVER |    Found process using port 8002:
+[18:11:35] SERVER |    • PID: 65299
+[18:11:35] SERVER |    • Command: /opt/homebrew/Cellar/python@3.13/3.13.9_1/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python
+[18:11:35] SERVER |    • Status: running
+[18:11:35] SERVER | 2025-11-13 18:11:35,861 - backend.utils.port_manager - INFO -    Sending SIGTERM to PID 65299...
+[18:11:36] SERVER | 2025-11-13 18:11:36,066 - backend.utils.port_manager - INFO -    ✅ Process 65299 terminated gracefully
+[18:11:36] SERVER |    ✅ Port 8002 is now available
+[18:11:36] SERVER | 
+[18:11:36] SERVER |    ✅ Port 8002 is available
+[18:11:36] SERVER | 
+[18:11:36] SERVER | [1mStep 6: Running Full Diagnostics...[0m
+[18:11:36] SERVER | 
+[18:11:36] SERVER | [1mStep 7: Checking for Deprecated Modules...[0m
+[18:11:36] SERVER |    ℹ️  12 deprecated modules registered
+[18:11:36] SERVER |       • CRITICAL: 3 (blocks startup if loaded)
+[18:11:36] SERVER |       • ERROR:    5 (warns loudly)
+[18:11:36] SERVER |       • WARNING:  4 (informational)
+[18:11:36] SERVER | 2025-11-13 18:11:36,569 - backend.deprecation.validator - INFO - ✅ Import deprecation hook installed
+[18:11:36] SERVER |    ✅ Import deprecation hook installed
+[18:11:36] SERVER | 
+[18:11:36] SERVER | [92m[1m✅ ALL CHECKS PASSED - READY TO START SERVER[0m
+[18:11:36] SERVER | 
+[18:11:36] SERVER | [96m[1m🚀 STARTING SERVER...[0m
+[18:11:36] SERVER | 
+[18:11:36] SERVER |     WebSocket: ws://localhost:8002/ws/chat
+[18:11:36] SERVER |     Health Check: http://localhost:8002/health
+[18:11:36] SERVER |     Diagnostics: http://localhost:8002/diagnostics
+[18:11:36] SERVER | 
+[18:11:36] SERVER | 2025-11-13 18:11:36,682 - faiss.loader - INFO - Loading faiss.
+[18:11:36] SERVER | 2025-11-13 18:11:36,695 - faiss.loader - INFO - Successfully loaded faiss.
+[18:11:36] SERVER | 2025-11-13 18:11:36,710 - backend.api.server_v7_mcp - INFO - ⚡ uvloop ENABLED: Event loop performance boosted
+[18:11:36] SERVER | 2025-11-13 18:11:36,710 - backend.api.server_v7_mcp - INFO - ✅ Loaded API keys from: /Users/dominikfoert/.ki_autoagent/config/.env
+[18:11:36] SERVER | 2025-11-13 18:11:36,710 - backend.utils.api_validator - INFO - 🔑 Validating API keys...
+[18:11:38] SERVER | 2025-11-13 18:11:38,063 - httpx - INFO - HTTP Request: GET https://api.openai.com/v1/models "HTTP/1.1 200 OK"
+[18:11:38] SERVER | 2025-11-13 18:11:38,066 - backend.utils.api_validator - INFO - ✅ OPENAI_API_KEY: Valid
+[18:11:38] SERVER | 2025-11-13 18:11:38,319 - backend.utils.api_validator - WARNING - ⚠️ PERPLEXITY_API_KEY: Connectivity uncertain (HTTP 405)
+[18:11:38] SERVER | 2025-11-13 18:11:38,319 - backend.utils.api_validator - WARNING -    Will attempt to use the key anyway
+[18:11:38] SERVER | 2025-11-13 18:11:38,321 - backend.utils.api_validator - INFO - 🔑 API key validation complete
+[18:11:38] SERVER | 2025-11-13 18:11:38,322 - backend.api.server_v7_mcp - INFO - 🔒 Workspace Isolation Enabled - Server Root: /Users/dominikfoert/git/KI_AutoAgent
+[18:11:38] SERVER | 2025-11-13 18:11:38,322 - backend.api.server_v7_mcp - INFO - ⚠️ MCP BLEIBT: Pure MCP architecture - agents are MCP servers!
+[18:11:38] SERVER | 2025-11-13 18:11:38,322 - backend.api.server_v7_mcp - INFO -    NO AI Factory initialization needed
+[18:11:38] SERVER | 2025-11-13 18:11:38,322 - backend.api.server_v7_mcp - INFO -    All agents run as separate MCP server processes
+[18:11:38] SERVER | 2025-11-13 18:11:38,322 - backend.api.server_v7_mcp - INFO -    Communication via JSON-RPC over stdin/stdout
+[18:11:38] SERVER | 2025-11-13 18:11:38,322 - backend.api.server_v7_mcp - INFO -    MCPManager will start all agents on first workflow execution
+[18:11:38] SERVER | 2025-11-13 18:11:38,323 - backend.utils.session_store - INFO - ✅ Loaded 5 sessions from /Users/dominikfoert/.ki_autoagent/sessions/sessions.json
+[18:11:38] SERVER | 2025-11-13 18:11:38,323 - backend.api.server_v7_mcp - INFO - ✅ Session store initialized: 5 existing sessions
+[18:11:38] SERVER | INFO:     Started server process [65789]
+[18:11:38] SERVER | INFO:     Waiting for application startup.
+[18:11:38] SERVER | 
+[18:11:38] SERVER | ====================================================================================================
+[18:11:38] SERVER | [1m[96m🚀 KI AutoAgent v7.0 - STARTUP[0m
+[18:11:38] SERVER | ====================================================================================================
+[18:11:38] SERVER | Started: 2025-11-13 18:11:38
+[18:11:38] SERVER | Python: 3.13.9
+[18:11:38] SERVER | ====================================================================================================
+[18:11:38] SERVER | 
+[18:11:38] SERVER | 2025-11-13 18:11:38,389 - backend.api.server_v7_mcp - INFO - 🔍 Checking server port...
+[18:11:38] SERVER | 
+[18:11:38] SERVER | [96m[1m🔍 PORT STATUS[0m
+[18:11:38] SERVER |    Host: localhost
+[18:11:38] SERVER |    Port: 8002
+[18:11:38] SERVER |    Status: [92m✅ AVAILABLE[0m
+[18:11:38] SERVER | 
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO - 🔍 Running startup diagnostics...
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO - 🚀 Starting KI AutoAgent v7.0 Pure MCP Server...
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO - ⚠️ MCP BLEIBT: Pure MCP Architecture Active!
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO - 🎯 Architecture: Supervisor Pattern + Pure MCP Protocol
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO - 📡 WebSocket endpoint: ws://localhost:8002/ws/chat
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO - ✨ Key Features:
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - Single LLM orchestrator (GPT-4o)
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - ALL agents as MCP servers (JSON-RPC)
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - Progress streaming via $/progress
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - Command-based routing
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - Research as support agent
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - Responder-only user communication
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - Dynamic instructions
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO - 
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO - 📋 MCP Servers (will start on first request):
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - openai_server.py (OpenAI GPT-4o wrapper)
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - research_agent_server.py
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - architect_agent_server.py
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - codesmith_agent_server.py
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - reviewfix_agent_server.py
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    - responder_agent_server.py
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO -    + utility servers (perplexity, memory, etc.)
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO - 
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO - ⚠️ MCP BLEIBT: NO direct agent instantiation!
+[18:11:38] SERVER | 2025-11-13 18:11:38,390 - backend.api.server_v7_mcp - INFO - ⚠️ MCP BLEIBT: All communication via MCPManager!
+[18:11:38] SERVER | 
+[18:11:38] SERVER | ====================================================================================================
+[18:11:38] SERVER | [92m[1m✅ SERVER READY![0m
+[18:11:38] SERVER | ====================================================================================================
+[18:11:38] SERVER | WebSocket: [96mws://localhost:8002/ws/chat[0m
+[18:11:38] SERVER | Health Check: [96mhttp://localhost:8002/health[0m
+[18:11:38] SERVER | Full Diagnostics: [96mhttp://localhost:8002/diagnostics[0m
+[18:11:38] SERVER | ====================================================================================================
+[18:11:38] SERVER | 
+[18:11:38] SERVER | INFO:     Application startup complete.
+[18:11:38] SERVER | INFO:     Uvicorn running on http://0.0.0.0:8002 (Press CTRL+C to quit)
+[18:11:38] SERVER | INFO:     127.0.0.1:56285 - "GET /health HTTP/1.1" 200 OK
+[18:11:38] SERVER | INFO:     127.0.0.1:56286 - "WebSocket /ws/chat" [accepted]
+[18:11:38] SERVER | 2025-11-13 18:11:38,511 - backend.api.server_v7_mcp - INFO - ✅ Client connected: client_0e280e21
+[18:11:38] SERVER | INFO:     connection open
+[18:11:38] SERVER | 2025-11-13 18:11:38,514 - backend.api.server_v7_mcp - INFO - 📨 Received initialize_workspace from client_0e280e21
+[18:11:40] SERVER | 2025-11-13 18:11:40,517 - backend.api.server_v7_mcp - INFO - 📨 Received chat_message from client_0e280e21
+[18:11:42] SERVER | 2025-11-13 18:11:42,520 - backend.api.server_v7_mcp - INFO - 📨 Received chat_message from client_0e280e21
+[18:11:44] SERVER | 2025-11-13 18:11:44,524 - backend.api.server_v7_mcp - INFO - 📨 Received chat_message from client_0e280e21
+[18:11:46] SERVER | 2025-11-13 18:11:46,529 - backend.api.server_v7_mcp - INFO - 🔌 Client client_0e280e21 disconnected
+[18:11:46] SERVER | 2025-11-13 18:11:46,529 - backend.api.server_v7_mcp - INFO - ❌ Client disconnected: client_0e280e21
+[18:11:46] SERVER | INFO:     connection closed

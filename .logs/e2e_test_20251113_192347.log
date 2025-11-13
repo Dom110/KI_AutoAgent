@@ -1,0 +1,120 @@
+19:23:58.655 | DEBUG    | Using selector: KqueueSelector
+19:23:58.656 | INFO     | 
+🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 
+19:23:58.656 | INFO     | KI_AutoAgent E2E Test Suite - ReviewFix Validation
+19:23:58.656 | INFO     | 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 🚀 
+19:23:58.656 | INFO     | 
+📁 Test Workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192358
+19:23:58.656 | INFO     | 📝 Main Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192358/logs/e2e_main_20251113_192358.log
+19:23:58.656 | INFO     | 📤 WebSocket Send Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192358/logs/websocket_send_20251113_192358.log
+19:23:58.656 | INFO     | 📥 WebSocket Recv Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192358/logs/websocket_recv_20251113_192358.log
+19:23:58.656 | INFO     | 📊 WebSocket Combined Log: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192358/logs/websocket_both_20251113_192358.log
+
+19:23:58.656 | INFO     | 
+================================================================================
+19:23:58.656 | INFO     | PHASE 1: Environment Setup
+19:23:58.656 | INFO     | ================================================================================
+19:23:58.656 | INFO     |   Removing old workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192358
+19:23:58.656 | INFO     |   ✅ Created workspace: /Users/dominikfoert/TestApps/e2e_reviewfix_validation_20251113_192358
+19:23:58.656 | INFO     | ✅ Phase 'Environment Setup' complete (elapsed: 0.0s)
+19:23:58.656 | INFO     | 
+================================================================================
+19:23:58.656 | INFO     | PHASE 2: Backend Connection
+19:23:58.656 | INFO     | ================================================================================
+19:23:58.656 | INFO     |   Connecting to ws://localhost:8002/ws/chat...
+19:23:58.664 | DEBUG    | = connection is CONNECTING
+19:23:58.664 | DEBUG    | > GET /ws/chat HTTP/1.1
+19:23:58.664 | DEBUG    | > Host: localhost:8002
+19:23:58.664 | DEBUG    | > Upgrade: websocket
+19:23:58.664 | DEBUG    | > Connection: Upgrade
+19:23:58.664 | DEBUG    | > Sec-WebSocket-Key: 2Iizbf8Ym7zfgHI0GCo+Aw==
+19:23:58.664 | DEBUG    | > Sec-WebSocket-Version: 13
+19:23:58.664 | DEBUG    | > Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits
+19:23:58.664 | DEBUG    | > User-Agent: Python/3.13 websockets/13.1
+19:23:58.666 | DEBUG    | < HTTP/1.1 101 Switching Protocols
+19:23:58.666 | DEBUG    | < Upgrade: websocket
+19:23:58.666 | DEBUG    | < Connection: Upgrade
+19:23:58.666 | DEBUG    | < Sec-WebSocket-Accept: 12/bCP7Cu4c4xiT2c0T1fWp9W5I=
+19:23:58.666 | DEBUG    | < Sec-WebSocket-Extensions: permessage-deflate
+19:23:58.666 | DEBUG    | < date: Thu, 13 Nov 2025 18:23:58 GMT
+19:23:58.666 | DEBUG    | < server: uvicorn
+19:23:58.666 | DEBUG    | = connection is OPEN
+19:23:58.666 | DEBUG    | < TEXT '{"type":"connected","message":"⚠️ MCP BLEIBT: C...","requires_init":true}' [346 bytes]
+19:23:58.667 | INFO     | 📥 RECEIVED: connected
+19:23:58.667 | INFO     |   ✅ Connected! Session ID: None
+19:23:58.667 | INFO     | ✅ Phase 'Backend Connection' complete (elapsed: 0.0s)
+19:23:58.667 | INFO     | 
+================================================================================
+19:23:58.667 | INFO     | PHASE 3: Workspace Initialization
+19:23:58.667 | INFO     | ================================================================================
+19:23:58.667 | INFO     | 📤 SENT message #1: init
+19:23:58.667 | DEBUG    | > TEXT '{"type": "init", "workspace_path": "/Users/domi...ation_20251113_192358"}' [107 bytes]
+19:23:58.668 | DEBUG    | < TEXT '{"type":"initialized","session_id":"b7e6fdd6-26...sponder (MCP)","hitl"]}' [591 bytes]
+19:23:58.669 | INFO     | 📥 RECEIVED: initialized
+19:24:00.670 | WARNING  | ⏱️ Receive timeout after 10.0s
+19:24:00.671 | INFO     |   ✅ Workspace initialized with 1 response messages
+19:24:00.671 | INFO     | ✅ Phase 'Workspace Init' complete (elapsed: 2.0s)
+19:24:00.671 | INFO     | 
+================================================================================
+19:24:00.671 | INFO     | PHASE 4: Simple Query
+19:24:00.671 | INFO     | ================================================================================
+19:24:00.672 | INFO     | 📤 SENT message #2: chat
+19:24:00.672 | DEBUG    | > TEXT '{"type": "chat", "message": "Create a simple ca...that adds two numbers"}' [83 bytes]
+19:24:00.673 | INFO     |   ⏳ Waiting for workflow execution...
+19:24:00.678 | DEBUG    | < TEXT '{"type":"status","status":"analyzing","message"... analyzing request..."}' [87 bytes]
+19:24:00.679 | INFO     | 📥 RECEIVED: status
+19:24:02.197 | DEBUG    | < TEXT '{"type":"agent_event","agent":"supervisor","eve...11-13T19:24:02.188249"}' [247 bytes]
+19:24:02.197 | INFO     | 📥 RECEIVED: agent_event
+19:24:04.198 | WARNING  | ⏱️ Receive timeout after 120.0s
+19:24:04.199 | INFO     |   ✅ Query processed with 2 messages
+19:24:04.199 | INFO     |   📊 Agents invoked: set()
+19:24:04.199 | INFO     | ✅ Phase 'Simple Query' complete (elapsed: 5.5s)
+19:24:04.199 | INFO     | 
+================================================================================
+19:24:04.199 | INFO     | PHASE 5: Code Generation
+19:24:04.199 | INFO     | ================================================================================
+19:24:04.200 | INFO     | 📤 SENT message #3: chat
+19:24:04.200 | DEBUG    | > TEXT '{"type": "chat", "message": "Add a multiply function to the calculator"}' [72 bytes]
+19:24:04.200 | INFO     |   ⏳ Waiting for code generation...
+19:24:04.825 | DEBUG    | < TEXT '{"type":"supervisor_event","event_type":"decisi...11-13T19:24:04.824863"}' [549 bytes]
+19:24:04.826 | INFO     | 📥 RECEIVED: supervisor_event
+19:24:04.826 | DEBUG    | < TEXT '{"type":"progress","node":"supervisor","message...11-13T19:24:04.826261"}' [171 bytes]
+19:24:04.827 | INFO     | 📥 RECEIVED: progress
+19:24:04.827 | DEBUG    | < TEXT '{"type":"mcp_progress","server":"research_agent...11-13T19:24:04.827519"}' [143 bytes]
+19:24:04.828 | INFO     | 📥 RECEIVED: mcp_progress
+19:24:04.828 | DEBUG    | < TEXT '{"type":"mcp_progress","server":"research_agent...11-13T19:24:04.827698"}' [146 bytes]
+19:24:04.828 | INFO     | 📥 RECEIVED: mcp_progress
+19:24:04.828 | DEBUG    | < TEXT '{"type":"mcp_progress","server":"research_agent...11-13T19:24:04.828077"}' [158 bytes]
+19:24:04.829 | INFO     | 📥 RECEIVED: mcp_progress
+19:24:06.830 | WARNING  | ⏱️ Receive timeout after 120.0s
+19:24:06.830 | INFO     |   ✅ Code generation complete with 5 messages
+19:24:06.830 | INFO     | ✅ Phase 'Code Generation' complete (elapsed: 8.2s)
+19:24:06.830 | INFO     | 
+================================================================================
+19:24:06.830 | INFO     | PHASE 6: ReviewFix Validation
+19:24:06.830 | INFO     | ================================================================================
+19:24:06.831 | INFO     | 📤 SENT message #4: chat
+19:24:06.831 | DEBUG    | > TEXT '{"type": "chat", "message": "Review the code fo...es and fix any issues"}' [84 bytes]
+19:24:06.831 | INFO     |   ⏳ Waiting for ReviewFix Agent...
+19:24:08.832 | WARNING  | ⏱️ Receive timeout after 120.0s
+19:24:08.832 | INFO     |   ✅ ReviewFix validation complete with 0 messages
+19:24:08.832 | INFO     | ✅ Phase 'ReviewFix Validation' complete (elapsed: 10.2s)
+19:24:08.832 | DEBUG    | = connection is CLOSING
+19:24:08.832 | DEBUG    | > CLOSE 1000 (OK) [2 bytes]
+19:24:08.832 | DEBUG    | < CLOSE 1000 (OK) [2 bytes]
+19:24:08.833 | DEBUG    | = connection is CLOSED
+19:24:08.833 | INFO     | 
+================================================================================
+TEST EXECUTION SUMMARY
+================================================================================
+Total Duration: 10.2s
+Phases Completed: 6/6
+  Environment Setup → Backend Connection → Workspace Init → Simple Query → Code Generation → ReviewFix Validation
+Messages Received: 8
+Agents Invoked: []
+Errors: 0
+  ✅ No errors!
+================================================================================
+
+19:24:08.833 | INFO     | 
+✅ Test PASSED - All phases complete!

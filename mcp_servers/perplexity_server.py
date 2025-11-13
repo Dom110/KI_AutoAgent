@@ -22,16 +22,35 @@ import sys
 import json
 import asyncio
 import os
+import logging
 from datetime import datetime
 from pathlib import Path
 
-# Add backend to path to import our existing tools
-sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
+# ⚠️ FIX: Add project_root to path (not backend!) so we can import backend.utils
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
 # Load API keys from global config
 env_path = Path.home() / ".ki_autoagent" / "config" / ".env"
 load_dotenv(env_path)
+
+# Import API validator (decentralized validation)
+# ⚠️ FIX: MCP servers run from project root, so import from backend.utils!
+from backend.utils.api_validator import validate_perplexity_key
+
+# ⚠️ LOGGING: Configure logging to file (stdout is for JSON-RPC)
+# All log messages (info, debug, warning, error) go to /tmp/mcp_perplexity.log
+log_file = "/tmp/mcp_perplexity.log"
+logging.basicConfig(
+    level=logging.DEBUG,  # Log everything!
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename=log_file,
+    filemode='a'  # Append mode
+)
+logger = logging.getLogger("perplexity_mcp_server")
+logger.info(f"=" * 80)
+logger.info(f"🚀 Perplexity MCP Server starting at {datetime.now()}")
+logger.info(f"=" * 80)
 
 
 # ============================================================================
@@ -387,6 +406,11 @@ async def handle_request(request: dict) -> dict:
 async def main():
     """Main MCP server loop with async stdin/stdout (supports heartbeat)"""
 
+    # ✅ Validate Perplexity API key first
+    logger.info("🔑 Validating Perplexity API key...")
+    validate_perplexity_key(exit_on_fail=False)  # Optional, don't exit if missing
+    logger.info("✅ Perplexity MCP Server starting...")
+    
     # Log to stderr (stdout is reserved for MCP protocol)
     print(f"[{datetime.now()}] Perplexity MCP Server started (async mode)", file=sys.stderr)
     print(f"[{datetime.now()}] Using Perplexity API for web search", file=sys.stderr)

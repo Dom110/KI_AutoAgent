@@ -25,16 +25,80 @@ import sys
 import json
 import asyncio
 import logging
+import os
 from typing import Any, Dict, Optional
 from datetime import datetime
+from pathlib import Path
 
-# Configure logging to stderr (stdout is for JSON-RPC)
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from backend.utils.api_validator import validate_openai_key
+
+# ⚠️ Load environment variables
+env_path = Path.home() / ".ki_autoagent" / "config" / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
+
+# ⚠️ LOGGING: Configure logging to file (stdout is for JSON-RPC)
+# All log messages (info, debug, warning, error) go to /tmp/mcp_architect_agent.log
+log_file = "/tmp/mcp_architect_agent.log"
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Log everything!
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stderr
+    filename=log_file,
+    filemode='a'  # Append mode
 )
 logger = logging.getLogger("architect_mcp_server")
+logger.info(f"=" * 80)
+logger.info(f"🚀 Architect MCP Server starting at {datetime.now()}")
+logger.info(f"=" * 80)
+
+
+# ⚠️ MCP BLEIBT: INLINE Helper for non-blocking stdin (FIXES FIX #2: Async Blocking I/O)
+async def async_stdin_readline() -> str:
+    """
+    🔄 Non-blocking stdin readline for asyncio
+    
+    Fixes the asyncio blocking I/O issue where servers would freeze
+    waiting for input from stdin. Uses run_in_executor with 300s timeout.
+    
+    Returns:
+        str: Line read from stdin, or empty string on timeout/EOF
+    """
+    loop = asyncio.get_event_loop()
+    
+    def _read():
+        try:
+            line = sys.stdin.readline()
+            if line:
+                logger.debug(f"🔍 [stdin] Read {len(line)} bytes")
+            return line
+        except Exception as e:
+            logger.error(f"❌ [stdin] readline() error: {type(e).__name__}: {e}")
+            return ""
+    
+    try:
+        logger.debug("⏳ [stdin] Waiting for input (300s timeout)...")
+        result = await asyncio.wait_for(
+            loop.run_in_executor(None, _read),
+            timeout=300.0
+        )
+        if result:
+            logger.debug(f"✅ [stdin] Got line: {result[:60].strip()}...")
+        else:
+            logger.debug("ℹ️ [stdin] EOF (empty line)")
+        return result
+    except asyncio.TimeoutError:
+        logger.warning("⏱️ [stdin] Timeout (300s) - parent process may have disconnected")
+        return ""
+    except Exception as e:
+        logger.error(f"❌ [stdin] Unexpected error: {type(e).__name__}: {e}")
+        return ""
+
+
 
 
 class ArchitectAgentMCPServer:
@@ -195,49 +259,49 @@ class ArchitectAgentMCPServer:
             prompt = self._build_architecture_prompt(instructions, research_context, workspace_path)
             system_prompt = self._get_architecture_system_prompt()
 
-            # ⚠️ MCP BLEIBT: Call OpenAI via MCP Server!
-            await self.send_progress(0.3, "🤖 Calling OpenAI via MCP...")
+            # ⚠️ MCP BLEIBT: Call OpenAI directly for architecture generation
+            await self.send_progress(0.3, "🤖 Calling OpenAI GPT-4o...")
 
-            # TODO: This will be implemented once MCPClient is available
-            # For now, return placeholder indicating MCP architecture
+            logger.info(f"   🔧 Initializing OpenAI client...")
+            llm = ChatOpenAI(
+                model="gpt-4o-2024-11-20",
+                temperature=0.4,
+                max_tokens=4000
+            )
 
-            # In the final implementation:
-            # openai_result = await self.mcp.call(
-            #     server="openai",
-            #     tool="complete",
-            #     arguments={
-            #         "messages": [
-            #             {"role": "system", "content": system_prompt},
-            #             {"role": "user", "content": prompt}
-            #         ],
-            #         "model": "gpt-4o-2024-11-20",
-            #         "temperature": 0.4,
-            #         "max_tokens": 4000
-            #     }
-            # )
+            # Prepare messages
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=prompt)
+            ]
+
+            logger.info(f"   📡 Sending request to OpenAI GPT-4o...")
+            response = await llm.ainvoke(messages)
+            logger.info(f"   ✅ Received response from OpenAI")
 
             await self.send_progress(0.8, "📝 Processing architecture...")
 
-            # Placeholder architecture for MCP migration phase
-            architecture = {
-                "description": f"Architecture design for: {instructions[:100]}",
-                "components": [
-                    {
-                        "name": "Main Component",
-                        "description": "⚠️ MCP BLEIBT: This will be generated by OpenAI MCP Server"
-                    }
-                ],
-                "file_structure": [
-                    "src/",
-                    "tests/",
-                    "README.md"
-                ],
-                "technologies": ["Python"],
-                "patterns": ["MVC"],
-                "data_flow": [],
-                "note": "Architecture will be generated via OpenAI MCP Server when MCPClient is connected",
-                "created_at": datetime.now().isoformat()
-            }
+            # Parse architecture from response
+            try:
+                architecture_text = response.content
+                logger.info(f"   📄 Architecture response: {len(architecture_text)} chars")
+
+                # Try to extract JSON
+                architecture = self._parse_architecture_response(architecture_text)
+                logger.info(f"   ✅ Architecture parsed successfully")
+            except Exception as e:
+                logger.warning(f"   ⚠️  Could not parse JSON response: {e}")
+                logger.info(f"   📝 Using response as description")
+                architecture = {
+                    "description": architecture_text[:500],
+                    "components": [],
+                    "file_structure": ["src/", "tests/", "README.md"],
+                    "technologies": [],
+                    "patterns": [],
+                    "data_flow": [],
+                    "raw_response": architecture_text,
+                    "created_at": datetime.now().isoformat()
+                }
 
             # Adjust for workspace if provided
             if workspace_path:
@@ -266,6 +330,42 @@ class ArchitectAgentMCPServer:
             logger.error(f"Architecture design failed: {e}")
             await self.send_progress(1.0, f"❌ Error: {str(e)}")
             raise
+
+    def _parse_architecture_response(self, response_text: str) -> Dict[str, Any]:
+        """
+        ⚠️ MCP BLEIBT: Parse architecture from OpenAI response
+
+        Tries to extract JSON from the response text.
+        Falls back to using response as text if JSON parsing fails.
+        """
+        try:
+            # Try direct JSON parsing
+            architecture = json.loads(response_text)
+            return architecture
+        except json.JSONDecodeError:
+            pass
+
+        # Try to find JSON in response (enclosed in ```json ... ```)
+        import re
+        json_match = re.search(r'```json\s*(.*?)\s*```', response_text, re.DOTALL)
+        if json_match:
+            try:
+                architecture = json.loads(json_match.group(1))
+                return architecture
+            except json.JSONDecodeError:
+                pass
+
+        # Try to find any JSON-like object
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        if json_match:
+            try:
+                architecture = json.loads(json_match.group(0))
+                return architecture
+            except json.JSONDecodeError:
+                pass
+
+        # If all parsing fails, raise error
+        raise ValueError(f"Could not parse architecture from response: {response_text[:100]}")
 
     def _get_architecture_system_prompt(self) -> str:
         """
@@ -425,7 +525,7 @@ Design production-ready, well-structured architectures."""
             loop = asyncio.get_event_loop()
 
             while True:
-                line = await loop.run_in_executor(None, sys.stdin.readline)
+                line = await async_stdin_readline()
 
                 if not line:
                     logger.info("EOF received, shutting down")
@@ -451,6 +551,15 @@ async def main():
     """
     ⚠️ MCP BLEIBT: Entry point for Architect Agent MCP Server
     """
+    # Validate OpenAI API key before starting
+    logger.info("🔑 Validating OpenAI API key...")
+    try:
+        validate_openai_key(exit_on_fail=True)
+        logger.info("✅ OpenAI API key valid")
+    except Exception as e:
+        logger.error(f"❌ OpenAI API validation failed: {e}")
+        sys.exit(1)
+
     server = ArchitectAgentMCPServer()
     await server.run()
 
